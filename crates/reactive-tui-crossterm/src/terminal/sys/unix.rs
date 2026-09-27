@@ -300,8 +300,12 @@ pub fn query_startup(timeout: std::time::Duration) -> io::Result<StartupReplies>
     });
     if written.is_err() {
         let mut stdout = io::stdout();
-        stdout.write_all(QUERY)?;
-        stdout.flush()?;
+        if let Err(error) = stdout.write_all(QUERY).and_then(|()| stdout.flush()) {
+            // Nothing was asked, so no reply is due.
+            crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
+                .store(false, std::sync::atomic::Ordering::Release);
+            return Err(error);
+        }
     }
     let deadline = Instant::now() + timeout;
     let mut replies = StartupReplies::default();
