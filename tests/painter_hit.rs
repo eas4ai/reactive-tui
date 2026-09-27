@@ -17,6 +17,7 @@ use reactive_tui::app::RootComponent;
 use reactive_tui::backend::{Backend, SuprTuiBackend};
 use reactive_tui::builder;
 use reactive_tui::component::{Element, LayoutType};
+use reactive_tui::vdom::{bridge::vdom_to_element, node::VNode};
 use std::io::{self, Write};
 
 struct Root(Element);
@@ -491,6 +492,16 @@ fn pnt_005_edited_frames_paint_what_a_full_layout_paints() {
             .with_children(rows)
     };
     let long = "a much longer text";
+    // A panel shown or hidden by its inline display style.
+    let panel = |display: &str| {
+        vdom_to_element(
+            VNode::element("flex")
+                .class("flex flex-row w-full h-2 bg-green-500")
+                .style(format!("display: {display}"))
+                .child(VNode::text("shown"))
+                .build(),
+        )
+    };
     let frames = [
         frame(vec![row(&["a", "b", "c"], plain), row(&["d", "e"], plain)]),
         // A text changes and grows.
@@ -506,6 +517,22 @@ fn pnt_005_edited_frames_paint_what_a_full_layout_paints() {
         frame(vec![
             row(&["d", "e"], tall),
             row(&["f"], "flex flex-row w-1/2 h-1 bg-green-500"),
+        ]),
+        // A hidden panel is shown, then hidden again.
+        frame(vec![
+            row(&["a", "b"], plain),
+            panel("none"),
+            row(&["d"], plain),
+        ]),
+        frame(vec![
+            row(&["a", "b"], plain),
+            panel("flex"),
+            row(&["d"], plain),
+        ]),
+        frame(vec![
+            row(&["a", "b"], plain),
+            panel("none"),
+            row(&["d"], plain),
         ]),
         // Back to the first frame.
         frame(vec![row(&["a", "b", "c"], plain), row(&["d", "e"], plain)]),

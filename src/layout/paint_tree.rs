@@ -162,9 +162,60 @@ fn build_nodes_inherited(
     inherited_width: bool,
     styles: &mut dyn Iterator<Item = StyleBuilder>,
 ) -> Result<NodeId> {
-    let mut sb = styles
+    let sb = styles
         .next()
         .unwrap_or_else(|| apply_utility_classes(spec.class.as_ref(), StyleBuilder::new()));
+    let parts = node_parts(spec, sb, inherited, inherited_foreground, inherited_width);
+    let id = if spec.children.is_empty() {
+        taffy
+            .new_leaf(parts.style)
+            .map_err(|e| ReactiveError::layout(format!("Failed to create leaf node: {}", e)))?
+    } else {
+        let id = taffy
+            .new_with_children(parts.style, &[])
+            .map_err(|e| ReactiveError::layout(format!("Failed to create parent node: {}", e)))?;
+        let mut child_ids: Vec<NodeId> = Vec::with_capacity(spec.children.len());
+        for child in &spec.children {
+            let cid = build_nodes_inherited(
+                taffy,
+                child,
+                map,
+                &parts.typography,
+                parts.foreground,
+                parts.unconstrained_width,
+                styles,
+            )?;
+            child_ids.push(cid);
+        }
+        taffy
+            .set_children(id, &child_ids)
+            .map_err(|e| ReactiveError::layout(format!("Failed to set children: {}", e)))?;
+        id
+    };
+    map.insert(id, parts.paint);
+    Ok(id)
+}
+
+/// What one spec node lays out and paints with, and what its children
+/// inherit from it.
+struct NodeParts {
+    style: Style,
+    paint: NodePaint,
+    typography: crate::layout::text::TextStyle,
+    foreground: Option<(f32, f32, f32, f32)>,
+    unconstrained_width: bool,
+}
+
+/// The layout style and paint record of `spec` from its style builder `sb`
+/// and what its parent passes down. The layout engine's node itself is the
+/// caller's to create or update.
+fn node_parts(
+    spec: &NodeSpec<'_>,
+    mut sb: StyleBuilder,
+    inherited: &crate::layout::text::TextStyle,
+    inherited_foreground: Option<(f32, f32, f32, f32)>,
+    inherited_width: bool,
+) -> NodeParts {
     let typography = sb.text.inherit(inherited);
     let foreground = sb.fg_rgba.or(inherited_foreground);
     sb.fg_rgba = foreground;
@@ -188,32 +239,6 @@ fn build_nodes_inherited(
 
     let style: Style = sb.clone().build();
 
-    let id = if spec.children.is_empty() {
-        taffy
-            .new_leaf(style.clone())
-            .map_err(|e| ReactiveError::layout(format!("Failed to create leaf node: {}", e)))?
-    } else {
-        let id = taffy
-            .new_with_children(style, &[])
-            .map_err(|e| ReactiveError::layout(format!("Failed to create parent node: {}", e)))?;
-        let mut child_ids: Vec<NodeId> = Vec::with_capacity(spec.children.len());
-        for child in &spec.children {
-            let cid = build_nodes_inherited(
-                taffy,
-                child,
-                map,
-                &typography,
-                foreground,
-                unconstrained_width,
-                styles,
-            )?;
-            child_ids.push(cid);
-        }
-        taffy
-            .set_children(id, &child_ids)
-            .map_err(|e| ReactiveError::layout(format!("Failed to set children: {}", e)))?;
-        id
-    };
     // Extract visuals + padding/margin cache (px only)
     let opacity = sb.opacity.unwrap_or(1.0).clamp(0.0, 1.0);
     let explicit_background = sb.has_bg_color();
@@ -236,15 +261,15 @@ fn build_nodes_inherited(
                 .and_then(crate::layout::colors::parse_color_token)
                 .is_some()
         });
-    map.insert(
-        id,
-        NodePaint {
+    NodeParts {
+        style,
+        paint: NodePaint {
             unconstrained_width,
             opacity,
             transform: sb.motion.transform,
             gradient: sb.gradient.clone(),
             gradient_border: sb.gradient_border.clone(),
-            typography,
+            typography: typography.clone(),
             style: paint_style,
             background_specified,
             text,
@@ -253,8 +278,10 @@ fn build_nodes_inherited(
             overflow_x,
             overflow_y,
         },
-    );
-    Ok(id)
+        typography,
+        foreground,
+        unconstrained_width,
+    }
 }
 
 fn measure_text(
