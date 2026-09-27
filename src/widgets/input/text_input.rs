@@ -1253,7 +1253,12 @@ impl TextInput {
                 if direction == 0.0 {
                     return EventResult::Ignored;
                 }
+                let before = state.scroll_offset_y;
                 self.scroll_rows(props, state, direction);
+                // At an edge the wheel passes to an enclosing view (INP-005).
+                if state.scroll_offset_y == before {
+                    return EventResult::Ignored;
+                }
                 EventResult::Consumed
             }
             _ => EventResult::Ignored,

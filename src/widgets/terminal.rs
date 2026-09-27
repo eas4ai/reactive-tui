@@ -370,7 +370,12 @@ impl TerminalWidget {
                 if !y.is_finite() || y == 0.0 {
                     return EventResult::Ignored;
                 }
+                let before = self.state.scroll_position;
                 self.scroll((-y).round() as i32);
+                // At an edge the wheel passes to an enclosing view (INP-005).
+                if self.state.scroll_position == before {
+                    return EventResult::Ignored;
+                }
                 EventResult::Consumed
             }
             _ => EventResult::Ignored,

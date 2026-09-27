@@ -988,10 +988,15 @@ impl Explorer {
                     if let Some(wheel) = &mouse.wheel {
                         let (WheelDelta::Lines { y, .. } | WheelDelta::Pixels { y, .. }) =
                             wheel.delta;
+                        let before = self.scroll;
                         self.scroll = (self.scroll as f64 + y as f64)
                             .max(0.0)
                             .min(usize::MAX as f64) as usize;
                         self.clamp();
+                        // At an edge the wheel passes to an enclosing view (INP-005).
+                        if self.scroll == before {
+                            return EventResult::Ignored;
+                        }
                         return EventResult::Consumed;
                     }
                 }
