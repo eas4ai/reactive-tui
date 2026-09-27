@@ -48,9 +48,10 @@ Observed for keyboard-and-queries at 059bb9a6, by reading:
 - The vendored crossterm can push the disambiguate and report-all-keys
   flags but not report-associated-text (16), and its `CSI u` parser skips
   the text field (crates/reactive-tui-crossterm/src/event.rs:295-309,
-  src/event/sys/unix/parse.rs, parse_csi_u_encoded_key_code). It parses
-  the keyboard-flags reply and the device-attributes reply as internal
-  events, not the background-color reply.
+  crates/reactive-tui-crossterm/src/event/sys/unix/parse.rs,
+  parse_csi_u_encoded_key_code). It parses the keyboard-flags reply and
+  the device-attributes reply as internal events, not the
+  background-color reply.
 - The terminal's own focus reports (`ESC[I`, `ESC[O`, turned on by mode
   1004) become `Event::Focus`, the type element focus changes use, and the
   router sends them to the focused element (src/app.rs process_input;
@@ -65,7 +66,8 @@ Observed for keyboard-and-queries at 059bb9a6, by reading:
   on exit, and reads its startup replies itself before its input reader
   starts, turning keys typed meanwhile back into events
   (~/workspace2/textual-rs/src/driver/platform/posix.rs:76-90,
-  src/driver/live.rs, src/driver/typeahead.rs).
+  ~/workspace2/textual-rs/src/driver/live.rs,
+  ~/workspace2/textual-rs/src/driver/typeahead.rs).
 
 ## Observed
 
