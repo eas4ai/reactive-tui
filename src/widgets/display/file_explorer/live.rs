@@ -90,7 +90,6 @@ struct Explorer {
     error: Option<String>,
     preview: Option<(PathBuf, String)>,
     search_edit: bool,
-    last_press: Option<Target>,
     focused: bool,
 }
 
@@ -870,7 +869,6 @@ impl Explorer {
             error,
             preview: None,
             search_edit: false,
-            last_press: None,
             focused: false,
         }
     }
@@ -950,7 +948,6 @@ impl Explorer {
         match event {
             Event::Focus(focus) => {
                 self.focused = focus.kind == crate::event::types::FocusEventKind::Gained;
-                self.last_press = None;
                 EventResult::Consumed
             }
             Event::Custom(event) if event.name == "reactive_tui.file_explorer.focus" => {
@@ -985,10 +982,7 @@ impl Explorer {
                     EventResult::Ignored
                 }
             }
-            Event::Key(key) => {
-                self.last_press = None;
-                self.key(key)
-            }
+            Event::Key(key) => self.key(key),
             Event::Mouse(mouse) => {
                 if mouse.kind == MouseEventKind::Wheel {
                     if let Some(wheel) = &mouse.wheel {
@@ -1009,7 +1003,6 @@ impl Explorer {
                 };
                 match mouse.kind {
                     MouseEventKind::Down => {
-                        self.last_press = Some(target.clone());
                         if let Target::Entry(path) = target {
                             if self.prompt.is_none()
                                 && self.error.is_none()
@@ -1021,21 +1014,8 @@ impl Explorer {
                             self.action(target);
                         }
                     }
-                    MouseEventKind::Click => {
-                        if self.last_press.take().as_ref() == Some(&target) {
-                            return EventResult::Consumed;
-                        }
-                        if let Target::Entry(path) = target {
-                            if self.prompt.is_none()
-                                && self.error.is_none()
-                                && !self.pending_operation
-                            {
-                                self.select(path, mouse.modifiers.shift, mouse.modifiers.ctrl);
-                            }
-                        } else {
-                            self.action(target);
-                        }
-                    }
+                    // The press already acted; a click never activates (INP-004).
+                    MouseEventKind::Click => {}
                     MouseEventKind::DoubleClick => {
                         if let Target::Entry(path) = target {
                             if self.prompt.is_none()
