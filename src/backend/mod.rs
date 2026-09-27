@@ -344,10 +344,22 @@ impl CrosstermBackend {
                     MK::Down(b) | MK::Up(b) | MK::Drag(b) => Self::map_ct_mouse_button(b),
                     _ => rt_event::MouseButton::None,
                 };
+                // One report is one line (INP-002): up and down on y, left and right on x.
+                let lines = match me.kind {
+                    MK::ScrollUp => Some((0.0, -1.0)),
+                    MK::ScrollDown => Some((0.0, 1.0)),
+                    MK::ScrollLeft => Some((-1.0, 0.0)),
+                    MK::ScrollRight => Some((1.0, 0.0)),
+                    _ => None,
+                };
                 let modifiers = Self::map_ct_key_mods(me.modifiers);
-                let ev = rt_event::MouseEvent::new(kind, pos)
+                let mut ev = rt_event::MouseEvent::new(kind, pos)
                     .with_button(btn)
                     .with_modifiers(modifiers);
+                ev.wheel = lines.map(|(x, y)| rt_event::WheelEvent {
+                    delta: rt_event::WheelDelta::Lines { x, y },
+                    phase: rt_event::WheelPhase::Changed,
+                });
                 Some(rt_event::Event::Mouse(ev))
             }
         }
@@ -406,6 +418,9 @@ impl Backend for CrosstermBackend {
     }
     fn render_full(&mut self, element: &Element) -> Result<()> {
         self.inner.render_full(element)
+    }
+    fn hit_cells(&self) -> Option<&[u32]> {
+        self.inner.hit_cells()
     }
     fn shutdown(&mut self) -> Result<()> {
         self.inner.shutdown()
@@ -842,5 +857,69 @@ mod tests {
             }
             _ => panic!("expected Mouse"),
         }
+    }
+
+    /// INP-002: each wheel report keeps its direction as one line.
+    #[test]
+    fn map_wheel_events_keep_their_direction() {
+        use crossterm::event::KeyModifiers as Km;
+        use crossterm::event::{MouseEvent, MouseEventKind as Mk};
+        for (kind, lines) in [
+            (Mk::ScrollUp, (0.0, -1.0)),
+            (Mk::ScrollDown, (0.0, 1.0)),
+            (Mk::ScrollLeft, (-1.0, 0.0)),
+            (Mk::ScrollRight, (1.0, 0.0)),
+        ] {
+            let ct = CtEvent::Mouse(MouseEvent {
+                kind,
+                column: 3,
+                row: 4,
+                modifiers: Km::SHIFT,
+            });
+            let Some(rt_event::Event::Mouse(m)) = CrosstermBackend::map_ct_event(ct) else {
+                panic!("expected Mouse");
+            };
+            assert_eq!(m.kind, rt_event::MouseEventKind::Wheel);
+            assert_eq!(m.position, rt_event::Position::cell(3, 4));
+            assert!(m.modifiers.shift);
+            assert!(
+                matches!(
+                    m.wheel.map(|wheel| wheel.delta),
+                    Some(rt_event::WheelDelta::Lines { x, y }) if (x, y) == lines
+                ),
+                "{kind:?} lost its direction"
+            );
+        }
+    }
+
+    /// PNT-002: the wrapper passes the renderer's hit grid through, so the
+    /// event layer does not fall back to painted bounds.
+    #[test]
+    fn pnt_002_crossterm_backend_passes_the_hit_grid_through() {
+        let masked = Element::layout(crate::component::LayoutType::Flex)
+            .with_class("relative w-full h-full")
+            .with_children(vec![Element::layout(crate::component::LayoutType::Flex)
+                .with_class("absolute left-0 top-0 w-3 h-1 overflow-hidden")
+                .with_children(vec![
+                    Element::text("abcdef").with_class("absolute left-0 top-0 w-6 h-1")
+                ])]);
+        let mut backend = CrosstermBackend {
+            inner: SuprTuiBackend::with_writer(12, 3, Vec::new()).unwrap(),
+        };
+        assert!(backend.render_frame(&masked).unwrap());
+        backend.present().unwrap();
+        backend.inner.sync().unwrap();
+        let hits = backend.hit_cells().expect("CrosstermBackend's hit grid");
+        assert_eq!(Some(hits), backend.inner.hit_cells());
+        assert_eq!(
+            backend.hit_at(1, 0),
+            Some(3),
+            "inside the mask the child is hit"
+        );
+        assert_eq!(
+            backend.hit_at(5, 0),
+            Some(1),
+            "outside the mask the clipping box is hit"
+        );
     }
 }

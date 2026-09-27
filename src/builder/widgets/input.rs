@@ -617,7 +617,7 @@ impl crate::component::Component for ConfiguredSelect {
                         .option_at(mouse.position, &props.widget_props(), state)
                         .is_some()
                         && mouse.button == MouseButton::Left
-                        && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
+                        && mouse.kind == MouseEventKind::Down
                 }
                 _ => false,
             };

@@ -1,5 +1,8 @@
 use crate::error::Result;
 use ::suprtui::render::{Backend as ByteBackend, WriteStatus};
+use crossterm::event::{
+    DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+};
 use std::cell::RefCell;
 use std::io::{self, Write};
 use std::rc::Rc;
@@ -147,28 +150,44 @@ impl<W: Write> ByteBackend for CheckedOutput<W> {
     }
 }
 
+/// What a renderer session changes on its writer's terminal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Session {
+    /// An owned writer: no terminal mode changes.
+    Writer,
+    /// The terminal's screen, while another owner reads its input.
+    Screen,
+    /// The terminal's screen and its input: mouse reports and bracketed
+    /// paste as well (INP-001).
+    ScreenAndInput,
+}
+
 /// Session ownership stays separate from renderer buffers so resize cannot
 /// lose restoration state. Drop also covers worker unwinding and disconnects.
 pub(super) struct TerminalOutput<W: Write> {
     writer: Rc<RefCell<W>>,
-    terminal: bool,
+    session: Session,
     active: bool,
 }
 
 impl<W: Write> TerminalOutput<W> {
-    pub(super) fn new(writer: Rc<RefCell<W>>, terminal: bool) -> Self {
+    pub(super) fn new(writer: Rc<RefCell<W>>, session: Session) -> Self {
         Self {
             writer,
-            terminal,
+            session,
             active: false,
         }
     }
 
     pub(super) fn enter(&mut self) -> Result<()> {
-        if self.terminal {
+        if self.session != Session::Writer {
             self.active = true; // Also restore if setup only partially writes.
             let mut writer = self.writer.borrow_mut();
             writer.write_all(b"\x1b[?1049h\x1b[?25l\x1b[?1004h")?;
+            if self.session == Session::ScreenAndInput {
+                // On Windows the mouse command sets the console input mode instead.
+                crossterm::queue!(&mut *writer, EnableMouseCapture, EnableBracketedPaste)?;
+            }
             writer.flush()?;
         }
         Ok(())
@@ -178,9 +197,11 @@ impl<W: Write> TerminalOutput<W> {
         if self.active {
             let mut writer = self.writer.borrow_mut();
             // ST instead of CAN here too: CAN paints a glyph on some terminals.
-            writer.write_all(
-                b"\x1b\\\x1b[?2026l\x1b[0m\x1b[?1004l\x1b[0 q\x1b]112\x07\x1b[?25h\x1b[?1049l",
-            )?;
+            writer.write_all(b"\x1b\\\x1b[?2026l\x1b[0m\x1b[?1004l")?;
+            if self.session == Session::ScreenAndInput {
+                crossterm::queue!(&mut *writer, DisableBracketedPaste, DisableMouseCapture)?;
+            }
+            writer.write_all(b"\x1b[0 q\x1b]112\x07\x1b[?25h\x1b[?1049l")?;
             writer.flush()?;
             self.active = false;
         }
@@ -228,10 +249,71 @@ mod tests {
     #[test]
     fn restore_emits_no_can_byte() {
         let writer = Rc::new(RefCell::new(Vec::<u8>::new()));
-        let mut terminal = TerminalOutput::new(Rc::clone(&writer), true);
+        let mut terminal = TerminalOutput::new(Rc::clone(&writer), Session::Screen);
         terminal.enter().unwrap();
         writer.borrow_mut().clear();
         terminal.restore().unwrap();
         assert!(!writer.borrow().contains(&0x18));
+    }
+
+    /// INP-001 on Windows, where crossterm's mouse commands set the console
+    /// input mode instead of writing bytes. Needs a console, as over SSH.
+    #[cfg(windows)]
+    #[test]
+    fn windows_input_session_sets_and_restores_the_console_mouse_mode() {
+        use windows_sys::Win32::Foundation::{
+            CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE,
+        };
+        use windows_sys::Win32::Storage::FileSystem::{
+            CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+        };
+        use windows_sys::Win32::System::Console::{
+            GetConsoleMode, ENABLE_MOUSE_INPUT, ENABLE_QUICK_EDIT_MODE,
+        };
+
+        fn console_input_mode() -> u32 {
+            let name: Vec<u16> = "CONIN$\0".encode_utf16().collect();
+            // SAFETY: `name` is a NUL-terminated UTF-16 string that outlives the call,
+            // and the handle is closed before returning.
+            unsafe {
+                let handle = CreateFileW(
+                    name.as_ptr(),
+                    GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    std::ptr::null(),
+                    OPEN_EXISTING,
+                    0,
+                    std::ptr::null_mut(),
+                );
+                assert_ne!(handle, INVALID_HANDLE_VALUE, "this test needs a console");
+                let mut mode = 0;
+                let read = GetConsoleMode(handle, &mut mode);
+                CloseHandle(handle);
+                assert_ne!(read, 0, "the console input mode");
+                mode
+            }
+        }
+
+        let before = console_input_mode();
+        let writer = Rc::new(RefCell::new(Vec::<u8>::new()));
+        let mut session = TerminalOutput::new(Rc::clone(&writer), Session::ScreenAndInput);
+        session.enter().unwrap();
+        let during = console_input_mode();
+        session.restore().unwrap();
+        let after = console_input_mode();
+        assert!(
+            during & ENABLE_MOUSE_INPUT != 0 && during & ENABLE_QUICK_EDIT_MODE == 0,
+            "INP-001: the session left the console input mode at {during:#x}"
+        );
+        assert_eq!(
+            after, before,
+            "INP-001: restore left the console input mode at {after:#x}, not {before:#x}"
+        );
+        let bytes = String::from_utf8_lossy(&writer.borrow()).into_owned();
+        assert!(
+            bytes.contains("\x1b[?2004h") && bytes.ends_with("\x1b[?1049l"),
+            "INP-001: the session wrote {bytes:?}"
+        );
+        assert!(bytes.rfind("\x1b[?2004l") > bytes.rfind("\x1b[?2004h"));
     }
 }

@@ -267,8 +267,7 @@ impl Component for LiveAccordion {
                 Accordion.handle_keyboard_event(key, &props.config, state)
             }
             Event::Mouse(mouse)
-                if matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
-                    && mouse.button == MouseButton::Left =>
+                if mouse.kind == MouseEventKind::Down && mouse.button == MouseButton::Left =>
             {
                 let Some(root) = self.viewport else {
                     return EventResult::Ignored;

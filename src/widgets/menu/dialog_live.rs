@@ -626,8 +626,7 @@ impl MenuRuntime for DialogRuntime {
                 }
             }
             Event::Mouse(mouse)
-                if matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
-                    && mouse.button == MouseButton::Left =>
+                if mouse.kind == MouseEventKind::Down && mouse.button == MouseButton::Left =>
             {
                 let (x, y) = (mouse.position.x() as f32, mouse.position.y() as f32);
                 if let Some(path) = self.view.hit(x, y) {

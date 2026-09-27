@@ -330,15 +330,14 @@ impl TerminalWidget {
 
     fn handle_mouse_event(&mut self, event: &MouseEvent) -> EventResult {
         match event.kind {
-            MouseEventKind::Down | MouseEventKind::Click => {
+            MouseEventKind::Down => {
                 self.scroll_dragging.store(false, Ordering::Release);
                 self.set_focus(true);
                 if event.button == crate::event::types::MouseButton::Left {
                     if let Some(offset) = self.scrollbar_offset(event, false) {
                         self.state.scroll_position = offset;
                         self.state.needs_redraw = true;
-                        self.scroll_dragging
-                            .store(event.kind == MouseEventKind::Down, Ordering::Release);
+                        self.scroll_dragging.store(true, Ordering::Release);
                         return EventResult::Consumed;
                     }
                 }

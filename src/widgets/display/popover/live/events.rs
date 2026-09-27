@@ -94,8 +94,7 @@ impl Popover {
 pub(super) fn activation(event: &Event) -> bool {
     match event {
         Event::Mouse(mouse) => {
-            mouse.button == MouseButton::Left
-                && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
+            mouse.button == MouseButton::Left && mouse.kind == MouseEventKind::Down
         }
         Event::Key(key) => {
             key.kind == KeyEventKind::Press

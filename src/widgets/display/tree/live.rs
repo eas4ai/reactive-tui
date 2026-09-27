@@ -764,6 +764,7 @@ impl Component for LiveTree {
                         let (x, y) = match wheel.delta {
                             WheelDelta::Lines { x, y } | WheelDelta::Pixels { x, y } => (x, y),
                         };
+                        let before = (self.scroll, state.scroll_state.offset_x);
                         if mouse.modifiers.shift {
                             state.scroll_state.offset_x =
                                 (state.scroll_state.offset_x as f32 + x + y)
@@ -780,6 +781,10 @@ impl Component for LiveTree {
                                 as u16;
                         }
                         self.clamp(props, state);
+                        // At an edge the wheel passes to an enclosing view (INP-005).
+                        if (self.scroll, state.scroll_state.offset_x) == before {
+                            return EventResult::Ignored;
+                        }
                         return EventResult::Consumed;
                     }
                     return EventResult::Ignored;

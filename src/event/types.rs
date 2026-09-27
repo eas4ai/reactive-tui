@@ -50,8 +50,8 @@ impl Event {
                     )
             }
             Event::Mouse(mouse) => {
-                mouse.button == MouseButton::Left
-                    && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
+                // The press activates; the click its release makes does not (INP-004).
+                mouse.button == MouseButton::Left && mouse.kind == MouseEventKind::Down
             }
             _ => false,
         }

@@ -388,7 +388,7 @@ impl ComponentRuntime {
         if let (crate::event::types::Position::Cell { x, y }, Some(bounds)) =
             (event.position, cached)
         {
-            let Some((x, y)) = bounds.local_cell(f32::from(x), f32::from(y)) else {
+            let Some((x, y)) = component_cell(&bounds, event, x, y) else {
                 self.mouse.process_routed_event(event, None, None, None);
                 return;
             };
@@ -400,6 +400,26 @@ impl ComponentRuntime {
             Some(&live.route_id),
             Some(local.position),
         );
+    }
+}
+
+/// A mouse event's cell in a component. Events outside it have none, except
+/// drags and releases, which follow the press to its component and keep the
+/// component's nearest cell (INP-003).
+fn component_cell(
+    bounds: &super::LayoutInfo,
+    event: &crate::event::types::MouseEvent,
+    x: u16,
+    y: u16,
+) -> Option<(u16, u16)> {
+    use crate::event::types::MouseEventKind;
+    let (x, y) = (f32::from(x), f32::from(y));
+    match bounds.local_cell(x, y) {
+        Some(cell) => Some(cell),
+        None if matches!(event.kind, MouseEventKind::Drag | MouseEventKind::Up) => {
+            bounds.nearest_local_cell(x, y)
+        }
+        None => None,
     }
 }
 
@@ -432,7 +452,7 @@ impl LiveComponent {
             if let Event::Mouse(mouse) = &mut local {
                 let cached = bounds.lock().map(|guard| *guard).unwrap_or(None);
                 if let (Position::Cell { x, y }, Some(bounds)) = (mouse.position, cached) {
-                    let (x, y) = match bounds.local_cell(f32::from(x), f32::from(y)) {
+                    let (x, y) = match component_cell(&bounds, mouse, x, y) {
                         Some(position) => position,
                         // A boundary leave necessarily lies outside the component.
                         // Its position is not an actionable cell inside the control.

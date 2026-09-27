@@ -112,7 +112,27 @@ pub struct EventRouter {
     hover_path: Vec<NodeId>,
     /// Path cache for event routing optimization
     path_cache: Option<super::cache::PathCache>,
+    /// The element that got the press and its button: that button's drags
+    /// and release go to it until the release (INP-003).
+    press: Option<(super::types::MouseButton, NodeId)>,
+    /// The last click a release made, which the next one may continue (INP-004).
+    last_click: Option<LastClick>,
+    /// The click the last release made, for the caller to deliver next.
+    click: Option<super::types::MouseEvent>,
 }
+
+/// A click made on release: its element, cell, time and count (INP-004).
+#[derive(Clone, Copy)]
+struct LastClick {
+    node: NodeId,
+    cell: (u32, u32),
+    at: std::time::Instant,
+    count: u8,
+}
+
+/// Two clicks on one element and cell this close together count as one
+/// double or triple click (INP-004).
+const MULTI_CLICK: std::time::Duration = std::time::Duration::from_millis(500);
 
 impl EventRouter {
     /// Create a new event router with default size
@@ -126,6 +146,9 @@ impl EventRouter {
             pointer: None,
             hover_path: Vec::new(),
             path_cache: None,
+            press: None,
+            last_click: None,
+            click: None,
         }
     }
 
@@ -140,6 +163,9 @@ impl EventRouter {
             pointer: None,
             hover_path: Vec::new(),
             path_cache: None,
+            press: None,
+            last_click: None,
+            click: None,
         }
     }
 
@@ -200,6 +226,15 @@ impl EventRouter {
             self.hit_test.remove_node(*id);
             self.focus_manager.unregister_focusable(*id);
             self.nodes.remove(id);
+        }
+        if self.press.is_some_and(|(_, id)| removed.contains(&id)) {
+            self.press = None;
+        }
+        if self
+            .last_click
+            .is_some_and(|click| removed.contains(&click.node))
+        {
+            self.last_click = None;
         }
         for parent in parents {
             if let Some(node) = self.nodes.get_mut(&parent) {
@@ -614,7 +649,9 @@ impl EventRouter {
         // 2. Determine target node
         let target = self.determine_target(event);
 
-        if matches!(event, Event::Mouse(mouse) if mouse.button == super::types::MouseButton::Left && matches!(mouse.kind, super::types::MouseEventKind::Down | super::types::MouseEventKind::Click))
+        // Focus follows the press; the click that its release makes must not
+        // move focus back after the press's handler moved it.
+        if matches!(event, Event::Mouse(mouse) if mouse.button == super::types::MouseButton::Left && mouse.kind == super::types::MouseEventKind::Down)
         {
             let mut candidate = Some(target);
             while let Some(id) = candidate {
@@ -627,7 +664,102 @@ impl EventRouter {
         }
 
         // 3. Route the event
-        self.route_event(event, target)
+        let result = self.route_event(event, target);
+        if let Event::Mouse(mouse) = event {
+            self.track_press(mouse, target);
+        }
+        result
+    }
+
+    /// The click the last release made, if any, for the caller to deliver
+    /// as the next event (INP-004).
+    pub(crate) fn take_click(&mut self) -> Option<super::types::MouseEvent> {
+        self.click.take()
+    }
+
+    /// The element that got the press, for a drag or release of its button (INP-003).
+    fn pressed_node(&self, mouse: &super::types::MouseEvent) -> Option<NodeId> {
+        use super::types::MouseEventKind;
+        let (button, node) = self.press?;
+        (matches!(mouse.kind, MouseEventKind::Drag | MouseEventKind::Up) && mouse.button == button)
+            .then_some(node)
+    }
+
+    /// Records a press on an element, and on its release makes the click
+    /// when the pointer is still over that element (INP-003, INP-004).
+    fn track_press(&mut self, mouse: &super::types::MouseEvent, target: NodeId) {
+        use super::types::{MouseEvent, MouseEventKind, Position};
+        match mouse.kind {
+            // A second press of the same button means its release was lost,
+            // as does motion with no button held.
+            MouseEventKind::Down if self.press.is_none_or(|(button, _)| button == mouse.button) => {
+                self.press = self
+                    .nodes
+                    .contains_key(&target)
+                    .then_some((mouse.button, target));
+            }
+            MouseEventKind::Move => self.press = None,
+            MouseEventKind::Up if self.press.is_some_and(|(button, _)| button == mouse.button) => {
+                let Some((_, pressed)) = self.press.take() else {
+                    return;
+                };
+                let Position::Cell { x, y } = mouse.position else {
+                    return;
+                };
+                let point = super::hit::Point::new(f32::from(x), f32::from(y));
+                let over = self
+                    .resolve_hit(point)
+                    .is_some_and(|under| self.is_within(under, pressed));
+                if !over {
+                    return;
+                }
+                let cell = (u32::from(x), u32::from(y));
+                let count = match self.last_click {
+                    Some(last)
+                        if last.node == pressed
+                            && last.cell == cell
+                            && mouse.timestamp.saturating_duration_since(last.at) < MULTI_CLICK =>
+                    {
+                        last.count.saturating_add(1).min(3)
+                    }
+                    _ => 1,
+                };
+                self.last_click = Some(LastClick {
+                    node: pressed,
+                    cell,
+                    at: mouse.timestamp,
+                    count,
+                });
+                let kind = match count {
+                    1 => MouseEventKind::Click,
+                    2 => MouseEventKind::DoubleClick,
+                    _ => MouseEventKind::TripleClick,
+                };
+                let mut click = MouseEvent::new(kind, mouse.position)
+                    .with_button(mouse.button)
+                    .with_modifiers(mouse.modifiers);
+                click.timestamp = mouse.timestamp;
+                self.click = Some(click);
+            }
+            _ => {}
+        }
+    }
+
+    /// Whether `node` is `ancestor` or lies inside it.
+    fn is_within(&self, node: NodeId, ancestor: NodeId) -> bool {
+        let mut current = Some(node);
+        let mut depth = 0;
+        while let Some(id) = current {
+            if id == ancestor {
+                return true;
+            }
+            depth += 1;
+            if depth > self.nodes.len() {
+                return false;
+            }
+            current = self.nodes.get(&id).and_then(|node| node.parent);
+        }
+        false
     }
 
     /// Handle system-level events (focus traversal, global shortcuts)
@@ -673,8 +805,20 @@ impl EventRouter {
         None
     }
 
-    /// Determine the target node for an event
+    /// Determine the target node for an event: for a drag or release, the
+    /// element that got the press (INP-003).
     pub(crate) fn determine_target(&self, event: &Event) -> NodeId {
+        if let Event::Mouse(mouse) = event {
+            if let Some(pressed) = self.pressed_node(mouse) {
+                return pressed;
+            }
+        }
+        self.target_under_pointer(event)
+    }
+
+    /// The target node without the press: the node under the pointer for
+    /// mouse events, the focused node or the root for the others.
+    pub(crate) fn target_under_pointer(&self, event: &Event) -> NodeId {
         match event {
             Event::Mouse(mouse_event) => {
                 if !matches!(mouse_event.position, super::types::Position::Cell { .. }) {
@@ -902,6 +1046,50 @@ mod tests {
             vec![("parent", MouseEventKind::Leave)]
         );
         assert_eq!(router.hovered_node(), None);
+    }
+
+    /// INP-003 and INP-004: the press holds that button's drags until its
+    /// release; a press whose release never arrived ends at the next press of
+    /// that button or at motion with no button held.
+    #[test]
+    fn a_press_holds_its_drags_until_the_release_or_a_sign_it_was_lost() {
+        use crate::event::{
+            hit::Bounds,
+            types::{MouseButton, MouseEvent, MouseEventKind, Position},
+        };
+        let mut router = EventRouter::new();
+        let parent = router.create_node(None);
+        let left = router.create_node(Some(parent));
+        let right = router.create_node(Some(parent));
+        router.add_hit_target(parent, Bounds::new(0.0, 0.0, 10.0, 1.0), 0);
+        router.add_hit_target(left, Bounds::new(0.0, 0.0, 5.0, 1.0), 1);
+        router.add_hit_target(right, Bounds::new(5.0, 0.0, 5.0, 1.0), 2);
+        let left_button = |kind, x| {
+            Event::Mouse(MouseEvent::new(kind, Position::cell(x, 0)).with_button(MouseButton::Left))
+        };
+
+        router.process_event(&left_button(MouseEventKind::Down, 1));
+        let drag = left_button(MouseEventKind::Drag, 7);
+        assert_eq!(router.determine_target(&drag), left, "held by the press");
+        router.process_event(&left_button(MouseEventKind::Down, 7));
+        let drag = left_button(MouseEventKind::Drag, 1);
+        assert_eq!(router.determine_target(&drag), right, "a second press");
+        router.process_event(&Event::Mouse(MouseEvent::new(
+            MouseEventKind::Move,
+            Position::cell(1, 0),
+        )));
+        assert_eq!(router.determine_target(&drag), left, "motion, no button");
+
+        router.process_event(&left_button(MouseEventKind::Down, 1));
+        router.process_event(&left_button(MouseEventKind::Up, 7));
+        assert!(router.take_click().is_none(), "released over another");
+        router.process_event(&left_button(MouseEventKind::Down, 1));
+        router.process_event(&left_button(MouseEventKind::Up, 2));
+        assert_eq!(
+            router.take_click().map(|click| click.kind),
+            Some(MouseEventKind::Click),
+            "released over the pressed element"
+        );
     }
 
     #[test]

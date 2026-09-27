@@ -539,11 +539,11 @@ impl Slider {
     ) -> EventResult {
         use crate::event::types::MouseButton;
         match event.kind {
-            MouseEventKind::Down | MouseEventKind::Click if event.button == MouseButton::Left => {
+            MouseEventKind::Down if event.button == MouseButton::Left => {
                 let Some(position) = self.mouse_position(event, props, false) else {
                     return EventResult::Ignored;
                 };
-                state.is_dragging = event.kind == MouseEventKind::Down;
+                state.is_dragging = true;
                 self.change(self.value_from_position(position, props), props);
                 EventResult::Consumed
             }

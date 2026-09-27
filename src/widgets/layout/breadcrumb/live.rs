@@ -511,8 +511,7 @@ impl Component for LiveBreadcrumb {
                 self.clamp_scroll(config, &mut state, true);
             }
             Event::Mouse(mouse)
-                if matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
-                    && mouse.button == MouseButton::Left =>
+                if mouse.kind == MouseEventKind::Down && mouse.button == MouseButton::Left =>
             {
                 let Some(id) = self.target_at(mouse) else {
                     return EventResult::Ignored;

@@ -171,7 +171,7 @@ impl Component for NamedRadio {
                     )
             }
             Event::Mouse(mouse) => match mouse.kind {
-                MouseEventKind::Down | MouseEventKind::Click => mouse.button == MouseButton::Left,
+                MouseEventKind::Down => mouse.button == MouseButton::Left,
                 _ => false,
             },
             _ => false,

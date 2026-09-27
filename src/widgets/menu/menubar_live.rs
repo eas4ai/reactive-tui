@@ -352,17 +352,14 @@ impl MenuRuntime for MenuBarRuntime {
                 }
             }
             Event::Mouse(mouse)
-                if matches!(
-                    mouse.kind,
-                    MouseEventKind::Down | MouseEventKind::Click | MouseEventKind::Move
-                ) =>
+                if matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Move) =>
             {
                 let (x, y) = (mouse.position.x() as f32, mouse.position.y() as f32);
                 let target = self.view.hit(x, y);
                 let Some(path) = target else {
                     if self.menu.path.len() > 1
                         && mouse.button == MouseButton::Left
-                        && matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Click)
+                        && mouse.kind == MouseEventKind::Down
                         && !self.view.contains_panel(x, y, self.menu.path.len() - 1)
                     {
                         self.close(props);

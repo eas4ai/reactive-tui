@@ -394,8 +394,8 @@ fn tree_down_up_click_does_not_toggle_twice_and_release_keys_are_inert() {
             size,
             vec![
                 (2, click(2, 1)),
+                // The App follows this release over the pressed row with a Click (INP-004).
                 (4, mouse(MouseEventKind::Up, 2, 1)),
-                (4, mouse(MouseEventKind::Click, 2, 1)),
                 (4, Some(Event::Key(release))),
                 (5, None),
             ],
