@@ -374,6 +374,9 @@ impl SuprTuiBackend {
             .worker
             .take()
             .map_or(Ok(()), |worker| worker.join().map_err(|_| worker_stopped()));
+        if self.raw_mode.is_some() {
+            discard_pending_input();
+        }
         let raw_result = self.raw_mode.as_mut().map_or(Ok(()), RawMode::restore);
         output_result
             .and(join_result)
@@ -856,6 +859,47 @@ impl RawModeOwners {
         }
         self.count -= 1;
         self.count == 0 && self.enabled_by_library
+    }
+}
+
+/// Drop the input still queued on the terminal. With every mouse move
+/// reported, reports sent before the terminal saw the mouse turned off would
+/// otherwise reach the shell as text after the App exits.
+fn discard_pending_input() {
+    #[cfg(unix)]
+    if let Ok(tty) = std::fs::File::open("/dev/tty") {
+        use std::os::fd::AsRawFd;
+        // SAFETY: the descriptor stays open for the call; a failure leaves the
+        // queue as it was, which is the state without this call.
+        unsafe { libc::tcflush(tty.as_raw_fd(), libc::TCIFLUSH) };
+    }
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::{
+            CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE,
+        };
+        use windows_sys::Win32::Storage::FileSystem::{
+            CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+        };
+        use windows_sys::Win32::System::Console::FlushConsoleInputBuffer;
+        let name: Vec<u16> = "CONIN$\0".encode_utf16().collect();
+        // SAFETY: `name` is a NUL-terminated UTF-16 string that outlives the
+        // call, and the handle is closed before returning.
+        unsafe {
+            let handle = CreateFileW(
+                name.as_ptr(),
+                GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                std::ptr::null(),
+                OPEN_EXISTING,
+                0,
+                std::ptr::null_mut(),
+            );
+            if handle != INVALID_HANDLE_VALUE {
+                FlushConsoleInputBuffer(handle);
+                CloseHandle(handle);
+            }
+        }
     }
 }
 
