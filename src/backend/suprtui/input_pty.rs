@@ -563,17 +563,34 @@ fn inp_002_reports_and_pastes_keep_what_they_say() {
     session.send(b"\x1b[200~first line\nsecond line\x1b[201~");
     session.settle(Duration::from_millis(300));
     let events = session.events();
+    // Every report and nothing else, in order; hover changes and the clicks
+    // the App makes from releases are not reports.
+    let received: Vec<&String> = events
+        .iter()
+        .filter(|line| line.starts_with("PROBE "))
+        .filter(|line| {
+            let kind = line.split(' ').nth(1).unwrap_or_default();
+            !matches!(kind, "Enter" | "Leave") && !kind.ends_with("Click")
+        })
+        .collect();
     let missing: Vec<&String> = expected
         .iter()
         .filter(|line| !events.contains(line))
         .collect();
+    let first_difference = received
+        .iter()
+        .zip(&expected)
+        .position(|(got, want)| *got != want);
     assert!(
-        missing.is_empty(),
-        "INP-002: {} of {} reports did not arrive as sent, for example {:?}; received {:?}",
+        missing.is_empty() && received.len() == expected.len() && first_difference.is_none(),
+        "INP-002: {} of {} reports did not arrive as sent, for example {:?}; {} events arrived for {} reports, first differing at {:?}: {:?}",
         missing.len(),
         expected.len(),
         missing.iter().take(3).collect::<Vec<_>>(),
-        events.iter().take(8).collect::<Vec<_>>()
+        received.len(),
+        expected.len(),
+        first_difference,
+        first_difference.map(|at| (received.get(at), expected.get(at)))
     );
     let pastes: Vec<&String> = events
         .iter()
