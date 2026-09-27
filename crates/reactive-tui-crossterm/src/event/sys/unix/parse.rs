@@ -26,7 +26,14 @@ pub(crate) fn parse_held(
 ) {
     match parse_event_prefix(held, more) {
         Ok(Some((event, used))) => {
-            events.push_back(event);
+            match event {
+                // Text of several characters: one key event per character.
+                InternalEvent::Keys(keys) => events.extend(
+                    keys.into_iter()
+                        .map(|key| InternalEvent::Event(Event::Key(key))),
+                ),
+                event => events.push_back(event),
+            }
             let rest = held.split_off(used);
             held.clear();
             let last = rest.len();
@@ -721,35 +728,35 @@ pub(crate) fn parse_csi_u_encoded_key_code(buffer: &[u8]) -> io::Result<Option<I
         }
     }
 
+    let state = state_from_keycode | state_from_modifiers;
+    let key = |keycode| KeyEvent::new_with_kind_and_state(keycode, modifiers, kind, state);
+
     // With the "report associated text" flag, a key that types text carries it
     // as codepoints in a third field: the text on the current layout, such as
     // `!` for Shift+1, which the key code alone does not tell. A single
-    // character becomes the key; longer text keeps the key code.
+    // character becomes the key; longer text is one press per character, as a
+    // terminal without the protocol sends typed text.
     if let (KeyCode::Char(_), Some(text)) = (keycode, split.next()) {
-        let mut typed = text
+        let typed: Vec<char> = text
             .split(':')
             .filter_map(|codepoint| codepoint.parse::<u32>().ok())
-            .filter_map(char::from_u32);
-        if let (Some(c), None) = (typed.next(), typed.next()) {
+            .filter_map(char::from_u32)
+            .collect();
+        if let [c] = typed[..] {
             keycode = KeyCode::Char(c);
+        } else if typed.len() > 1 {
+            let keys = typed.into_iter().map(|c| key(KeyCode::Char(c))).collect();
+            return Ok(Some(InternalEvent::Keys(keys)));
         }
     }
 
-    // Key number 0 is text that no known key produced. Unless that text was
-    // one character, which became the key above, there is no key to deliver,
-    // and a NUL would read as Ctrl+Space.
+    // Key number 0 is text that no known key produced. Without text there is
+    // no key to deliver, and a NUL would read as Ctrl+Space.
     if codepoint == 0 && keycode == KeyCode::Char('\0') {
         return Err(could_not_parse_event_error());
     }
 
-    let input_event = Event::Key(KeyEvent::new_with_kind_and_state(
-        keycode,
-        modifiers,
-        kind,
-        state_from_keycode | state_from_modifiers,
-    ));
-
-    Ok(Some(InternalEvent::Event(input_event)))
+    Ok(Some(InternalEvent::Event(Event::Key(key(keycode)))))
 }
 
 pub(crate) fn parse_csi_special_key_code(buffer: &[u8]) -> io::Result<Option<InternalEvent>> {
@@ -1650,13 +1657,13 @@ mod tests {
                 KeyModifiers::SHIFT,
             )))),
         );
-        // Text of two characters keeps the key code.
+        // Text of two characters is one press per character.
         assert_eq!(
             parse_csi_u_encoded_key_code(b"\x1B[97;1;97:98u").unwrap(),
-            Some(InternalEvent::Event(Event::Key(KeyEvent::new(
-                KeyCode::Char('a'),
-                KeyModifiers::empty(),
-            )))),
+            Some(InternalEvent::Keys(vec![
+                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
+                KeyEvent::new(KeyCode::Char('b'), KeyModifiers::empty()),
+            ])),
         );
     }
 
@@ -1689,10 +1696,17 @@ mod tests {
                 KeyModifiers::empty(),
             )))),
         );
-        // With no text, or with text of several characters, it is dropped
-        // instead of reaching the application as a NUL.
+        // Text of several characters is one press per character.
+        assert_eq!(
+            parse_csi_u_encoded_key_code(b"\x1B[0;;26085:26412u").unwrap(),
+            Some(InternalEvent::Keys(vec![
+                KeyEvent::new(KeyCode::Char('\u{65e5}'), KeyModifiers::empty()),
+                KeyEvent::new(KeyCode::Char('\u{672c}'), KeyModifiers::empty()),
+            ])),
+        );
+        // With no text it is dropped instead of reaching the application as
+        // a NUL.
         assert!(parse_csi_u_encoded_key_code(b"\x1B[0u").is_err());
-        assert!(parse_csi_u_encoded_key_code(b"\x1B[0;;26085:26412u").is_err());
     }
 
     #[test]
@@ -1789,5 +1803,20 @@ mod tests {
         assert_eq!(held_events(&[b"\x1B]x"]), [alt_bracket, x]);
         // Not due: Escape Escape is one Escape, as before.
         assert_eq!(held_events(&[b"\x1B\x1B"]), [esc]);
+    }
+
+    #[test]
+    fn test_text_of_several_characters_is_one_key_event_per_character() {
+        let key = |c| {
+            InternalEvent::Event(Event::Key(KeyEvent::new(
+                KeyCode::Char(c),
+                KeyModifiers::NONE,
+            )))
+        };
+        // Two characters an input method commits, then a key typed after them.
+        assert_eq!(
+            held_events(&[b"\x1B[0;;26085:26412ux"]),
+            [key('\u{65e5}'), key('\u{672c}'), key('x')],
+        );
     }
 }
