@@ -552,9 +552,14 @@ impl Component for LiveBreadcrumb {
                     }
                     None => return EventResult::Ignored,
                 };
+                let before = state.scroll_position;
                 state.scroll_position =
                     super::super::scroll_view::shifted(state.scroll_position, delta, 3);
                 self.clamp_scroll(config, &mut state, false);
+                // At an edge the wheel passes to an enclosing view (INP-005).
+                if state.scroll_position == before {
+                    return EventResult::Ignored;
+                }
             }
             _ => return EventResult::Ignored,
         }

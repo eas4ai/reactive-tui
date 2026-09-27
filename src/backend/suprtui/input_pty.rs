@@ -171,7 +171,8 @@ fn rows(prefix: &str, count: usize) -> Vec<Element> {
 }
 
 /// An outer scroll view of twelve rows whose second to fifth rows hold a
-/// scroll view, a table or a tree of twelve rows shown four at a time.
+/// scroll view, a table or a tree of twelve rows shown four at a time, or a
+/// one-line text field.
 fn wheel_scene(kind: &str) -> Element {
     let inner = match kind {
         "wheel-view" => ScrollViewBuilder::new(
@@ -198,6 +199,8 @@ fn wheel_scene(kind: &str) -> Element {
                 ..Table::with_rows(Table::with_columns(columns), body)
             })
         }
+        // A one-line text field, which has nothing to scroll.
+        "wheel-input" => crate::builder::text_input().value("field").build(),
         _ => {
             let mut root = TreeNode::new("root", "inner-root").expanded(true);
             for index in 0..12 {
@@ -235,7 +238,7 @@ impl RootComponent for Scenario {
                     probe("RIGHT", "flex-1 h-full"),
                 ])
                 .build(),
-            "wheel-view" | "wheel-table" | "wheel-tree" => wheel_scene(&self.0),
+            "wheel-view" | "wheel-table" | "wheel-tree" | "wheel-input" => wheel_scene(&self.0),
             _ => probe("PROBE", "w-full h-full"),
         }
     }
@@ -698,6 +701,23 @@ fn inp_005_the_wheel_passes_from_a_table_at_its_edge() {
 #[test]
 fn inp_005_the_wheel_passes_from_a_tree_at_its_edge() {
     check_wheel("wheel-tree");
+}
+
+/// The wheel over an element that cannot scroll, a one-line text field,
+/// bubbles to the view around it.
+#[test]
+fn inp_005_the_wheel_passes_over_a_text_field() {
+    let mut session = Session::start("wheel-input", "OUTER-TOP");
+    for _ in 0..4 {
+        session.send(&sgr(65, 5, 2, true));
+        session.settle(Duration::from_millis(30));
+    }
+    session.settle(Duration::from_millis(300));
+    assert!(
+        !outer_top(&session),
+        "INP-005: wheel steps over a text field left the outer view unscrolled:\n{}",
+        session.screen().join("\n")
+    );
 }
 
 #[test]
