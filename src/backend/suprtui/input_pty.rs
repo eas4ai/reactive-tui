@@ -52,14 +52,48 @@ fn smoke_input_pty_child() {
         eprintln!("SKIP: run by the INP pseudo-terminal tests with {SCENARIO} set");
         return;
     };
+    let scenario = scenario.to_string_lossy().into_owned();
     let app = App::builder()
         .backend(SuprTuiBackend::new().expect("the default backend on the pseudo-terminal"))
-        .root(Scenario(scenario.to_string_lossy().into_owned()))
+        .root(Scenario(scenario.clone()))
         .quit_key(KeyCode::Char('q'), KeyModifiers::empty())
         .build()
         .expect("the scenario's App");
     // An error exit is one of the scenarios; its bytes are what the parent checks.
     let _ = app.run();
+    if scenario == "leftover" {
+        log(format!("LEFTOVER {}", queued_input_bytes()));
+    }
+}
+
+/// The bytes still queued on the controlling terminal, which a shell would
+/// read next; read without waiting, with the line discipline off meanwhile.
+fn queued_input_bytes() -> usize {
+    use std::os::fd::AsRawFd;
+    let tty = std::fs::File::open("/dev/tty").expect("the controlling terminal");
+    let fd = tty.as_raw_fd();
+    // SAFETY: termios calls and reads on a descriptor that stays open; the
+    // saved settings are put back before returning.
+    unsafe {
+        let mut saved = std::mem::zeroed::<libc::termios>();
+        assert_eq!(libc::tcgetattr(fd, &mut saved), 0, "the terminal settings");
+        let mut raw = saved;
+        raw.c_lflag &= !(libc::ICANON | libc::ECHO);
+        raw.c_cc[libc::VMIN] = 0;
+        raw.c_cc[libc::VTIME] = 0;
+        assert_eq!(libc::tcsetattr(fd, libc::TCSANOW, &raw), 0, "raw reads");
+        let mut count = 0;
+        let mut buffer = [0u8; 4096];
+        loop {
+            let read = libc::read(fd, buffer.as_mut_ptr().cast(), buffer.len());
+            if read <= 0 {
+                break;
+            }
+            count += read as usize;
+        }
+        libc::tcsetattr(fd, libc::TCSANOW, &saved);
+        count
+    }
 }
 
 fn log(line: String) {
@@ -267,6 +301,11 @@ impl RootComponent for Scenario {
                     return Err(ReactiveError::invalid_state("the error-exit scenario"))
                 }
                 KeyCode::Char('p') => panic!("the panic-exit scenario"),
+                // Stop reading input for a while, then exit with an error.
+                KeyCode::Char('s') => {
+                    std::thread::sleep(Duration::from_millis(300));
+                    return Err(ReactiveError::invalid_state("the slow error-exit scenario"));
+                }
                 _ => {}
             }
         }
@@ -523,6 +562,31 @@ fn inp_001_modes_on_and_off_after_an_error_exit() {
 #[test]
 fn inp_001_modes_on_and_off_after_a_panic() {
     check_modes('p', "a panic");
+}
+
+/// Mouse reports that arrive while the App has stopped reading, just before
+/// it exits, are dropped at exit instead of reaching the shell as text.
+#[test]
+fn mouse_reports_queued_at_exit_are_discarded() {
+    let mut session = Session::start("leftover", "PROBE");
+    session.send(b"s");
+    session.settle(Duration::from_millis(50));
+    let mut burst = Vec::new();
+    for index in 0..200u16 {
+        burst.extend(sgr(35, index % 70, 3, true));
+    }
+    session.send(&burst);
+    session.exit();
+    let leftover: Vec<String> = session
+        .events()
+        .into_iter()
+        .filter(|line| line.starts_with("LEFTOVER"))
+        .collect();
+    assert_eq!(
+        leftover,
+        ["LEFTOVER 0"],
+        "mouse reports were left queued for the shell after the App exited"
+    );
 }
 
 // ---------------------------------------------------------------------------
