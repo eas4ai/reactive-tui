@@ -22,10 +22,10 @@ developer rules otherwise (docs/recon.md, question 1).
 
 ## The problem it solves
 
-Terminal applications today target large, fast terminals: 500 to 700
-columns, 1440p or larger, hosts that support Kitty or Sixel graphics. Most
-terminal UI libraries assume 80 columns, redraw everything every frame, and
-offer widgets with 1990s density. Reactive TUI exists so an application can
+Terminal applications today target large, fast terminals: 240 to 512
+columns and more, on 1440p or larger screens, hosts that support Kitty or
+Sixel graphics. Most terminal UI libraries assume 80 columns, redraw
+everything every frame, and offer widgets with 1990s density. Reactive TUI exists so an application can
 be written the way a desktop or web application is written, with components,
 state and layout, and still run inside the user's terminal at 60 frames per
 second with widgets whose function and appearance match a modern desktop
@@ -53,6 +53,7 @@ component library as closely as a cell grid allows.
 | rasterizer.md | RAS | the SuprTUI rasterizer: cursor and style elision, allocation-free emission, replay equivalence, byte and time bounds |
 | painter.md | PNT | the frame painter's fast path, the per-cell hit grid, one element copy per present, layout reuse |
 | presentation.md | PIP | pipelined presentation: geometry returned before the terminal write, one frame in flight, flush failure reporting |
+| input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging |
 | blitters.md | BLT | image fallback to block glyphs: half, quadrant, sextant, octant and braille blitters and their tier choice |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.

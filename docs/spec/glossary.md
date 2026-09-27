@@ -18,6 +18,9 @@ Terms as the code uses them. Each names where it is defined.
   (src/component/mod.rs:52-125).
 - **Backend.** The trait that presents frames and polls input; SuprTUI is the
   terminal backend, Debug renders into memory (src/backend/mod.rs:43-127).
+- **Default backend.** SuprTuiBackend, which the widget catalog and the
+  examples use, and CrosstermBackend, which wraps it
+  (src/backend/mod.rs:238-248); DirectTtyBackend is an older path.
 - **CellFrame.** A validated, owned grid of graphemes with colors and
   attributes, at most 262,144 cells, the unit a wake-driven root hands to the
   backend (src/backend/cell_frame.rs:9-40).

@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: widget-study
+Current: mouse-input
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -10,7 +10,11 @@ developer ruled that the SuprTUI renderer plan lands before the radial
 charts, so filled shapes are drawn once on the new blitters. On 2026-09-26
 the developer replaced widget parity with a study of how gpui-kit builds
 its widgets compared with ours, and ordered the dependency checks, then
-that study, before the graphics canvas.
+that study, before the graphics canvas. On 2026-09-27 the developer put
+input protocols next, split into mouse-input and then
+keyboard-and-queries, and ruled that widget changes from the study wait
+until input protocols, incremental layout and the graphics canvas are
+done.
 
 ## charts-plot-layer
 
@@ -430,6 +434,48 @@ gpui-kit's component crate has an entry, compared, recommended, or marked
 as support code rather than a widget, and the paths check passes.
 The developer then chooses the widgets to build; each is its own
 commitment.
+
+## mouse-input
+
+Requirements: INP-001, INP-002, INP-003, INP-004, INP-005, INP-006,
+PNT-002, BAR-001, BAR-002, BAR-007, BAR-008
+
+The first half of input protocols (items 53eb7103 and dc0dc1c2, retired
+into this plan on 2026-09-27). The widget-study review found that the
+default backend never turns on mouse reporting: the widget catalog, run
+in a pseudo-terminal, set only the modes 1049, 25, 1004 and 2026, so no
+mouse event reaches a widget in a real terminal. The developer named
+textual-rs as the model.
+
+The commitment makes the default backend enter and leave with
+crossterm's mouse-capture and bracketed-paste commands (INP-001), keeps
+the wheel's direction, the buttons, the modifiers and pastes whole when
+translating crossterm's events (INP-002), holds a drag and its release
+for the element that got the press (INP-003), builds Click,
+DoubleClick and TripleClick events on release (INP-004), sends the
+wheel to the element under the pointer and passes it to the parent at
+a scroll edge in the scroll view, the table and the tree (INP-005), and
+merges waiting motion reports (INP-006). CrosstermBackend passes the
+renderer's hit grid through, as PNT-002 already requires. Activation
+stays on the press. A pseudo-terminal test runs an app on the real
+default backend and writes real mouse bytes to it.
+
+Done when the input-pty mechanism passes, painter-goldens passes with a
+CrosstermBackend case, and the workspace gates, paths and dependency
+checks pass; and when a Windows-only test that reads the console's
+input mode after the backend enters passes on the Windows test host,
+and the pseudo-terminal test passes on the Mac test host, both recorded
+in the review.
+
+## keyboard-and-queries
+
+The second half of input protocols, after mouse-input: the Kitty
+keyboard protocol, so Shift+Enter and Ctrl+H are told apart from Enter
+and Backspace; lock and media keys; the terminal's own focus reports
+kept apart from element focus; Ctrl+Z suspend and resume; and terminal
+queries read without losing keys typed at startup, including the
+background color, so the theme can follow a light or dark terminal.
+Requirements to be drafted when this commitment is next.
 
 ## graphics-canvas
 
