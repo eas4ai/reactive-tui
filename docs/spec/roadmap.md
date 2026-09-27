@@ -466,6 +466,23 @@ input mode after the backend enters passes on the Windows test host,
 and the pseudo-terminal test passes on the Mac test host, both recorded
 in the review.
 
+## non-linux-build-warnings
+
+Requirements: BAR-001
+
+Backlog item 5a1889bc, promoted after mouse-input on the developer's word
+("Clean them up", 2026-09-27). Every reactive-tui target builds with
+warnings on the macOS and Windows test hosts, which the Linux-only gates
+never see: 8 on macOS (Rust 1.97.1) and 18 on Windows (Rust 1.98), all in
+code that predates mouse-input. Two are float literals that a later Rust
+release makes an error (src/layout/style.rs:1532 and 1538). The commitment
+gives each warned item the platform gate its only users already have, or
+removes what no platform uses, and adds no behavior.
+
+Done when the workspace gates pass on Linux, and `cargo build --locked -p
+reactive-tui --all-targets` prints no warning on the Mac test host and on
+the Windows test host, both recorded in the review.
+
 ## keyboard-and-queries
 
 The second half of input protocols, after mouse-input: the Kitty
