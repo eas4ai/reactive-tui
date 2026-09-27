@@ -30,6 +30,18 @@ def screen_text(data):
                     cells.clear()
                 elif params in (b"",b"0"):
                     cells = {p:c for p,c in cells.items() if p < (y,x)}
+            elif command in (b"C", b"D", b"G", b"d", b"K", b"X") and (params.isdigit() or params == b""):
+                # Cursor moves and erases the renderer uses between runs of text.
+                n = int(params or b"0")
+                if command == b"C": x += max(n, 1)
+                elif command == b"D": x = max(0, x - max(n, 1))
+                elif command == b"G": x = max(n, 1) - 1
+                elif command == b"d": y = max(n, 1) - 1
+                elif command == b"X":
+                    for col in range(x, x + max(n, 1)): cells.pop((y, col), None)
+                elif command == b"K":
+                    cols = {0: range(x, 200), 1: range(0, x + 1), 2: range(0, 200)}.get(n, ())
+                    for col in cols: cells.pop((y, col), None)
             continue
         if token.startswith(b"\x1b]"):
             continue

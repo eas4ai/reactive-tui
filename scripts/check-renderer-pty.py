@@ -24,8 +24,10 @@ def counter_frame(data, count, after=0, dimensions=None):
     if len(frame) <= after or f"Count: {count}" not in screen_text(frame):
         return False
     if dimensions is not None:
-        columns, rows = dimensions
-        return f"\x1b[{rows};{columns}H".encode() in frame[after:]
+        # The renderer paints whole rows from column 1, so a complete frame at
+        # this size shows as its last row.
+        _columns, rows = dimensions
+        return f"\x1b[{rows};1H".encode() in frame[after:]
     return True
 
 
