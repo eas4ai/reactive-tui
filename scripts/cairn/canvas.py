@@ -11,7 +11,8 @@ output (canvas-output): GFX-005 through tests/canvas_output.rs and GFX-006
 hosts (canvas-hosts): GFX-002 through tests/canvas_hosts.rs on this host, the
     macOS host and the Windows tablet, each of which has a hardware adapter,
     and GFX-004 through tests/canvas_speed.rs in a release build on the
-    tablet, whose 95th percentiles it prints.
+    tablet, whose 95th percentiles it prints. A failure on any host it
+    reached decides GFX-002.
 gates (canvas-gates): BAR-010: cargo build, clippy -D warnings, doc and test
     of reactive-tui with the wgpu-graphics feature here, then the host build
     with the feature on both test hosts, failing on any warning.
@@ -77,34 +78,45 @@ def test_summary(output: str) -> tuple[bool, str]:
 
 
 def hosts() -> int:
-    local = test_group(["canvas_hosts"], "gfx_002_")
+    results = {"linux": test_group(["canvas_hosts"], "gfx_002_")}
+    missing = []
+    speed = None
     try:
         config = json.loads(CONFIG.read_text())
     except (OSError, ValueError) as error:
-        print(f"GFX-002 and GFX-004 unverified: no readable test host file at {CONFIG} ({error})")
-        return 1
+        print(f"no readable test host file at {CONFIG} ({error})")
+        config = {}
     tests = f"test --locked -p {PACKAGE} --features wgpu-graphics --jobs {JOBS}"
-    results = {"linux": local}
-    speed = None
     with tempfile.TemporaryDirectory(prefix="canvas-hosts-") as scratch:
         commit, bundle = snapshot(Path(scratch))
-        try:
-            for name in HOSTS:
+        for name in HOSTS:
+            try:
                 _, out = run_on(name, config[name], commit, bundle, f"{tests} --test canvas_hosts")
                 results[name] = test_summary(out)
-            _, out = run_on("windows", config["windows"], commit, bundle,
-                            f"{tests} --release --test canvas_speed -- --ignored --nocapture")
-            speed = test_summary(out)
-            timing = re.search(r"GFX-004 .*", out)
-            if timing:
-                speed = (speed[0], f"{timing.group(0)}; {speed[1]}")
-        except (Unreachable, KeyError) as error:
-            print(f"GFX-002 and GFX-004 unverified: {error}")
-            return 1
-    ok = all(passed for passed, _ in results.values())
-    report("GFX-002", ok, "; ".join(f"{name}: {why}" for name, (_, why) in results.items()))
-    report("GFX-004", speed[0], f"windows: {speed[1]}")
-    return 0 if ok and speed[0] else 1
+                if name == "windows":
+                    _, out = run_on(name, config[name], commit, bundle,
+                                    f"{tests} --release --test canvas_speed -- --ignored --nocapture")
+                    speed = test_summary(out)
+                    timing = re.search(r"GFX-004 .*", out)
+                    if timing:
+                        speed = (speed[0], f"{timing.group(0)}; {speed[1]}")
+            except (Unreachable, KeyError) as error:
+                print(f"{name} not reached: {error}")
+                missing.append(name)
+    failed = [f"{name}: {why}" for name, (ok, why) in results.items() if not ok]
+    # A failure on any host it reached decides GFX-002; a host it could not
+    # reach leaves GFX-002 unverified only while every reached host passed.
+    if failed:
+        report("GFX-002", False, "; ".join(failed))
+    elif missing:
+        print(f"GFX-002 unverified: not reached: {', '.join(missing)}")
+    else:
+        report("GFX-002", True, "; ".join(f"{name}: {why}" for name, (_, why) in results.items()))
+    if speed is None:
+        print("GFX-004 unverified: the Windows tablet was not reached")
+    else:
+        report("GFX-004", speed[0], f"windows: {speed[1]}")
+    return 0 if not failed and not missing and speed and speed[0] else 1
 
 
 def gates() -> int:
