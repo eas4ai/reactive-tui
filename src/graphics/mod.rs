@@ -2,8 +2,16 @@
 
 mod animation;
 mod canvas;
+mod compile;
 mod cpu;
+pub mod fonts;
+mod geometry;
+mod glyphs;
 mod hybrid;
+mod paint;
+mod raster;
+mod scene;
+mod software;
 pub use animation::{
     FrameClock, FrameRequest, GraphicsCancellation, GraphicsWorker, WorkerOutput, WorkerStats,
 };
