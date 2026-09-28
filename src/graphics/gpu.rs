@@ -558,9 +558,10 @@ fn blank(
 /// integrated, and the platform's own backend before Vulkan. A software
 /// adapter such as WARP or lavapipe is not one (GFX-002).
 fn hardware_adapters() -> Vec<wgpu::Adapter> {
-    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-    let mut adapters: Vec<wgpu::Adapter> = instance
-        .enumerate_adapters(wgpu::Backends::all())
+    // The canvas draws into textures, so the instance needs no display.
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let mut adapters: Vec<wgpu::Adapter> = wait(instance.enumerate_adapters(wgpu::Backends::all()))
+        .unwrap_or_default()
         .into_iter()
         .filter(|adapter| {
             matches!(
@@ -691,8 +692,8 @@ impl GpuRenderer {
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("canvas"),
-            bind_group_layouts: &[&shared_layout, &sources_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&shared_layout), Some(&sources_layout)],
+            immediate_size: 0,
         });
         let attributes = |count: u32| -> Vec<wgpu::VertexAttribute> {
             (0..count)
@@ -716,11 +717,11 @@ impl GpuRenderer {
                     module: &module,
                     entry_point: Some(entries.0),
                     compilation_options: Default::default(),
-                    buffers: &[wgpu::VertexBufferLayout {
+                    buffers: &[Some(wgpu::VertexBufferLayout {
                         array_stride: u64::from(vectors) * 16,
                         step_mode: wgpu::VertexStepMode::Instance,
                         attributes: &attributes,
-                    }],
+                    })],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &module,
@@ -738,7 +739,7 @@ impl GpuRenderer {
                 },
                 depth_stencil: None,
                 multisample: Default::default(),
-                multiview: None,
+                multiview_mask: None,
                 cache: None,
             })
         };
@@ -1285,6 +1286,7 @@ impl GpuRenderer {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
             drawing.set_pipeline(pipeline);
             drawing.set_bind_group(0, group, &[]);
@@ -1397,7 +1399,9 @@ impl GpuRenderer {
         let row = size.0 as usize * 4;
         let mut bytes = Vec::with_capacity(row * size.1 as usize);
         {
-            let mapped = slice.get_mapped_range();
+            let mapped = slice
+                .get_mapped_range()
+                .map_err(|error| GraphicsError::Readback(error.to_string()))?;
             if targets.padded_row as usize == row {
                 bytes.extend_from_slice(&mapped[..row * size.1 as usize]);
             } else {
