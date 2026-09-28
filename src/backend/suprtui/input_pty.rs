@@ -51,6 +51,16 @@ const ATTRIBUTES_QUERY: &[u8] = b"\x1b[c";
 const ATTRIBUTES_REPLY: &[u8] = b"\x1b[?62;22c";
 /// The Kitty keyboard flags INP-007 names: 1, 8 and 16.
 const KITTY_PUSH: &str = "\x1b[>25u";
+/// A device attributes reply that lists Sixel (attribute 4).
+const SIXEL_ATTRIBUTES_REPLY: &[u8] = b"\x1b[?62;4;22c";
+/// What graphics detection reads from the environment (GFX-006).
+const GRAPHICS_ENV: [&str; 5] = [
+    "TERM_PROGRAM",
+    "KITTY_WINDOW_ID",
+    "ITERM_SESSION_ID",
+    "SSH_CONNECTION",
+    "SSH_TTY",
+];
 const KITTY_POP: &str = "\x1b[<1u";
 /// The DECSET modes INP-001 names, in the order crossterm writes them.
 const MODES: [&str; 6] = ["1000", "1002", "1003", "1015", "1006", "2004"];
@@ -77,8 +87,13 @@ fn run_scenario(scenario: &str) {
     if scenario == "theme-set" {
         crate::theme::Theme::set_active(crate::theme::high_contrast_theme());
     }
+    let backend = SuprTuiBackend::new().expect("the default backend on the pseudo-terminal");
+    if scenario == "caps" {
+        // The graphics support the backend settled on at startup (GFX-006).
+        log(format!("CAPS {:?}", backend.images));
+    }
     let app = App::builder()
-        .backend(SuprTuiBackend::new().expect("the default backend on the pseudo-terminal"))
+        .backend(backend)
         .root(Scenario(scenario.to_owned()))
         .quit_key(KeyCode::Char('q'), KeyModifiers::empty())
         .build()
@@ -425,8 +440,9 @@ impl RootComponent for Scenario {
 // The test side: a copy on a pseudo-terminal, its output and its event log.
 
 /// What the fake terminal answers besides cursor position queries: the
-/// device attributes unless it is silent, the keyboard protocol and the
-/// background color when set, each `hold` after it first sees a query.
+/// device attributes unless it is silent, the keyboard protocol, the
+/// background color and the Kitty graphics queries when set, each `hold`
+/// after it first sees a query.
 #[derive(Clone, Copy)]
 struct Terminal {
     kitty: bool,
@@ -435,6 +451,22 @@ struct Terminal {
     hold: Duration,
     /// Keys typed just before the replies, in the same write as the first.
     typed_with_replies: &'static [u8],
+    /// Which Kitty graphics queries it accepts.
+    graphics: Graphics,
+    /// Its device attributes reply.
+    attributes: &'static [u8],
+    /// The copy's environment: `None` inherits the test's, `Some` removes
+    /// the variables graphics detection reads and sets these.
+    env: Option<&'static [(&'static str, &'static str)]>,
+}
+
+/// The Kitty graphics queries a fake terminal accepts (GFX-006): none, those
+/// sent directly, or also those sent through shared memory.
+#[derive(Clone, Copy, PartialEq)]
+enum Graphics {
+    None,
+    Direct,
+    SharedMemory,
 }
 
 impl Terminal {
@@ -445,6 +477,9 @@ impl Terminal {
         silent: false,
         hold: Duration::ZERO,
         typed_with_replies: b"",
+        graphics: Graphics::None,
+        attributes: ATTRIBUTES_REPLY,
+        env: None,
     };
     /// Also reports the Kitty keyboard protocol.
     const KITTY: Terminal = Terminal {
@@ -462,6 +497,8 @@ struct Session {
     terminal: Terminal,
     /// Replies sent to the keyboard, background and attributes queries.
     replied: [usize; 3],
+    /// Kitty graphics queries answered, in the order they were written.
+    graphics_answered: usize,
     /// When the copy's first startup query was seen.
     queried_at: Option<Instant>,
 }
@@ -504,6 +541,12 @@ impl Session {
             ])
             .env(SCENARIO, scenario)
             .env(LOG, &log);
+        if let Some(env) = terminal.env {
+            for name in GRAPHICS_ENV {
+                command.env_remove(name);
+            }
+            command.envs(env.iter().copied());
+        }
         let child = PtyChild::spawn(command, COLUMNS, ROWS).expect("a pseudo-terminal");
         Session {
             child,
@@ -513,8 +556,29 @@ impl Session {
             status: None,
             terminal,
             replied: [0; 3],
+            graphics_answered: 0,
             queried_at: None,
         }
+    }
+
+    /// The Kitty graphics queries the copy wrote, as their `key=value`
+    /// controls (GFX-006).
+    fn graphics_queries(&self) -> Vec<String> {
+        let mut queries = Vec::new();
+        let mut rest = &self.output[..];
+        while let Some(start) = rest.windows(3).position(|w| w == b"\x1b_G") {
+            let body = &rest[start + 3..];
+            let Some(end) = body.windows(2).position(|w| w == b"\x1b\\") else {
+                break;
+            };
+            let controls = String::from_utf8_lossy(&body[..end]);
+            let controls = controls.split(';').next().unwrap_or("").to_owned();
+            if controls.split(',').any(|pair| pair == "a=q") {
+                queries.push(controls);
+            }
+            rest = &body[end + 2..];
+        }
+        queries
     }
 
     fn count(&self, pattern: &[u8]) -> usize {
@@ -558,7 +622,10 @@ impl Session {
             self.count(BACKGROUND_QUERY),
             self.count(ATTRIBUTES_QUERY),
         ];
-        if self.queried_at.is_none() && asked.iter().any(|count| *count > 0) {
+        let graphics = self.graphics_queries();
+        if self.queried_at.is_none()
+            && (asked.iter().any(|count| *count > 0) || !graphics.is_empty())
+        {
             self.queried_at = Some(Instant::now());
         }
         let due = self
@@ -573,11 +640,39 @@ impl Session {
             self.terminal
                 .background
                 .map(|color| format!("\x1b]11;{color}\x1b\\").into_bytes()),
-            (!self.terminal.silent).then(|| ATTRIBUTES_REPLY.to_vec()),
+            (!self.terminal.silent).then(|| self.terminal.attributes.to_vec()),
         ]
         .into_iter()
         .enumerate()
         {
+            // A terminal answers the graphics queries, written before the
+            // device attributes, before it answers those (GFX-006).
+            if index == 2 {
+                for query in &graphics[self.graphics_answered..] {
+                    let control = |key: &str| {
+                        query
+                            .split(',')
+                            .find_map(|pair| pair.strip_prefix(key))
+                            .unwrap_or("")
+                            .to_owned()
+                    };
+                    let accepted = match self.terminal.graphics {
+                        Graphics::None => None,
+                        Graphics::Direct => Some(control("t=") == "d"),
+                        Graphics::SharedMemory => Some(true),
+                    };
+                    if let Some(accepted) = accepted {
+                        let status = if accepted {
+                            "OK"
+                        } else {
+                            "EBADF:shared memory"
+                        };
+                        let id = control("i=");
+                        self.send(format!("\x1b_Gi={id};{status}\x1b\\").as_bytes());
+                    }
+                }
+                self.graphics_answered = graphics.len();
+            }
             while self.replied[index] < asked[index] {
                 if let Some(reply) = &reply {
                     let typed = if self.replied == [0; 3] {
@@ -1472,5 +1567,90 @@ fn inp_011_a_silent_terminal_costs_at_most_the_wait() {
     assert!(
         waited <= Duration::from_millis(400),
         "INP-011: with no reply the first frame came {waited:?} after the queries"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// GFX-006: the startup graphics queries and the capability report.
+
+/// The backend's graphics options as the copy logged them at startup.
+fn capabilities(session: &mut Session) -> String {
+    session.wait_for(|line| line.starts_with("CAPS "), 1);
+    session
+        .events()
+        .into_iter()
+        .find(|line| line.starts_with("CAPS "))
+        .unwrap_or_default()
+}
+
+fn graphics_terminal(graphics: Graphics, attributes: &'static [u8]) -> Terminal {
+    Terminal {
+        graphics,
+        attributes,
+        env: Some(&[]),
+        ..Terminal::PLAIN
+    }
+}
+
+#[test]
+fn gfx_006_a_kitty_graphics_answer_reports_kitty() {
+    let terminal = graphics_terminal(Graphics::Direct, ATTRIBUTES_REPLY);
+    let mut session = Session::start_with("caps", "PROBE", terminal);
+    let caps = capabilities(&mut session);
+    assert!(
+        caps.contains("kitty_graphics: true") && caps.contains("kitty_shared_memory: false"),
+        "GFX-006: a terminal that accepts direct Kitty graphics, not shared memory, gave {caps:?} after the queries {:?}",
+        session.graphics_queries()
+    );
+}
+
+#[test]
+fn gfx_006_shared_memory_only_when_its_query_is_accepted() {
+    let terminal = graphics_terminal(Graphics::SharedMemory, ATTRIBUTES_REPLY);
+    let mut session = Session::start_with("caps", "PROBE", terminal);
+    let caps = capabilities(&mut session);
+    assert!(
+        caps.contains("kitty_graphics: true") && caps.contains("kitty_shared_memory: true"),
+        "GFX-006: a terminal that accepts Kitty graphics through shared memory gave {caps:?} after the queries {:?}",
+        session.graphics_queries()
+    );
+}
+
+#[test]
+fn gfx_006_attribute_4_reports_sixel() {
+    let terminal = graphics_terminal(Graphics::None, SIXEL_ATTRIBUTES_REPLY);
+    let mut session = Session::start_with("caps", "PROBE", terminal);
+    let caps = capabilities(&mut session);
+    assert!(
+        caps.contains("sixel: true"),
+        "GFX-006: a device attributes reply listing 4 gave {caps:?}"
+    );
+}
+
+#[test]
+fn gfx_006_a_terminal_that_answers_neither_keeps_the_environment() {
+    let terminal = Terminal {
+        env: Some(&[("TERM_PROGRAM", "WezTerm")]),
+        ..graphics_terminal(Graphics::None, ATTRIBUTES_REPLY)
+    };
+    let mut session = Session::start_with("caps", "PROBE", terminal);
+    let caps = capabilities(&mut session);
+    assert!(
+        caps.contains("sixel: true"),
+        "GFX-006: TERM_PROGRAM=WezTerm with no graphics answer gave {caps:?}"
+    );
+}
+
+#[test]
+fn gfx_006_graphics_replies_are_not_keys() {
+    let terminal = graphics_terminal(Graphics::SharedMemory, SIXEL_ATTRIBUTES_REPLY);
+    let mut session = Session::start_with("caps", "PROBE", terminal);
+    session.send(b"z");
+    session.wait_for(|line| line.starts_with("root Key "), 1);
+    let queries = session.graphics_queries();
+    let keys = root_keys(&session);
+    assert!(
+        queries.len() >= 2 && keys == ["root Key Char('z') ----"],
+        "GFX-006: after the graphics queries {queries:?} and their replies, the App got the keys {keys:?}"
     );
 }
