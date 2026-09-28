@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """charts-goldens: CHT-012, CHT-013, CHT-014, CHT-015, CHT-016, CHT-023, CHT-024, CHT-025,
 CHT-026, CHT-027, CHT-028, CHT-030 and BAR-004 through the tests/charts_goldens.rs binary plus file
-and doc probes.
+and doc probes. BAR-004 also covers the image widget's goldens and the graphics canvas's
+(tests/canvas_goldens.rs, built with wgpu-graphics: three scenes at 80 by 24 and 400 by 100).
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -23,6 +24,10 @@ SIZES = {"mini": (20, 5), "medium": (80, 24), "large": (600, 160)}
 # The image widget, reworked to draw its block fallback through the
 # blitters: a medium golden and a wide one of at least 400 columns.
 IMAGE_GOLDENS = ("image_medium", "image_wide")
+# The graphics canvas: three scenes, each at 80 by 24 and 400 by 100.
+CANVAS_GOLDENS = tuple(f"{scene}_{size}" for scene in ("shapes", "gradients", "cube")
+                       for size in ("80x24", "400x100"))
+CANVAS = ["wgpu-graphics"]
 
 
 GOLDEN_TESTS = ("tests/charts_goldens.rs", "tests/api_widget_behavior/image.rs")
@@ -73,12 +78,14 @@ SNAPSHOTS = ROOT / "tests/snapshots"
 SNAPSHOTS_ENV = "REACTIVE_TUI_SNAPSHOTS"
 # (test binary, test name prefix, snapshot family): the test that compares
 # every golden of the family.
-GOLDEN_RUNS = (("charts_goldens", "cht_023_", "charts"), ("api_widget_behavior", "bar_004_", "image"))
+GOLDEN_RUNS = (("charts_goldens", "cht_023_", "charts", None), ("api_widget_behavior", "bar_004_", "image", None),
+               ("canvas_goldens", "bar_004_", "canvas", CANVAS))
 
 
 def checked_in() -> dict[Path, bytes]:
     """Every file of the golden families as it is now."""
-    return {p: p.read_bytes() for family in ("charts", "image") for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
+    return {p: p.read_bytes() for family in ("charts", "image", "canvas") for p in (SNAPSHOTS / family).rglob("*")
+            if p.is_file()}
 
 
 def alter(golden: bytes) -> bytes:
@@ -99,7 +106,7 @@ def altered_golden_problems(before: dict[Path, bytes]) -> list[str]:
     test, pointed at the copy, must fail naming it and leave every file of
     the copy as it was."""
     problems = []
-    for binary, test, family in GOLDEN_RUNS:
+    for binary, test, family, features in GOLDEN_RUNS:
         files = {p.relative_to(SNAPSHOTS / family): data for p, data in before.items()
                  if p.is_relative_to(SNAPSHOTS / family)}
         names = sorted(str(r)[:-len(".ansi")] for r in files if r.suffix == ".ansi")
@@ -114,7 +121,7 @@ def altered_golden_problems(before: dict[Path, bytes]) -> list[str]:
                 golden = copy / f"{name}.ansi"
                 golden.write_bytes(alter(golden.read_bytes()))
                 expected = {p: p.read_bytes() for p in copy.rglob("*") if p.is_file()}
-                ok, why = cargo_test_filtered(binary, test, env={SNAPSHOTS_ENV: scratch})
+                ok, why = cargo_test_filtered(binary, test, features=features, env={SNAPSHOTS_ENV: scratch})
                 if ok:
                     problems.append(f"{binary} {test} passed with {family}/{name}.ansi changed, so it does not compare it")
                 elif f"golden mismatch for {name}" not in why:
@@ -170,8 +177,18 @@ def wide_problems() -> list[str]:
         columns = max((display_width(row) for row in grid.split("\n")), default=0)
         if columns < 400:
             problems.append(f"image_wide.ansi is {columns} columns wide, under 400")
+    for name in CANVAS_GOLDENS:
+        path = SNAPSHOTS / "canvas" / f"{name}.ansi"
+        if not path.is_file():
+            problems.append(f"missing canvas golden {name}.ansi")
+        elif name.endswith("_400x100"):
+            grid = path.read_text(errors="replace").rsplit("\ncolors: ", 1)[0]
+            columns = max((display_width(row) for row in grid.split("\n")), default=0)
+            if columns < 400:
+                problems.append(f"canvas golden {name}.ansi is {columns} columns wide, under 400")
     for src, test in (("tests/charts_goldens.rs", "cht_023_"),
-                      ("tests/api_widget_behavior/image.rs", "bar_004_")):
+                      ("tests/api_widget_behavior/image.rs", "bar_004_"),
+                      ("tests/canvas_goldens.rs", "bar_004_")):
         path = ROOT / src
         text = path.read_text(errors="replace") if path.is_file() else ""
         body = re.search(rf"fn {test}\w*\(\)\s*\{{(.*?)\n\}}", text, re.S)
@@ -180,6 +197,7 @@ def wide_problems() -> list[str]:
         elif "on_debug(" not in body.group(1):
             problems.append(f"the {test} golden test does not render on the debug backend")
     problems.extend(regeneration_problems("tests/api_widget_behavior/image.rs"))
+    problems.extend(regeneration_problems("tests/canvas_goldens.rs"))
     return problems
 
 
@@ -232,15 +250,17 @@ def main() -> int:
     # type's wide golden is at least 400 columns on the debug backend.
     w = wide_problems()
     ok_image, why_image = cargo_test_filtered("api_widget_behavior", "bar_004_")
+    ok_canvas, why_canvas = cargo_test_filtered("canvas_goldens", "bar_004_", features=CANVAS)
     problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"]) + (
-        [] if ok_image else [f"image golden comparison failed: {why_image}"])
-    if ok_023 and ok_image:
+        [] if ok_image else [f"image golden comparison failed: {why_image}"]) + (
+        [] if ok_canvas else [f"canvas golden comparison failed: {why_canvas}"])
+    if ok_023 and ok_image and ok_canvas:
         problems_004 += altered_golden_problems(before)
     after = checked_in()
     rewritten = sorted(str(p.relative_to(ROOT)) for p in before.keys() | after.keys() if before.get(p) != after.get(p))
     if rewritten:
         problems_004.append(f"a test run changed checked-in goldens: {', '.join(rewritten[:4])}")
-    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart and image goldens on the debug backend compare equal; wide ones 400+ columns")
+    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart, image and canvas goldens on the debug backend compare equal; wide ones 400+ columns")
     return finish(results)
 
 

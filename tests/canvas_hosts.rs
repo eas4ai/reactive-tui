@@ -11,6 +11,8 @@ use canvas_support::{difference, reference_options, references};
 use reactive_tui::graphics::{GraphicsMode, HybridRenderer};
 
 #[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
 fn gfx_002_the_hardware_adapter_draws() {
     let mut renderer = HybridRenderer::new(reference_options(false));
     let reference = &references()[0];
@@ -26,6 +28,8 @@ fn gfx_002_the_hardware_adapter_draws() {
 }
 
 #[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
 fn gfx_002_both_renderers_draw_the_same_picture() {
     let mut hardware = HybridRenderer::new(reference_options(false));
     let mut software = HybridRenderer::new(reference_options(true));
@@ -55,6 +59,8 @@ fn gfx_002_both_renderers_draw_the_same_picture() {
 }
 
 #[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
 fn gfx_002_each_picture_names_the_renderer_that_drew_it() {
     let reference = &references()[2];
     let (width, height) = reference.size;

@@ -18,6 +18,8 @@ fn p95(mut samples: Vec<Duration>) -> Duration {
 }
 
 #[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
 #[ignore = "GFX-004's bound is for the Windows tablet; canvas-hosts runs it there in release"]
 fn gfx_004_the_tablet_draws_the_animation_scene_within_a_frame() {
     let mut renderer = HybridRenderer::new(reference_options(false));

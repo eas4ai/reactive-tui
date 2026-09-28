@@ -262,3 +262,10 @@ members = [
     "crates/libghostty-vt",
     "crates/libghostty-vt-sys",
 ]
+
+# No debug info in dev and test builds: nobody attaches a debugger, and debug
+# info was most of the memory that linking the test binaries took (25 to 27
+# GB for the workspace gates on 2026-09-27). Panics still name their file and
+# line. Test builds inherit this profile.
+[profile.dev]
+debug = false
