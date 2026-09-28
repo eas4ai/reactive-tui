@@ -583,8 +583,9 @@ speed bounds are measured there; the charts stay in characters here and move
 onto the canvas in the next commitment; the GPU draws at the App's frame
 rate, and Sixel and slower links drop frames rather than fall behind; the
 canvas stays an optional feature with its own gate (BAR-010); graphics
-support is also asked of the terminal at startup; canvas text uses a
-bundled DejaVu Sans Mono unless the application supplies a font; the pixel
+support is also asked of the terminal at startup; canvas text uses the
+application's font, else on Linux the first loadable font fontconfig sorts
+for monospace, else a bundled DejaVu Sans Mono; the pixel
 smoke test runs on a Kitty, WezTerm, Ghostty or foot terminal, since
 Windows detection waits with windows-startup-queries; and a speed bound the
 tablet cannot meet comes back to the developer with its measurements, not a
