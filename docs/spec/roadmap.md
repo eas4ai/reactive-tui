@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: incremental-layout-rows
+Current: graphics-canvas
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -15,7 +15,9 @@ input protocols next, split into mouse-input and then
 keyboard-and-queries, and ruled that widget changes from the study wait
 until input protocols, incremental layout and the graphics canvas are
 done. After keyboard-and-queries the developer put incremental layout
-next, then the graphics canvas.
+next, then the graphics canvas. After incremental-layout-rows the developer
+confirmed the graphics canvas next and kept the charts in characters until
+the commitment after it.
 
 ## charts-plot-layer
 
@@ -558,6 +560,8 @@ review.
 
 ## graphics-canvas
 
+Requirements: GFX-001, GFX-002, GFX-003, GFX-004, GFX-005, GFX-006, GFX-007, GFX-008, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BLT-001, BLT-002, INP-007, INP-011
+
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel
 (tile-first cell buffer, charts kept in characters) and beamterm (whole grid
 as one instanced draw through a glyph atlas, sub-millisecond at 45,000
@@ -569,4 +573,36 @@ paths, fills and gradients that rasterizes into the same target, and output
 by host capability (half blocks everywhere, Kitty or Sixel pixels where the
 host supports them). The keystone's "not a windowing system" stands; window
 presentation of the same frame is a possible later commitment, not this
-one. Requirements to be drafted when this commitment is next.
+one.
+
+Developer rulings 2026-09-27: the architecture stays as it is, a hardware
+adapter first and the software renderer when none is usable, and the
+canvas's features are designed for the GPU, not reduced for weak hardware;
+the Windows test tablet (Iris Xe) is the lowest common denominator, so the
+speed bounds are measured there; the charts stay in characters here and move
+onto the canvas in the next commitment; the GPU draws at the App's frame
+rate, and Sixel and slower links drop frames rather than fall behind; the
+canvas stays an optional feature with its own gate (BAR-010); graphics
+support is also asked of the terminal at startup; canvas text uses a
+bundled DejaVu Sans Mono unless the application supplies a font; the pixel
+smoke test runs on a Kitty, WezTerm, Ghostty or foot terminal, since
+Windows detection waits with windows-startup-queries; and a speed bound the
+tablet cannot meet comes back to the developer with its measurements, not a
+smaller feature. The per-widget grid the ruling calls a CellFrame is the
+CellGrid (glossary.md).
+
+Deliver the `Canvas` widget (GFX-001) with its scene API, its hardware and
+software renderers drawing the same picture (GFX-002) on a named worker
+(GFX-003), fast enough on the tablet (GFX-004), shown as Kitty or Sixel
+pixels or block glyphs (GFX-005) after the startup graphics queries
+(GFX-006), surviving faults (GFX-007), and the cube and torus demos redrawn
+as canvas scenes (GFX-008), with the widget bar (BAR-003 to BAR-006) met for
+the canvas: a catalog page, a manual section in manual/wgpu-graphics.md,
+goldens on the debug backend through the software renderer, and reference
+images of each scene under tests/snapshots/canvas.
+
+Done when every named requirement passes, each new mechanism (canvas-scenes,
+canvas-hosts, canvas-output, canvas-gates) has recorded a fail on a
+violating example, and the review records the developer's smoke test of the
+Motion page and the reference scenes on a Kitty or Sixel terminal.
+
