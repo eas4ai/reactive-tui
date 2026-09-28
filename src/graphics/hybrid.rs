@@ -251,6 +251,7 @@ impl HybridRenderer {
                     );
                 }
                 Err(error) => {
+                    return Err(error);
                     // The software renderer draws from here on (GFX-007).
                     self.mode = GraphicsMode::CpuFallback(error.to_string());
                     self.gpu = None;

@@ -90,7 +90,7 @@ impl Shader {
         Self {
             kind,
             inverse: transform.inverse().unwrap_or_default(),
-            opacity: paint.opacity,
+            opacity: 1.0,
         }
     }
 
