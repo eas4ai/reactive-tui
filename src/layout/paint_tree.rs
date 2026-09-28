@@ -284,6 +284,16 @@ fn node_parts(
     }
 }
 
+impl NodePaint {
+    /// Whether `measure_text` sizes `other` as it sizes this record: it reads
+    /// only the text, its text style and the width rule.
+    fn measures_like(&self, other: &NodePaint) -> bool {
+        self.text == other.text
+            && self.typography == other.typography
+            && self.unconstrained_width == other.unconstrained_width
+    }
+}
+
 fn measure_text(
     paint: &NodePaint,
     known: Size<Option<f32>>,
