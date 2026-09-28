@@ -74,8 +74,15 @@ fn pixel_count(width: u32, height: u32) -> Result<usize, GraphicsError> {
 pub struct GraphicsTimings {
     /// Preparing the scene's draws, on either renderer.
     pub prepare: Duration,
-    /// Drawing, and on the hardware adapter reading the picture back.
+    /// Drawing: on the software renderer all of it; on the hardware
+    /// adapter, building the frame and handing it to the GPU.
     pub render: Duration,
+    /// Waiting for the GPU to finish the picture; none on the software
+    /// renderer.
+    pub wait: Duration,
+    /// Copying the picture out of the GPU's memory; none on the software
+    /// renderer.
+    pub readback: Duration,
 }
 
 /// A finished picture: RGBA pixels with straight alpha, and who drew them.
