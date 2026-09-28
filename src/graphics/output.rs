@@ -63,8 +63,8 @@ impl CanvasOutput {
         environment: Option<Self>,
     ) -> Self {
         environment.or(application).unwrap_or(match host {
-            Some(host) if host.kitty => Self::Kitty,
             Some(host) if host.sixel => Self::Sixel,
+            Some(host) if host.kitty => Self::Kitty,
             _ => Self::Blocks,
         })
     }
