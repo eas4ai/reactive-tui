@@ -24,6 +24,9 @@ const KITTY: &str = "\x1b_G";
 /// transparent background.
 const SIXEL: &str = "\x1bP0;1q";
 
+/// What the backend writes before a picture of any kind: it saves the cursor.
+const PICTURE: &str = "\x1b7";
+
 /// A glyph the half-block blitter draws for a cell whose halves differ.
 const BLOCK: &str = "▄";
 
@@ -73,19 +76,24 @@ fn gfx_005_the_host_decides_kitty_then_sixel_then_blocks() {
         sixel: true,
         ..Default::default()
     };
-    let on_both = output_until(reference_options(true), both, KITTY);
-    let on_sixel = output_until(reference_options(true), sixel, SIXEL);
+    // The backend saves the cursor before any picture, whatever its kind, so
+    // a host that gets the wrong kind is seen at once and named.
+    let on_both = output_until(reference_options(true), both, PICTURE);
+    let on_sixel = output_until(reference_options(true), sixel, PICTURE);
     let on_neither = output_until(
         reference_options(true),
         ImageOutputOptions::default(),
         BLOCK,
     );
+    let kinds = |output: &str| (output.contains(KITTY), output.contains(SIXEL));
     assert!(
-        !on_both.contains(SIXEL)
-            && !on_sixel.contains(KITTY)
-            && !on_neither.contains(KITTY)
-            && !on_neither.contains(SIXEL),
-        "GFX-005: a Kitty and Sixel host, a Sixel host and a host with neither did not get Kitty, Sixel and block glyphs"
+        kinds(&on_both) == (true, false)
+            && kinds(&on_sixel) == (false, true)
+            && kinds(&on_neither) == (false, false),
+        "GFX-005: (Kitty, Sixel) sent to a host with both: {:?}, to a host with Sixel only: {:?}, to a host with neither: {:?}",
+        kinds(&on_both),
+        kinds(&on_sixel),
+        kinds(&on_neither)
     );
 }
 
