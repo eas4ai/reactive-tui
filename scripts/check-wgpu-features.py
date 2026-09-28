@@ -19,8 +19,8 @@ def validate_manifest(manifest):
     features = manifest.get("features", {})
     if not isinstance(dependency, dict) or dependency.get("optional") is not True:
         raise ValueError("wgpu must be an optional dependency")
-    # The canvas reads fonts with ttf-parser, which the feature also enables.
-    if features.get("wgpu-graphics") != ["dep:wgpu", "dep:ttf-parser"]:
+    # The canvas reads fonts with skrifa, which the feature also enables.
+    if features.get("wgpu-graphics") != ["dep:wgpu", "dep:skrifa"]:
         raise ValueError("missing explicit opt-in wiring")
     pending = list(features.get("default", []))
     visited = set()
@@ -49,7 +49,7 @@ class ValidatorTests(unittest.TestCase):
                 "optional": True, "default-features": False,
                 "features": sorted(NATIVE_FEATURES),
             }},
-            "features": {"default": ["tokio"], "wgpu-graphics": ["dep:wgpu", "dep:ttf-parser"]},
+            "features": {"default": ["tokio"], "wgpu-graphics": ["dep:wgpu", "dep:skrifa"]},
         }
 
     def test_corrected_manifest_passes(self):

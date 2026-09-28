@@ -101,9 +101,9 @@ when no such file can be read, it uses DejaVu Sans Mono, which the crate
 bundles. `FontSource::Bundled` selects the bundled font on every system, so
 a picture is the same everywhere.
 
-The canvas reads the font's outlines itself and draws them with its own
-rasterizer. It does no shaping: each character is one glyph, placed by its
-advance.
+The canvas reads the font's outlines with the `skrifa` crate and draws
+them with its own rasterizer, without hinting. It does no shaping: each
+character is one glyph, placed by its advance.
 
 ### How the picture reaches the terminal
 

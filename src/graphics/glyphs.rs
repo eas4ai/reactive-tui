@@ -99,8 +99,9 @@ type Tiles = HashMap<Box<str>, Option<Arc<Bitmap>>>;
 pub(crate) struct Glyphs {
     font: Font,
     /// Glyph and advance in font units of each character seen.
-    characters: HashMap<char, (u16, f32)>,
-    text: HashMap<(u16, u32, u8), Option<TextGlyph>>,
+    characters: HashMap<char, (u32, f32)>,
+    /// Text bitmaps by glyph, size and pen phase.
+    text: HashMap<(u32, u32, u8), Option<TextGlyph>>,
     /// Tiles by cell width, cell height and width in cells.
     tiles: HashMap<(u16, u16, usize), Tiles>,
     tile_count: usize,
@@ -141,7 +142,7 @@ impl Glyphs {
         }
     }
 
-    fn character(&mut self, character: char) -> (u16, f32) {
+    fn character(&mut self, character: char) -> (u32, f32) {
         if let Some(&known) = self.characters.get(&character) {
             return known;
         }
@@ -210,7 +211,7 @@ impl Glyphs {
         Text::Outlines(polygons)
     }
 
-    fn text_glyph(&mut self, glyph: u16, size: f32, phase: u8) -> Option<TextGlyph> {
+    fn text_glyph(&mut self, glyph: u32, size: f32, phase: u8) -> Option<TextGlyph> {
         let key = (glyph, size.to_bits(), phase);
         if let Some(known) = self.text.get(&key) {
             return known.clone();
@@ -220,7 +221,7 @@ impl Glyphs {
         drawn
     }
 
-    fn draw_text_glyph(&mut self, glyph: u16, size: f32, phase: u8) -> Option<TextGlyph> {
+    fn draw_text_glyph(&mut self, glyph: u32, size: f32, phase: u8) -> Option<TextGlyph> {
         let outline = self.font.outline(glyph)?;
         let scale = size / self.font.units_per_em;
         let shift = f32::from(phase) / PHASES;
