@@ -1,5 +1,5 @@
 //! A palette fitted to one picture, by median cut: the picture's colors,
-//! counted in cells of 8 by 8 by 8, are split again and again along their
+//! counted in cells of 4 by 4 by 4, are split again and again along their
 //! longest side at the middle of their pixels until there are as many
 //! groups as Sixel color registers. Each group's mean is a palette color.
 
@@ -8,8 +8,10 @@ use image::RgbaImage;
 /// Color registers a Sixel picture uses.
 const COLORS: usize = 256;
 /// Cells along each channel, and in all.
-const SIDE: usize = 32;
+const SIDE: usize = 64;
 const CELLS: usize = SIDE * SIDE * SIDE;
+/// Bits of a channel below a cell's size.
+const SHIFT: usize = 2;
 
 /// The threshold of each pixel of an 8 by 8 tile, 0 to 63, spread so that
 /// neighbours differ most (Bayer's ordered dither).
@@ -25,17 +27,20 @@ const THRESHOLDS: [[u8; 8]; 8] = [
 ];
 
 /// The colors of one cell: how many pixels and the sum of each channel.
+/// The largest picture, 4096 by 4096 pixels of one color, fits.
 #[derive(Clone, Copy, Default)]
 struct Cell {
-    count: u64,
-    sums: [u64; 3],
+    count: u32,
+    sums: [u32; 3],
 }
 
 fn cell_of([r, g, b]: [u8; 3]) -> usize {
-    (usize::from(r) >> 3) * SIDE * SIDE + (usize::from(g) >> 3) * SIDE + (usize::from(b) >> 3)
+    (usize::from(r) >> SHIFT) * SIDE * SIDE
+        + (usize::from(g) >> SHIFT) * SIDE
+        + (usize::from(b) >> SHIFT)
 }
 
-/// The place of cell `index` along `channel`, 0 to 31.
+/// The place of cell `index` along `channel`, 0 to 63.
 fn place(index: usize, channel: usize) -> usize {
     (index / SIDE.pow(2 - channel as u32)) % SIDE
 }
@@ -57,7 +62,7 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
         let cell = &mut cells[cell_of([pixel[0], pixel[1], pixel[2]])];
         cell.count += 1;
         for (sum, channel) in cell.sums.iter_mut().zip(&pixel.0[..3]) {
-            *sum += u64::from(*channel);
+            *sum += u32::from(*channel);
         }
     }
     let used: Vec<usize> = (0..CELLS).filter(|&index| cells[index].count > 0).collect();
@@ -70,7 +75,10 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
             .enumerate()
             .filter(|(_, group)| group.len() > 1)
             .max_by_key(|(_, group)| {
-                let pixels: u64 = group.iter().map(|&index| cells[index].count).sum();
+                let pixels: u64 = group
+                    .iter()
+                    .map(|&index| u64::from(cells[index].count))
+                    .sum();
                 let span = spans(group).into_iter().max().unwrap_or(0) as u64;
                 (span * span) * pixels.min(1 << 20)
             })
@@ -82,11 +90,14 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
         let span = spans(&group);
         let channel = (0..3).max_by_key(|&channel| span[channel]).unwrap_or(0);
         group.sort_unstable_by_key(|&index| place(index, channel));
-        let pixels: u64 = group.iter().map(|&index| cells[index].count).sum();
+        let pixels: u64 = group
+            .iter()
+            .map(|&index| u64::from(cells[index].count))
+            .sum();
         let mut seen = 0;
         let mut cut = 1;
         for (position, &index) in group.iter().enumerate() {
-            seen += cells[index].count;
+            seen += u64::from(cells[index].count);
             if seen * 2 >= pixels {
                 cut = (position + 1).clamp(1, group.len() - 1);
                 break;
@@ -100,9 +111,15 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
     let colors: Vec<[u8; 3]> = groups
         .iter()
         .map(|group| {
-            let count: u64 = group.iter().map(|&index| cells[index].count).sum();
+            let count: u64 = group
+                .iter()
+                .map(|&index| u64::from(cells[index].count))
+                .sum();
             [0, 1, 2].map(|channel| {
-                let sum: u64 = group.iter().map(|&index| cells[index].sums[channel]).sum();
+                let sum: u64 = group
+                    .iter()
+                    .map(|&index| u64::from(cells[index].sums[channel]))
+                    .sum();
                 ((sum + count / 2) / count.max(1)) as u8
             })
         })
@@ -137,7 +154,7 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
             continue;
         }
         // Up to half a cell either way, by the pixel's place in the tile.
-        let nudge = i16::from(THRESHOLDS[(y & 7) as usize][(x & 7) as usize]) / 8 - 4;
+        let nudge = i16::from(THRESHOLDS[(y & 7) as usize][(x & 7) as usize]) / 16 - 2;
         let rgb = [0, 1, 2].map(|channel| (i16::from(pixel[channel]) + nudge).clamp(0, 255) as u8);
         let cell = cell_of(rgb);
         if index_of[cell] == UNKNOWN {
