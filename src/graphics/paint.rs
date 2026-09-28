@@ -145,7 +145,7 @@ impl Shader {
                     texel(left, bottom),
                     texel(right, bottom),
                 );
-                [0, 1, 2, 3].map(|i| {
+                std::array::from_fn(|i| {
                     let upper = a[i] + (b[i] - a[i]) * fx;
                     let lower = c[i] + (d[i] - c[i]) * fx;
                     upper + (lower - upper) * fy
@@ -189,7 +189,7 @@ pub(crate) fn ramp(stops: &[(f32, Premul)], t: f32) -> Premul {
         let ((t0, c0), (t1, c1)) = (pair[0], pair[1]);
         if t <= t1 {
             let f = if t1 > t0 { (t - t0) / (t1 - t0) } else { 1.0 };
-            return [0, 1, 2, 3].map(|i| c0[i] + (c1[i] - c0[i]) * f);
+            return std::array::from_fn(|i| c0[i] + (c1[i] - c0[i]) * f);
         }
     }
     stops[stops.len() - 1].1

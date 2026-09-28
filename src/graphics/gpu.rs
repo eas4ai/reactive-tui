@@ -10,7 +10,7 @@ use super::geometry::Polygon;
 use super::glyphs::{Bitmap, Glyphs};
 use super::paint::{Shader, ShaderKind};
 use super::raster::Window;
-use super::scene::CanvasImage;
+use super::scene::{CanvasImage, Transform};
 use super::software::{unpack_premultiplied, unpremultiply};
 use super::{GraphicsAdapterInfo, GraphicsError};
 use std::collections::HashMap;
@@ -408,11 +408,13 @@ impl Frame {
         // What was drawn so far goes out under the clips it was drawn in.
         self.end_segment(Onto::Picture);
         let at = self.accumulate(polygons, window);
-        let white = self.paints.len() as f32;
-        self.paints.push([1.0, 0.0, 0.0, 1.0]);
-        self.paints.push([0.0, 0.0, 0.0, 1.0]);
-        self.paints.push([1.0; 4]);
-        self.paints.push([0.0; 4]);
+        // A mask holds how much of each pixel shows, not a color: the path
+        // is painted at full value.
+        let (full, _) = self.paint(&Shader {
+            kind: ShaderKind::Solid([1.0; 4]),
+            inverse: Transform::identity(),
+            opacity: 1.0,
+        });
         let mut floats = [0.0; COVER_FLOATS];
         floats[..4].copy_from_slice(&[
             window.left as f32,
@@ -420,7 +422,7 @@ impl Frame {
             window.right as f32,
             window.bottom as f32,
         ]);
-        floats[4..8].copy_from_slice(&[at.0 as f32, at.1 as f32, FROM_ATLAS, white]);
+        floats[4..8].copy_from_slice(&[at.0 as f32, at.1 as f32, FROM_ATLAS, full]);
         // The new mask shows what both the path and the clip around it show.
         self.cover(floats, None);
         self.end_segment(Onto::Mask(self.depth));
@@ -1036,7 +1038,13 @@ impl GpuRenderer {
                         frame.cover(floats, image);
                     }
                 }
-                Draw::Cells { x, y, grid, cell } => {
+                Draw::Cells {
+                    x,
+                    y,
+                    grid,
+                    cell,
+                    foreground,
+                } => {
                     let tiles = tiles.next().unwrap_or_default();
                     for ((column, row, _, wide, fg, bg), tile) in grid.painted().zip(tiles) {
                         let wide = wide.clamp(1, 2) as i32;
@@ -1054,7 +1062,7 @@ impl GpuRenderer {
                         ]);
                         floats[4..8].copy_from_slice(&[at.0, at.1, CELL, 0.0]);
                         floats[8..12]
-                            .copy_from_slice(&unpack_premultiplied(fg.unwrap_or(0xFFFF_FFFF)));
+                            .copy_from_slice(&fg.map_or(*foreground, unpack_premultiplied));
                         floats[12..16].copy_from_slice(&bg.map_or([0.0; 4], unpack_premultiplied));
                         frame.cover(floats, None);
                     }

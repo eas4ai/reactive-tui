@@ -152,7 +152,14 @@ impl Picture {
         }
     }
 
-    fn cells(&mut self, x: i32, y: i32, grid: &CellGrid, cell: (u16, u16), glyphs: &mut Glyphs) {
+    fn cells(
+        &mut self,
+        (x, y): (i32, i32),
+        grid: &CellGrid,
+        cell: (u16, u16),
+        foreground: Premul,
+        glyphs: &mut Glyphs,
+    ) {
         let (cell_width, cell_height) = (i32::from(cell.0), i32::from(cell.1));
         for (column, row, glyph, wide, fg, bg) in grid.painted() {
             let wide = wide.clamp(1, 2);
@@ -165,7 +172,7 @@ impl Picture {
             {
                 continue;
             }
-            let fg = unpack_premultiplied(fg.unwrap_or(0xFFFF_FFFF));
+            let fg = fg.map_or(foreground, unpack_premultiplied);
             let bg = bg.map_or([0.0; 4], unpack_premultiplied);
             let tile = if glyph.is_empty() {
                 None
@@ -179,7 +186,7 @@ impl Picture {
                 });
                 // The glyph over the cell's background, as one color.
                 let keep = 1.0 - fg[3] * coverage;
-                let color = [0, 1, 2, 3].map(|i| fg[i] * coverage + bg[i] * keep);
+                let color: Premul = std::array::from_fn(|i| fg[i] * coverage + bg[i] * keep);
                 let shows = self.shows(px, py);
                 if color[3] > 0.0 && shows > 0.0 {
                     self.blend(px, py, color.map(|c| c * shows));
@@ -247,7 +254,13 @@ pub(crate) fn render(draws: &[Draw], size: (u32, u32), glyphs: &mut Glyphs) -> V
                     picture.glyph(&glyph.bitmap, glyph.x, glyph.y, shader);
                 }
             }
-            Draw::Cells { x, y, grid, cell } => picture.cells(*x, *y, grid, *cell, glyphs),
+            Draw::Cells {
+                x,
+                y,
+                grid,
+                cell,
+                foreground,
+            } => picture.cells((*x, *y), grid, *cell, *foreground, glyphs),
             Draw::PushClip { polygons, window } => picture.push_clip(polygons, *window),
             Draw::PopClip => {
                 picture.clips.pop();
@@ -359,7 +372,11 @@ mod tests {
         let picture = draw(&scene, (4, 4));
         assert_eq!(picture[0], [255, 0, 0, 255], "the glyph's upper half");
         assert_eq!(picture[3 * 4], [0, 0, 255, 255], "the background below it");
-        assert_eq!(picture[2], [255, 255, 255, 255], "no color given is white");
+        let theme = crate::theme::Theme::active()
+            .resolve_color("foreground")
+            .expect("the theme has a text color");
+        let text = [theme.0, theme.1, theme.2, theme.3].map(|c| (c * 255.0).round() as u8);
+        assert_eq!(picture[2], text, "no color given is the theme's text color");
     }
 
     #[test]

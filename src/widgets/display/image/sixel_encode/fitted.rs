@@ -47,7 +47,7 @@ fn place(index: usize, channel: usize) -> usize {
 
 /// The cells of `group` span this far along each channel.
 fn spans(group: &[usize]) -> [usize; 3] {
-    [0, 1, 2].map(|channel| {
+    std::array::from_fn(|channel| {
         let places = group.iter().map(|&index| place(index, channel));
         let (low, high) = places.fold((SIDE, 0), |(low, high), at| (low.min(at), high.max(at)));
         high.saturating_sub(low)
@@ -115,7 +115,7 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
                 .iter()
                 .map(|&index| u64::from(cells[index].count))
                 .sum();
-            [0, 1, 2].map(|channel| {
+            std::array::from_fn(|channel| {
                 let sum: u64 = group
                     .iter()
                     .map(|&index| u64::from(cells[index].sums[channel]))
@@ -155,7 +155,8 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
         }
         // Up to half a cell either way, by the pixel's place in the tile.
         let nudge = i16::from(THRESHOLDS[(y & 7) as usize][(x & 7) as usize]) / 16 - 2;
-        let rgb = [0, 1, 2].map(|channel| (i16::from(pixel[channel]) + nudge).clamp(0, 255) as u8);
+        let rgb: [u8; 3] =
+            std::array::from_fn(|channel| (i16::from(pixel[channel]) + nudge).clamp(0, 255) as u8);
         let cell = cell_of(rgb);
         if index_of[cell] == UNKNOWN {
             index_of[cell] = nearest(rgb);
