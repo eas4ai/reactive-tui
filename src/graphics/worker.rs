@@ -117,7 +117,7 @@ impl GraphicsWorker {
             changed: ThreadSafeSignal::new(0),
         });
         let owner = shared.clone();
-        let name = format!("canvas-{}", NEXT_NAME.fetch_add(1, Ordering::Relaxed));
+        let name = format!("rtui-canvas-{}", NEXT_NAME.fetch_add(1, Ordering::Relaxed));
         std::thread::Builder::new()
             .name(name)
             .spawn(move || run(owner, options))
