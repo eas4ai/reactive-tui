@@ -1,5 +1,7 @@
-//! The graphics canvas (docs/spec/canvas.md): a [`Canvas`] widget draws a
-//! [`Scene`] of paths, paint, images, text and cell grids, on a hardware
+//! The graphics canvas (docs/spec/canvas.md): a
+//! [`Canvas`](crate::graphics::Canvas) widget draws a
+//! [`Scene`](crate::graphics::Scene) of paths, paint, images, text and cell
+//! grids, on a hardware
 //! wgpu adapter when the host has one and on the software renderer
 //! otherwise, and shows the picture as Kitty graphics, Sixel or block
 //! glyphs. Rendering runs on a named worker thread; the App's thread never
@@ -124,10 +126,7 @@ impl GraphicsFrame {
             mode,
             timings,
             draw_calls,
-            thread: std::thread::current()
-                .name()
-                .unwrap_or_default()
-                .to_owned(),
+            thread: std::thread::current().name().unwrap_or_default().to_owned(),
         })
     }
 

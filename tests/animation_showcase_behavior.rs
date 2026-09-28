@@ -147,7 +147,7 @@ fn graphics_showcase_reaches_the_shader_page() {
     showcase.try_handle_event(&key(KeyCode::Char('6'))).unwrap();
     assert_eq!(showcase.page(), ShowcasePage::Shader);
     let output = text(&showcase.render());
-    assert!(output.contains("Raymarched torus"));
+    assert!(output.contains("Shaded torus"));
 }
 
 /// GFX-008: the Shader page draws the torus through the canvas on the

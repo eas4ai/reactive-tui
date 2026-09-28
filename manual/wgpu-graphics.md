@@ -1,134 +1,268 @@
-# Optional offscreen graphics
+# Graphics canvas
 
 Crate modules: `graphics`
 
 ## Purpose
 
-Enable `wgpu-graphics` to render a shaded, elapsed-time spinning cube in the
-catalog's Motion page. The default build does not compile wgpu. Rust 1.91
-remains the minimum. This is an offscreen texture, not another application
-window or a replacement terminal backend. Pixels become colored `▀` cells
-through SuprTUI; no terminal image protocol is required.
+The `wgpu-graphics` feature adds the `Canvas` widget. A canvas draws a scene
+that the application describes: paths, paint, images, text and cell grids.
+It draws on a hardware GPU when the host has one and on a software renderer
+otherwise. It shows the picture as Kitty graphics, as Sixel, or as block
+glyphs, whichever the terminal takes.
+
+The default build does not compile wgpu. Rust 1.91 remains the minimum. The
+canvas opens no window and replaces no backend: it is a widget in the
+Element tree.
 
 ```sh
 cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion
+cargo run --locked --features wgpu-graphics --example animation_showcase
 ```
 
-The Motion canvas uses the whole available stage and changes its target on
-resize. Two vertical pixels share a terminal cell, assuming a cell is twice
-as tall as it is wide. Different font metrics can change the apparent aspect.
-Cell-sized edge stair-stepping is expected; this is not pixel-resolution image
-output. Other catalog layout repairs remain paused.
+The catalog's Motion page draws a lit cube. The showcase's Shader page
+(press `6`) draws a lit torus. Both are canvas scenes.
 
-## Behavior
+## Canvas widget
 
-The visible label identifies the actual GPU adapter or CPU fallback and its
-reason. Software adapters do not count as hardware acceptance. Initialization,
-device-loss, and readback failures select the shaded CPU renderer rather than
-terminating the catalog. Force CPU or reproduce failures with:
+Build a `Scene`, wrap it in `CanvasProps`, and place the canvas like any
+other widget. The canvas fills the area its parent gives it, up to 4096 by
+4096 pixels.
+
+```rust
+use reactive_tui::component::Element;
+use reactive_tui::graphics::{
+    Canvas, CanvasProps, Color, GradientStop, Paint, Path, PathBuilder, Scene, Stroke, Transform,
+};
+use std::sync::Arc;
+
+let mut scene = Scene::new();
+scene.fill(
+    &Path::rect(0.0, 0.0, 320.0, 192.0),
+    &Paint::linear(
+        (0.0, 0.0),
+        (320.0, 0.0),
+        vec![
+            GradientStop::new(0.0, Color::token("blue-500")),
+            GradientStop::new(1.0, Color::rgba(10, 10, 40, 255)),
+        ],
+    ),
+);
+scene.push_transform(Transform::translate(160.0, 96.0));
+scene.stroke(
+    &PathBuilder::new()
+        .move_to(-60.0, 40.0)
+        .quad_to(0.0, -80.0, 60.0, 40.0)
+        .build(),
+    &Stroke::new(3.0),
+    &Paint::solid(Color::rgba(255, 255, 255, 255)),
+);
+scene.pop_transform();
+scene.text(
+    (12.0, 180.0),
+    14.0,
+    "drawn on the canvas",
+    &Paint::solid(Color::token("primary")),
+);
+let canvas = Element::typed::<Canvas>(CanvasProps::new(Arc::new(scene)).view(320.0, 192.0));
+```
+
+Scene coordinates are pixels from the top left corner. One terminal cell is
+as many pixels as the terminal reports, and 8 by 16 where it reports none.
+With `.view(width, height)` the scene is drawn for a picture of that size:
+the canvas scales it to fit its area, keeps its shape and centres it.
+`.label(text)` names the picture for a screen reader, which also hears
+which renderer draws it.
+
+A scene is a list of drawing commands in painting order:
+
+| Command | What it draws |
+| --- | --- |
+| `.fill(path, paint)` | The inside of a path, by the non-zero winding rule. |
+| `.stroke(path, stroke, paint)` | The outline of a path. A `Stroke` has a width, a join (`Miter`, `Round`, `Bevel`), a cap (`Butt`, `Round`, `Square`) and an optional dash pattern. |
+| `.image(rect, image)` | A `CanvasImage` scaled smoothly into a rectangle. |
+| `.text(origin, size, text, paint)` | One line of text from its baseline. |
+| `.cells(origin, grid, cell)` | A `CellGrid`, each cell `cell` pixels. The GPU draws the whole grid in one instanced draw from its glyph atlas. |
+| `.push_transform(transform)` and `.pop_transform()` | Move, turn or scale what is drawn between them. Transforms nest. |
+| `.push_clip(path)` and `.pop_clip()` | Show what is drawn between them only inside the path. Clips nest. |
+
+A `Path` is made of lines, quadratic and cubic curves and elliptical arcs
+(`PathBuilder`), or is a ready shape: `Path::rect`, `Path::rounded_rect`,
+`Path::ellipse`. A `Paint` is one color, a linear gradient or a radial
+gradient, with an opacity. A `Color` is exact (`Color::rgba`) or a token the
+layout classes accept (`Color::token`), such as `primary`, `blue-500` or a
+hex color. A token takes the active theme's color when the scene is drawn.
+
+### Text and fonts
+
+Text is drawn in the font the application supplies through
+`GraphicsOptions::font`. Without one, on Linux the canvas takes the first
+font file of `fc-match -s monospace` that it can read. On other systems, and
+when no such file can be read, it uses DejaVu Sans Mono, which the crate
+bundles. `FontSource::Bundled` selects the bundled font on every system, so
+a picture is the same everywhere.
+
+The canvas reads the font's outlines itself and draws them with its own
+rasterizer. It does no shaping: each character is one glyph, placed by its
+advance.
+
+### How the picture reaches the terminal
+
+| The terminal takes | The canvas sends |
+| --- | --- |
+| Kitty graphics | Pixels through the Kitty protocol. When the terminal runs on the same machine and read the startup query, each picture travels through POSIX shared memory. |
+| Sixel, not Kitty | Pixels as Sixel, drawn from the cursor in whole bands of six pixel rows. |
+| Neither | Block glyphs, drawn with the blitter image fallback uses. |
+
+On Unix the backend asks the terminal at startup what it takes. See
+[Events, focus and input](events-focus-and-input.md).
+
+A new picture replaces the one before it where it is. The canvas does not
+clear the screen and writes no cell outside its area. The App writes one
+frame at a time, so when the terminal is slower than the renderer, the
+pictures in between are dropped and none waits in a queue.
+
+To choose the output yourself, set `GraphicsOptions::output` to
+`CanvasOutput::Kitty`, `CanvasOutput::Sixel` or `CanvasOutput::Blocks`. The
+environment variable `REACTIVE_TUI_CANVAS` (`kitty`, `sixel` or `blocks`)
+wins over both, so a user can correct a terminal that reports what it cannot
+show.
+
+## Renderers and faults
+
+The canvas draws on a hardware adapter (Vulkan, Metal or DX12; a discrete
+GPU before an integrated one) whenever one gives a device. A software
+adapter such as WARP or lavapipe does not count. Without a hardware adapter
+the canvas draws on its software renderer, which draws every feature.
+
+Both renderers start from the same shapes and compute coverage the same
+way, so they draw the same picture. The check allows a mean difference of 1
+of 255 per channel and no 8 by 16 pixel block that differs by more than 8 of
+255.
+
+The canvas never ends the App over a fault. When the adapter cannot be
+used, the device is lost or reading a picture back fails, the canvas
+switches to the software renderer for the rest of its life. When the
+software renderer fails too, the canvas shows a message in its own area.
+
+`GraphicsMode::label` names the renderer: `GPU · <adapter> · <backend>`, or
+`CPU fallback · <reason>`. The demos show it above the picture. Select the
+software renderer or inject a fault with:
 
 ```sh
 cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion --cpu
+cargo run --locked --features wgpu-graphics --example animation_showcase -- --cpu
 cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion --graphics-fault adapter
 cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion --graphics-fault device-loss
 cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion --graphics-fault readback
+cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion --graphics-fault software
 ```
 
-The catalog initializes the adapter before entering the raw terminal so driver
-startup diagnostics cannot scroll its alternate screen. Frame rendering runs
-on one owned worker: one active frame, one replaceable pending request, and
-one replaceable output. Requests are capped at 20 Hz and use elapsed time;
-missed deadlines are skipped. Shutdown cancels work, clears pending output,
-and joins the worker. Ctrl+Q, Ctrl+C, and Escape restore the terminal on Motion.
-Menus on other pages may consume Escape first.
+## The worker
+
+Each canvas draws on its own thread, named `rtui-canvas-` and a number. The
+thread owns the adapter, the device and the software renderer. The App's
+thread only submits the scene and shows the newest finished picture. It
+never waits for the GPU or for a software render.
+
+A scene submitted while the worker draws replaces the scene that still
+waits. The worker waits for nothing between pictures: it draws as fast as
+scenes arrive. When a picture is finished, the worker wakes the App.
+
+A graphics driver may print to the terminal while it starts. To keep that
+off the App's screen, start the worker before the terminal is set up and
+hand it to the canvas:
+
+```rust
+use reactive_tui::graphics::{GraphicsOptions, GraphicsWorker};
+use std::sync::Arc;
+use std::time::Duration;
+
+let worker = Arc::new(GraphicsWorker::spawn(GraphicsOptions::default())?);
+worker.wait_ready(Duration::from_secs(10));
+// Set the terminal up and start the App here. Give each canvas its
+// worker with CanvasProps::worker.
+```
+
+One worker serves one canvas. Both demos start theirs this way.
 
 ## Limits
 
-Dimensions are checked before allocation, with a finite limit of 800x600
-pixels (800 columns and 300 canvas rows). Oversized or empty stages display
-an error instead of allocating beyond that limit. Native initialization and
-completion waits have five-second deadlines and short cancellation polls;
-a driver call that hangs inside the operating system cannot be forcibly
-interrupted safely by this thread-based layer.
+- A picture is at most 4096 by 4096 pixels. A larger area is drawn up to
+  that size in whole cells.
+- An image is at most 4096 by 4096 pixels.
+- A gradient keeps its first 16 stops.
+- Text up to 96 pixels tall under a transform that only moves it is drawn
+  from glyph bitmaps on whole pixels. Other text is drawn as filled
+  outlines.
+- A cell grid follows only the moving part of the transform in force. Block,
+  quadrant, sextant, octant and braille glyphs are drawn as the shapes they
+  name. Box drawing is stretched to the cell. Other glyphs are fitted inside
+  the cell.
+- Waiting for the adapter, the device or a finished picture has a deadline
+  of five seconds. A driver call that hangs inside the operating system
+  cannot be interrupted safely.
+- Sixel has no partial transparency. The canvas blends its picture with the
+  background color of the cells below it.
 
-## Main API
+## Measure the renderers
 
-`graphics::GraphicsCanvas` attaches to an `AppWaker`; `advance` submits timed
-viewport work, `element` composes ordinary Elements, and dropping its owned
-worker cancels and joins. `with_renderer` accepts a `HybridCubeRenderer`
-initialized before terminal setup. `new` instead initializes lazily on the
-worker; hosts must account for driver startup diagnostics when using it.
-
-## Reproduce the comparison
-
-Set the terminal to the requested dimensions, then run each mode. Reports
-are JSON. `--report NEW_FILE` refuses to overwrite an existing file.
+Set the terminal to the requested size, then run each mode. Reports are
+JSON. `--report NEW_FILE` refuses to overwrite an existing file.
 
 ```sh
 cargo run --locked --features wgpu-graphics --example wgpu_benchmark -- --columns 144 --rows 50 --seconds 1 --report gpu-144x50.json
 cargo run --locked --features wgpu-graphics --example wgpu_benchmark -- --columns 144 --rows 50 --seconds 1 --cpu --report cpu-144x50.json
 ```
 
-Repeat with 60x24 and 200x60. Sampling accepts 0.25–30 seconds, excludes
-initialization/warmup, and permits the final in-flight frame to finish. The
-comparison requires a hardware GPU even for CPU sampling because it also
-compares fixed-time output against real GPU pixels. A GPU failure fails the
-GPU measurement; fallback cannot masquerade as GPU results.
+The command draws the demo cube as block glyphs and presents it, as fast as
+the loop runs. Sampling accepts 0.25 to 30 seconds and excludes startup and
+the first picture. The comparison needs a hardware GPU in both modes,
+because it also compares one picture from each renderer. A GPU failure
+fails the GPU measurement.
 
-Reports name the adapter, terminal environment, viewport, mode, frame count,
-actual sampling duration, achieved unpaced FPS, and average total latency.
-Separate wall-clock stages include drawing through GPU completion, texture
-copy/map/de-padding, pixel-to-Element conversion, and native backend
-layout/paint/ANSI writes. Explicit draw/copy synchronization is part of the
-measured production path. Presentation ends at terminal-write completion,
-not host acknowledgement or display scanout. App reconciliation is excluded.
-This benchmark is unpaced; the live demo separately caps requests at 20 Hz.
-No 30/60 FPS guarantee or general GPU speedup is claimed.
+A report names the adapter, the terminal environment, the size, the mode,
+the frame count, the sampled time and the frames per second. It gives the
+mean time to draw the block glyphs, to present them, and in total.
+Presentation ends when the bytes are written, not when the terminal has
+shown them. Results vary with the build profile, the host, the driver and
+the machine's load.
 
-CPU and GPU use the same shaded ray-box, rotations, and sRGB output. Reports
-measure differing pixels, mean absolute RGB error, and maximum channel error
-at one second. Initial debug samples at all three sizes differed by at most
-1/255 per channel; conversion/presentation dominated total frame costs.
-Results vary with build profile, font, host, driver, and machine load.
-
-## Verified host and captured evidence
-
-Verified locally: Linux, Kitty 0.45.0, X11 in a private Xvfb display,
-DejaVu Sans Mono 12 pt, and AMD Radeon AI PRO R9700 / RADV GFX1201 / Vulkan
-for the cube. Kitty's own OpenGL glyph renderer used software rendering in
-this isolated display; the cube's Vulkan adapter was real hardware.
-Native desktop Wayland Kitty, other terminals, Windows, and macOS remain
-unverified for this increment. Compiled native backend options are not host
-acceptance claims.
-
-The complete documented comparison and host captures can be rerun without
-touching desktop windows. It needs `kitty`, `Xvfb`, and `/usr/bin/import`
-(ImageMagick built with X11 support), plus the hardware Vulkan driver:
+The captures of the catalog in a private Kitty host can be made again
+without touching desktop windows. They need `kitty`, `Xvfb` and
+`/usr/bin/import` (ImageMagick built with X11 support), and the hardware
+Vulkan driver:
 
 ```sh
 cargo build --locked --features wgpu-graphics --example widget_catalog --example wgpu_benchmark
-python3 -B scripts/check-wgpu-host.py --output /tmp/reactive-wgpu-captures-NEW
+python3 -B scripts/check-wgpu-host.py --output /tmp/reactive-canvas-captures-NEW
 ```
 
 Use a new directory each time. `CARGO_TARGET_DIR` is honored. The harness
-creates and stops only its own display and Kitty processes. It records six
-JSON measurements, three viewport screenshots plus a shrink-back capture, host details, and
-artifact hashes. It keeps artifacts beneath
-`target/evidence/captures/wgpu/`, which `cargo clean` removes. Inspect the screenshots;
-passing report validation alone cannot establish visual quality.
+creates and stops only its own display and Kitty processes. Look at the
+screenshots: a passing report alone does not show that the picture is
+right.
 
 ## Source map
 
-- Renderer and pixels: [`src/graphics/mod.rs`](../src/graphics/mod.rs)
-- Owned canvas: [`src/graphics/canvas.rs`](../src/graphics/canvas.rs)
-- Fallback: [`src/graphics/hybrid.rs`](../src/graphics/hybrid.rs)
-- Real-adapter composition tests: [`tests/wgpu_graphics.rs`](../tests/wgpu_graphics.rs)
-- Lifecycle tests: [`tests/wgpu_lifecycle.rs`](../tests/wgpu_lifecycle.rs)
+- Scene model: [`src/graphics/scene.rs`](../src/graphics/scene.rs)
+- Widget: [`src/graphics/widget.rs`](../src/graphics/widget.rs)
+- Worker: [`src/graphics/worker.rs`](../src/graphics/worker.rs)
+- Renderer choice and faults: [`src/graphics/hybrid.rs`](../src/graphics/hybrid.rs)
+- Hardware renderer and its shader: [`src/graphics/gpu.rs`](../src/graphics/gpu.rs),
+  [`src/graphics/canvas.wgsl`](../src/graphics/canvas.wgsl)
+- Software renderer: [`src/graphics/software.rs`](../src/graphics/software.rs)
+- Fonts and glyphs: [`src/graphics/fonts.rs`](../src/graphics/fonts.rs),
+  [`src/graphics/glyphs.rs`](../src/graphics/glyphs.rs)
+- Output choice: [`src/graphics/output.rs`](../src/graphics/output.rs)
+- Scene, worker and fault tests: [`tests/canvas_scenes.rs`](../tests/canvas_scenes.rs)
+- Output tests: [`tests/canvas_output.rs`](../tests/canvas_output.rs)
+- Renderer comparison on each host: [`tests/canvas_hosts.rs`](../tests/canvas_hosts.rs)
 - Measurement command: [`examples/wgpu_benchmark.rs`](../examples/wgpu_benchmark.rs)
 
 ## Related chapters
 
 - [Rendering and backends](rendering-and-backends.md)
+- [Images and clipboard](images-and-clipboard.md)
 - [Animation and screens](animation-and-screens.md)
 - [Applications and components](app-and-components.md)
 

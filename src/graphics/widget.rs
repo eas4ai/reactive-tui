@@ -22,6 +22,7 @@ pub struct CanvasProps {
     options: GraphicsOptions,
     view: Option<(f32, f32)>,
     label: Option<String>,
+    worker: Option<Arc<GraphicsWorker>>,
 }
 
 impl CanvasProps {
@@ -34,7 +35,17 @@ impl CanvasProps {
             options: GraphicsOptions::default(),
             view: None,
             label: None,
+            worker: None,
         }
+    }
+
+    /// Draw on `worker` instead of a worker the canvas starts itself. An
+    /// application starts one before it sets the terminal up
+    /// ([`GraphicsWorker::wait_ready`]); the worker's own options decide
+    /// its renderer and font. One worker serves one canvas.
+    pub fn worker(mut self, worker: Arc<GraphicsWorker>) -> Self {
+        self.worker = Some(worker);
+        self
     }
 
     /// How the canvas renders and shows its pictures.
@@ -63,6 +74,11 @@ impl PartialEq for CanvasProps {
             && self.options == other.options
             && self.view == other.view
             && self.label == other.label
+            && match (&self.worker, &other.worker) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                _ => false,
+            }
     }
 }
 
@@ -103,7 +119,7 @@ struct View {
 /// A widget that draws a scene.
 pub struct Canvas {
     props: CanvasProps,
-    worker: Option<GraphicsWorker>,
+    worker: Option<Arc<GraphicsWorker>>,
     /// Why there is no worker.
     failure: Option<String>,
     link: Arc<CanvasLink>,
@@ -113,6 +129,28 @@ pub struct Canvas {
 }
 
 impl Canvas {
+    /// The worker `props` names, else one started for them, or why there
+    /// is none.
+    fn start(props: &CanvasProps) -> (Option<Arc<GraphicsWorker>>, Option<String>) {
+        if let Some(worker) = &props.worker {
+            return (Some(worker.clone()), None);
+        }
+        match GraphicsWorker::spawn(props.options.clone()) {
+            Ok(worker) => (Some(Arc::new(worker)), None),
+            Err(error) => (None, Some(error.to_string())),
+        }
+    }
+
+    /// Whether `a` and `b` draw on the same worker.
+    fn same_worker(a: &CanvasProps, b: &CanvasProps) -> bool {
+        match (&a.worker, &b.worker) {
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+            // A worker the canvas started serves while the options stay.
+            (None, None) => a.options == b.options,
+            _ => false,
+        }
+    }
+
     /// The canvas's area in cells.
     fn cells(&self) -> (u32, u32) {
         self.viewport.map_or((0, 0), |viewport| {
@@ -137,7 +175,8 @@ impl Canvas {
             self.props.options.output,
             CanvasOutput::from_environment(),
         );
-        let named = self.props.options.output.is_some() || CanvasOutput::from_environment().is_some();
+        let named =
+            self.props.options.output.is_some() || CanvasOutput::from_environment().is_some();
         if host.is_none() && !named && !waited {
             return None;
         }
@@ -149,7 +188,12 @@ impl Canvas {
                 let (across, down) = blitter.cell_pixels();
                 let columns = columns.min(MAX_WIDTH / across);
                 let rows = rows.min(MAX_HEIGHT / down);
-                (Want::Blocks { blitter, cell }, (columns, rows), columns, rows)
+                (
+                    Want::Blocks { blitter, cell },
+                    (columns, rows),
+                    columns,
+                    rows,
+                )
             }
             CanvasOutput::Kitty | CanvasOutput::Sixel => {
                 let columns = columns.min(MAX_WIDTH / cell_width);
@@ -166,13 +210,10 @@ impl Canvas {
             return None;
         }
         let picture = ((columns * cell_width) as f32, (rows * cell_height) as f32);
-        let base = self.props.view.map_or(Transform::identity(), |view| {
-            let scale = (picture.0 / view.0).min(picture.1 / view.1);
-            Transform::scale(scale, scale).then(Transform::translate(
-                (picture.0 - view.0 * scale) / 2.0,
-                (picture.1 - view.1 * scale) / 2.0,
-            ))
-        });
+        let base = self
+            .props
+            .view
+            .map_or(Transform::identity(), |view| Transform::fit(view, picture));
         Some((
             Job {
                 scene: self.props.scene.clone(),
@@ -201,10 +242,7 @@ impl Component for Canvas {
     type State = ();
 
     fn new(props: Self::Props) -> Self {
-        let (worker, failure) = match GraphicsWorker::spawn(props.options.clone()) {
-            Ok(worker) => (Some(worker), None),
-            Err(error) => (None, Some(error.to_string())),
-        };
+        let (worker, failure) = Self::start(&props);
         Self {
             props,
             worker,
@@ -217,12 +255,9 @@ impl Component for Canvas {
     }
 
     fn update(&mut self, props: &Self::Props, _: &mut ()) -> bool {
-        if self.props.options != props.options {
+        if !Self::same_worker(&self.props, props) {
             // Other options are another renderer: the worker starts anew.
-            let (worker, failure) = match GraphicsWorker::spawn(props.options.clone()) {
-                Ok(worker) => (Some(worker), None),
-                Err(error) => (None, Some(error.to_string())),
-            };
+            let (worker, failure) = Self::start(props);
             self.worker = worker;
             self.failure = failure;
             *self.view.get_mut().unwrap_or_else(|e| e.into_inner()) = View::default();
@@ -272,32 +307,28 @@ impl Component for Canvas {
 
         let (columns, rows) = self.cells();
         let insets = self.viewport.map_or([0.0; 4], |viewport| viewport.insets);
-        let failure = self.failure.clone().or_else(|| {
-            shown
-                .as_ref()
-                .and_then(|(shown, _)| shown.error.clone())
-        });
-        let message = failure
-            .as_ref()
-            .map(|failure| format!("Canvas: {failure}"));
-        let mut content = ElementBuilder::new(ElementType::Text(
-            message.clone().unwrap_or_default(),
-        ))
-        .styles(
-            StyleBuilder::new()
-                .position_absolute()
-                .inset_left(insets[0])
-                .inset_top(insets[1])
-                .width_px(columns as f32)
-                .height_px(rows as f32)
-                .overflow_hidden(),
-        )
-        .class(if message.is_some() {
-            "whitespace-normal"
-        } else {
-            "whitespace-pre"
-        })
-        .build();
+        let failure = self
+            .failure
+            .clone()
+            .or_else(|| shown.as_ref().and_then(|(shown, _)| shown.error.clone()));
+        let message = failure.as_ref().map(|failure| format!("Canvas: {failure}"));
+        let mut content =
+            ElementBuilder::new(ElementType::Text(message.clone().unwrap_or_default()))
+                .styles(
+                    StyleBuilder::new()
+                        .position_absolute()
+                        .inset_left(insets[0])
+                        .inset_top(insets[1])
+                        .width_px(columns as f32)
+                        .height_px(rows as f32)
+                        .overflow_hidden(),
+                )
+                .class(if message.is_some() {
+                    "whitespace-normal"
+                } else {
+                    "whitespace-pre"
+                })
+                .build();
         content.metadata.inert = true;
         let mut pixels = None;
         if let (Some((shown, (_, output))), None) = (&shown, &message) {

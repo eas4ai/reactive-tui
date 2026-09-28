@@ -321,9 +321,7 @@ impl Frame {
         }
         self.covers.extend_from_slice(&floats);
         match self.batches.last_mut() {
-            Some(batch)
-                if batch.mask == mask && (image.is_none() || batch.image == image) =>
-            {
+            Some(batch) if batch.mask == mask && (image.is_none() || batch.image == image) => {
                 batch.covers.end = index + 1;
             }
             Some(batch) if batch.mask == mask && batch.image.is_none() => {
@@ -367,7 +365,8 @@ impl Frame {
             for index in 0..polygon.len() {
                 let a = polygon[index];
                 let b = polygon[(index + 1) % polygon.len()];
-                let finite = a.0.is_finite() && a.1.is_finite() && b.0.is_finite() && b.1.is_finite();
+                let finite =
+                    a.0.is_finite() && a.1.is_finite() && b.0.is_finite() && b.1.is_finite();
                 if !finite || a.1 == b.1 {
                     continue;
                 }
@@ -486,7 +485,10 @@ fn wait<T>(future: impl std::future::Future<Output = T>) -> Result<T, GraphicsEr
 }
 
 fn floats_to_bytes(floats: &[f32]) -> Vec<u8> {
-    floats.iter().flat_map(|value| value.to_ne_bytes()).collect()
+    floats
+        .iter()
+        .flat_map(|value| value.to_ne_bytes())
+        .collect()
 }
 
 /// A texture of one pixel with every channel full.
@@ -828,7 +830,11 @@ impl GpuRenderer {
     }
 
     fn targets(&mut self, size: (u32, u32)) {
-        if self.targets.as_ref().is_some_and(|targets| targets.size == size) {
+        if self
+            .targets
+            .as_ref()
+            .is_some_and(|targets| targets.size == size)
+        {
             return;
         }
         let drawn = wgpu::TextureUsages::RENDER_ATTACHMENT;
@@ -844,8 +850,8 @@ impl GpuRenderer {
             COVERAGE_FORMAT,
             drawn | wgpu::TextureUsages::TEXTURE_BINDING,
         );
-        let padded_row =
-            (size.0 * 4).div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let padded_row = (size.0 * 4).div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT)
+            * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let readback = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("canvas readback"),
             size: u64::from(padded_row) * u64::from(size.1),
@@ -896,13 +902,18 @@ impl GpuRenderer {
         if self.atlas.generation != generation {
             self.atlas = GlyphAtlas::new(&self.device, self.atlas.side(), generation);
         }
-        if needed.iter().all(|bitmap| self.atlas.add(&self.queue, bitmap)) {
+        if needed
+            .iter()
+            .all(|bitmap| self.atlas.add(&self.queue, bitmap))
+        {
             return;
         }
         let mut side = self.atlas.side();
         loop {
             self.atlas = GlyphAtlas::new(&self.device, side, generation);
-            let fits = needed.iter().all(|bitmap| self.atlas.add(&self.queue, bitmap));
+            let fits = needed
+                .iter()
+                .all(|bitmap| self.atlas.add(&self.queue, bitmap));
             if fits || side >= GlyphAtlas::LARGEST {
                 if !fits {
                     log::warn!("The canvas's glyph atlas is full; some glyphs are not drawn");
@@ -1016,7 +1027,12 @@ impl GpuRenderer {
                             (glyph.x + glyph.bitmap.width as i32) as f32,
                             (glyph.y + glyph.bitmap.height as i32) as f32,
                         ]);
-                        floats[4..8].copy_from_slice(&[at.0 as f32, at.1 as f32, FROM_GLYPH, paint]);
+                        floats[4..8].copy_from_slice(&[
+                            at.0 as f32,
+                            at.1 as f32,
+                            FROM_GLYPH,
+                            paint,
+                        ]);
                         frame.cover(floats, image);
                     }
                 }

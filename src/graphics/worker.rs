@@ -35,6 +35,8 @@ pub(crate) struct Job {
 /// What the worker made of a job.
 #[derive(Clone)]
 pub(crate) struct Finished {
+    /// The number [`GraphicsWorker::submit_job`] gave the job.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub id: u64,
     pub size: (u32, u32),
     pub want: Want,
@@ -70,7 +72,10 @@ struct Slots {
 
 struct Shared {
     slots: Mutex<Slots>,
+    /// A job waits, or the worker is to end.
     ready: Condvar,
+    /// The worker has made its renderer.
+    started: Condvar,
     closed: AtomicBool,
     changed: ThreadSafeSignal<u64>,
 }
@@ -88,6 +93,16 @@ pub struct GraphicsWorker {
     shared: Arc<Shared>,
 }
 
+impl std::fmt::Debug for GraphicsWorker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let slots = self.shared.slots();
+        f.debug_struct("GraphicsWorker")
+            .field("mode", &slots.mode)
+            .field("stats", &slots.stats)
+            .finish()
+    }
+}
+
 static NEXT_NAME: AtomicUsize = AtomicUsize::new(0);
 
 impl GraphicsWorker {
@@ -97,6 +112,7 @@ impl GraphicsWorker {
         let shared = Arc::new(Shared {
             slots: Mutex::default(),
             ready: Condvar::new(),
+            started: Condvar::new(),
             closed: AtomicBool::new(false),
             changed: ThreadSafeSignal::new(0),
         });
@@ -161,6 +177,28 @@ impl GraphicsWorker {
         self.shared.slots().mode.clone()
     }
 
+    /// Wait up to `timeout` for the worker to make its renderer, and return
+    /// it. An application calls this before it sets the terminal up, so
+    /// that what a graphics driver prints while it starts does not land on
+    /// the App's screen; the App's thread never calls it.
+    pub fn wait_ready(&self, timeout: std::time::Duration) -> Option<GraphicsMode> {
+        let deadline = std::time::Instant::now() + timeout;
+        let mut slots = self.shared.slots();
+        while slots.mode.is_none() {
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            if left.is_zero() {
+                break;
+            }
+            slots = self
+                .shared
+                .started
+                .wait_timeout(slots, left)
+                .unwrap_or_else(|e| e.into_inner())
+                .0;
+        }
+        slots.mode.clone()
+    }
+
     /// What the worker has done so far.
     pub fn stats(&self) -> WorkerStats {
         self.shared.slots().stats
@@ -180,6 +218,7 @@ impl Drop for GraphicsWorker {
 fn run(shared: Arc<Shared>, options: GraphicsOptions) {
     let mut renderer = HybridRenderer::new(options);
     shared.slots().mode = Some(renderer.mode().clone());
+    shared.started.notify_all();
     loop {
         let (id, job) = {
             let mut slots = shared.slots();

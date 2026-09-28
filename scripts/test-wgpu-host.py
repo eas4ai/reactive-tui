@@ -22,8 +22,8 @@ class FrameSynchronizationTests(unittest.TestCase):
         value.frame_ready.assert_called_once_with(60, 24, "GPU ·")
 
     def test_stale_valid_frame_before_resize_loading_cannot_pass(self):
-        screen = "Reactive TUI · Widget Catalog\nGPU · hardware\n" + "▀" * 900 + "\nCtrl+Q quit"
-        loading = "Reactive TUI · Widget Catalog\nStarting graphics\nPreparing viewport\nCtrl+Q quit"
+        screen = "Reactive TUI · Widget Catalog\nGPU · hardware\n\nCtrl+Q quit"
+        loading = "Reactive TUI · Widget Catalog\nStarting graphics\n\nCtrl+Q quit"
         value = host.Host.__new__(host.Host)
         value.process = unittest.mock.Mock()
         value.process.poll.return_value = None

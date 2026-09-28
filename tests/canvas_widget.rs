@@ -99,9 +99,12 @@ fn bar_003_the_canvas_fills_its_parent_and_follows_a_resize() {
             frame: 0,
         },
         old,
+        // Frames that are not busy: the first, before the canvas knows its
+        // size, and the first that shows the picture; the canvas never
+        // waits for its worker, so the frame between them is busy.
         vec![
-            (3, Some(Event::Resize(ResizeEvent::new(new.0, new.1)))),
-            (4, None),
+            (2, Some(Event::Resize(ResizeEvent::new(new.0, new.1)))),
+            (3, None),
         ],
     );
     let before = frames
@@ -128,7 +131,7 @@ fn bar_003_the_canvas_describes_its_renderer_to_the_screen_reader() {
             frame: 0,
         },
         (40, 12),
-        vec![(3, None)],
+        vec![(2, None)],
     );
     let spoken: Vec<String> = frames.iter().flat_map(|f| f.live.clone()).collect();
     assert!(

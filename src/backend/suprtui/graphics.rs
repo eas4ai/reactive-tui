@@ -106,11 +106,7 @@ impl<P: RasterPlane> Graphics<P> {
                 .iter()
                 .zip(&self.last)
                 .all(|(plane, last)| plane == last || plane.replaces(last));
-        let before = if in_place {
-            Vec::new()
-        } else {
-            self.cleanup()
-        };
+        let before = if in_place { Vec::new() } else { self.cleanup() };
         let mut after = Vec::new();
         let blend_legacy = next.iter().any(|p| p.protocol() != ImageProtocol::Kitty);
         let mut below = PixelLayers::new(cell);
@@ -192,10 +188,9 @@ impl<P: RasterPlane> Graphics<P> {
             // stays beside the picture (8452) so the screen never scrolls.
             let sixel_modes: (&[u8], &[u8]) = match (plane.protocol(), plane.canvas()) {
                 (ImageProtocol::Sixel, None) => (b"\x1b[?80s\x1b[?80h", b"\x1b[?80r"),
-                (ImageProtocol::Sixel, Some(_)) => (
-                    b"\x1b[?80;8452s\x1b[?80l\x1b[?8452h",
-                    b"\x1b[?80;8452r",
-                ),
+                (ImageProtocol::Sixel, Some(_)) => {
+                    (b"\x1b[?80;8452s\x1b[?80l\x1b[?8452h", b"\x1b[?80;8452r")
+                }
                 _ => (b"", b""),
             };
             after.extend_from_slice(sixel_modes.0);

@@ -25,7 +25,7 @@ intent and platform limits when the source needs context.
 - [Terminal widget](#terminal-widget)
 - [Rendering and backends](#rendering-and-backends)
 - [Animation and screens](#animation-and-screens)
-- [Offscreen graphics](wgpu-graphics.md)
+- [Graphics canvas](wgpu-graphics.md)
 - [Terminal and embedded sessions](#terminal-and-embedded-sessions)
 - [Text editing, Markdown, and syntax](#text-editing-markdown-and-syntax)
 - [Accessibility](#accessibility)
@@ -60,9 +60,9 @@ larger terminals retain empty space beyond that cap. No assets
 are downloaded. Ctrl+Q is the global quit key; Ctrl+C and Escape quit when
 the focused widget leaves the key unhandled.
 
-With `--features wgpu-graphics`, Motion instead presents a shaded offscreen
-GPU cube with labeled CPU fallback. See [Offscreen graphics](wgpu-graphics.md)
-for commands, measurements, and verified-host limits.
+With `--features wgpu-graphics`, Motion instead draws a lit cube on the
+graphics canvas and names the renderer that draws it. See
+[Graphics canvas](wgpu-graphics.md) for the widget, commands and limits.
 
 The system page uses a bounded terminal command, not an interactive shell.
 The known Kitty embedded-shell crash remains outside this example's scope.

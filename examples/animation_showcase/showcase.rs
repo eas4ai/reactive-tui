@@ -3,7 +3,10 @@ pub mod animations;
 
 use animations::{donut_frame, fire_frame, plasma_frame, ripple_frame, warp_frame, Animation};
 #[cfg(feature = "wgpu-graphics")]
-use reactive_tui::graphics::{GraphicsCanvas, GraphicsEffect, GraphicsOptions, HybridCubeRenderer};
+#[path = "scene.rs"]
+pub mod scene;
+#[cfg(feature = "wgpu-graphics")]
+use reactive_tui::graphics::{Canvas, CanvasProps, GraphicsOptions, GraphicsWorker};
 use reactive_tui::{
     app::{RootComponent, RootUpdate},
     builder::div,
@@ -13,7 +16,18 @@ use reactive_tui::{
         types::{Event, KeyCode, KeyEventKind},
     },
 };
+#[cfg(feature = "wgpu-graphics")]
+use std::sync::Arc;
 use std::time::Instant;
+
+/// The Shader page's canvas: how it draws, the worker that draws it and
+/// when the torus began to turn.
+#[cfg(feature = "wgpu-graphics")]
+struct CanvasStage {
+    options: GraphicsOptions,
+    worker: Option<Arc<GraphicsWorker>>,
+    started: Instant,
+}
 
 /// Tabbed animation pages. The Shader page exists only with wgpu-graphics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,7 +69,7 @@ impl ShowcasePage {
             Self::Fire => "Fire · rising flames",
             Self::Ripples => "Ripples · wave tank",
             #[cfg(feature = "wgpu-graphics")]
-            Self::Shader => "Shader · GPU torus",
+            Self::Shader => "Shader · canvas torus",
         }
     }
 
@@ -108,16 +122,9 @@ pub struct Showcase {
     height: u16,
     motion: Animation,
     exit_requested: bool,
+    /// Set when the showcase draws the Shader page on the canvas.
     #[cfg(feature = "wgpu-graphics")]
-    graphics: Option<GraphicsCanvas>,
-    #[cfg(feature = "wgpu-graphics")]
-    graphics_options: GraphicsOptions,
-    #[cfg(feature = "wgpu-graphics")]
-    prepared_graphics: Option<HybridCubeRenderer>,
-    #[cfg(feature = "wgpu-graphics")]
-    graphics_started: Instant,
-    #[cfg(feature = "wgpu-graphics")]
-    graphics_error: Option<String>,
+    canvas: Option<CanvasStage>,
 }
 
 impl Default for Showcase {
@@ -129,26 +136,27 @@ impl Default for Showcase {
             motion: Animation::new(Instant::now(), donut_frame),
             exit_requested: false,
             #[cfg(feature = "wgpu-graphics")]
-            graphics: None,
-            #[cfg(feature = "wgpu-graphics")]
-            graphics_options: GraphicsOptions::default(),
-            #[cfg(feature = "wgpu-graphics")]
-            prepared_graphics: None,
-            #[cfg(feature = "wgpu-graphics")]
-            graphics_started: Instant::now(),
-            #[cfg(feature = "wgpu-graphics")]
-            graphics_error: None,
+            canvas: None,
         }
     }
 }
 
 impl Showcase {
     #[cfg(feature = "wgpu-graphics")]
-    pub fn with_graphics(mut options: GraphicsOptions) -> Self {
-        options.effect = GraphicsEffect::Torus;
+    pub fn with_graphics(options: GraphicsOptions) -> Self {
+        // Called before SuprTuiBackend::new: the worker makes its renderer
+        // now, so what a graphics driver prints while it starts does not
+        // land on the App's screen.
+        let worker = GraphicsWorker::spawn(options.clone()).ok().map(Arc::new);
+        if let Some(worker) = &worker {
+            worker.wait_ready(std::time::Duration::from_secs(10));
+        }
         Self {
-            graphics_options: options,
-            prepared_graphics: Some(HybridCubeRenderer::new(options)),
+            canvas: Some(CanvasStage {
+                options,
+                worker,
+                started: Instant::now(),
+            }),
             ..Self::default()
         }
     }
@@ -159,12 +167,6 @@ impl Showcase {
             usize::from(self.width),
             usize::from(self.height.saturating_sub(4)),
         )
-    }
-
-    #[cfg(feature = "wgpu-graphics")]
-    fn graphics_viewport(&self) -> (u32, u32) {
-        let (columns, rows) = self.stage_viewport();
-        (columns as u32, rows as u32)
     }
 
     #[cfg(test)]
@@ -211,47 +213,54 @@ impl Showcase {
             .build()
     }
 
+    /// The Shader page: the torus as a scene the canvas fits to the stage,
+    /// under the name of the renderer that draws it.
     #[cfg(feature = "wgpu-graphics")]
     fn shader_stage(&self) -> Element {
-        if let Some(graphics) = &self.graphics {
+        let title = div()
+            .class("h-1 shrink-0 text-white font-bold")
+            .text("Shaded torus · canvas scene")
+            .build();
+        let Some(stage) = &self.canvas else {
             return div()
-                .class("flex-col flex-1 min-w-0 min-h-0 h-full bg-gray-900")
+                .class("w-full flex-1 min-h-0 flex-col bg-black")
+                .child(title)
                 .child(
                     div()
-                        .class("h-1 shrink-0 text-white font-bold")
-                        .text("Raymarched torus · GPU shader")
+                        .class("whitespace-normal text-gray-400")
+                        .text("The showcase was started without the canvas.")
                         .build(),
-                )
-                .child(
-                    div()
-                        .class("h-1 shrink-0 text-fuchsia-300")
-                        .text(
-                            &self
-                                .graphics_error
-                                .clone()
-                                .unwrap_or_else(|| graphics.mode_label()),
-                        )
-                        .build(),
-                )
-                .child(
-                    graphics
-                        .element()
-                        .unwrap_or_else(|error| Element::text(error.to_string())),
                 )
                 .build();
+        };
+        // The renderer is named once it has drawn, so the line and the
+        // first picture appear together.
+        let renderer = stage
+            .worker
+            .as_ref()
+            .filter(|worker| worker.stats().rendered > 0)
+            .and_then(|worker| worker.mode())
+            .map_or_else(|| "Starting graphics…".to_owned(), |mode| mode.label());
+        let mut props = CanvasProps::new(Arc::new(scene::torus_scene(stage.started.elapsed())))
+            .options(stage.options.clone())
+            .view(scene::VIEW.0, scene::VIEW.1)
+            .label("Shaded turning torus");
+        if let Some(worker) = &stage.worker {
+            props = props.worker(worker.clone());
         }
         div()
-            .class("w-full flex-1 min-h-0 flex-col bg-black")
+            .class("flex-col flex-1 min-w-0 min-h-0 h-full bg-gray-900")
+            .child(title)
             .child(
                 div()
-                    .class("h-1 shrink-0 text-white font-bold")
-                    .text("Raymarched torus · GPU shader")
+                    .class("h-1 shrink-0 text-fuchsia-300")
+                    .text(&renderer)
                     .build(),
             )
             .child(
                 div()
-                    .class("whitespace-normal text-gray-400")
-                    .text("Starting graphics…")
+                    .class("w-full flex-1 min-h-0")
+                    .child(Element::typed::<Canvas>(props))
                     .build(),
             )
             .build()
@@ -274,14 +283,6 @@ impl Showcase {
 }
 
 impl RootComponent for Showcase {
-    #[cfg(feature = "wgpu-graphics")]
-    fn attach_waker(&mut self, wake: reactive_tui::app::AppWaker) {
-        self.graphics = Some(match self.prepared_graphics.take() {
-            Some(renderer) => GraphicsCanvas::with_renderer(wake, renderer),
-            None => GraphicsCanvas::new(wake, self.graphics_options),
-        });
-    }
-
     fn render(&self) -> Element {
         #[cfg(feature = "wgpu-graphics")]
         let stage = if self.page == ShowcasePage::Shader {
@@ -365,39 +366,11 @@ impl RootComponent for Showcase {
     }
 
     fn update(&mut self) -> reactive_tui::Result<RootUpdate> {
+        // The torus turns with time: each frame of the Shader page is a
+        // new scene, which the canvas's worker draws.
         #[cfg(feature = "wgpu-graphics")]
-        {
-            if self.exit_requested {
-                if let Some(graphics) = &mut self.graphics {
-                    graphics.shutdown().map_err(|error| {
-                        reactive_tui::ReactiveError::invalid_state(error.to_string())
-                    })?;
-                }
-                return Ok(RootUpdate::Exit);
-            }
-            if self.page == ShowcasePage::Shader {
-                let (columns, rows) = self.graphics_viewport();
-                if let Some(graphics) = &mut self.graphics {
-                    return Ok(
-                        match graphics.advance(self.graphics_started.elapsed(), columns, rows) {
-                            Ok(true) => {
-                                self.graphics_error = None;
-                                RootUpdate::Redraw
-                            }
-                            Ok(false) => RootUpdate::Unchanged,
-                            Err(error) => {
-                                let message = error.to_string();
-                                if self.graphics_error.as_ref() == Some(&message) {
-                                    RootUpdate::Unchanged
-                                } else {
-                                    self.graphics_error = Some(message);
-                                    RootUpdate::Redraw
-                                }
-                            }
-                        },
-                    );
-                }
-            }
+        if !self.exit_requested && self.page == ShowcasePage::Shader && self.canvas.is_some() {
+            return Ok(RootUpdate::Redraw);
         }
         Ok(if self.exit_requested {
             RootUpdate::Exit

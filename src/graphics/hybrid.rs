@@ -259,9 +259,7 @@ impl HybridRenderer {
             }
         }
         if self.fault == Some(GraphicsFault::Software) {
-            return Err(GraphicsError::Software(
-                "injected software failure".into(),
-            ));
+            return Err(GraphicsError::Software("injected software failure".into()));
         }
         let started = Instant::now();
         let glyphs = &mut self.glyphs;

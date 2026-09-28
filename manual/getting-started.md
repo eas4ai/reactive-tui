@@ -52,8 +52,8 @@ The default feature enables Tokio support. `async-capabilities` also enables
 Tokio. `ffi` exports the C ABI. `embedded-terminal` enables the Unix
 libghostty-based embedded session. The two debug features add diagnostic paths.
 `simd` enables nightly Rust portable SIMD code.
-`wgpu-graphics` enables the optional offscreen canvas with CPU fallback; see
-[Offscreen graphics](wgpu-graphics.md).
+`wgpu-graphics` enables the graphics canvas, drawn on a GPU or by a software
+renderer; see [Graphics canvas](wgpu-graphics.md).
 
 ## Limits
 

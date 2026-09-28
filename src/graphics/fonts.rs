@@ -154,15 +154,18 @@ impl Font {
         if !usable(&data) {
             return None;
         }
-        let face = ttf_parser::Face::parse(&data, 0).ok()?;
-        let units_per_em = f32::from(face.units_per_em());
-        let ascent = f32::from(face.ascender());
-        let descent = -f32::from(face.descender());
-        let advance = face
-            .glyph_index('0')
-            .and_then(|glyph| face.glyph_hor_advance(glyph))
-            .map_or(units_per_em * 0.6, f32::from);
-        drop(face);
+        let (units_per_em, ascent, descent, advance) = {
+            let face = ttf_parser::Face::parse(&data, 0).ok()?;
+            let units_per_em = f32::from(face.units_per_em());
+            (
+                units_per_em,
+                f32::from(face.ascender()),
+                -f32::from(face.descender()),
+                face.glyph_index('0')
+                    .and_then(|glyph| face.glyph_hor_advance(glyph))
+                    .map_or(units_per_em * 0.6, f32::from),
+            )
+        };
         Some(Self {
             data,
             source,

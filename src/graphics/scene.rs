@@ -287,6 +287,19 @@ impl Transform {
         })
     }
 
+    /// The transform that fits a picture of `view` into one of `into`: as
+    /// large as fits with its shape kept, and centred.
+    pub fn fit(view: (f32, f32), into: (f32, f32)) -> Self {
+        if !(view.0 > 0.0 && view.1 > 0.0) {
+            return Self::identity();
+        }
+        let scale = (into.0 / view.0).min(into.1 / view.1);
+        Self::scale(scale, scale).then(Self::translate(
+            (into.0 - view.0 * scale) / 2.0,
+            (into.1 - view.1 * scale) / 2.0,
+        ))
+    }
+
     /// Whether the transform only moves points.
     pub(crate) fn is_translation(&self) -> bool {
         self.a == 1.0 && self.b == 0.0 && self.c == 0.0 && self.d == 1.0
@@ -526,6 +539,14 @@ impl Scene {
     /// An empty scene: a transparent picture.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The same drawing under `transform`.
+    pub fn transformed(&self, transform: Transform) -> Self {
+        let mut commands = Vec::with_capacity(self.commands.len() + 1);
+        commands.push(Command::PushTransform(transform));
+        commands.extend(self.commands.iter().cloned());
+        Self { commands }
     }
 
     /// Fill `path` with `paint`.

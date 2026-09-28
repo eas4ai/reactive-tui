@@ -175,7 +175,7 @@ class SourceAnalysisTests(unittest.TestCase):
             {"name": "base", "kind": ["test"], "src_path": str(CHECKER.ROOT / "tests/utility_paint_tests.rs")},
             {"name": "ffi", "kind": ["test"], "src_path": str(CHECKER.ROOT / "tests/ffi_tests.rs"),
              "required-features": ["ffi"]},
-            {"name": "gpu", "kind": ["test"], "src_path": str(CHECKER.ROOT / "tests/wgpu_graphics.rs"),
+            {"name": "gpu", "kind": ["test"], "src_path": str(CHECKER.ROOT / "tests/canvas_hosts.rs"),
              "required-features": ["wgpu-graphics"]},
         ]
         metadata = {"packages": [{"name": "reactive-tui", "targets": targets}]}

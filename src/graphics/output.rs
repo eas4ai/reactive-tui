@@ -188,7 +188,10 @@ mod tests {
         ] {
             assert_eq!(CanvasOutput::from_name(output.name()), Some(output));
         }
-        assert_eq!(CanvasOutput::from_name(" KITTY "), Some(CanvasOutput::Kitty));
+        assert_eq!(
+            CanvasOutput::from_name(" KITTY "),
+            Some(CanvasOutput::Kitty)
+        );
         assert_eq!(CanvasOutput::from_name("pixels"), None);
         let link = CanvasLink::default();
         assert_eq!(link.host(), None);
