@@ -35,6 +35,9 @@ pub(super) const RENDERER_STACK: usize = 8 << 20;
 pub struct ImageOutputOptions {
     /// Emit Kitty graphics when the host supports that protocol.
     pub kitty_graphics: bool,
+    /// Send Kitty graphics through shared memory: the host read a
+    /// shared-memory query at startup, so it runs on this machine (GFX-005).
+    pub kitty_shared_memory: bool,
     /// Emit Sixel graphics when supported by the host.
     pub sixel: bool,
     /// Emit iTerm2 inline image files when supported by the host.
@@ -46,6 +49,7 @@ impl Default for ImageOutputOptions {
     fn default() -> Self {
         Self {
             kitty_graphics: false,
+            kitty_shared_memory: false,
             sixel: false,
             iterm2_inline: false,
             cell_pixels: (8, 16),
@@ -186,6 +190,11 @@ impl SuprTuiBackend {
         #[cfg(not(unix))]
         let replies = StartupReplies::default();
         follow_terminal_background(replies.background);
+        // What the terminal answered adds to what the environment said; a
+        // terminal that answers nothing keeps the environment's (GFX-006).
+        images.kitty_graphics |= replies.kitty_graphics;
+        images.kitty_shared_memory = images.kitty_graphics && replies.kitty_shared_memory;
+        images.sixel |= replies.sixel;
         let session = Session::ScreenAndInput {
             kitty: replies.keyboard.is_some(),
         };
@@ -921,6 +930,9 @@ const STARTUP_QUERY_WAIT: Duration = Duration::from_millis(200);
 struct StartupReplies {
     keyboard: Option<()>,
     background: Option<(u16, u16, u16)>,
+    kitty_graphics: bool,
+    kitty_shared_memory: bool,
+    sixel: bool,
 }
 
 /// Make the light preset active on a terminal whose background's relative

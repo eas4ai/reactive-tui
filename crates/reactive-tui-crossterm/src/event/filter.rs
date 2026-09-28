@@ -30,7 +30,8 @@ impl Filter for KeyboardEnhancementFlagsFilter {
         // progressive keyboard enhancement.
         matches!(
             *event,
-            InternalEvent::KeyboardEnhancementFlags(_) | InternalEvent::PrimaryDeviceAttributes
+            InternalEvent::KeyboardEnhancementFlags(_)
+                | InternalEvent::PrimaryDeviceAttributes { .. }
         )
     }
 }
@@ -42,12 +43,12 @@ pub(crate) struct PrimaryDeviceAttributesFilter;
 #[cfg(unix)]
 impl Filter for PrimaryDeviceAttributesFilter {
     fn eval(&self, event: &InternalEvent) -> bool {
-        matches!(*event, InternalEvent::PrimaryDeviceAttributes)
+        matches!(*event, InternalEvent::PrimaryDeviceAttributes { .. })
     }
 }
 
 /// The replies to the startup queries: keyboard flags, background color,
-/// and the device attributes reply that ends them.
+/// Kitty graphics, and the device attributes reply that ends them.
 #[cfg(unix)]
 #[derive(Debug, Clone)]
 pub(crate) struct StartupReplyFilter;
@@ -59,7 +60,8 @@ impl Filter for StartupReplyFilter {
             *event,
             InternalEvent::KeyboardEnhancementFlags(_)
                 | InternalEvent::BackgroundColor(..)
-                | InternalEvent::PrimaryDeviceAttributes
+                | InternalEvent::KittyGraphicsReply { .. }
+                | InternalEvent::PrimaryDeviceAttributes { .. }
         )
     }
 }
@@ -110,13 +112,15 @@ mod tests {
                 crate::event::KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
             ))
         );
-        assert!(KeyboardEnhancementFlagsFilter.eval(&InternalEvent::PrimaryDeviceAttributes));
+        assert!(KeyboardEnhancementFlagsFilter
+            .eval(&InternalEvent::PrimaryDeviceAttributes { sixel: false }));
     }
 
     #[test]
     fn test_primary_device_attributes_filter_filters_primary_device_attributes() {
         assert!(!PrimaryDeviceAttributesFilter.eval(&InternalEvent::Event(Event::Resize(10, 10))));
-        assert!(PrimaryDeviceAttributesFilter.eval(&InternalEvent::PrimaryDeviceAttributes));
+        assert!(PrimaryDeviceAttributesFilter
+            .eval(&InternalEvent::PrimaryDeviceAttributes { sixel: false }));
     }
 
     #[test]

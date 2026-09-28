@@ -19,11 +19,16 @@ the startup queries:
 - The keyboard flags reply, `ESC [ ? flags u`, is read as a decimal number
   with all five bits. Upstream read the byte of its first digit.
 - `terminal::query_startup` and `StartupReplies` (Unix, `events` feature)
-  ask for the keyboard flags, the background color (`OSC 11 ; ?`) and the
-  device attributes, whose reply ends the exchange. Keys typed meanwhile stay
+  ask for the keyboard flags, the background color (`OSC 11 ; ?`), whether
+  Kitty graphics are accepted sent directly and through a one-pixel POSIX
+  shared-memory object (`a=q`, ids 31 and 32), and the device attributes,
+  whose reply ends the exchange and now carries whether it lists Sixel
+  (attribute 4). Keys typed meanwhile stay
   queued for the next read. While the replies are due, a process-wide flag,
   `STARTUP_REPLIES_PENDING`, lets the parser read `ESC ] 11 ;` as the
-  background reply (`InternalEvent::BackgroundColor`) instead of Alt+].
+  background reply (`InternalEvent::BackgroundColor`) instead of Alt+], and
+  `ESC _ G` as a Kitty graphics reply (`InternalEvent::KittyGraphicsReply`)
+  instead of Alt+_.
 - The Unix event sources parse again the bytes left after each event, so a
   key read in the same buffer as a reply stays apart from it.
 
