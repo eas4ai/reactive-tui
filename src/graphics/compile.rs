@@ -167,12 +167,25 @@ pub(crate) fn compile(
             }
             Command::Cells(origin, grid, cell) => {
                 let (x, y) = transform.apply(*origin);
+                // A transform that stretches along the axes stretches the
+                // cells, to whole pixels so that glyphs stay sharp and
+                // neighbours meet; one that turns or shears leaves the
+                // cells their size.
+                let stretch = if transform.b == 0.0 && transform.c == 0.0 {
+                    (transform.a, transform.d)
+                } else {
+                    (1.0, 1.0)
+                };
+                let side = |cell: u16, stretch: f32| {
+                    (f32::from(cell) * stretch).round().clamp(0.0, 4096.0) as u16
+                };
+                let cell = (side(cell.0, stretch.0), side(cell.1, stretch.1));
                 if cell.0 > 0 && cell.1 > 0 && x.is_finite() && y.is_finite() {
                     draws.push(Draw::Cells {
                         x: x.round() as i32,
                         y: y.round() as i32,
                         grid: grid.clone(),
-                        cell: *cell,
+                        cell,
                         foreground,
                     });
                 }
@@ -237,6 +250,26 @@ mod tests {
         scene.pop_clip();
         scene.pop_transform();
         assert!(draws(&scene).is_empty());
+    }
+
+    #[test]
+    fn a_cell_grid_stretches_with_a_scale_and_keeps_its_size_under_a_turn() {
+        let grid = Arc::new(CellGrid::new(4, 2));
+        let cells = |transform: Transform| {
+            let mut scene = Scene::new();
+            scene.push_transform(transform);
+            scene.cells((1.0, 2.0), grid.clone(), (8, 16));
+            match draws(&scene).pop() {
+                Some(Draw::Cells { x, y, cell, .. }) => (x, y, cell),
+                other => panic!("a cell grid, not {other:?}"),
+            }
+        };
+        assert_eq!(cells(Transform::translate(5.0, 5.0)), (6, 7, (8, 16)));
+        assert_eq!(
+            cells(Transform::scale(2.375, 2.375).then(Transform::translate(20.0, 0.0))),
+            (22, 5, (19, 38))
+        );
+        assert_eq!(cells(Transform::rotate(90.0)).2, (8, 16));
     }
 
     #[test]

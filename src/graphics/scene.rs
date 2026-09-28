@@ -579,7 +579,8 @@ impl Scene {
 
     /// Draw `grid` with its top left cell at `origin`, each cell `cell`
     /// pixels, through the glyph atlas in one instanced draw on the GPU.
-    /// Cells follow the translation of the current transform only.
+    /// The grid moves with the transform in force and stretches with it
+    /// along the axes, its cells rounded to whole pixels; it does not turn.
     pub fn cells(
         &mut self,
         origin: (f32, f32),
