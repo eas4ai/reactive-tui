@@ -328,7 +328,7 @@ fn lay_out(
         let previous = cache.spec.take();
         let kept = cache.retained.take();
         let (root, built) = match (previous, kept) {
-            (Some(previous), Some(mut retained)) if cache.size == size => {
+            (Some(previous), Some(mut retained)) if false && cache.size == size => {
                 // Same size, changed spec: update the kept nodes (PNT-005).
                 let mut walk = Walk {
                     tree: &mut cache.tree,
