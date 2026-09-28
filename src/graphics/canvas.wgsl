@@ -248,7 +248,7 @@ fn cover_fragment(in: CoverVarying) -> @location(0) vec4<f32> {
         } else {
             coverage = textureLoad(glyph_atlas, texel, 0).r;
         }
-        color = paint_at(u32(in.source.w), pixel + vec2<f32>(0.5)) * coverage * 0.8;
+        color = paint_at(u32(in.source.w), pixel + vec2<f32>(0.5)) * coverage;
     }
     if (how & CLIPPED) != 0u {
         color *= textureLoad(clip, vec2<i32>(pixel), 0).r;

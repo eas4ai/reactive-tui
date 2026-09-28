@@ -1120,7 +1120,6 @@ impl GpuRenderer {
         fail_readback: bool,
     ) -> Result<Drawn, GraphicsError> {
         let started = Instant::now();
-        std::thread::sleep(Duration::from_millis(20));
         self.check()?;
         self.images
             .retain(|_, texture| texture.image.upgrade().is_some());
