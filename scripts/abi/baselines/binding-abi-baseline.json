@@ -1,0 +1,1175 @@
+{
+  "c_declarations": {
+    "rtui_version": "RTuiVersion (void)",
+    "rtui_init": "RTuiError (void)",
+    "rtui_cleanup": "void (void)",
+    "rtui_free_string": "void (char *)",
+    "createRenderer": "RTuiRenderer *(uint32_t, uint32_t, _Bool, uint32_t)",
+    "destroyRenderer": "void (RTuiRenderer *)",
+    "setBackgroundColor": "void (RTuiRenderer *, float, float, float, float)",
+    "render": "void (RTuiRenderer *)",
+    "resizeRenderer": "void (RTuiRenderer *, uint32_t, uint32_t)",
+    "getRendererSurface": "RTuiBuffer *(RTuiRenderer *)",
+    "rtui_animation_manager_create": "RTuiError (RTuiAnimationManager **)",
+    "rtui_animation_manager_destroy": "void (RTuiAnimationManager *)",
+    "rtui_animation_manager_update": "RTuiError (RTuiAnimationManager *)",
+    "rtui_animation_manager_add": "RTuiError (RTuiAnimationManager *, RTuiAnimation *, char **)",
+    "rtui_animation_manager_remove": "RTuiError (RTuiAnimationManager *, const char *)",
+    "rtui_animation_create": "RTuiError (const char *, uint32_t, RTuiEasingType, RTuiLoopMode, uint32_t, RTuiAnimation **)",
+    "rtui_animation_create_spring": "RTuiError (const char *, float, float, float, RTuiAnimation **)",
+    "rtui_animation_destroy": "void (RTuiAnimation *)",
+    "rtui_animation_play": "RTuiError (RTuiAnimation *)",
+    "rtui_animation_stop": "RTuiError (RTuiAnimation *)",
+    "rtui_animation_pause": "RTuiError (RTuiAnimation *)",
+    "rtui_animation_is_playing": "RTuiError (const RTuiAnimation *, _Bool *)",
+    "rtui_animation_get_progress": "RTuiError (const RTuiAnimation *, float *)",
+    "rtui_animation_set_property": "RTuiError (RTuiAnimation *, RTuiAnimatedProperty, float, float)",
+    "rtui_div": "RTuiError (RTuiElementBuilder **)",
+    "rtui_span": "RTuiError (RTuiElementBuilder **)",
+    "rtui_button": "RTuiError (RTuiElementBuilder **)",
+    "rtui_p": "RTuiError (RTuiElementBuilder **)",
+    "rtui_h1": "RTuiError (RTuiElementBuilder **)",
+    "rtui_h2": "RTuiError (RTuiElementBuilder **)",
+    "rtui_h3": "RTuiError (RTuiElementBuilder **)",
+    "rtui_element_builder_destroy": "void (RTuiElementBuilder *)",
+    "rtui_element_builder_class": "RTuiError (RTuiElementBuilder *, const char *)",
+    "rtui_element_builder_text": "RTuiError (RTuiElementBuilder *, const char *)",
+    "rtui_element_builder_key": "RTuiError (RTuiElementBuilder *, const char *)",
+    "rtui_element_builder_child": "RTuiError (RTuiElementBuilder *, RTuiElement *)",
+    "rtui_element_builder_children": "RTuiError (RTuiElementBuilder *, RTuiElement *const *, size_t)",
+    "rtui_element_builder_build": "RTuiError (RTuiElementBuilder *, RTuiElement **)",
+    "rtui_element_destroy": "void (RTuiElement *)",
+    "rtui_element_text": "RTuiError (const char *, RTuiElement **)",
+    "rtui_element_empty": "RTuiError (RTuiElement **)",
+    "rtui_primary_button": "RTuiError (const char *, RTuiClickHandler, void *, RTuiElement **)",
+    "rtui_card": "RTuiError (RTuiElement *const *, size_t, RTuiElement **)",
+    "rtui_app_builder_create": "RTuiError (RTuiAppBuilder **)",
+    "rtui_app_builder_destroy": "void (RTuiAppBuilder *)",
+    "rtui_app_builder_debug": "RTuiError (RTuiAppBuilder *, _Bool)",
+    "rtui_app_builder_performance_mode": "RTuiError (RTuiAppBuilder *, RTuiPerformanceMode)",
+    "rtui_app_builder_backend_debug": "RTuiError (RTuiAppBuilder *, uint16_t, uint16_t, RTuiAppBuilder **)",
+    "rtui_app_builder_root_component": "RTuiError (RTuiAppBuilder *, RTuiRootComponentCallback, void *, RTuiAppBuilder **)",
+    "rtui_app_builder_build": "RTuiError (RTuiAppBuilder *, RTuiApp **)",
+    "rtui_app_destroy": "void (RTuiApp *)",
+    "rtui_app_run": "RTuiError (RTuiApp *)",
+    "rtui_app_quit": "RTuiError (RTuiApp *)",
+    "rtui_app_get_size": "RTuiError (const RTuiApp *, RTuiDimensions *)",
+    "rtui_app_set_performance_mode": "RTuiError (RTuiApp *, RTuiPerformanceMode)",
+    "rtui_app_get_current_fps": "RTuiError (const RTuiApp *, uint32_t *)",
+    "rtui_app_get_performance_metrics": "RTuiError (const RTuiApp *, RTuiPerformanceMetrics *)",
+    "rtui_dialog_engine_create": "RTuiError (RTuiDialogEngine **)",
+    "rtui_dialog_engine_destroy": "void (RTuiDialogEngine *)",
+    "rtui_dialog_engine_update": "RTuiError (RTuiDialogEngine *)",
+    "rtui_dialog_engine_has_active_dialogs": "RTuiError (const RTuiDialogEngine *, _Bool *)",
+    "rtui_dialog_create_confirmation": "RTuiError (RTuiDialogEngine *, const char *, const char *, const char *, const char *, RTuiDialog **)",
+    "rtui_dialog_create_input": "RTuiError (RTuiDialogEngine *, const char *, const char *, const char *, const char *, RTuiDialog **)",
+    "rtui_dialog_create_toast": "RTuiError (RTuiDialogEngine *, const char *, uint32_t, RTuiDialog **)",
+    "rtui_dialog_create_progress": "RTuiError (RTuiDialogEngine *, const char *, const char *, RTuiDialog **)",
+    "rtui_dialog_show": "RTuiError (RTuiDialog *)",
+    "rtui_dialog_hide": "RTuiError (RTuiDialog *)",
+    "rtui_dialog_close": "RTuiError (RTuiDialog *)",
+    "rtui_dialog_is_visible": "RTuiError (const RTuiDialog *, _Bool *)",
+    "rtui_dialog_get_confirmation_result": "RTuiError (const RTuiDialog *, _Bool *)",
+    "rtui_dialog_get_input_text": "RTuiError (const RTuiDialog *, char *, size_t)",
+    "rtui_dialog_set_progress": "RTuiError (RTuiDialog *, float)",
+    "rtui_dialog_set_progress_message": "RTuiError (RTuiDialog *, const char *)",
+    "rtui_terminal_poll_event": "RTuiError (uint32_t, RTuiEvent *)",
+    "renderSurfaceToTerminal": "_Bool (const RTuiBuffer *, RTuiTerminal *)",
+    "renderTextToTerminal": "_Bool (const RTuiTextBuffer *, RTuiTerminal *, uint32_t, uint32_t, uint32_t, uint32_t)",
+    "renderWithStats": "_Bool (RTuiRenderer *, RTuiTerminal *, _Bool)",
+    "getBufferDims": "void (const RTuiBuffer *, uint32_t *, uint32_t *)",
+    "createRenderingContext": "_Bool (uint32_t, uint32_t, RTuiTerminal **, RTuiRenderer **, RTuiBuffer **)",
+    "destroyRenderingContext": "void (RTuiTerminal *, RTuiRenderer *, RTuiBuffer *)",
+    "rtui_style_builder_create": "RTuiError (RTuiStyleBuilder **)",
+    "rtui_style_builder_destroy": "void (RTuiStyleBuilder *)",
+    "rtui_apply_utility_classes": "RTuiError (RTuiStyleBuilder *, const char *, RTuiStyleBuilder **)",
+    "rtui_style_builder_display": "RTuiError (RTuiStyleBuilder *, RTuiDisplayType, RTuiStyleBuilder **)",
+    "rtui_style_builder_flex_direction": "RTuiError (RTuiStyleBuilder *, RTuiFlexDirection, RTuiStyleBuilder **)",
+    "rtui_style_builder_justify_content": "RTuiError (RTuiStyleBuilder *, RTuiJustifyContent, RTuiStyleBuilder **)",
+    "rtui_style_builder_align_items": "RTuiError (RTuiStyleBuilder *, RTuiAlignItems, RTuiStyleBuilder **)",
+    "rtui_style_builder_width": "RTuiError (RTuiStyleBuilder *, RTuiDimension, RTuiStyleBuilder **)",
+    "rtui_style_builder_height": "RTuiError (RTuiStyleBuilder *, RTuiDimension, RTuiStyleBuilder **)",
+    "rtui_style_builder_padding": "RTuiError (RTuiStyleBuilder *, float, RTuiStyleBuilder **)",
+    "rtui_style_builder_margin": "RTuiError (RTuiStyleBuilder *, float, RTuiStyleBuilder **)",
+    "rtui_style_builder_background_color": "RTuiError (RTuiStyleBuilder *, RTuiStyleColor, RTuiStyleBuilder **)",
+    "rtui_style_builder_color": "RTuiError (RTuiStyleBuilder *, RTuiStyleColor, RTuiStyleBuilder **)",
+    "rtui_style_builder_build": "RTuiError (RTuiStyleBuilder *, RTuiComputedStyle **)",
+    "rtui_computed_style_destroy": "void (RTuiComputedStyle *)",
+    "rtui_terminal_create": "RTuiError (RTuiTerminal **)",
+    "rtui_terminal_destroy": "void (RTuiTerminal *)",
+    "rtui_terminal_get_dimensions": "RTuiError (const RTuiTerminal *, RTuiDimensions *)",
+    "rtui_terminal_enter_raw_mode": "RTuiError (RTuiTerminal *)",
+    "rtui_terminal_exit_raw_mode": "RTuiError (RTuiTerminal *)",
+    "rtui_terminal_sync": "RTuiError (RTuiTerminal *, _Bool)",
+    "rtui_terminal_clear": "RTuiError (RTuiTerminal *)",
+    "rtui_terminal_set_cursor": "RTuiError (RTuiTerminal *, uint16_t, uint16_t)",
+    "rtui_terminal_set_cursor_visible": "RTuiError (RTuiTerminal *, _Bool)",
+    "rtui_terminal_write": "RTuiError (RTuiTerminal *, const char *)",
+    "rtui_terminal_flush": "RTuiError (RTuiTerminal *)",
+    "createTerminal": "RTuiTerminal *(void)",
+    "destroyTerminal": "void (RTuiTerminal *)",
+    "setupTerminal": "void (RTuiTerminal *, _Bool)",
+    "clearTerminal": "void (RTuiTerminal *)",
+    "getTerminalCapabilities": "_Bool (RTuiTerminal *, RTuiCapabilities *)",
+    "processCapabilityResponse": "void (RTuiTerminal *, const char *, size_t)",
+    "setCursorPosition": "void (RTuiTerminal *, uint16_t, uint16_t)",
+    "setCursorStyle": "void (RTuiTerminal *, RTuiCursorStyle)",
+    "setCursorColor": "void (RTuiTerminal *, uint8_t, uint8_t, uint8_t)",
+    "setTerminalTitle": "void (RTuiTerminal *, const char *, size_t)",
+    "enableMouse": "void (RTuiTerminal *)",
+    "disableMouse": "void (RTuiTerminal *)",
+    "enableKittyKeyboard": "void (RTuiTerminal *)",
+    "disableKittyKeyboard": "void (RTuiTerminal *)",
+    "rtui_surface_create": "RTuiError (uint16_t, uint16_t, RTuiSurface **)",
+    "rtui_surface_destroy": "void (RTuiSurface *)",
+    "rtui_surface_get_dimensions": "RTuiError (const RTuiSurface *, RTuiDimensions *)",
+    "rtui_surface_resize": "RTuiError (RTuiSurface *, uint16_t, uint16_t)",
+    "rtui_surface_clear": "RTuiError (RTuiSurface *, const RTuiCell *)",
+    "rtui_surface_clear_default": "RTuiError (RTuiSurface *)",
+    "rtui_surface_set_cell": "RTuiError (RTuiSurface *, uint16_t, uint16_t, const RTuiCell *)",
+    "rtui_surface_get_cell": "RTuiError (const RTuiSurface *, uint16_t, uint16_t, RTuiCell *)",
+    "rtui_surface_set_text": "RTuiError (RTuiSurface *, uint16_t, uint16_t, const char *, RTuiColor, RTuiColor, RTuiTextAttributes)",
+    "rtui_surface_fill_rect": "RTuiError (RTuiSurface *, RTuiRect, const RTuiCell *)",
+    "rtui_surface_copy_rect": "RTuiError (RTuiSurface *, uint16_t, uint16_t, const RTuiSurface *, RTuiRect)",
+    "createOptimizedBuffer": "RTuiBuffer *(uint32_t, uint32_t, _Bool, uint8_t, const uint8_t *, size_t)",
+    "destroyOptimizedBuffer": "void (RTuiBuffer *)",
+    "getBufferWidth": "uint32_t (const RTuiBuffer *)",
+    "getBufferHeight": "uint32_t (const RTuiBuffer *)",
+    "bufferClear": "void (RTuiBuffer *, float, float, float, float)",
+    "bufferDrawText": "void (RTuiBuffer *, uint32_t, uint32_t, const char *, size_t, const float *, const float *, const uint32_t *)",
+    "writeToBuffer": "void (RTuiBuffer *, uint32_t, uint32_t, const char *, size_t, const float *, const float *, const uint32_t *)",
+    "bufferSetCellWithAlphaBlending": "void (RTuiBuffer *, uint32_t, uint32_t, uint32_t, const float *, const float *, uint32_t)",
+    "bufferFillRect": "void (RTuiBuffer *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, const float *, const float *, uint32_t)",
+    "bufferResize": "void (RTuiBuffer *, uint32_t, uint32_t)",
+    "bufferGetRespectAlpha": "_Bool (const RTuiBuffer *)",
+    "bufferSetRespectAlpha": "void (RTuiBuffer *, _Bool)",
+    "bufferGetCharPtr": "uint32_t *(RTuiBuffer *)",
+    "bufferGetFgPtr": "float *(RTuiBuffer *)",
+    "bufferGetBgPtr": "float *(RTuiBuffer *)",
+    "bufferGetAttributesPtr": "uint8_t *(RTuiBuffer *)",
+    "bufferReleaseCharPtr": "void (uint32_t *, size_t)",
+    "bufferReleaseFgPtr": "void (float *, size_t)",
+    "bufferReleaseBgPtr": "void (float *, size_t)",
+    "bufferReleaseAttrPtr": "void (uint8_t *, size_t)",
+    "rtui_renderer_create": "RTuiError (RTuiTerminal *, RTuiRenderer **)",
+    "rtui_renderer_destroy": "void (RTuiRenderer *)",
+    "rtui_renderer_get_dimensions": "RTuiError (const RTuiRenderer *, RTuiDimensions *)",
+    "rtui_renderer_resize": "RTuiError (RTuiRenderer *, uint16_t, uint16_t)",
+    "rtui_renderer_begin_frame": "RTuiError (RTuiRenderer *)",
+    "rtui_renderer_end_frame": "RTuiError (RTuiRenderer *)",
+    "rtui_renderer_clear": "RTuiError (RTuiRenderer *)",
+    "rtui_renderer_clear_with_color": "RTuiError (RTuiRenderer *, RTuiColor)",
+    "rtui_renderer_draw_surface": "RTuiError (RTuiRenderer *, const RTuiSurface *, uint16_t, uint16_t)",
+    "rtui_renderer_draw_surface_rect": "RTuiError (RTuiRenderer *, const RTuiSurface *, RTuiRect, uint16_t, uint16_t)",
+    "rtui_renderer_draw_text": "RTuiError (RTuiRenderer *, uint16_t, uint16_t, const char *, RTuiColor, RTuiColor, RTuiTextAttributes)",
+    "rtui_renderer_fill_rect": "RTuiError (RTuiRenderer *, RTuiRect, const RTuiCell *)",
+    "rtui_renderer_draw_rect": "RTuiError (RTuiRenderer *, RTuiRect, const RTuiCell *)",
+    "updateStats": "void (RTuiRenderer *, double, uint32_t, double)",
+    "updateMemoryStats": "void (RTuiRenderer *, uint64_t, uint64_t, uint64_t)",
+    "getFrameStats": "_Bool (RTuiRenderer *, float *, float *, uint64_t *)",
+    "resetPerformanceCounters": "void (RTuiRenderer *)",
+    "setRenderOffset": "void (RTuiRenderer *, int32_t, int32_t)",
+    "setDebugOverlay": "void (RTuiRenderer *, _Bool, RTuiDebugOverlayCorner)",
+    "addToHitGrid": "void (RTuiRenderer *, uint32_t, uint32_t, uint32_t)",
+    "checkHit": "uint32_t (RTuiRenderer *, uint32_t, uint32_t)",
+    "dumpHitGrid": "void (RTuiRenderer *)",
+    "dumpBuffers": "void (RTuiRenderer *)",
+    "dumpStdoutBuffer": "void (RTuiRenderer *)",
+    "setLogCallback": "void (RTuiLogCallback)",
+    "logMessage": "void (RTuiLogLevel, const char *)",
+    "startProfiling": "void (RTuiRenderer *, _Bool)",
+    "stopProfiling": "void (RTuiRenderer *)",
+    "createTextBuffer": "RTuiTextBuffer *(uint32_t, uint8_t)",
+    "destroyTextBuffer": "void (RTuiTextBuffer *)",
+    "textBufferGetCharPtr": "const uint32_t *(const RTuiTextBuffer *)",
+    "textBufferGetLength": "uint32_t (const RTuiTextBuffer *)",
+    "textBufferGetCapacity": "uint32_t (const RTuiTextBuffer *)",
+    "textBufferResize": "_Bool (RTuiTextBuffer *, uint32_t)",
+    "textBufferReset": "void (RTuiTextBuffer *)",
+    "textBufferWriteChunk": "uint32_t (RTuiTextBuffer *, const uint8_t *, uint32_t, const float *, const float *, const uint8_t *)",
+    "textBufferAppendText": "uint32_t (RTuiTextBuffer *, const char *, size_t, const float *, const float *, const uint32_t *)",
+    "textBufferSetSelection": "void (RTuiTextBuffer *, uint32_t, uint32_t, const float *, const float *)",
+    "textBufferResetSelection": "void (RTuiTextBuffer *)",
+    "textBufferGetSelectionInfo": "_Bool (const RTuiTextBuffer *, uint32_t *, uint32_t *)",
+    "textBufferSetDefaultFg": "void (RTuiTextBuffer *, const float *)",
+    "textBufferSetDefaultBg": "void (RTuiTextBuffer *, const float *)",
+    "textBufferSetDefaultAttributes": "void (RTuiTextBuffer *, uint8_t)",
+    "textBufferResetDefaults": "void (RTuiTextBuffer *)",
+    "renderTextBufferToSurface": "uint32_t (const RTuiTextBuffer *, RTuiBuffer *, uint32_t, uint32_t, uint32_t)",
+    "renderTextBufferToRenderer": "uint32_t (const RTuiTextBuffer *, RTuiRenderer *, uint32_t, uint32_t, uint32_t)",
+    "renderTextBufferDirect": "_Bool (const RTuiTextBuffer *, RTuiTerminal *, uint32_t, uint32_t, uint32_t, uint32_t)"
+  },
+  "typescript_symbols": [
+    "rtui_animation_create",
+    "rtui_animation_free",
+    "rtui_animation_get_progress",
+    "rtui_animation_group_add",
+    "rtui_animation_group_create",
+    "rtui_animation_group_free",
+    "rtui_animation_group_is_running",
+    "rtui_animation_group_pause",
+    "rtui_animation_group_remove",
+    "rtui_animation_group_resume",
+    "rtui_animation_group_start",
+    "rtui_animation_group_stop",
+    "rtui_animation_group_update",
+    "rtui_animation_is_complete",
+    "rtui_animation_is_running",
+    "rtui_animation_pause",
+    "rtui_animation_reset",
+    "rtui_animation_resume",
+    "rtui_animation_set_progress",
+    "rtui_animation_start",
+    "rtui_animation_stop",
+    "rtui_animation_update",
+    "rtui_cleanup",
+    "rtui_component_create",
+    "rtui_component_free",
+    "rtui_component_get_state",
+    "rtui_component_handle_event",
+    "rtui_component_render",
+    "rtui_component_set_state",
+    "rtui_component_update",
+    "rtui_dialog_close",
+    "rtui_dialog_create",
+    "rtui_dialog_focus",
+    "rtui_dialog_free",
+    "rtui_dialog_get_result",
+    "rtui_dialog_is_visible",
+    "rtui_dialog_result_free",
+    "rtui_dialog_show",
+    "rtui_dialog_show_async",
+    "rtui_dialog_update",
+    "rtui_init",
+    "rtui_renderer_clear",
+    "rtui_renderer_create",
+    "rtui_renderer_destroy",
+    "rtui_renderer_frame",
+    "rtui_renderer_resize",
+    "rtui_surface_clear",
+    "rtui_surface_create",
+    "rtui_surface_destroy",
+    "rtui_surface_get_cell",
+    "rtui_surface_get_dimensions",
+    "rtui_surface_set_cell",
+    "rtui_terminal_create",
+    "rtui_terminal_destroy",
+    "rtui_terminal_get_size",
+    "rtui_terminal_init",
+    "rtui_terminal_shutdown",
+    "rtui_version"
+  ],
+  "rust_exports": [
+    "addToHitGrid",
+    "bufferClear",
+    "bufferDrawText",
+    "bufferFillRect",
+    "bufferGetAttributesPtr",
+    "bufferGetBgPtr",
+    "bufferGetCharPtr",
+    "bufferGetFgPtr",
+    "bufferGetRespectAlpha",
+    "bufferReleaseAttrPtr",
+    "bufferReleaseBgPtr",
+    "bufferReleaseCharPtr",
+    "bufferReleaseFgPtr",
+    "bufferResize",
+    "bufferSetCellWithAlphaBlending",
+    "bufferSetRespectAlpha",
+    "checkHit",
+    "clearTerminal",
+    "createOptimizedBuffer",
+    "createRenderer",
+    "createTerminal",
+    "createTextBuffer",
+    "destroyOptimizedBuffer",
+    "destroyRenderer",
+    "destroyTerminal",
+    "destroyTextBuffer",
+    "disableKittyKeyboard",
+    "disableMouse",
+    "dumpBuffers",
+    "dumpHitGrid",
+    "dumpStdoutBuffer",
+    "enableKittyKeyboard",
+    "enableMouse",
+    "getBufferHeight",
+    "getBufferWidth",
+    "getFrameStats",
+    "getTerminalCapabilities",
+    "processCapabilityResponse",
+    "render",
+    "renderSurfaceToTerminal",
+    "renderTextBufferDirect",
+    "renderTextBufferToRenderer",
+    "renderTextBufferToSurface",
+    "renderTextToTerminal",
+    "renderWithStats",
+    "resetPerformanceCounters",
+    "resizeRenderer",
+    "rtui_animation_create",
+    "rtui_animation_create_spring",
+    "rtui_animation_destroy",
+    "rtui_animation_get_progress",
+    "rtui_animation_is_playing",
+    "rtui_animation_manager_add",
+    "rtui_animation_manager_create",
+    "rtui_animation_manager_destroy",
+    "rtui_animation_manager_remove",
+    "rtui_animation_manager_update",
+    "rtui_animation_pause",
+    "rtui_animation_play",
+    "rtui_animation_set_property",
+    "rtui_animation_stop",
+    "rtui_app_builder_backend_crossterm",
+    "rtui_app_builder_backend_debug",
+    "rtui_app_builder_build",
+    "rtui_app_builder_create",
+    "rtui_app_builder_debug",
+    "rtui_app_builder_destroy",
+    "rtui_app_builder_performance_mode",
+    "rtui_app_builder_root_component",
+    "rtui_app_destroy",
+    "rtui_app_get_current_fps",
+    "rtui_app_get_performance_metrics",
+    "rtui_app_get_size",
+    "rtui_app_quit",
+    "rtui_app_run",
+    "rtui_app_set_performance_mode",
+    "rtui_button_create",
+    "rtui_checkbox_create",
+    "rtui_cleanup",
+    "rtui_effect_create",
+    "rtui_effect_destroy",
+    "rtui_effect_run",
+    "rtui_element_add_child",
+    "rtui_element_builder_add_child",
+    "rtui_element_builder_add_class",
+    "rtui_element_builder_build",
+    "rtui_element_builder_button",
+    "rtui_element_builder_destroy",
+    "rtui_element_builder_div",
+    "rtui_element_builder_set_key",
+    "rtui_element_builder_set_text",
+    "rtui_element_builder_span",
+    "rtui_element_create_component",
+    "rtui_element_create_empty",
+    "rtui_element_create_fragment",
+    "rtui_element_create_layout",
+    "rtui_element_create_text",
+    "rtui_element_destroy",
+    "rtui_element_get_child",
+    "rtui_element_get_child_count",
+    "rtui_element_get_class",
+    "rtui_element_get_component_name",
+    "rtui_element_get_key",
+    "rtui_element_get_text_content",
+    "rtui_element_get_type",
+    "rtui_element_set_class",
+    "rtui_element_set_key",
+    "rtui_hooks_destroy",
+    "rtui_hooks_new",
+    "rtui_init",
+    "rtui_progress_bar_create",
+    "rtui_renderer_clear",
+    "rtui_renderer_create",
+    "rtui_renderer_destroy",
+    "rtui_renderer_frame",
+    "rtui_renderer_get_surface",
+    "rtui_renderer_resize",
+    "rtui_renderer_shutdown",
+    "rtui_signal_bool_create",
+    "rtui_signal_bool_get",
+    "rtui_signal_bool_set",
+    "rtui_signal_destroy",
+    "rtui_signal_destroy_new",
+    "rtui_signal_float_create",
+    "rtui_signal_float_get",
+    "rtui_signal_float_set",
+    "rtui_signal_get_bool_new",
+    "rtui_signal_get_float_new",
+    "rtui_signal_get_int",
+    "rtui_signal_get_string_owned",
+    "rtui_signal_int_create",
+    "rtui_signal_int_get",
+    "rtui_signal_int_set",
+    "rtui_signal_new_bool",
+    "rtui_signal_new_float",
+    "rtui_signal_new_int",
+    "rtui_signal_new_string",
+    "rtui_signal_set_bool_new",
+    "rtui_signal_set_float_new",
+    "rtui_signal_set_int",
+    "rtui_signal_set_string_new",
+    "rtui_signal_string_create",
+    "rtui_signal_string_get",
+    "rtui_signal_string_set",
+    "rtui_string_free",
+    "rtui_surface_clear",
+    "rtui_surface_create",
+    "rtui_surface_destroy",
+    "rtui_surface_draw_text",
+    "rtui_surface_fill_rect",
+    "rtui_surface_get_cell",
+    "rtui_surface_get_dimensions",
+    "rtui_surface_set_cell",
+    "rtui_terminal_create",
+    "rtui_terminal_destroy",
+    "rtui_terminal_get_dimensions",
+    "rtui_terminal_poll_event",
+    "rtui_terminal_sync",
+    "rtui_text_element_create",
+    "rtui_text_input_create",
+    "rtui_thread_safe_signal_destroy",
+    "rtui_thread_safe_signal_string_create",
+    "rtui_thread_safe_signal_string_get",
+    "rtui_thread_safe_signal_string_set",
+    "rtui_use_signal_bool",
+    "rtui_use_signal_int",
+    "rtui_use_signal_string",
+    "rtui_version",
+    "setBackgroundColor",
+    "setCursorColor",
+    "setCursorPosition",
+    "setCursorStyle",
+    "setDebugOverlay",
+    "setLogCallback",
+    "setRenderOffset",
+    "setTerminalTitle",
+    "setupTerminal",
+    "startProfiling",
+    "stopProfiling",
+    "textBufferGetCapacity",
+    "textBufferGetCharPtr",
+    "textBufferGetLength",
+    "textBufferGetSelectionInfo",
+    "textBufferReset",
+    "textBufferResetDefaults",
+    "textBufferResetSelection",
+    "textBufferResize",
+    "textBufferSetDefaultAttributes",
+    "textBufferSetDefaultBg",
+    "textBufferSetDefaultFg",
+    "textBufferSetSelection",
+    "textBufferWriteChunk",
+    "updateMemoryStats",
+    "updateStats"
+  ],
+  "missing_c": [
+    "createRenderingContext",
+    "destroyRenderingContext",
+    "getBufferDims",
+    "getRendererSurface",
+    "logMessage",
+    "rtui_apply_utility_classes",
+    "rtui_button",
+    "rtui_card",
+    "rtui_computed_style_destroy",
+    "rtui_dialog_close",
+    "rtui_dialog_create_confirmation",
+    "rtui_dialog_create_input",
+    "rtui_dialog_create_progress",
+    "rtui_dialog_create_toast",
+    "rtui_dialog_engine_create",
+    "rtui_dialog_engine_destroy",
+    "rtui_dialog_engine_has_active_dialogs",
+    "rtui_dialog_engine_update",
+    "rtui_dialog_get_confirmation_result",
+    "rtui_dialog_get_input_text",
+    "rtui_dialog_hide",
+    "rtui_dialog_is_visible",
+    "rtui_dialog_set_progress",
+    "rtui_dialog_set_progress_message",
+    "rtui_dialog_show",
+    "rtui_div",
+    "rtui_element_builder_child",
+    "rtui_element_builder_children",
+    "rtui_element_builder_class",
+    "rtui_element_builder_key",
+    "rtui_element_builder_text",
+    "rtui_element_empty",
+    "rtui_element_text",
+    "rtui_free_string",
+    "rtui_h1",
+    "rtui_h2",
+    "rtui_h3",
+    "rtui_p",
+    "rtui_primary_button",
+    "rtui_renderer_begin_frame",
+    "rtui_renderer_clear_with_color",
+    "rtui_renderer_draw_rect",
+    "rtui_renderer_draw_surface",
+    "rtui_renderer_draw_surface_rect",
+    "rtui_renderer_draw_text",
+    "rtui_renderer_end_frame",
+    "rtui_renderer_fill_rect",
+    "rtui_renderer_get_dimensions",
+    "rtui_span",
+    "rtui_style_builder_align_items",
+    "rtui_style_builder_background_color",
+    "rtui_style_builder_build",
+    "rtui_style_builder_color",
+    "rtui_style_builder_create",
+    "rtui_style_builder_destroy",
+    "rtui_style_builder_display",
+    "rtui_style_builder_flex_direction",
+    "rtui_style_builder_height",
+    "rtui_style_builder_justify_content",
+    "rtui_style_builder_margin",
+    "rtui_style_builder_padding",
+    "rtui_style_builder_width",
+    "rtui_surface_clear_default",
+    "rtui_surface_copy_rect",
+    "rtui_surface_resize",
+    "rtui_surface_set_text",
+    "rtui_terminal_clear",
+    "rtui_terminal_enter_raw_mode",
+    "rtui_terminal_exit_raw_mode",
+    "rtui_terminal_flush",
+    "rtui_terminal_set_cursor",
+    "rtui_terminal_set_cursor_visible",
+    "rtui_terminal_write",
+    "textBufferAppendText",
+    "writeToBuffer"
+  ],
+  "missing_typescript": [
+    "rtui_animation_free",
+    "rtui_animation_group_add",
+    "rtui_animation_group_create",
+    "rtui_animation_group_free",
+    "rtui_animation_group_is_running",
+    "rtui_animation_group_pause",
+    "rtui_animation_group_remove",
+    "rtui_animation_group_resume",
+    "rtui_animation_group_start",
+    "rtui_animation_group_stop",
+    "rtui_animation_group_update",
+    "rtui_animation_is_complete",
+    "rtui_animation_is_running",
+    "rtui_animation_reset",
+    "rtui_animation_resume",
+    "rtui_animation_set_progress",
+    "rtui_animation_start",
+    "rtui_animation_update",
+    "rtui_component_create",
+    "rtui_component_free",
+    "rtui_component_get_state",
+    "rtui_component_handle_event",
+    "rtui_component_render",
+    "rtui_component_set_state",
+    "rtui_component_update",
+    "rtui_dialog_close",
+    "rtui_dialog_create",
+    "rtui_dialog_focus",
+    "rtui_dialog_free",
+    "rtui_dialog_get_result",
+    "rtui_dialog_is_visible",
+    "rtui_dialog_result_free",
+    "rtui_dialog_show",
+    "rtui_dialog_show_async",
+    "rtui_dialog_update",
+    "rtui_terminal_get_size",
+    "rtui_terminal_init",
+    "rtui_terminal_shutdown"
+  ],
+  "c_type_aliases": {
+    "RTuiVersion": "struct RTuiVersion",
+    "RTuiError": "enum RTuiError",
+    "RTuiPosition": "struct RTuiPosition",
+    "RTuiDimensions": "struct RTuiDimensions",
+    "RTuiRect": "struct RTuiRect",
+    "RTuiColor": "struct RTuiColor",
+    "RTuiColorRGBA": "struct RTuiColorRGBA",
+    "RTuiTextAttributes": "struct RTuiTextAttributes",
+    "RTuiCell": "struct RTuiCell",
+    "RTuiRenderer": "struct RTuiRenderer",
+    "RTuiBuffer": "struct RTuiBuffer",
+    "RTuiTerminal": "struct RTuiTerminal",
+    "RTuiTextBuffer": "struct RTuiTextBuffer",
+    "RTuiAnimationManager": "struct RTuiAnimationManager",
+    "RTuiAnimation": "struct RTuiAnimation",
+    "RTuiEasingType": "enum RTuiEasingType",
+    "RTuiLoopMode": "enum RTuiLoopMode",
+    "RTuiAnimatedProperty": "enum RTuiAnimatedProperty",
+    "RTuiElementBuilder": "struct RTuiElementBuilder",
+    "RTuiElement": "struct RTuiElement",
+    "RTuiClickHandler": "void (*)(void *)",
+    "RTuiAppBuilder": "struct RTuiAppBuilder",
+    "RTuiApp": "struct RTuiApp",
+    "RTuiRootComponent": "struct RTuiRootComponent",
+    "RTuiPerformanceMode": "enum RTuiPerformanceMode",
+    "RTuiPerformanceMetrics": "struct RTuiPerformanceMetrics",
+    "RTuiRootComponentCallback": "RTuiElement *(*)(void *)",
+    "RTuiDialogEngine": "struct RTuiDialogEngine",
+    "RTuiDialog": "struct RTuiDialog",
+    "RTuiEventType": "enum RTuiEventType",
+    "RTuiKeyEvent": "struct RTuiKeyEvent",
+    "RTuiMouseEvent": "struct RTuiMouseEvent",
+    "RTuiResizeEvent": "struct RTuiResizeEvent",
+    "RTuiEventData": "union RTuiEventData",
+    "RTuiEvent": "struct RTuiEvent",
+    "RTuiEventHandler": "_Bool (*)(const RTuiEvent *, void *)",
+    "RTuiStyleBuilder": "struct RTuiStyleBuilder",
+    "RTuiComputedStyle": "struct RTuiComputedStyle",
+    "RTuiDisplayType": "enum RTuiDisplayType",
+    "RTuiFlexDirection": "enum RTuiFlexDirection",
+    "RTuiJustifyContent": "enum RTuiJustifyContent",
+    "RTuiAlignItems": "enum RTuiAlignItems",
+    "RTuiDimensionUnit": "enum RTuiDimensionUnit",
+    "RTuiDimension": "struct RTuiDimension",
+    "RTuiStyleColor": "struct RTuiStyleColor",
+    "RTuiCursorStyle": "enum RTuiCursorStyle",
+    "RTuiCapabilities": "struct RTuiCapabilities",
+    "RTuiSurface": "struct RTuiSurface",
+    "RTuiDebugOverlayCorner": "enum RTuiDebugOverlayCorner",
+    "RTuiLogLevel": "enum RTuiLogLevel",
+    "RTuiLogCallback": "void (*)(RTuiLogLevel, const char *)",
+    "RTuiLineInfo": "struct RTuiLineInfo"
+  },
+  "c_record_definitions": [
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "__val",
+          "type": "int[2]"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "__clang_max_align_nonce1",
+          "type": "long long"
+        },
+        {
+          "name": "__clang_max_align_nonce2",
+          "type": "long double"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "major",
+          "type": "uint32_t"
+        },
+        {
+          "name": "minor",
+          "type": "uint32_t"
+        },
+        {
+          "name": "patch",
+          "type": "uint32_t"
+        },
+        {
+          "name": "abi_version",
+          "type": "uint32_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "x",
+          "type": "uint16_t"
+        },
+        {
+          "name": "y",
+          "type": "uint16_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "width",
+          "type": "uint16_t"
+        },
+        {
+          "name": "height",
+          "type": "uint16_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "x",
+          "type": "uint16_t"
+        },
+        {
+          "name": "y",
+          "type": "uint16_t"
+        },
+        {
+          "name": "width",
+          "type": "uint16_t"
+        },
+        {
+          "name": "height",
+          "type": "uint16_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "r",
+          "type": "uint8_t"
+        },
+        {
+          "name": "g",
+          "type": "uint8_t"
+        },
+        {
+          "name": "b",
+          "type": "uint8_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "r",
+          "type": "uint8_t"
+        },
+        {
+          "name": "g",
+          "type": "uint8_t"
+        },
+        {
+          "name": "b",
+          "type": "uint8_t"
+        },
+        {
+          "name": "a",
+          "type": "uint8_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "bold",
+          "type": "_Bool"
+        },
+        {
+          "name": "italic",
+          "type": "_Bool"
+        },
+        {
+          "name": "underline",
+          "type": "_Bool"
+        },
+        {
+          "name": "strikethrough",
+          "type": "_Bool"
+        },
+        {
+          "name": "reverse",
+          "type": "_Bool"
+        },
+        {
+          "name": "blink",
+          "type": "_Bool"
+        },
+        {
+          "name": "hidden",
+          "type": "_Bool"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "ch",
+          "type": "uint32_t"
+        },
+        {
+          "name": "fg",
+          "type": "RTuiColor"
+        },
+        {
+          "name": "bg",
+          "type": "RTuiColor"
+        },
+        {
+          "name": "attrs",
+          "type": "RTuiTextAttributes"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "average_frame_time_ms",
+          "type": "float"
+        },
+        {
+          "name": "min_frame_time_ms",
+          "type": "float"
+        },
+        {
+          "name": "max_frame_time_ms",
+          "type": "float"
+        },
+        {
+          "name": "dropped_frames",
+          "type": "uint32_t"
+        },
+        {
+          "name": "total_frames",
+          "type": "uint32_t"
+        },
+        {
+          "name": "current_fps",
+          "type": "uint32_t"
+        },
+        {
+          "name": "target_fps",
+          "type": "uint32_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "key_code",
+          "type": "uint32_t"
+        },
+        {
+          "name": "modifiers",
+          "type": "uint8_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "x",
+          "type": "uint16_t"
+        },
+        {
+          "name": "y",
+          "type": "uint16_t"
+        },
+        {
+          "name": "button",
+          "type": "uint8_t"
+        },
+        {
+          "name": "modifiers",
+          "type": "uint8_t"
+        },
+        {
+          "name": "event_type",
+          "type": "uint8_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "width",
+          "type": "uint16_t"
+        },
+        {
+          "name": "height",
+          "type": "uint16_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "key",
+          "type": "RTuiKeyEvent"
+        },
+        {
+          "name": "mouse",
+          "type": "RTuiMouseEvent"
+        },
+        {
+          "name": "resize",
+          "type": "RTuiResizeEvent"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "event_type",
+          "type": "RTuiEventType"
+        },
+        {
+          "name": "data",
+          "type": "RTuiEventData"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "value",
+          "type": "float"
+        },
+        {
+          "name": "unit",
+          "type": "RTuiDimensionUnit"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "r",
+          "type": "float"
+        },
+        {
+          "name": "g",
+          "type": "float"
+        },
+        {
+          "name": "b",
+          "type": "float"
+        },
+        {
+          "name": "a",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "colors_256",
+          "type": "_Bool"
+        },
+        {
+          "name": "colors_truecolor",
+          "type": "_Bool"
+        },
+        {
+          "name": "mouse_support",
+          "type": "_Bool"
+        },
+        {
+          "name": "kitty_keyboard",
+          "type": "_Bool"
+        },
+        {
+          "name": "sixel_support",
+          "type": "_Bool"
+        },
+        {
+          "name": "unicode_support",
+          "type": "_Bool"
+        },
+        {
+          "name": "width",
+          "type": "uint16_t"
+        },
+        {
+          "name": "height",
+          "type": "uint16_t"
+        }
+      ]
+    },
+    {
+      "name": null,
+      "fields": [
+        {
+          "name": "start_index",
+          "type": "uint32_t"
+        },
+        {
+          "name": "length",
+          "type": "uint32_t"
+        },
+        {
+          "name": "visual_width",
+          "type": "uint32_t"
+        }
+      ]
+    }
+  ],
+  "c_enums": [
+    {
+      "name": null,
+      "variants": [
+        "RTUI_SUCCESS",
+        "RTUI_INVALID_PARAMETER",
+        "RTUI_NULL_POINTER",
+        "RTUI_BUFFER_TOO_SMALL",
+        "RTUI_OUT_OF_MEMORY",
+        "RTUI_INVALID_UTF8",
+        "RTUI_TERMINAL_NOT_AVAILABLE",
+        "RTUI_NOT_SUPPORTED",
+        "RTUI_ALREADY_EXISTS",
+        "RTUI_NOT_FOUND",
+        "RTUI_INVALID_STATE",
+        "RTUI_INVALID_POINTER",
+        "RTUI_INTERNAL_ERROR",
+        "RTUI_PANIC",
+        "RTUI_UNKNOWN"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_EASING_LINEAR",
+        "RTUI_EASING_EASE_IN",
+        "RTUI_EASING_EASE_OUT",
+        "RTUI_EASING_EASE_IN_OUT",
+        "RTUI_EASING_BOUNCE",
+        "RTUI_EASING_ELASTIC",
+        "RTUI_EASING_BACK",
+        "RTUI_EASING_EXPO",
+        "RTUI_EASING_CIRC",
+        "RTUI_EASING_SINE",
+        "RTUI_EASING_QUAD",
+        "RTUI_EASING_CUBIC",
+        "RTUI_EASING_QUART",
+        "RTUI_EASING_QUINT",
+        "RTUI_EASING_SPRING"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_LOOP_NONE",
+        "RTUI_LOOP_INFINITE",
+        "RTUI_LOOP_COUNT",
+        "RTUI_LOOP_PING_PONG"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_PROPERTY_OPACITY",
+        "RTUI_PROPERTY_TRANSLATE_X",
+        "RTUI_PROPERTY_TRANSLATE_Y",
+        "RTUI_PROPERTY_SCALE_X",
+        "RTUI_PROPERTY_SCALE_Y",
+        "RTUI_PROPERTY_ROTATION",
+        "RTUI_PROPERTY_WIDTH",
+        "RTUI_PROPERTY_HEIGHT"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_PERFORMANCE_POWER_SAVER",
+        "RTUI_PERFORMANCE_BALANCED",
+        "RTUI_PERFORMANCE_HIGH_PERFORMANCE",
+        "RTUI_PERFORMANCE_ADAPTIVE"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_EVENT_KEY",
+        "RTUI_EVENT_MOUSE",
+        "RTUI_EVENT_RESIZE",
+        "RTUI_EVENT_FOCUS",
+        "RTUI_EVENT_PASTE"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_DISPLAY_NONE",
+        "RTUI_DISPLAY_FLEX",
+        "RTUI_DISPLAY_GRID",
+        "RTUI_DISPLAY_BLOCK",
+        "RTUI_DISPLAY_INLINE",
+        "RTUI_DISPLAY_INLINE_BLOCK"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_FLEX_DIRECTION_ROW",
+        "RTUI_FLEX_DIRECTION_ROW_REVERSE",
+        "RTUI_FLEX_DIRECTION_COLUMN",
+        "RTUI_FLEX_DIRECTION_COLUMN_REVERSE"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_JUSTIFY_CONTENT_FLEX_START",
+        "RTUI_JUSTIFY_CONTENT_FLEX_END",
+        "RTUI_JUSTIFY_CONTENT_CENTER",
+        "RTUI_JUSTIFY_CONTENT_SPACE_BETWEEN",
+        "RTUI_JUSTIFY_CONTENT_SPACE_AROUND",
+        "RTUI_JUSTIFY_CONTENT_SPACE_EVENLY"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_ALIGN_ITEMS_FLEX_START",
+        "RTUI_ALIGN_ITEMS_FLEX_END",
+        "RTUI_ALIGN_ITEMS_CENTER",
+        "RTUI_ALIGN_ITEMS_BASELINE",
+        "RTUI_ALIGN_ITEMS_STRETCH"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_DIMENSION_UNIT_PIXELS",
+        "RTUI_DIMENSION_UNIT_PERCENT",
+        "RTUI_DIMENSION_UNIT_AUTO",
+        "RTUI_DIMENSION_UNIT_FLEX"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_CURSOR_BLOCK",
+        "RTUI_CURSOR_UNDERLINE",
+        "RTUI_CURSOR_BAR"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_OVERLAY_TOP_LEFT",
+        "RTUI_OVERLAY_TOP_RIGHT",
+        "RTUI_OVERLAY_BOTTOM_LEFT",
+        "RTUI_OVERLAY_BOTTOM_RIGHT"
+      ]
+    },
+    {
+      "name": null,
+      "variants": [
+        "RTUI_LOG_ERROR",
+        "RTUI_LOG_WARN",
+        "RTUI_LOG_INFO",
+        "RTUI_LOG_DEBUG",
+        "RTUI_LOG_TRACE"
+      ]
+    }
+  ]
+}
