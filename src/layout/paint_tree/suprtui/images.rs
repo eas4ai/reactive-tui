@@ -1,9 +1,7 @@
 //! Image placement follows the painter's cell transforms and coverage.
 use super::{inside_masks, Affine, NodePaint, PaintNode, Rect};
-use crate::{
-    error::{ReactiveError, Result},
-    widgets::display::image::paint::{ImagePaint, ImageProtocol},
-};
+use crate::error::{ReactiveError, Result};
+pub(super) use crate::widgets::display::image::paint::{ImagePaint, ImageProtocol};
 use ::suprtui::ansi;
 use std::sync::Arc;
 
@@ -147,6 +145,92 @@ impl Plane {
     pub fn id(&self) -> u32 {
         self.image.id
     }
+    /// How the picture is sent, when it is a canvas's.
+    pub fn canvas(&self) -> Option<crate::widgets::display::image::paint::CanvasPicture> {
+        self.image.canvas
+    }
+    /// Whether this is the next picture of the canvas `previous` shows, in
+    /// the same place with the same cells showing, so it can replace that
+    /// picture where it is (GFX-005).
+    pub fn replaces(&self, previous: &Self) -> bool {
+        self.image.canvas.is_some()
+            && self.image.canvas == previous.image.canvas
+            && self.image.id == previous.image.id
+            && self.image.pixels.dimensions() == previous.image.pixels.dimensions()
+            && self.bounds == previous.bounds
+            && self.content == previous.content
+            && self.transform == previous.transform
+            && self.opacity == previous.opacity
+            && self.protocol == previous.protocol
+            && self.cover == previous.cover
+    }
+    /// A canvas's picture cut to the plane's cells, when the plane shows it
+    /// pixel for pixel: only moved, opaque, and its picture the size of its
+    /// content. Cells another element covers are cleared or tinted as
+    /// `raster` does.
+    fn canvas_raster(&self, cell: (u16, u16)) -> Option<image::RgbaImage> {
+        self.image.canvas?;
+        let (cw, ch) = (u32::from(cell.0), u32::from(cell.1));
+        let content = (
+            (self.content.right - self.content.left) as u32 * cw,
+            (self.content.bottom - self.content.top) as u32 * ch,
+        );
+        if !self.transform.is_translation()
+            || self.opacity < 1.0
+            || self.image.pixels.dimensions() != content
+        {
+            return None;
+        }
+        let (offset_x, offset_y) = self.transform.offset();
+        // The picture's top left pixel, in pixels from the plane's.
+        let left = (offset_x.round() as i32 + self.content.left - self.bounds.left) * cw as i32;
+        let top = (offset_y.round() as i32 + self.content.top - self.bounds.top) * ch as i32;
+        let columns = (self.bounds.right - self.bounds.left) as u32;
+        let rows = (self.bounds.bottom - self.bounds.top) as u32;
+        let (width, height) = (columns * cw, rows * ch);
+        check_pixels(width, height).ok()?;
+        let source = self.image.pixels.as_ref();
+        let mut output = image::RgbaImage::new(width, height);
+        let row_bytes = width as usize * 4;
+        for (y, row) in output.chunks_exact_mut(row_bytes).enumerate() {
+            let from_y = y as i32 - top;
+            if from_y < 0 || from_y >= source.height() as i32 {
+                continue;
+            }
+            // The columns of this row that the picture covers.
+            let first = left.max(0);
+            let last = (left + source.width() as i32).min(width as i32);
+            if last <= first {
+                continue;
+            }
+            let from = ((from_y as u32 * source.width()) as usize + (first - left) as usize) * 4;
+            let count = (last - first) as usize * 4;
+            row[first as usize * 4..first as usize * 4 + count]
+                .copy_from_slice(&source.as_raw()[from..from + count]);
+        }
+        for (index, cover) in self.cover.iter().enumerate() {
+            if cover.visible && cover.tint[3] == 0 {
+                continue;
+            }
+            let (column, line) = (index as u32 % columns, index as u32 / columns);
+            for y in line * ch..(line + 1) * ch {
+                for x in column * cw..(column + 1) * cw {
+                    let pixel = output.get_pixel_mut(x, y);
+                    if !cover.visible {
+                        *pixel = image::Rgba([0; 4]);
+                        continue;
+                    }
+                    for (channel, tint) in pixel.0[..3].iter_mut().zip(&cover.tint[..3]) {
+                        *channel = ((u32::from(*channel) * (255 - u32::from(cover.tint[3]))
+                            + u32::from(*tint) * u32::from(cover.tint[3])
+                            + 127)
+                            / 255) as u8;
+                    }
+                }
+            }
+        }
+        Some(output)
+    }
     pub fn protocol(&self) -> ImageProtocol {
         self.protocol
     }
@@ -200,6 +284,9 @@ impl Plane {
         ];
     }
     pub fn raster(&self, cell: (u16, u16)) -> Result<image::RgbaImage> {
+        if let Some(picture) = self.canvas_raster(cell) {
+            return Ok(picture);
+        }
         let cw = u32::from(cell.0);
         let ch = u32::from(cell.1);
         let width = (self.bounds.right - self.bounds.left) as u32 * cw;

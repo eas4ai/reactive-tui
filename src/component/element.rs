@@ -60,6 +60,9 @@ pub struct ElementMetadata {
     pub(crate) inert: bool,
     pub(crate) image: Option<Arc<crate::widgets::display::image::paint::ImagePaint>>,
     pub(crate) image_fallback: Option<u32>,
+    /// The canvas this element shows, for the painter.
+    #[cfg(feature = "wgpu-graphics")]
+    pub(crate) canvas: Option<Arc<crate::graphics::CanvasPaint>>,
     /// A prepared cell grid this element paints in one step.
     pub(crate) cells: Option<Arc<crate::layout::paint_tree::cells::CellGrid>>,
     pub(crate) text_cursor: Option<TextCursor>,
@@ -91,6 +94,23 @@ pub struct ElementMetadata {
     pub on_click: Vec<Arc<dyn Fn() + Send + Sync>>,
 }
 
+impl ElementMetadata {
+    /// Whether both show the same picture of the same canvas, or none.
+    #[cfg(feature = "wgpu-graphics")]
+    fn same_canvas(&self, other: &Self) -> bool {
+        match (&self.canvas, &other.canvas) {
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b) || a == b,
+            (None, None) => true,
+            _ => false,
+        }
+    }
+
+    #[cfg(not(feature = "wgpu-graphics"))]
+    fn same_canvas(&self, _: &Self) -> bool {
+        true
+    }
+}
+
 impl PartialEq for ElementMetadata {
     fn eq(&self, other: &Self) -> bool {
         self.animation_values == other.animation_values
@@ -103,6 +123,7 @@ impl PartialEq for ElementMetadata {
                 _ => false,
             }
             && self.image_fallback == other.image_fallback
+            && self.same_canvas(other)
             && self.text_cursor == other.text_cursor
             && self.focus_scope == other.focus_scope
             && self.component_instances == other.component_instances

@@ -9,6 +9,9 @@ pub(crate) struct PaintSpec {
     pub image_fallbacks: Vec<Option<u32>>,
     pub cursors: Vec<Option<super::element::TextCursor>>,
     pub cells: Vec<Option<std::sync::Arc<crate::layout::paint_tree::cells::CellGrid>>>,
+    /// The canvas each element shows; it takes no part in layout.
+    #[cfg(feature = "wgpu-graphics")]
+    pub canvases: Vec<Option<std::sync::Arc<crate::graphics::CanvasPaint>>>,
 }
 
 pub(crate) fn resolve_viewport_styles(
@@ -50,6 +53,18 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         }
         Ok(())
     }
+    /// The canvases of `element` and its descendants, in the order
+    /// `collect` visits them.
+    #[cfg(feature = "wgpu-graphics")]
+    fn canvases(
+        element: &Element,
+        found: &mut Vec<Option<std::sync::Arc<crate::graphics::CanvasPaint>>>,
+    ) {
+        found.push(element.metadata.canvas.clone());
+        for child in &element.children {
+            canvases(child, found);
+        }
+    }
     let mut styles = Vec::new();
     let mut images = Vec::new();
     let mut image_fallbacks = Vec::new();
@@ -71,6 +86,12 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         image_fallbacks,
         cursors,
         cells,
+        #[cfg(feature = "wgpu-graphics")]
+        canvases: {
+            let mut found = Vec::new();
+            canvases(element, &mut found);
+            found
+        },
     })
 }
 

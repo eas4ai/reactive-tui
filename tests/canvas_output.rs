@@ -133,7 +133,7 @@ impl RootComponent for Spinner {
                     .class("w-40 h-full")
                     .children(vec![canvas(
                         canvas_support::cube(angle, angle),
-                        self.options,
+                        self.options.clone(),
                     )])
                     .build(),
             ])

@@ -32,10 +32,29 @@ impl Coverage {
     }
 }
 
-/// The coverage of `polygons`, filled together by the non-zero rule, over
-/// their bounding box within a picture of `size`; `None` when they cover
-/// none of it.
-pub(crate) fn rasterize(polygons: &[Polygon], size: (u32, u32)) -> Option<Coverage> {
+/// The pixels a shape can cover: whole pixels from `left`, `top` up to but
+/// not including `right`, `bottom`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Window {
+    pub left: u32,
+    pub top: u32,
+    pub right: u32,
+    pub bottom: u32,
+}
+
+impl Window {
+    pub fn width(&self) -> u32 {
+        self.right - self.left
+    }
+
+    pub fn height(&self) -> u32 {
+        self.bottom - self.top
+    }
+}
+
+/// The bounding box of `polygons` within a picture of `size`, in whole
+/// pixels; `None` when they lie outside it or have no area to bound.
+pub(crate) fn window_of(polygons: &[Polygon], size: (u32, u32)) -> Option<Window> {
     let mut min = (f32::INFINITY, f32::INFINITY);
     let mut max = (f32::NEG_INFINITY, f32::NEG_INFINITY);
     for &(x, y) in polygons.iter().flatten() {
@@ -49,10 +68,21 @@ pub(crate) fn rasterize(polygons: &[Polygon], size: (u32, u32)) -> Option<Covera
     let top = min.1.floor().max(0.0);
     let right = max.0.ceil().min(size.0 as f32);
     let bottom = max.1.ceil().min(size.1 as f32);
-    if !(right > left && bottom > top) {
-        return None;
-    }
-    let (width, height) = ((right - left) as usize, (bottom - top) as usize);
+    (right > left && bottom > top).then(|| Window {
+        left: left as u32,
+        top: top as u32,
+        right: right as u32,
+        bottom: bottom as u32,
+    })
+}
+
+/// The coverage of `polygons`, filled together by the non-zero rule, over
+/// their bounding box within a picture of `size`; `None` when they cover
+/// none of it.
+pub(crate) fn rasterize(polygons: &[Polygon], size: (u32, u32)) -> Option<Coverage> {
+    let window = window_of(polygons, size)?;
+    let (left, top) = (window.left as f32, window.top as f32);
+    let (width, height) = (window.width() as usize, window.height() as usize);
     let stride = width + 2;
     let mut acc = vec![0f32; stride * height];
     for polygon in polygons {
@@ -60,7 +90,14 @@ pub(crate) fn rasterize(polygons: &[Polygon], size: (u32, u32)) -> Option<Covera
             let a = polygon[i];
             let b = polygon[(i + 1) % polygon.len()];
             if a.0.is_finite() && a.1.is_finite() && b.0.is_finite() && b.1.is_finite() {
-                edge(&mut acc, stride, width, height, (a.0 - left, a.1 - top), (b.0 - left, b.1 - top));
+                edge(
+                    &mut acc,
+                    stride,
+                    width,
+                    height,
+                    (a.0 - left, a.1 - top),
+                    (b.0 - left, b.1 - top),
+                );
             }
         }
     }
@@ -73,8 +110,8 @@ pub(crate) fn rasterize(polygons: &[Polygon], size: (u32, u32)) -> Option<Covera
         }
     }
     Some(Coverage {
-        left: left as u32,
-        top: top as u32,
+        left: window.left,
+        top: window.top,
         width,
         height,
         alpha,
@@ -89,7 +126,11 @@ fn edge(acc: &mut [f32], stride: usize, width: usize, height: usize, p0: Point, 
     if p0.1 == p1.1 {
         return;
     }
-    let (dir, p0, p1) = if p0.1 < p1.1 { (1.0, p0, p1) } else { (-1.0, p1, p0) };
+    let (dir, p0, p1) = if p0.1 < p1.1 {
+        (1.0, p0, p1)
+    } else {
+        (-1.0, p1, p0)
+    };
     let (y_start, y_end) = (p0.1.max(0.0), p1.1.min(height as f32));
     if y_end <= y_start {
         return;
@@ -153,7 +194,11 @@ mod tests {
         for y in 0..10 {
             for x in 0..10 {
                 let inside = (2..6).contains(&x) && (3..7).contains(&y);
-                assert_eq!(coverage.at(x, y), if inside { 1.0 } else { 0.0 }, "({x}, {y})");
+                assert_eq!(
+                    coverage.at(x, y),
+                    if inside { 1.0 } else { 0.0 },
+                    "({x}, {y})"
+                );
             }
         }
     }

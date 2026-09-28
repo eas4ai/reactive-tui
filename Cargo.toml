@@ -63,6 +63,7 @@ cap-std = "4.0.2"
 cap-fs-ext = "4.0.2"
 time = "0.3"
 wgpu = { version = "=27.0.1", optional = true, default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "dx12", "wgsl"] }
+ttf-parser = { version = "0.25.1", optional = true, default-features = false, features = ["std"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 accesskit_consumer = "0.39.0"
@@ -81,7 +82,7 @@ zvariant = { version = "5.4", default-features = false }
 libc = "0.2"
 signal-hook = "0.3.18"
 libghostty-vt = { package = "reactive-tui-libghostty-vt", path = "crates/libghostty-vt", version = "=1.0.0", optional = true }
-rustix = { version = "1", features = ["fs"] }
+rustix = { version = "1", features = ["fs", "shm"] }
 
 [target.'cfg(windows)'.dependencies]
 libloading = "0.8.9"
@@ -240,7 +241,7 @@ async-capabilities = ["tokio"]
 # Enable FFI bindings (C ABI)
 ffi = []
 embedded-terminal = ["dep:libghostty-vt"]
-wgpu-graphics = ["dep:wgpu"]
+wgpu-graphics = ["dep:wgpu", "dep:ttf-parser"]
 
 [dev-dependencies]
 futures-lite = "2.3"

@@ -110,6 +110,18 @@ impl<W: Write> ByteBackend for CheckedOutput<W> {
             return WriteStatus::Failed;
         }
         if self.frame.is_empty() {
+            if self.before_cells.is_empty() && self.after_cells.is_empty() {
+                return WriteStatus::Ok;
+            }
+            // No cell changed, but a picture did: a canvas's next picture,
+            // replaced where it is (GFX-005). It goes out alone, as one
+            // synchronized update.
+            self.pending.clear();
+            self.pending
+                .extend_from_slice(b"\x1b\\\x1b[?2026l\x1b[?2026h");
+            self.pending.extend_from_slice(&self.before_cells);
+            self.pending.extend_from_slice(&self.after_cells);
+            self.pending.extend_from_slice(b"\x1b[?2026l");
             return WriteStatus::Ok;
         }
         // Assemble the bytes now; the write and flush happen in

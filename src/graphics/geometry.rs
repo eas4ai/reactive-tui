@@ -131,7 +131,9 @@ fn curve_steps(points: &[Point], scale: f32) -> usize {
     // A chord of a curve whose control polygon is `length` long strays about
     // length^2 / (8 n^2 r); bounding the bend by the length itself gives
     // n = sqrt(length / (8 tolerance)) at worst, doubled for margin.
-    ((length / (8.0 * TOLERANCE)).sqrt() * 2.0).ceil().clamp(1.0, 512.0) as usize
+    ((length / (8.0 * TOLERANCE)).sqrt() * 2.0)
+        .ceil()
+        .clamp(1.0, 512.0) as usize
 }
 
 fn distance(a: Point, b: Point) -> f32 {
@@ -322,7 +324,11 @@ fn sub(a: Point, b: Point) -> Point {
 /// A regular polygon approximating a circle of `radius` around `center`,
 /// its chords within the flattening tolerance.
 fn circle(center: Point, radius: f32) -> Polygon {
-    let step = (2.0 * (1.0 - TOLERANCE / radius.max(TOLERANCE)).clamp(-1.0, 1.0).acos()).max(0.05);
+    let step = (2.0
+        * (1.0 - TOLERANCE / radius.max(TOLERANCE))
+            .clamp(-1.0, 1.0)
+            .acos())
+    .max(0.05);
     let steps = (std::f32::consts::TAU / step).ceil().clamp(8.0, 256.0) as usize;
     (0..steps)
         .map(|i| {
@@ -348,7 +354,13 @@ fn cap_dot(p: Point, half: f32, cap: LineCap) -> Polygon {
 /// The pieces of one run of a stroke: a quadrilateral per segment, a join
 /// at each inner vertex (and at the start of a closed run), and caps at the
 /// ends of an open one.
-fn stroke_run(points: &[Point], closed: bool, half: f32, stroke: &Stroke, pieces: &mut Vec<Polygon>) {
+fn stroke_run(
+    points: &[Point],
+    closed: bool,
+    half: f32,
+    stroke: &Stroke,
+    pieces: &mut Vec<Polygon>,
+) {
     let n = points.len();
     let segments: Vec<(Point, Point)> = if closed {
         (0..n).map(|i| (points[i], points[(i + 1) % n])).collect()
@@ -359,7 +371,11 @@ fn stroke_run(points: &[Point], closed: bool, half: f32, stroke: &Stroke, pieces
         let off = normal(a, b, half);
         pieces.push(vec![add(a, off), add(b, off), sub(b, off), sub(a, off)]);
     }
-    let joins = if closed { segments.len() } else { segments.len().saturating_sub(1) };
+    let joins = if closed {
+        segments.len()
+    } else {
+        segments.len().saturating_sub(1)
+    };
     for i in 0..joins {
         let (a, b) = segments[i];
         let (_, c) = segments[(i + 1) % segments.len()];
@@ -382,7 +398,11 @@ fn join(a: Point, b: Point, c: Point, half: f32, stroke: &Stroke, pieces: &mut V
         return;
     }
     // The outer side of the turn is the side the segments' offsets part on.
-    let (o1, o2) = if turn > 0.0 { (sub(b, n1), sub(b, n2)) } else { (add(b, n1), add(b, n2)) };
+    let (o1, o2) = if turn > 0.0 {
+        (sub(b, n1), sub(b, n2))
+    } else {
+        (add(b, n1), add(b, n2))
+    };
     match stroke.join {
         LineJoin::Round => pieces.push(circle(b, half)),
         LineJoin::Bevel => pieces.push(vec![b, o1, o2]),
@@ -412,7 +432,10 @@ fn cap(end: Point, from: Point, half: f32, cap: LineCap, pieces: &mut Vec<Polygo
         LineCap::Round => pieces.push(circle(end, half)),
         LineCap::Square => {
             let length = distance(from, end).max(1e-6);
-            let out = ((end.0 - from.0) / length * half, (end.1 - from.1) / length * half);
+            let out = (
+                (end.0 - from.0) / length * half,
+                (end.1 - from.1) / length * half,
+            );
             let off = normal(from, end, half);
             pieces.push(vec![
                 add(end, off),
@@ -449,12 +472,18 @@ mod tests {
         let lines = flatten(&Path::rect(1.0, 2.0, 3.0, 4.0), &Transform::identity());
         assert_eq!(lines.len(), 1);
         assert!(lines[0].closed);
-        assert_eq!(lines[0].points, vec![(1.0, 2.0), (4.0, 2.0), (4.0, 6.0), (1.0, 6.0)]);
+        assert_eq!(
+            lines[0].points,
+            vec![(1.0, 2.0), (4.0, 2.0), (4.0, 6.0), (1.0, 6.0)]
+        );
     }
 
     #[test]
     fn an_ellipse_stays_within_the_tolerance_of_its_radius() {
-        let lines = flatten(&Path::ellipse(50.0, 50.0, 40.0, 20.0), &Transform::identity());
+        let lines = flatten(
+            &Path::ellipse(50.0, 50.0, 40.0, 20.0),
+            &Transform::identity(),
+        );
         for &(x, y) in &lines[0].points {
             let r = ((x - 50.0) / 40.0).powi(2) + ((y - 50.0) / 20.0).powi(2);
             assert!((r - 1.0).abs() < 0.03, "({x}, {y}) is off the ellipse: {r}");
@@ -470,7 +499,8 @@ mod tests {
             .line_to(10.0, 10.0)
             .build();
         for join in [LineJoin::Miter, LineJoin::Round, LineJoin::Bevel] {
-            let pieces = stroke_polygons(&path, &Stroke::new(2.0).join(join), &Transform::identity());
+            let pieces =
+                stroke_polygons(&path, &Stroke::new(2.0).join(join), &Transform::identity());
             assert!(pieces.len() >= 3);
             for piece in pieces {
                 let area: f32 = (0..piece.len())

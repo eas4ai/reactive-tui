@@ -1,4 +1,5 @@
 //! Compact cell coverage derived from the image pixels already rasterized for output.
+#[derive(Clone)]
 pub(super) struct Coverage {
     origin: (u32, u32),
     size: (u32, u32),

@@ -444,23 +444,43 @@ impl PathBuilder {
     }
 }
 
-/// An RGBA image a scene draws, straight (not premultiplied) alpha.
+/// An RGBA image a scene draws, scaled smoothly into its rectangle.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CanvasImage {
     pub(crate) width: u32,
     pub(crate) height: u32,
+    /// Premultiplied by alpha, the form both renderers blend.
     pub(crate) pixels: Vec<[u8; 4]>,
 }
 
 impl CanvasImage {
-    /// An image of `width` by `height` pixels, row by row.
-    pub fn from_rgba(width: u32, height: u32, pixels: Vec<[u8; 4]>) -> Result<Self, GraphicsError> {
+    /// The largest width or height of an image.
+    pub const MAX_SIDE: u32 = 4096;
+
+    /// An image of `width` by `height` pixels, row by row, with straight
+    /// (not premultiplied) alpha; each side at most [`Self::MAX_SIDE`].
+    pub fn from_rgba(
+        width: u32,
+        height: u32,
+        mut pixels: Vec<[u8; 4]>,
+    ) -> Result<Self, GraphicsError> {
         let expected = u64::from(width) * u64::from(height);
-        if width == 0 || height == 0 || expected != pixels.len() as u64 {
+        if width == 0
+            || height == 0
+            || width > Self::MAX_SIDE
+            || height > Self::MAX_SIDE
+            || expected != pixels.len() as u64
+        {
             return Err(GraphicsError::Dimensions(format!(
                 "{width}x{height} image with {} pixels",
                 pixels.len()
             )));
+        }
+        for pixel in pixels.iter_mut().filter(|pixel| pixel[3] != 255) {
+            let alpha = u32::from(pixel[3]);
+            for channel in &mut pixel[..3] {
+                *channel = ((u32::from(*channel) * alpha + 127) / 255) as u8;
+            }
         }
         Ok(Self {
             width,
@@ -482,7 +502,7 @@ impl CanvasImage {
 
 /// One drawing command, with the transform and clips in force when it was
 /// recorded kept by the renderer, not here.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Command {
     Fill(Path, Paint),
     Stroke(Path, Stroke, Paint),
@@ -497,7 +517,7 @@ pub(crate) enum Command {
 
 /// A drawing in painting order. Transforms and clips pushed apply to what is
 /// drawn until they are popped; a pop without a push does nothing.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Scene {
     pub(crate) commands: Vec<Command>,
 }
@@ -517,11 +537,8 @@ impl Scene {
 
     /// Draw the outline of `path` with `stroke` and `paint`.
     pub fn stroke(&mut self, path: &Path, stroke: &Stroke, paint: &Paint) -> &mut Self {
-        self.commands.push(Command::Stroke(
-            path.clone(),
-            stroke.clone(),
-            paint.clone(),
-        ));
+        self.commands
+            .push(Command::Stroke(path.clone(), stroke.clone(), paint.clone()));
         self
     }
 
@@ -542,12 +559,19 @@ impl Scene {
     /// Draw `grid` with its top left cell at `origin`, each cell `cell`
     /// pixels, through the glyph atlas in one instanced draw on the GPU.
     /// Cells follow the translation of the current transform only.
-    pub fn cells(&mut self, origin: (f32, f32), grid: Arc<CellGrid>, cell: (u16, u16)) -> &mut Self {
+    pub fn cells(
+        &mut self,
+        origin: (f32, f32),
+        grid: Arc<CellGrid>,
+        cell: (u16, u16),
+    ) -> &mut Self {
         self.commands.push(Command::Cells(origin, grid, cell));
         self
     }
 
-    /// Apply `transform` to what follows, after any transform in force.
+    /// Apply `transform` to what follows, inside any transform in force:
+    /// a point goes through `transform` first and then through those
+    /// pushed before it.
     pub fn push_transform(&mut self, transform: Transform) -> &mut Self {
         self.commands.push(Command::PushTransform(transform));
         self

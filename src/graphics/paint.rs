@@ -3,7 +3,8 @@
 //! pixel's centre in scene coordinates, stops interpolated premultiplied in
 //! sRGB, then the paint's opacity.
 
-use super::scene::{Paint, PaintKind, Transform};
+use super::scene::{CanvasImage, Paint, PaintKind, Transform};
+use std::sync::Arc;
 
 /// The most gradient stops a paint keeps; the GPU's uniform block holds as
 /// many.
@@ -41,6 +42,12 @@ pub(crate) enum ShaderKind {
         radius: f32,
         stops: Vec<(f32, Premul)>,
     },
+    /// The image stretched over `rect` (x, y, width, height), sampled
+    /// between its four nearest pixels and held at its edges.
+    Image {
+        rect: (f32, f32, f32, f32),
+        image: Arc<CanvasImage>,
+    },
 }
 
 /// The stops of a gradient, resolved, sorted by offset and cut to
@@ -49,7 +56,12 @@ fn resolve_stops(stops: &[super::scene::GradientStop]) -> Vec<(f32, Premul)> {
     let mut resolved: Vec<(f32, Premul)> = stops
         .iter()
         .take(MAX_STOPS)
-        .map(|stop| (stop.offset.clamp(0.0, 1.0), premultiply(stop.color.resolve())))
+        .map(|stop| {
+            (
+                stop.offset.clamp(0.0, 1.0),
+                premultiply(stop.color.resolve()),
+            )
+        })
         .collect();
     resolved.sort_by(|a, b| a.0.total_cmp(&b.0));
     resolved
@@ -82,10 +94,63 @@ impl Shader {
         }
     }
 
+    /// `image` stretched over `rect` in the scene, drawn under `transform`.
+    pub fn image(
+        rect: (f32, f32, f32, f32),
+        image: Arc<CanvasImage>,
+        transform: &Transform,
+    ) -> Self {
+        Self {
+            kind: ShaderKind::Image { rect, image },
+            inverse: transform.inverse().unwrap_or_default(),
+            opacity: 1.0,
+        }
+    }
+
+    /// The color when the paint is one opaque color everywhere, which a
+    /// renderer can write without blending where coverage is whole.
+    pub fn opaque(&self) -> Option<Premul> {
+        match self.kind {
+            ShaderKind::Solid(color) if color[3] >= 1.0 && self.opacity >= 1.0 => Some(color),
+            _ => None,
+        }
+    }
+
     /// The premultiplied color at picture pixel (`x`, `y`), its centre.
     pub fn at(&self, x: u32, y: u32) -> Premul {
         let color = match &self.kind {
             ShaderKind::Solid(color) => *color,
+            ShaderKind::Image { rect, image } => {
+                let p = self.inverse.apply((x as f32 + 0.5, y as f32 + 0.5));
+                let u = (p.0 - rect.0) / rect.2 * image.width as f32 - 0.5;
+                let v = (p.1 - rect.1) / rect.3 * image.height as f32 - 0.5;
+                if !(u.is_finite() && v.is_finite()) {
+                    return [0.0; 4];
+                }
+                let (u, v) = (
+                    u.clamp(0.0, (image.width - 1) as f32),
+                    v.clamp(0.0, (image.height - 1) as f32),
+                );
+                let (left, top) = (u.floor(), v.floor());
+                let (fx, fy) = (u - left, v - top);
+                let (left, top) = (left as u32, top as u32);
+                let right = (left + 1).min(image.width - 1);
+                let bottom = (top + 1).min(image.height - 1);
+                let texel = |x: u32, y: u32| {
+                    image.pixels[(y * image.width + x) as usize].map(|c| f32::from(c) / 255.0)
+                };
+                let (a, b, c, d) = (
+                    texel(left, top),
+                    texel(right, top),
+                    texel(left, bottom),
+                    texel(right, bottom),
+                );
+                [0, 1, 2, 3].map(|i| {
+                    let upper = a[i] + (b[i] - a[i]) * fx;
+                    let lower = c[i] + (d[i] - c[i]) * fx;
+                    upper + (lower - upper) * fy
+                })
+            }
             ShaderKind::Linear { start, axis, stops } => {
                 let p = self.inverse.apply((x as f32 + 0.5, y as f32 + 0.5));
                 let length = axis.0 * axis.0 + axis.1 * axis.1;
@@ -146,15 +211,30 @@ mod tests {
             ],
         );
         let shader = Shader::new(&paint, &Transform::identity());
-        assert_eq!(shader.at(0, 0)[0], 0.05);
+        assert!((shader.at(0, 0)[0] - 0.05).abs() < 1e-6);
         assert!((shader.at(4, 0)[0] - 0.45).abs() < 1e-6);
         assert_eq!(shader.at(20, 0)[0], 1.0);
     }
 
     #[test]
+    fn an_image_is_sampled_between_its_pixels_and_held_at_its_edges() {
+        let image = Arc::new(
+            CanvasImage::from_rgba(2, 1, vec![[0, 0, 0, 255], [255, 255, 255, 255]]).unwrap(),
+        );
+        let shader = Shader::image((0.0, 0.0, 8.0, 4.0), image, &Transform::identity());
+        // The first image pixel's centre is at x = 2, the second's at x = 6.
+        assert_eq!(shader.at(0, 0)[0], 0.0);
+        assert!((shader.at(3, 0)[0] - 0.375).abs() < 1e-6);
+        assert_eq!(shader.at(7, 0)[0], 1.0);
+    }
+
+    #[test]
     fn opacity_scales_every_channel() {
         let paint = Paint::solid(Color::rgba(255, 0, 0, 255)).opacity(0.5);
-        assert_eq!(Shader::new(&paint, &Transform::identity()).at(0, 0), [0.5, 0.0, 0.0, 0.5]);
+        assert_eq!(
+            Shader::new(&paint, &Transform::identity()).at(0, 0),
+            [0.5, 0.0, 0.0, 0.5]
+        );
     }
 
     #[test]
