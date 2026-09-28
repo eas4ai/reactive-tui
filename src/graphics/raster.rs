@@ -18,6 +18,7 @@ pub(crate) struct Coverage {
     pub alpha: Vec<f32>,
 }
 
+#[cfg(test)]
 impl Coverage {
     /// Coverage at picture pixel (`x`, `y`); none outside the window.
     pub fn at(&self, x: u32, y: u32) -> f32 {
@@ -68,7 +69,7 @@ pub(crate) fn window_of(polygons: &[Polygon], size: (u32, u32)) -> Option<Window
     let top = min.1.floor().max(0.0);
     let right = max.0.ceil().min(size.0 as f32);
     let bottom = max.1.ceil().min(size.1 as f32);
-    (right > left && bottom > top).then(|| Window {
+    (right > left && bottom > top).then_some(Window {
         left: left as u32,
         top: top as u32,
         right: right as u32,

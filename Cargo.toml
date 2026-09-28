@@ -82,7 +82,7 @@ zvariant = { version = "5.4", default-features = false }
 libc = "0.2"
 signal-hook = "0.3.18"
 libghostty-vt = { package = "reactive-tui-libghostty-vt", path = "crates/libghostty-vt", version = "=1.0.0", optional = true }
-rustix = { version = "1", features = ["fs"] }
+rustix = { version = "1", features = ["fs", "shm"] }
 
 [target.'cfg(windows)'.dependencies]
 libloading = "0.8.9"
@@ -130,26 +130,6 @@ required-features = ["embedded-terminal"]
 name = "dqc_003_captured_diagnostics"
 path = "tests/dqc_003_captured_diagnostics.rs"
 harness = false
-
-[[test]]
-name = "wgpu_graphics"
-path = "tests/wgpu_graphics.rs"
-required-features = ["wgpu-graphics"]
-
-[[test]]
-name = "wgpu_animation"
-path = "tests/wgpu_animation.rs"
-required-features = ["wgpu-graphics"]
-
-[[test]]
-name = "wgpu_lifecycle"
-path = "tests/wgpu_lifecycle.rs"
-required-features = ["wgpu-graphics"]
-
-[[test]]
-name = "wgpu_measurement"
-path = "tests/wgpu_measurement.rs"
-required-features = ["wgpu-graphics"]
 
 [[test]]
 name = "canvas_scenes"

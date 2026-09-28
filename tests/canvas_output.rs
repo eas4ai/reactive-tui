@@ -20,7 +20,21 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 const KITTY: &str = "\x1b_G";
-const SIXEL: &str = "\x1bPq";
+/// How the crate's Sixel pictures start: the device control string with a
+/// transparent background.
+const SIXEL: &str = "\x1bP0;1q";
+
+/// A glyph the half-block blitter draws for a cell whose halves differ.
+const BLOCK: &str = "▄";
+
+/// Draw block glyphs as half blocks, so a picture with an edge in it holds
+/// [`BLOCK`]. Every test sets the same blitter, so their order does not
+/// matter.
+fn half_blocks() {
+    reactive_tui::widgets::display::set_image_blitter(Some(
+        reactive_tui::widgets::display::Blitter::HalfBlock,
+    ));
+}
 
 fn canvas(scene: Scene, options: GraphicsOptions) -> Element {
     Element::typed::<Canvas>(CanvasProps::new(Arc::new(scene)).options(options))
@@ -35,6 +49,7 @@ impl RootComponent for Root {
 
 /// The output of the frames up to the first that holds `needle`.
 fn output_until(options: GraphicsOptions, images: ImageOutputOptions, needle: &str) -> String {
+    half_blocks();
     let frames = app_input::run_when_output(
         Root(canvas(canvas_support::shapes(), options)),
         (40, 12),
@@ -60,7 +75,11 @@ fn gfx_005_the_host_decides_kitty_then_sixel_then_blocks() {
     };
     let on_both = output_until(reference_options(true), both, KITTY);
     let on_sixel = output_until(reference_options(true), sixel, SIXEL);
-    let on_neither = output_until(reference_options(true), ImageOutputOptions::default(), "▀");
+    let on_neither = output_until(
+        reference_options(true),
+        ImageOutputOptions::default(),
+        BLOCK,
+    );
     assert!(
         !on_both.contains(SIXEL)
             && !on_sixel.contains(KITTY)
@@ -83,7 +102,7 @@ fn gfx_005_an_override_replaces_the_choice() {
             ..reference_options(true)
         },
         kitty,
-        "▀",
+        BLOCK,
     );
     assert!(
         !forced.contains(KITTY) && !forced.contains(SIXEL),
@@ -133,7 +152,7 @@ impl RootComponent for Spinner {
                     .class("w-40 h-full")
                     .children(vec![canvas(
                         canvas_support::cube(angle, angle),
-                        self.options,
+                        self.options.clone(),
                     )])
                     .build(),
             ])
@@ -146,6 +165,10 @@ impl RootComponent for Spinner {
         } else {
             RootUpdate::Redraw
         })
+    }
+    /// The backend writes to memory and has no terminal to read keys from.
+    fn accepts_input(&self) -> bool {
+        false
     }
 }
 

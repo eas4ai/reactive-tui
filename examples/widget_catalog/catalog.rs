@@ -36,7 +36,21 @@ use std::time::Instant;
 pub mod motion;
 use motion::CubeAnimation;
 #[cfg(feature = "wgpu-graphics")]
-use reactive_tui::graphics::{GraphicsCanvas, GraphicsOptions, HybridCubeRenderer};
+#[path = "scene.rs"]
+pub mod scene;
+#[cfg(feature = "wgpu-graphics")]
+use reactive_tui::graphics::{Canvas, CanvasProps, GraphicsOptions, GraphicsWorker};
+#[cfg(feature = "wgpu-graphics")]
+use std::sync::Arc;
+
+/// The Motion page's canvas: how it draws, the worker that draws it and
+/// when the cube began to turn.
+#[cfg(feature = "wgpu-graphics")]
+struct CanvasStage {
+    options: GraphicsOptions,
+    worker: Option<Arc<GraphicsWorker>>,
+    started: Instant,
+}
 
 /// Public widget families represented by the catalog.
 pub const WIDGET_FAMILY_INVENTORY: &str = "\
@@ -121,16 +135,9 @@ pub struct Catalog {
     motion: CubeAnimation,
     exit_requested: bool,
     demo: usize,
+    /// Set when the catalog draws the Motion page on the canvas.
     #[cfg(feature = "wgpu-graphics")]
-    graphics: Option<GraphicsCanvas>,
-    #[cfg(feature = "wgpu-graphics")]
-    graphics_options: GraphicsOptions,
-    #[cfg(feature = "wgpu-graphics")]
-    prepared_graphics: Option<HybridCubeRenderer>,
-    #[cfg(feature = "wgpu-graphics")]
-    graphics_started: Instant,
-    #[cfg(feature = "wgpu-graphics")]
-    graphics_error: Option<String>,
+    canvas: Option<CanvasStage>,
 }
 
 impl Default for Catalog {
@@ -143,15 +150,7 @@ impl Default for Catalog {
             exit_requested: false,
             demo: 0,
             #[cfg(feature = "wgpu-graphics")]
-            graphics: None,
-            #[cfg(feature = "wgpu-graphics")]
-            graphics_options: GraphicsOptions::default(),
-            #[cfg(feature = "wgpu-graphics")]
-            prepared_graphics: None,
-            #[cfg(feature = "wgpu-graphics")]
-            graphics_started: Instant::now(),
-            #[cfg(feature = "wgpu-graphics")]
-            graphics_error: None,
+            canvas: None,
         }
     }
 }
@@ -159,11 +158,19 @@ impl Default for Catalog {
 impl Catalog {
     #[cfg(feature = "wgpu-graphics")]
     pub fn with_graphics(options: GraphicsOptions, start_motion: bool) -> Self {
+        // Called before SuprTuiBackend::new: the worker makes its renderer
+        // now, so what a graphics driver prints while it starts does not
+        // land on the App's screen.
+        let worker = GraphicsWorker::spawn(options.clone()).ok().map(Arc::new);
+        if let Some(worker) = &worker {
+            worker.wait_ready(std::time::Duration::from_secs(10));
+        }
         Self {
-            graphics_options: options,
-            // Called before SuprTuiBackend::new: driver stderr must not scroll
-            // or corrupt a raw alternate-screen session during initialization.
-            prepared_graphics: Some(HybridCubeRenderer::new(options)),
+            canvas: Some(CanvasStage {
+                options,
+                worker,
+                started: Instant::now(),
+            }),
             page: if start_motion {
                 CatalogPage::Motion
             } else {
@@ -173,14 +180,6 @@ impl Catalog {
         }
     }
 
-    #[cfg(feature = "wgpu-graphics")]
-    fn graphics_viewport(&self) -> (u32, u32) {
-        let sidebar = self.navigation_layout() == NavigationLayout::Sidebar;
-        (
-            u32::from(self.width.saturating_sub(if sidebar { 24 } else { 0 })),
-            u32::from(self.height.saturating_sub(if sidebar { 6 } else { 9 })),
-        )
-    }
     #[cfg(test)]
     pub fn page(&self) -> CatalogPage {
         self.page
@@ -845,7 +844,49 @@ impl Catalog {
             .build()
     }
 
+    /// The Motion page: with the canvas, the cube as a scene the canvas
+    /// fits to the stage, under the name of the renderer that draws it;
+    /// without it, the wireframe cube in braille.
     fn motion_page(&self) -> Element {
+        #[cfg(feature = "wgpu-graphics")]
+        if let Some(stage) = &self.canvas {
+            // The renderer is named once it has drawn, so the line and the
+            // first picture appear together.
+            let renderer = stage
+                .worker
+                .as_ref()
+                .filter(|worker| worker.stats().rendered > 0)
+                .and_then(|worker| worker.mode())
+                .map_or_else(|| "Starting graphics…".to_owned(), |mode| mode.label());
+            let mut props = CanvasProps::new(Arc::new(scene::cube_scene(stage.started.elapsed())))
+                .options(stage.options.clone())
+                .view(scene::VIEW.0, scene::VIEW.1)
+                .label("Shaded spinning cube");
+            if let Some(worker) = &stage.worker {
+                props = props.worker(worker.clone());
+            }
+            return div()
+                .class("w-full h-full flex-1 flex-col min-h-0")
+                .child(
+                    div()
+                        .class("h-1 shrink-0 text-white font-bold")
+                        .text("Shaded spinning cube")
+                        .build(),
+                )
+                .child(
+                    div()
+                        .class("h-1 shrink-0 text-cyan-300")
+                        .text(&renderer)
+                        .build(),
+                )
+                .child(
+                    div()
+                        .class("w-full flex-1 min-h-0")
+                        .child(Element::typed::<Canvas>(props))
+                        .build(),
+                )
+                .build();
+        }
         div()
             .class("w-full h-full flex-1 flex-col min-h-0")
             .child(
@@ -907,36 +948,6 @@ impl Catalog {
     }
 
     fn stage(&self) -> Element {
-        #[cfg(feature = "wgpu-graphics")]
-        if self.page == CatalogPage::Motion {
-            if let Some(graphics) = &self.graphics {
-                return div()
-                    .class("flex-col flex-1 min-w-0 min-h-0 h-full bg-gray-900")
-                    .child(
-                        div()
-                            .class("h-1 shrink-0 text-white font-bold")
-                            .text("Shaded spinning cube")
-                            .build(),
-                    )
-                    .child(
-                        div()
-                            .class("h-1 shrink-0 text-cyan-300")
-                            .text(
-                                &self
-                                    .graphics_error
-                                    .clone()
-                                    .unwrap_or_else(|| graphics.mode_label()),
-                            )
-                            .build(),
-                    )
-                    .child(
-                        graphics
-                            .element()
-                            .unwrap_or_else(|error| Element::text(error.to_string())),
-                    )
-                    .build();
-            }
-        }
         if self.page == CatalogPage::Motion {
             return div()
                 .class("flex-col flex-1 min-w-0 min-h-0 h-full bg-gray-900")
@@ -981,13 +992,6 @@ impl Catalog {
 }
 
 impl RootComponent for Catalog {
-    #[cfg(feature = "wgpu-graphics")]
-    fn attach_waker(&mut self, wake: reactive_tui::app::AppWaker) {
-        self.graphics = Some(match self.prepared_graphics.take() {
-            Some(renderer) => GraphicsCanvas::with_renderer(wake, renderer),
-            None => GraphicsCanvas::new(wake, self.graphics_options),
-        });
-    }
     fn render(&self) -> Element {
         let content = match self.navigation_layout() {
             NavigationLayout::Sidebar => div()
@@ -1079,39 +1083,11 @@ impl RootComponent for Catalog {
     }
 
     fn update(&mut self) -> reactive_tui::Result<RootUpdate> {
+        // The cube turns with time: each frame of the Motion page is a new
+        // scene, which the canvas's worker draws.
         #[cfg(feature = "wgpu-graphics")]
-        {
-            if self.exit_requested {
-                if let Some(graphics) = &mut self.graphics {
-                    graphics.shutdown().map_err(|error| {
-                        reactive_tui::ReactiveError::invalid_state(error.to_string())
-                    })?;
-                }
-                return Ok(RootUpdate::Exit);
-            }
-            if self.page == CatalogPage::Motion {
-                let (columns, rows) = self.graphics_viewport();
-                if let Some(graphics) = &mut self.graphics {
-                    return Ok(
-                        match graphics.advance(self.graphics_started.elapsed(), columns, rows) {
-                            Ok(true) => {
-                                self.graphics_error = None;
-                                RootUpdate::Redraw
-                            }
-                            Ok(false) => RootUpdate::Unchanged,
-                            Err(error) => {
-                                let message = error.to_string();
-                                if self.graphics_error.as_ref() == Some(&message) {
-                                    RootUpdate::Unchanged
-                                } else {
-                                    self.graphics_error = Some(message);
-                                    RootUpdate::Redraw
-                                }
-                            }
-                        },
-                    );
-                }
-            }
+        if !self.exit_requested && self.page == CatalogPage::Motion && self.canvas.is_some() {
+            return Ok(RootUpdate::Redraw);
         }
         Ok(if self.exit_requested {
             RootUpdate::Exit

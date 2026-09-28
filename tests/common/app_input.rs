@@ -358,6 +358,7 @@ impl Backend for InputBackend {
 #[allow(dead_code)]
 pub const HANG_GUARD: Duration = Duration::from_secs(30);
 
+#[allow(dead_code)]
 pub fn run(
     root: impl RootComponent + 'static,
     size: (u16, u16),

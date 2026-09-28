@@ -3,7 +3,6 @@
 //! images in tests/snapshots/canvas.
 #![allow(dead_code)]
 
-use reactive_tui::core::surface::Rgba;
 use reactive_tui::graphics::{
     fonts::FontSource, CanvasImage, Color, GradientStop, GraphicsFrame, GraphicsOptions, LineCap,
     LineJoin, Paint, Path, PathBuilder, Scene, Stroke, Transform,
@@ -276,7 +275,7 @@ pub fn text() -> Scene {
 /// A CellGrid of box drawing, blocks and letters, drawn through the glyph atlas.
 pub fn cells() -> Scene {
     let mut grid = CellGrid::new(20, 6);
-    let fg = Rgba::new(0.9, 0.9, 0.95, 1.0);
+    let fg = (0.9, 0.9, 0.95, 1.0);
     for x in 0..20 {
         grid.set(x, 0, "─", Some(fg));
         grid.set(x, 5, "─", Some(fg));
@@ -286,7 +285,7 @@ pub fn cells() -> Scene {
             2 + x as u16,
             2,
             &glyph.to_string(),
-            Some(Rgba::new(1.0, 0.8, 0.2, 1.0)),
+            Some((1.0, 0.8, 0.2, 1.0)),
         );
     }
     let mut scene = Scene::new();
@@ -345,7 +344,9 @@ pub fn cube(angle_x: f32, angle_y: f32) -> Scene {
     };
     let rotated: Vec<[f32; 3]> = corners.into_iter().map(rotate).collect();
     let project = |[x, y, z]: [f32; 3]| {
-        let scale = 70.0 / (z + 4.0) * 4.0;
+        // Near corners are drawn larger; at this size the cube stays inside
+        // the picture at every angle.
+        let scale = 70.0 / (z + 4.0) * 2.8;
         (160.0 + x * scale * 1.0, 96.0 + y * scale * 0.9)
     };
     let faces: [[usize; 4]; 6] = [
@@ -429,20 +430,21 @@ pub fn difference(a: &GraphicsFrame, b: &GraphicsFrame) -> Option<String> {
     }
     for block_y in (0..height).step_by(16) {
         for block_x in (0..width).step_by(8) {
-            let mut sums = [[0f64; 4]; 2];
+            // The sum of each channel over the block, in `a` and in `b`.
+            let mut sums = [(0f64, 0f64); 4];
             let mut pixels = 0f64;
             for y in block_y..(block_y + 16).min(height) {
                 for x in block_x..(block_x + 8).min(width) {
                     let index = y * width + x;
-                    for channel in 0..4 {
-                        sums[0][channel] += a.pixels()[index][channel] as f64;
-                        sums[1][channel] += b.pixels()[index][channel] as f64;
+                    for (channel, sum) in sums.iter_mut().enumerate() {
+                        sum.0 += a.pixels()[index][channel] as f64;
+                        sum.1 += b.pixels()[index][channel] as f64;
                     }
                     pixels += 1.0;
                 }
             }
-            for channel in 0..4 {
-                let gap = (sums[0][channel] - sums[1][channel]).abs() / pixels;
+            for (channel, sum) in sums.iter().enumerate() {
+                let gap = (sum.0 - sum.1).abs() / pixels;
                 if gap > 8.0 {
                     return Some(format!(
                         "the 8 by 16 block at ({block_x}, {block_y}) differs by {gap:.1} of 255 in channel {channel}"

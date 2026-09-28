@@ -1,9 +1,12 @@
 mod coverage;
+mod shared;
 use crate::{
     error::{ReactiveError, Result},
     layout::paint_tree::suprtui::images::Plane,
     widgets::display::image::{
-        decoded::blend_pixel, paint::ImageProtocol, ProtocolRenderer, SixelRenderer,
+        decoded::blend_pixel,
+        paint::{CanvasPicture, ImageProtocol},
+        ProtocolRenderer, SixelRenderer,
     },
 };
 use std::collections::{BTreeSet, HashMap};
@@ -15,6 +18,10 @@ pub(crate) struct Graphics<P = Plane> {
     possible_legacy: bool,
     coverage: Vec<coverage::Coverage>,
     candidate_coverage: Option<Vec<coverage::Coverage>>,
+    /// Whether the last `prepare` only replaced canvas pictures where they
+    /// are, so no cell needs writing for it (GFX-005).
+    in_place: bool,
+    shared: shared::Pictures,
 }
 impl<P> Default for Graphics<P> {
     fn default() -> Self {
@@ -24,6 +31,8 @@ impl<P> Default for Graphics<P> {
             possible_legacy: false,
             coverage: Vec::new(),
             candidate_coverage: None,
+            in_place: false,
+            shared: shared::Pictures::default(),
         }
     }
 }
@@ -38,9 +47,24 @@ pub(crate) trait RasterPlane: PartialEq {
     fn z_index(&self, order: usize) -> i32 {
         order as i32
     }
+    /// How the picture is sent, when it is a canvas's (GFX-005).
+    fn canvas(&self) -> Option<CanvasPicture> {
+        None
+    }
+    /// Whether this is the next picture of the canvas `previous` shows, in
+    /// the same place.
+    fn replaces(&self, _previous: &Self) -> bool {
+        false
+    }
 }
 
 impl RasterPlane for Plane {
+    fn canvas(&self) -> Option<CanvasPicture> {
+        self.canvas()
+    }
+    fn replaces(&self, previous: &Self) -> bool {
+        self.replaces(previous)
+    }
     fn id(&self) -> u32 {
         self.id()
     }
@@ -69,10 +93,20 @@ impl<P: RasterPlane> Graphics<P> {
         force: bool,
     ) -> Result<Option<(Vec<u8>, Vec<u8>)>> {
         self.candidate_coverage = None;
+        self.in_place = false;
         if !force && next == self.last {
             return Ok(None);
         }
-        let before = self.cleanup();
+        // Planes that differ from the last frame's only by a canvas's next
+        // picture are replaced where they are: nothing is deleted, the
+        // screen is not cleared and no cell is written (GFX-005).
+        let in_place = !force
+            && next.len() == self.last.len()
+            && next
+                .iter()
+                .zip(&self.last)
+                .all(|(plane, last)| plane == last || plane.replaces(last));
+        let before = if in_place { Vec::new() } else { self.cleanup() };
         let mut after = Vec::new();
         let blend_legacy = next.iter().any(|p| p.protocol() != ImageProtocol::Kitty);
         let mut below = PixelLayers::new(cell);
@@ -82,6 +116,13 @@ impl<P: RasterPlane> Graphics<P> {
             after.extend_from_slice(b"\x1b7");
         }
         for (z, plane) in next.iter().enumerate() {
+            // A plane that stays as it is needs its pixels again only
+            // where a plane above it is blended with them.
+            let kept = in_place && *plane == self.last[z];
+            if let Some(known) = self.coverage.get(z).filter(|_| kept && !blend_legacy) {
+                coverage.push(known.clone());
+                continue;
+            }
             let pixels = plane.raster(cell)?;
             raster_bytes = raster_bytes.saturating_add(pixels.as_raw().len());
             if raster_bytes > 64 * 1024 * 1024 {
@@ -91,12 +132,35 @@ impl<P: RasterPlane> Graphics<P> {
             }
             let (x, y) = plane.position();
             coverage.push(coverage::Coverage::new((x, y), &pixels, cell));
+            if kept {
+                below.add(plane, &pixels);
+                continue;
+            }
             let output = match plane.protocol() {
-                ImageProtocol::Kitty => {
-                    ProtocolRenderer::kitty_pixels(&pixels, plane.id(), plane.z_index(z), true)
-                }
+                ImageProtocol::Kitty => plane
+                    .canvas()
+                    .filter(|picture| picture.shared_memory)
+                    .and_then(|_| self.shared.kitty(&pixels, plane.id(), plane.z_index(z)))
+                    .unwrap_or_else(|| {
+                        ProtocolRenderer::kitty_pixels(&pixels, plane.id(), plane.z_index(z), true)
+                    }),
                 ImageProtocol::Inline => {
                     ProtocolRenderer::iterm_pixels(&below.flatten(plane, &pixels, false), false)?
+                }
+                ImageProtocol::Sixel if plane.canvas().is_some() => {
+                    // A canvas's picture is drawn from the cursor, so it
+                    // touches no cell outside the canvas, and only in whole
+                    // bands of six rows, so none reaches below it.
+                    let pixels = below.flatten(plane, &pixels, true);
+                    let height = pixels.height() - pixels.height() % 6;
+                    if height == 0 {
+                        String::new()
+                    } else {
+                        let pixels =
+                            image::imageops::crop_imm(&pixels, 0, 0, pixels.width(), height)
+                                .to_image();
+                        SixelRenderer::encode_pixels(&pixels, plane.quality())?
+                    }
                 }
                 ImageProtocol::Sixel => {
                     let pixels = below.flatten(plane, &pixels, true);
@@ -119,17 +183,24 @@ impl<P: RasterPlane> Graphics<P> {
                 ));
             }
             after.extend_from_slice(format!("\x1b[{};{}H", y + 1, x + 1).as_bytes());
-            if plane.protocol() == ImageProtocol::Sixel {
-                after.extend_from_slice(b"\x1b[?80s\x1b[?80h");
-            }
+            // Sixel display mode (80) draws from the screen's corner; a
+            // canvas's picture is drawn from the cursor instead, which
+            // stays beside the picture (8452) so the screen never scrolls.
+            let sixel_modes: (&[u8], &[u8]) = match (plane.protocol(), plane.canvas()) {
+                (ImageProtocol::Sixel, None) => (b"\x1b[?80s\x1b[?80h", b"\x1b[?80r"),
+                (ImageProtocol::Sixel, Some(_)) => {
+                    (b"\x1b[?80;8452s\x1b[?80l\x1b[?8452h", b"\x1b[?80;8452r")
+                }
+                _ => (b"", b""),
+            };
+            after.extend_from_slice(sixel_modes.0);
             after.extend_from_slice(output.as_bytes());
-            if plane.protocol() == ImageProtocol::Sixel {
-                after.extend_from_slice(b"\x1b[?80r");
-            }
+            after.extend_from_slice(sixel_modes.1);
         }
         if !next.is_empty() {
             after.extend_from_slice(b"\x1b8");
         }
+        self.in_place = in_place;
         self.possible_ids.extend(
             next.iter()
                 .filter(|p| p.protocol() == ImageProtocol::Kitty)
@@ -138,6 +209,11 @@ impl<P: RasterPlane> Graphics<P> {
         self.possible_legacy |= next.iter().any(|p| p.protocol() != ImageProtocol::Kitty);
         self.candidate_coverage = Some(coverage);
         Ok(Some((before, after)))
+    }
+    /// Whether the last `prepare` only replaced canvas pictures where they
+    /// are: the cells stay as they are written.
+    pub fn in_place(&self) -> bool {
+        self.in_place
     }
     pub fn covers_cell(&self, x: u32, y: u32) -> bool {
         self.candidate_coverage
@@ -159,6 +235,7 @@ impl<P: RasterPlane> Graphics<P> {
         self.last = next;
     }
     pub fn cleanup(&self) -> Vec<u8> {
+        self.shared.forget();
         let mut bytes = if self.possible_legacy {
             b"\x1b[2J".to_vec()
         } else {

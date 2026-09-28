@@ -835,7 +835,9 @@ fn run_worker<W: Write>(
                     renderer.set_cursor(cursor.x, cursor.y, cursor.visible);
                     renderer.set_cursor_style(cursor.style, cursor.blinking);
                     renderer.set_cursor_color(cursor.color);
-                    let graphics_changed = commands.is_some();
+                    // A canvas's picture replaced where it is changes no
+                    // cell, so the cells are not written again (GFX-005).
+                    let graphics_changed = commands.is_some() && !graphics.in_place();
                     let (before, after) = commands.unwrap_or_default();
                     renderer.backend_mut().set_graphics(before, after);
                     let status = renderer.render(redraw || graphics_changed);

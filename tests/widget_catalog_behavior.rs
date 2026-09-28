@@ -475,12 +475,37 @@ fn released_quit_keys_and_plain_letters_do_not_exit() {
         assert!(matches!(catalog.update().unwrap(), RootUpdate::Unchanged));
     }
 }
+/// The cells of `frame` inside the canvas's area of `columns` by `rows`
+/// that carry a glyph or a background, and the area's top left corner. The
+/// area is the painted node of that size lowest on the screen.
+#[cfg(feature = "wgpu-graphics")]
+fn canvas_cells(frame: &app_input::Snapshot, columns: u16, rows: u16) -> (usize, (u16, u16)) {
+    let area = frame
+        .geometry
+        .iter()
+        .map(|node| node.bounds)
+        .filter(|bounds| bounds.width == f32::from(columns) && bounds.height == f32::from(rows))
+        .max_by(|a, b| a.y.total_cmp(&b.y))
+        .unwrap_or_else(|| panic!("no {columns} by {rows} area painted:\n{}", frame.text));
+    let (left, top) = (area.x as u16, area.y as u16);
+    let mut inked = 0;
+    for y in top..top + rows {
+        for x in left..left + columns {
+            if frame.screen.cell(y, x).is_some_and(|cell| {
+                !cell.contents().trim().is_empty() || cell.bgcolor() != vt100::Color::Default
+            }) {
+                inked += 1;
+            }
+        }
+    }
+    (inked, (left, top))
+}
+
 #[cfg(feature = "wgpu-graphics")]
 #[test]
 fn compact_graphics_stage_keeps_header_navigation_and_footer_visible() {
-    use reactive_tui::backend::{Backend, DebugBackend};
     use reactive_tui::graphics::GraphicsOptions;
-    let mut catalog = Catalog::with_graphics(
+    let catalog = Catalog::with_graphics(
         GraphicsOptions {
             force_cpu: true,
             fault: None,
@@ -488,66 +513,40 @@ fn compact_graphics_stage_keeps_header_navigation_and_footer_visible() {
         },
         true,
     );
-    catalog.resize(60, 24).unwrap();
-    catalog.attach_waker(reactive_tui::app::AppWaker::new());
-    // A hang guard, not a timing check: generous so a busy machine cannot
-    // fail a correct test by running it slowly.
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let mut backend = DebugBackend::new(60, 24);
-    loop {
-        catalog.update().unwrap();
-        backend.render_full(&catalog.render()).unwrap();
-        let output = backend.screen_content();
-        if output.contains("CPU fallback") {
-            assert!(
-                output.lines().next().unwrap().contains("Reactive TUI"),
-                "{output}"
-            );
-            assert!(output.contains("[8]"), "{output}");
-            assert!(
-                output.lines().last().unwrap().contains("Ctrl+Q quit"),
-                "{output}"
-            );
-            assert_eq!(output.matches('▀').count(), 60 * 15, "{output}");
-            break;
-        }
-        assert!(Instant::now() < deadline);
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    let frames = app_input::run_when(catalog, (60, 24), vec![("CPU fallback", None)]);
+    let last = frames.last().expect("frames");
+    let output = &last.text;
+    assert!(
+        output.lines().next().unwrap().contains("Reactive TUI"),
+        "{output}"
+    );
+    assert!(output.contains("[8]"), "{output}");
+    assert!(
+        output.lines().last().unwrap().contains("Ctrl+Q quit"),
+        "{output}"
+    );
+    assert_eq!(canvas_cells(last, 60, 15).0, 60 * 15, "{output}");
 }
 
 #[cfg(feature = "wgpu-graphics")]
 #[test]
 fn feature_enabled_motion_fills_the_available_stage() {
-    use reactive_tui::backend::Backend;
     use reactive_tui::graphics::GraphicsOptions;
-    let mut catalog = Catalog::with_graphics(
+    let catalog = Catalog::with_graphics(
         GraphicsOptions {
             force_cpu: true,
             ..Default::default()
         },
         true,
     );
-    catalog.resize(144, 50).unwrap();
-    catalog.attach_waker(reactive_tui::app::AppWaker::new());
-    // A hang guard, not a timing check: generous so a busy machine cannot
-    // fail a correct test by running it slowly.
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-    let mut backend = reactive_tui::backend::DebugBackend::new(144, 50);
-    loop {
-        catalog.update().unwrap();
-        backend.render_full(&catalog.render()).unwrap();
-        let output = backend.screen_content();
-        if output.contains("CPU fallback") {
-            assert_eq!(output.matches('▀').count(), 120 * 44);
-            break;
-        }
-        assert!(
-            std::time::Instant::now() < deadline,
-            "CPU stage never painted: {output}"
-        );
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    let frames = app_input::run_when(catalog, (144, 50), vec![("CPU fallback", None)]);
+    let last = frames.last().expect("frames");
+    assert_eq!(
+        canvas_cells(last, 120, 44),
+        (120 * 44, (24, 5)),
+        "{}",
+        last.text
+    );
 }
 
 /// GFX-008: the Motion page draws the cube through the canvas on the

@@ -11,7 +11,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "wgpu-graphics")]
     let showcase = {
         use reactive_tui::graphics::GraphicsOptions;
-        Showcase::with_graphics(GraphicsOptions::default())
+        let mut options = GraphicsOptions::default();
+        for arg in std::env::args().skip(1) {
+            match arg.as_str() {
+                "--cpu" => options.force_cpu = true,
+                _ => return Err(format!("unknown showcase option: {arg}").into()),
+            }
+        }
+        Showcase::with_graphics(options)
     };
     #[cfg(not(feature = "wgpu-graphics"))]
     let showcase = Showcase::default();

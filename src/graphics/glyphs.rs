@@ -74,13 +74,18 @@ enum Shape {
     Dots(u8),
 }
 
+/// The tiles of one cell size, by glyph; `None` for a glyph that draws
+/// nothing.
+type Tiles = HashMap<Box<str>, Option<Arc<Bitmap>>>;
+
 /// The font's glyphs as pixels.
 pub(crate) struct Glyphs {
     font: Font,
     /// Glyph and advance in font units of each character seen.
     characters: HashMap<char, (u16, f32)>,
     text: HashMap<(u16, u32, u8), Option<TextGlyph>>,
-    tiles: HashMap<(u16, u16, usize), HashMap<Box<str>, Option<Arc<Bitmap>>>>,
+    /// Tiles by cell width, cell height and width in cells.
+    tiles: HashMap<(u16, u16, usize), Tiles>,
     tile_count: usize,
     next_id: u32,
     /// Counts the times the cache started again; the GPU's atlas follows.
@@ -438,7 +443,7 @@ mod tests {
         let a = &placed[0];
         assert!(a.y > 42 - 24 && a.y < 42, "top row {}", a.y);
         assert!((a.y + a.bitmap.height as i32 - 42).abs() <= 1);
-        assert!(a.bitmap.coverage.iter().any(|&c| c == 255));
+        assert!(a.bitmap.coverage.contains(&255));
     }
 
     #[test]

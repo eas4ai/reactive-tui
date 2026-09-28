@@ -135,6 +135,7 @@ pub mod prelude {
 #[cfg(all(feature = "embedded-terminal", unix))]
 pub mod embedded;
 
-/// Optional offscreen GPU graphics presented as ordinary terminal cells.
+/// The optional graphics canvas: scenes drawn on a GPU or by a software
+/// renderer, shown as Kitty graphics, Sixel or block glyphs.
 #[cfg(feature = "wgpu-graphics")]
 pub mod graphics;

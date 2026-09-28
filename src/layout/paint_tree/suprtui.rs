@@ -549,6 +549,38 @@ pub(crate) fn paint_frame(
                     &mut cursor,
                 )?;
             }
+            #[cfg(feature = "wgpu-graphics")]
+            if let Some(canvas) = &spec.canvases[node.element_index] {
+                // The canvas learns what the host takes and draws its next
+                // picture for that (GFX-005).
+                canvas.link.report(crate::graphics::HostReport {
+                    kitty: image_options.kitty_graphics,
+                    kitty_shared_memory: image_options.kitty_shared_memory,
+                    sixel: image_options.sixel,
+                    cell: image_options.cell_pixels,
+                });
+                let protocol = canvas.pixels.as_ref().and_then(|(_, output)| match output {
+                    crate::graphics::CanvasOutput::Kitty => Some(images::ImageProtocol::Kitty),
+                    crate::graphics::CanvasOutput::Sixel => Some(images::ImageProtocol::Sixel),
+                    crate::graphics::CanvasOutput::Blocks => None,
+                });
+                if let Some(((frame, _), protocol)) = canvas.pixels.as_ref().zip(protocol) {
+                    let picture = images::ImagePaint::canvas(
+                        canvas.id,
+                        frame.image().clone(),
+                        image_options.kitty_shared_memory,
+                    );
+                    if let Some(plane) = images::Plane::new(
+                        Arc::new(picture),
+                        &paints[&node.id],
+                        node,
+                        target,
+                        protocol,
+                    )? {
+                        images.push(plane)?;
+                    }
+                }
+            }
             if let Some(image) = &spec.images[node.element_index] {
                 if selected.contains(&image.id) {
                     if let Some(plane) = images::Plane::new(

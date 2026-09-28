@@ -33,7 +33,7 @@ freshness with Sudus rather than treating a named test as a current pass.
 | `ui` | [Per-App Updater registration and request delivery](app-and-components.md) | API-019; approved Updater migration | Implement update; requests coalesce and callbacks run on the App thread | Covered by named checks |
 | `widgets` | [Input, layout, display, menu, dialog, image and terminal controls](README.md) | API-011, API-012, API-014; [widget workflows](../tests/api_widget_behavior.rs), [dialog lifecycle](../tests/api_dialog_lifecycle.rs) | Real viewport/input workflows required; direct image protocols have host-specific limits | Covered by named checks |
 | `embedded` | [Owned libghostty Unix session](terminal-and-embedded-sessions.md) | EMB-001 through EMB-006; [session tests](../tests/embedded_terminal.rs) | Requires embedded-terminal on Unix and the pinned Zig toolchain | Covered by named checks |
-| `graphics` | [Offscreen wgpu canvas with labeled CPU fallback](wgpu-graphics.md) | GPU-001 through GPU-005; wgpu graphics contract | Requires wgpu-graphics; bounded viewport/readback; no separate GPU window | Covered by named checks |
+| `graphics` | [Graphics canvas on a GPU, with a software renderer](wgpu-graphics.md) | GFX-001 through GFX-008; graphics canvas contract | Requires wgpu-graphics; pictures up to 4096 by 4096 pixels; no separate GPU window | Covered by named checks |
 | `macros` | [Component generation and derived Props builders](app-and-components.md) | API-003, API-018; [documentation contract tests](../tests/api_documentation_contract.rs) | Explicit validate predicates; see Props contract below | Covered by named checks |
 
 ## Props contract
