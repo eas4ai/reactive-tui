@@ -199,7 +199,7 @@ impl Walk<'_> {
                     .paints
                     .get(&node.id)
                     .is_none_or(|paint| !paint.measures_like(&parts.paint));
-            if false && changed {
+            if changed {
                 self.tree
                     .set_style(node.id, parts.style)
                     .map_err(layout_error)?;
