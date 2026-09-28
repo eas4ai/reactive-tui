@@ -6,12 +6,12 @@
 //! (GFX-001). A clip is a mask texture per depth of nesting.
 
 use super::compile::Draw;
+use super::cpu::{unpack_premultiplied, unpremultiply};
 use super::geometry::Polygon;
 use super::glyphs::{Bitmap, Glyphs};
 use super::paint::{Shader, ShaderKind};
 use super::raster::Window;
 use super::scene::{CanvasImage, Transform};
-use super::software::{unpack_premultiplied, unpremultiply};
 use super::{GraphicsAdapterInfo, GraphicsError};
 use std::collections::HashMap;
 use std::ops::Range;

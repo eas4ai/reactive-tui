@@ -8,9 +8,7 @@ use super::glyphs::Glyphs;
 use super::gpu::GpuRenderer;
 use super::output::CanvasOutput;
 use super::scene::{Scene, Transform};
-use super::{
-    pixel_count, software, GraphicsAdapterInfo, GraphicsError, GraphicsFrame, GraphicsTimings,
-};
+use super::{cpu, pixel_count, GraphicsAdapterInfo, GraphicsError, GraphicsFrame, GraphicsTimings};
 use crate::layout::CellGrid;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::time::Instant;
@@ -263,7 +261,7 @@ impl HybridRenderer {
         }
         let started = Instant::now();
         let glyphs = &mut self.glyphs;
-        let bytes = catch_unwind(AssertUnwindSafe(|| software::render(&draws, size, glyphs)))
+        let bytes = catch_unwind(AssertUnwindSafe(|| cpu::render(&draws, size, glyphs)))
             .map_err(|panic| GraphicsError::Software(panic_text(panic)))?;
         let timings = GraphicsTimings {
             prepare,
