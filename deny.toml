@@ -12,9 +12,8 @@ all-features = true
 [advisories]
 # Unmaintained crates are reported only when the workspace depends on them
 # directly, the developer's choice on 2026-09-26: we can replace our own
-# dependencies, while one deeper in the tree (paste, through wgpu's Metal
-# backend, RUSTSEC-2024-0436) waits for the crate that uses it. Vulnerable
-# and unsound crates are reported everywhere.
+# dependencies, while one deeper in the tree waits for the crate that uses
+# it. Vulnerable and unsound crates are reported everywhere.
 unmaintained = "workspace"
 unsound = "all"
 unused-ignored-advisory = "deny"
@@ -34,10 +33,7 @@ allow = [
     "Unicode-DFS-2016",
     "Zlib",
 ]
-# decision: retain-reviewed-wgpu-27-transitive-policy-exceptions
-# Naga's hexadecimal float parser only; this is not a global CC0 allowance.
 exceptions = [
-    { crate = "hexf-parse@=0.2.1", allow = ["CC0-1.0"] },
     # bindgen only, approved by the developer on 2026-09-26: libghostty-vt-sys's
     # gen-bindings tool (feature bindgen-tool) uses it to regenerate the C
     # bindings by hand; no bindgen code is built into the library.
@@ -51,15 +47,13 @@ deny = [
     { crate = "atty", reason = "Unused, unmaintained, and unsound; DQC-001 requires removal." },
 ]
 skip = [
-    { crate = "foldhash@=0.1.5", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; gpu-descriptor's hashbrown 0.15 needs foldhash 0.1 while newer hashbrown lines use 0.2." },
-    { crate = "hashbrown@=0.15.5", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; gpu-descriptor retains 0.15, wgpu/Naga use 0.16, and current accesskit/indexmap/lru use 0.17." },
-    { crate = "hashbrown@=0.16.1", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; wgpu 27 and Naga require the semver-incompatible 0.16 API rather than the root graph's 0.17 line." },
+    { crate = "hashbrown@=0.16.1", reason = "wgpu 30 (decision 01M3MBDJ64ZZXKKWFZ2BV60CVQ): gpu-allocator 0.28 uses the 0.16 API, which is not compatible with the root graph's 0.17 line." },
     { crate = "io-lifetimes@2.0.4", reason = "fs-set-times has not moved to the io-lifetimes line used by cap-std." },
     { crate = "phf_shared@0.11.3", reason = "string_cache retains phf 0.11 while the accessibility adapter and comrak use phf 0.13." },
-    { crate = "rustc-hash@=1.1.0", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; Naga and wgpu-core retain 1 while comrak uses the incompatible 2 API." },
+    { crate = "rustc-hash@=1.1.0", reason = "wgpu 30 (decision 01M3MBDJ64ZZXKKWFZ2BV60CVQ): Naga and wgpu-core retain 1 while comrak uses the incompatible 2 API." },
     { crate = "syn@2.0.106", reason = "The proc-macro graph is transitioning independently from syn 2 to syn 3." },
-    { crate = "thiserror@=1.0.69", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; gpu-allocator 0.27 requires the 1.x derive API while the root and wgpu use 2.x." },
-    { crate = "thiserror-impl@=1.0.69", reason = "decision: retain-reviewed-wgpu-27-transitive-policy-exceptions; thiserror 1.0.69 requires its matching derive implementation." },
+    { crate = "thiserror@=1.0.69", reason = "filedescriptor 0.8 (the terminal crate's /dev/tty reader) and redox_users (through dirs) use the 1.x derive API while the root and wgpu use 2.x." },
+    { crate = "thiserror-impl@=1.0.69", reason = "thiserror 1.0.69 requires its matching derive implementation." },
     { crate = "windows-sys@0.48.0", reason = "dirs retains the Windows 0.48 support crates." },
     { crate = "windows-sys@0.59.0", reason = "The public Windows API and cap-std graph retain the 0.59 support crates." },
     { crate = "windows-sys@0.60.2", reason = "comrak and terminal helpers retain the 0.60 support crates." },

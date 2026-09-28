@@ -62,7 +62,7 @@ accesskit = "0.25.0"
 cap-std = "4.0.2"
 cap-fs-ext = "4.0.2"
 time = "0.3"
-wgpu = { version = "=27.0.1", optional = true, default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "dx12", "wgsl"] }
+wgpu = { version = "=30.0.1", optional = true, default-features = false, features = ["std", "parking_lot", "vulkan", "metal", "dx12", "wgsl"] }
 skrifa = { version = "0.47.0", optional = true, default-features = false, features = ["std"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
