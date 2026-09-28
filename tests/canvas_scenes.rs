@@ -15,7 +15,6 @@ use common::app_input;
 use reactive_tui::app::RootComponent;
 use reactive_tui::component::Element;
 use reactive_tui::graphics::{
-    fonts::{self, FontSource},
     Canvas, CanvasProps, Color, GraphicsFault, GraphicsMode, GraphicsOptions, GraphicsWorker,
     HybridRenderer, Paint, Path, Scene,
 };
@@ -69,6 +68,7 @@ fn gfx_001_a_theme_token_paints_the_active_theme_color() {
 #[cfg(target_os = "linux")]
 #[test]
 fn gfx_001_linux_text_takes_fontconfigs_first_loadable_monospace() {
+    use reactive_tui::graphics::fonts::{self, FontSource};
     let listed = std::process::Command::new("fc-match")
         .args(["-s", "-f", "%{file}\\n", "monospace"])
         .output()

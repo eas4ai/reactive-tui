@@ -14,14 +14,17 @@ use reactive_tui::component::Element;
 use reactive_tui::error::Result;
 use reactive_tui::event::types::{Event, ResizeEvent};
 use reactive_tui::graphics::{Canvas, CanvasProps, Color, Paint, Path, Scene};
+#[cfg(target_os = "linux")]
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-/// Whether an `rtui-canvas-*` thread was alive during any frame.
+/// Whether an `rtui-canvas-*` thread was alive during any frame. The
+/// process's threads are read from /proc, so Linux makes the check.
+#[cfg(target_os = "linux")]
 static CANVAS_WORKER_SEEN: AtomicBool = AtomicBool::new(false);
 
+#[cfg(target_os = "linux")]
 fn note_canvas_worker() {
-    #[cfg(target_os = "linux")]
     if let Ok(tasks) = std::fs::read_dir("/proc/self/task") {
         for task in tasks.flatten() {
             let name = std::fs::read_to_string(task.path().join("comm")).unwrap_or_default();
@@ -31,6 +34,9 @@ fn note_canvas_worker() {
         }
     }
 }
+
+#[cfg(not(target_os = "linux"))]
+fn note_canvas_worker() {}
 
 fn filled() -> Scene {
     let mut scene = Scene::new();
