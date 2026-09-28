@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: incremental-layout
+Current: incremental-layout-rows
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
