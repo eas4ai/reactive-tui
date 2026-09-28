@@ -59,6 +59,11 @@ impl SixelRenderer {
         super::sixel_encode::encode(&pixels, image.quality)
     }
 
+    /// A picture drawn by the canvas, with a palette fitted to it.
+    pub(crate) fn encode_picture(pixels: &image::RgbaImage) -> Result<String> {
+        super::sixel_encode::encode_fitted(pixels)
+    }
+
     pub(crate) fn encode_pixels(
         pixels: &image::RgbaImage,
         quality: ImageQuality,

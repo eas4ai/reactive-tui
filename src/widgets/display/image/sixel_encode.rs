@@ -5,6 +5,8 @@ use image::RgbaImage;
 use std::collections::HashMap;
 use std::fmt::Write;
 
+mod fitted;
+
 const MAX_OUTPUT: usize = 64 * 1024 * 1024;
 const MAX_SCRATCH: usize = 32 * 1024 * 1024;
 
@@ -25,8 +27,33 @@ pub(super) fn encode(pixels: &RgbaImage, quality: ImageQuality) -> Result<String
     }
     let palette = Palette::new(pixels);
     let indices = palette.indices(pixels, quality);
+    write(pixels, &palette.colors, &indices)
+}
+
+/// A picture drawn by the canvas as Sixel (GFX-005): its palette is fitted
+/// to the picture, and an ordered dither, the same for every picture,
+/// hides the steps of a gradient without shimmering from one picture to
+/// the next.
+pub(super) fn encode_fitted(pixels: &RgbaImage) -> Result<String> {
+    let (width, height) = pixels.dimensions();
+    decoded::dimensions(width, height)?;
+    if (width as usize)
+        .checked_mul(6 * std::mem::size_of::<(u32, u8)>())
+        .is_none_or(|n| n > MAX_SCRATCH)
+    {
+        return Err(error("Sixel row exceeds the 32 MiB workspace limit"));
+    }
+    let (colors, indices) = fitted::palette(pixels);
+    write(pixels, &colors, &indices)
+}
+
+/// The Sixel text of `pixels` drawn with `colors`, each pixel the color
+/// `indices` names; a pixel with no alpha is left unset.
+fn write(pixels: &RgbaImage, colors: &[[u8; 3]], indices: &[u8]) -> Result<String> {
+    let (width, height) = pixels.dimensions();
+    let width = width as usize;
     let mut output = format!("\x1bP0;1q\"1;1;{width};{height}");
-    for (index, [r, g, b]) in palette.colors.iter().enumerate() {
+    for (index, [r, g, b]) in colors.iter().enumerate() {
         let percent = |channel: &u8| (u32::from(*channel) * 100 + 127) / 255;
         write!(
             output,
@@ -41,7 +68,7 @@ pub(super) fn encode(pixels: &RgbaImage, quality: ImageQuality) -> Result<String
         if row != 0 {
             output.push('-');
         }
-        let mut bands = vec![Vec::<(u32, u8)>::new(); palette.colors.len()];
+        let mut bands = vec![Vec::<(u32, u8)>::new(); colors.len()];
         for x in 0..width {
             let mut column = [(0u8, 0u8); 6];
             let mut used = 0;
