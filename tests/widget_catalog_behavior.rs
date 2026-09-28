@@ -549,3 +549,32 @@ fn feature_enabled_motion_fills_the_available_stage() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 }
+
+/// GFX-008: the Motion page draws the cube through the canvas on the
+/// hardware adapter, and on the software renderer with `--cpu`'s option.
+#[cfg(feature = "wgpu-graphics")]
+#[test]
+fn gfx_008_the_motion_page_draws_the_cube_on_each_renderer() {
+    use reactive_tui::graphics::GraphicsOptions;
+    for (force_cpu, label) in [(true, "CPU fallback"), (false, "GPU")] {
+        let catalog = Catalog::with_graphics(
+            GraphicsOptions {
+                force_cpu,
+                ..Default::default()
+            },
+            true,
+        );
+        let frames = app_input::run_when(catalog, (120, 40), vec![(label, None), (label, None)]);
+        let last = frames.last().expect("frames");
+        let blocks = last
+            .text
+            .chars()
+            .filter(|c| "▀▄█▌▐".contains(*c) || ('\u{1FB00}'..='\u{1FB3B}').contains(c))
+            .count();
+        assert!(
+            blocks > 100,
+            "GFX-008: the Motion page on the {label} renderer drew {blocks} block cells:\n{}",
+            last.text
+        );
+    }
+}

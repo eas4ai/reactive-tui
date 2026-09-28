@@ -1,3 +1,5 @@
+#[cfg(feature = "wgpu-graphics")]
+mod common;
 #[path = "../examples/animation_showcase/showcase.rs"]
 mod showcase;
 
@@ -146,4 +148,39 @@ fn graphics_showcase_reaches_the_shader_page() {
     assert_eq!(showcase.page(), ShowcasePage::Shader);
     let output = text(&showcase.render());
     assert!(output.contains("Raymarched torus"));
+}
+
+/// GFX-008: the Shader page draws the torus through the canvas on the
+/// hardware adapter, and on the software renderer with `--cpu`'s option.
+#[cfg(feature = "wgpu-graphics")]
+#[test]
+fn gfx_008_the_shader_page_draws_the_torus_on_each_renderer() {
+    use reactive_tui::graphics::GraphicsOptions;
+    use showcase::Showcase;
+    for (force_cpu, label) in [(true, "CPU fallback"), (false, "GPU")] {
+        let showcase = Showcase::with_graphics(GraphicsOptions {
+            force_cpu,
+            ..Default::default()
+        });
+        let frames = common::app_input::run_when(
+            showcase,
+            (120, 40),
+            vec![
+                ("Ctrl+Q", Some(key(KeyCode::Char('6')))),
+                (label, None),
+                (label, None),
+            ],
+        );
+        let last = frames.last().expect("frames");
+        let blocks = last
+            .text
+            .chars()
+            .filter(|c| "▀▄█▌▐".contains(*c) || ('\u{1FB00}'..='\u{1FB3B}').contains(c))
+            .count();
+        assert!(
+            blocks > 100,
+            "GFX-008: the Shader page on the {label} renderer drew {blocks} block cells:\n{}",
+            last.text
+        );
+    }
 }

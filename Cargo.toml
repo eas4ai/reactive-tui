@@ -150,6 +150,36 @@ name = "wgpu_measurement"
 path = "tests/wgpu_measurement.rs"
 required-features = ["wgpu-graphics"]
 
+[[test]]
+name = "canvas_scenes"
+path = "tests/canvas_scenes.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "canvas_hosts"
+path = "tests/canvas_hosts.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "canvas_speed"
+path = "tests/canvas_speed.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "canvas_output"
+path = "tests/canvas_output.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "canvas_goldens"
+path = "tests/canvas_goldens.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
+name = "canvas_widget"
+path = "tests/canvas_widget.rs"
+required-features = ["wgpu-graphics"]
+
 [[example]]
 name = "wgpu_benchmark"
 path = "examples/wgpu_benchmark.rs"
@@ -232,3 +262,10 @@ members = [
     "crates/libghostty-vt",
     "crates/libghostty-vt-sys",
 ]
+
+# No debug info in dev and test builds: nobody attaches a debugger, and debug
+# info was most of the memory that linking the test binaries took (25 to 27
+# GB for the workspace gates on 2026-09-27). Panics still name their file and
+# line. Test builds inherit this profile.
+[profile.dev]
+debug = false
