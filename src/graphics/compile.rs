@@ -5,9 +5,9 @@
 
 use super::geometry::{fill_polygons, stroke_polygons, Polygon};
 use super::glyphs::{Glyphs, Placed, Text};
-use super::paint::Shader;
+use super::paint::{premultiply, Premul, Shader};
 use super::raster::{window_of, Window};
-use super::scene::{Command, Path, Scene, Transform};
+use super::scene::{Color, Command, Path, Scene, Transform};
 use crate::layout::CellGrid;
 use std::sync::Arc;
 
@@ -32,12 +32,14 @@ pub(crate) enum Draw {
         glyphs: Vec<Placed>,
         shader: Shader,
     },
-    /// A cell grid with its top left corner at (`x`, `y`).
+    /// A cell grid with its top left corner at (`x`, `y`). A glyph whose
+    /// cell names no color is drawn in `foreground`, premultiplied.
     Cells {
         x: i32,
         y: i32,
         grid: Arc<CellGrid>,
         cell: (u16, u16),
+        foreground: Premul,
     },
     /// What follows shows only inside these polygons, within any clip
     /// already in force.
@@ -72,6 +74,14 @@ pub(crate) fn compile(
 ) -> Vec<Draw> {
     let mut draws = Vec::with_capacity(scene.commands.len());
     let mut transforms = vec![*base];
+    // A cell that names no color takes the theme's text color; a theme
+    // without one leaves the glyph at full strength.
+    let foreground = crate::theme::Theme::active()
+        .resolve_color("foreground")
+        .map_or_else(
+            || [1.0; 4],
+            |_| premultiply(Color::token("foreground").resolve()),
+        );
     // Whether anything can show inside each clip in force.
     let mut clips: Vec<bool> = Vec::new();
     let fill = |draws: &mut Vec<Draw>, polygons: Vec<Polygon>, shader: Shader| {
@@ -163,6 +173,7 @@ pub(crate) fn compile(
                         y: y.round() as i32,
                         grid: grid.clone(),
                         cell: *cell,
+                        foreground,
                     });
                 }
             }

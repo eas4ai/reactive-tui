@@ -64,10 +64,27 @@ pub(crate) enum Text {
     Outlines(Vec<Polygon>),
 }
 
-/// How a glyph that names a shape fills its cell, in fractions of the cell.
+/// A rectangle in fractions of a cell.
+#[derive(Clone, Copy)]
+struct Part {
+    left: f32,
+    top: f32,
+    right: f32,
+    bottom: f32,
+}
+
+fn part(left: f32, top: f32, right: f32, bottom: f32) -> Part {
+    Part {
+        left,
+        top,
+        right,
+        bottom,
+    }
+}
+
+/// How a glyph that names a shape fills its cell.
 enum Shape {
-    /// Rectangles as (left, top, right, bottom).
-    Rects(Vec<[f32; 4]>),
+    Rects(Vec<Part>),
     /// The whole cell at one coverage.
     Shade(f32),
     /// Braille dots: the set bits of the pattern, dot `n` being bit `n - 1`.
@@ -285,12 +302,12 @@ impl Glyphs {
                 Some(Shape::Rects(rects)) => {
                     let polygons: Vec<Polygon> = rects
                         .iter()
-                        .map(|&[left, top, right, bottom]| {
+                        .map(|part| {
                             vec![
-                                (left * w, top * h),
-                                (right * w, top * h),
-                                (right * w, bottom * h),
-                                (left * w, bottom * h),
+                                (part.left * w, part.top * h),
+                                (part.right * w, part.top * h),
+                                (part.right * w, part.bottom * h),
+                                (part.left * w, part.bottom * h),
                             ]
                         })
                         .collect();
@@ -371,27 +388,27 @@ fn shape(character: char) -> Option<Shape> {
     let code = u32::from(character);
     let eighth = |n: u32| n as f32 / 8.0;
     Some(match code {
-        0x2580 => Shape::Rects(vec![[0.0, 0.0, 1.0, 0.5]]),
-        0x2581..=0x2588 => Shape::Rects(vec![[0.0, 1.0 - eighth(code - 0x2580), 1.0, 1.0]]),
-        0x2589..=0x258F => Shape::Rects(vec![[0.0, 0.0, eighth(0x2590 - code), 1.0]]),
-        0x2590 => Shape::Rects(vec![[0.5, 0.0, 1.0, 1.0]]),
+        0x2580 => Shape::Rects(vec![part(0.0, 0.0, 1.0, 0.5)]),
+        0x2581..=0x2588 => Shape::Rects(vec![part(0.0, 1.0 - eighth(code - 0x2580), 1.0, 1.0)]),
+        0x2589..=0x258F => Shape::Rects(vec![part(0.0, 0.0, eighth(0x2590 - code), 1.0)]),
+        0x2590 => Shape::Rects(vec![part(0.5, 0.0, 1.0, 1.0)]),
         0x2591 => Shape::Shade(0.25),
         0x2592 => Shape::Shade(0.5),
         0x2593 => Shape::Shade(0.75),
-        0x2594 => Shape::Rects(vec![[0.0, 0.0, 1.0, eighth(1)]]),
-        0x2595 => Shape::Rects(vec![[eighth(7), 0.0, 1.0, 1.0]]),
+        0x2594 => Shape::Rects(vec![part(0.0, 0.0, 1.0, eighth(1))]),
+        0x2595 => Shape::Rects(vec![part(eighth(7), 0.0, 1.0, 1.0)]),
         0x2800..=0x28FF => Shape::Dots((code - 0x2800) as u8),
         _ => {
             let &(columns, rows, pattern) = blocks().get(&character)?;
             let mut rects = Vec::new();
             for bit in (0..columns * rows).filter(|bit| pattern & (1 << bit) != 0) {
                 let (column, row) = (bit % columns, bit / columns);
-                rects.push([
+                rects.push(part(
                     f32::from(column) / f32::from(columns),
                     f32::from(row) / f32::from(rows),
                     f32::from(column + 1) / f32::from(columns),
                     f32::from(row + 1) / f32::from(rows),
-                ]);
+                ));
             }
             Shape::Rects(rects)
         }
