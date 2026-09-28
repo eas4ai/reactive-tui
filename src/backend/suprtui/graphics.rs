@@ -159,7 +159,7 @@ impl<P: RasterPlane> Graphics<P> {
                         let pixels =
                             image::imageops::crop_imm(&pixels, 0, 0, pixels.width(), height)
                                 .to_image();
-                        SixelRenderer::encode_pixels(&pixels, plane.quality())?
+                        SixelRenderer::encode_picture(&pixels)?
                     }
                 }
                 ImageProtocol::Sixel => {
