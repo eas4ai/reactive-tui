@@ -534,6 +534,28 @@ passes, the gates, paths, dependency checks and host builds pass, and the
 frame times at 700 by 200 before and after the change are recorded in the
 review.
 
+## incremental-layout-rows
+
+Requirements: PNT-005, PNT-001, PNT-002, PNT-004, INP-007, INP-011, BAR-001, BAR-002, BAR-007, BAR-008, BAR-009
+
+Replaces incremental-layout, which the developer superseded on 2026-09-27
+after rewording PNT-005's falsifier: with labels that share their row's
+width by their text, a changed text moves its whole row, which may be
+measured again, and with fixed-width labels only itself. The work carries
+over: the painter keeps the Taffy nodes of unchanged elements at the same
+position in the tree, builds nodes only for new or changed ones, and lays
+out again only what the change can move, while its cells and hit grid stay
+those of a full layout (PNT-005, 5003fc86 and d4672161). PNT-001, PNT-002
+and PNT-004 keep holding on the same check. INP-007 and INP-011 carry their
+revised text of 2026-09-27; their checks run unchanged. The App's own
+per-frame work, the conversion of elements to a paint spec, and the
+graphics canvas are not part of this commitment.
+
+Done when painter-goldens passes with the PNT-005 tests, input-pty passes,
+the gates, paths, dependency checks and host builds pass, and the frame
+times at 700 by 200 before and after the change are recorded in the
+review.
+
 ## graphics-canvas
 
 Developer ruling 2026-09-21: stay on wgpu; take lessons from rust_pixel

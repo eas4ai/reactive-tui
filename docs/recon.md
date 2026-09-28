@@ -529,7 +529,7 @@ Claims at 82862e18:
   (escalations a40aa2ef and b422f00f, docs/spec/painter.md); INP-007 and
   INP-011 as revised on 2026-09-27 (docs/spec/input.md).
 - Unverified at 82862e18: the input checks (input-pty) and the workspace
-  gates. They last passed at ebc0224b, before the painter changes, and have
-  not run since.
+  gates. They last passed at b171b5d5 (receipts 46f97621 and 4f19963b),
+  before the painter changes, and have not run since.
 
 Earlier findings in section 12 are carried unchanged.
