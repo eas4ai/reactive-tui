@@ -43,6 +43,21 @@ Terms as the code uses them. Each names where it is defined.
   tooltip that every chart type draws through. Planned; the name follows
   gpui-kit's plot module. Today each chart type maps values privately
   (src/widgets/display/charts/live/canvas/cartesian.rs:3-23).
+- **CellGrid.** A widget-sized grid of interned glyphs with packed
+  foreground and background colors, attached to an Element with
+  `with_cells`; charts and image fallback hand their cells to the painter
+  this way (src/layout/paint_tree/cells.rs:17-39).
+- **Canvas.** The graphics widget of canvas.md: it draws a scene the
+  application describes on a hardware wgpu adapter or on the software
+  renderer, and shows it as pixels or block glyphs. Distinct from the chart's
+  cell canvas.
+- **Hardware adapter.** A wgpu adapter whose device type is a discrete or
+  integrated GPU (src/graphics/mod.rs:286-289); WARP and lavapipe are
+  software adapters and do not count.
+- **Software renderer.** The CPU renderer that draws what the GPU would when
+  no hardware adapter is usable; today src/graphics/cpu.rs for the cube.
+- **Glyph atlas.** A texture holding each glyph a CellGrid uses once, so the
+  GPU draws the whole grid as one instanced draw.
 - **Cell canvas.** The chart's in-memory grid of glyphs and colors, painted
   today as absolutely positioned text runs
   (src/widgets/display/charts/live/canvas.rs:99-142).

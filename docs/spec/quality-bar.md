@@ -57,3 +57,9 @@ Falsifier: At the commitment's final commit, the build fails or prints a warning
 Mechanism: host-builds
 Rationale: The Linux gates compile only the Linux side of each platform gate and with Rust 1.95, so 26 warnings grew unseen on macOS and Windows, two of them future errors (non-linux-build-warnings).
 Status: Agreed 2026-09-27
+
+[BAR-010] Every commitment MUST leave `cargo build`, `cargo clippy --all-targets -- -D warnings`, `cargo doc --no-deps` and `cargo test`, each with `--locked -p reactive-tui --features wgpu-graphics`, passing on the Linux development host, and `cargo build --locked -p reactive-tui --all-targets --features wgpu-graphics` passing with no warning on the macOS and Windows test hosts, at its final commit.
+Falsifier: At the commitment's final commit, any of the four commands exits non-zero on the Linux host, or the host build fails or prints a warning on either test host.
+Mechanism: canvas-gates
+Rationale: The gates build default features only, so nothing compiled src/graphics after 2026-09-19; the developer confirmed on 2026-09-27 that the canvas stays an optional feature with its own gate.
+Status: Agreed 2026-09-27

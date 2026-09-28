@@ -13,7 +13,7 @@ backend renders into memory so behavior can be checked without a terminal.
 The crate ships a widget library (inputs, tables, trees, menus, dialogs,
 images, charts, an embedded terminal), an optional C ABI with a TypeScript
 binding, Linux screen-reader support over AT-SPI, and an offscreen wgpu
-demo.
+graphics demo that canvas.md makes a canvas widget.
 
 Version as recorded in Cargo.toml and git tags: 1.0.0, a source-only release
 with all companion crates marked publish = false. The README still describes
@@ -55,6 +55,7 @@ component library as closely as a cell grid allows.
 | presentation.md | PIP | pipelined presentation: geometry returned before the terminal write, one frame in flight, flush failure reporting |
 | input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging, the Kitty keyboard protocol, lock and media keys, terminal focus reports, suspend and resume, startup queries |
 | blitters.md | BLT | image fallback to block glyphs: half, quadrant, sextant, octant and braille blitters and their tier choice |
+| canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults and the demos |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -75,8 +76,6 @@ is contract.
   other than fallback, src/core/capabilities).
 - Embedded terminal and PTY, Windows ConPTY (src/embedded, src/terminal).
 - Accessibility (src/accessibility).
-- Graphics canvas over wgpu (src/graphics), planned as the commitment after
-  charts.
 - C ABI and TypeScript binding (src/ffi, include, bindings/typescript).
 - Build, CI and release packaging (Cargo.toml, .github/workflows, scripts).
   The dependency checks on deny.toml are BAR-008.
