@@ -178,9 +178,11 @@ fn attributes(bits: u32) -> Attr {
 /// The buffer, grapheme pool, hit grid and layout cache the debug backend
 /// paints with, kept while the frame size holds, as the SuprTUI renderer
 /// keeps its own: a frame allocates and first-touches none of them again,
-/// and an unchanged layout is reused (PNT-004). A buffer shares its pool
-/// through an `Rc`, which a `Send` backend cannot hold, so each painting
-/// thread keeps one.
+/// an unchanged layout is reused (PNT-004), and a changed frame updates the
+/// kept layout nodes instead of building them all (PNT-005), so the debug
+/// backend's tests and goldens paint through that update. A buffer shares
+/// its pool through an `Rc`, which a `Send` backend cannot hold, so each
+/// painting thread keeps one.
 struct Canvas {
     size: (u16, u16),
     pool: Rc<RefCell<GraphemePool<'static>>>,

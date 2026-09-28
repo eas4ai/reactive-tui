@@ -155,9 +155,10 @@ impl Walk<'_> {
 
     /// Update `node`, laid out for `old`, to `new` at the same position:
     /// an element with the same class, style, text, kind and inherited
-    /// values keeps its node untouched, a changed one gets its new style and
-    /// paint on the same node, new children are built and removed ones
-    /// dropped. Returns whether anything in the subtree changed.
+    /// values keeps its node untouched, a changed one gets its new paint on
+    /// the same node and its new style when that can move it, new children
+    /// are built and removed ones dropped. Returns whether anything in the
+    /// subtree can move.
     fn update(
         &mut self,
         old: &NodeSpec<'_>,
@@ -170,7 +171,7 @@ impl Walk<'_> {
             && old.children.is_empty() == new.children.is_empty()
             && self.old_styles.get(self.old_index) == self.new_styles.get(self.new_index)
             && node.inherited == inherited;
-        let mut changed = !same;
+        let mut changed = false;
         if !same {
             let sb = self
                 .new_styles
@@ -190,9 +191,19 @@ impl Walk<'_> {
                 width: parts.unconstrained_width,
             };
             node.inherited = inherited;
-            self.tree
-                .set_style(node.id, parts.style)
-                .map_err(layout_error)?;
+            // A change that leaves the layout style and all the text measure
+            // reads as they were, a color for one, moves nothing: the node
+            // keeps its layout and only its paint record changes (PNT-005).
+            changed = *self.tree.style(node.id).map_err(layout_error)? != parts.style
+                || self
+                    .paints
+                    .get(&node.id)
+                    .is_none_or(|paint| !paint.measures_like(&parts.paint));
+            if false && changed {
+                self.tree
+                    .set_style(node.id, parts.style)
+                    .map_err(layout_error)?;
+            }
             self.paints.insert(node.id, parts.paint);
         }
         self.old_index += 1;

@@ -417,6 +417,11 @@ fn pnt_004_unchanged_spec_reuses_the_layout() {
 /// the first element shows `first`. In spec order the root is element 0,
 /// the first row 1 and its labels 2 to 26.
 fn label_grid(first: &str, label: &str) -> Element {
+    label_grid_with(first, label, label)
+}
+
+/// `label_grid` with class `first_class` on the first element.
+fn label_grid_with(first: &str, first_class: &str, label: &str) -> Element {
     Element::layout(LayoutType::Flex)
         .with_class("flex flex-col w-full h-full")
         .with_children(
@@ -427,12 +432,11 @@ fn label_grid(first: &str, label: &str) -> Element {
                         .with_children(
                             (0..25)
                                 .map(|column| {
-                                    let text = if (row, column) == (0, 0) {
-                                        first.to_string()
+                                    if (row, column) == (0, 0) {
+                                        Element::text(first).with_class(first_class)
                                     } else {
-                                        format!("r{row}c{column}")
-                                    };
-                                    Element::text(text).with_class(label)
+                                        Element::text(format!("r{row}c{column}")).with_class(label)
+                                    }
                                 })
                                 .collect(),
                         )
@@ -481,9 +485,36 @@ fn pnt_005_one_changed_text_keeps_the_other_layout_nodes() {
     }
 }
 
+/// PNT-005: a change that can move nothing, one label's background color
+/// here, repaints from the kept layout: it builds no layout node and
+/// measures no text.
+#[test]
+fn pnt_005_a_color_change_measures_no_text() {
+    let label = "flex-1 h-1";
+    let mut backend = SuprTuiBackend::with_writer(700, 200, Sink::default()).unwrap();
+    let mut show = |element: &Element| {
+        assert!(backend.render_frame(element).unwrap());
+        backend.present().unwrap();
+        backend.sync().unwrap();
+        (
+            backend.layout_reused(),
+            backend.layout_nodes_built(),
+            backend.layout_measured_elements().to_vec(),
+        )
+    };
+    show(&label_grid_with("first", label, label));
+    let (reused, built, measured) = show(&label_grid_with("first", "flex-1 h-1 bg-red-500", label));
+    assert!(!reused, "a changed class must not reuse the previous paint");
+    assert!(
+        built == 0 && measured.is_empty(),
+        "a background color change built {built} layout nodes and measured the texts of elements {:?}",
+        &measured[..measured.len().min(5)]
+    );
+}
+
 /// PNT-005: frames laid out from the previous frame's layout paint the cells
 /// and hit grid that a full layout of the same spec paints, through text,
-/// class and child changes.
+/// class, color and child changes.
 #[test]
 fn pnt_005_edited_frames_paint_what_a_full_layout_paints() {
     let size = (40, 12);
@@ -521,6 +552,13 @@ fn pnt_005_edited_frames_paint_what_a_full_layout_paints() {
         frame(vec![row(&["a", long, "c"], plain), row(&["d", "e"], plain)]),
         // A class changes: the second row grows and gets a background.
         frame(vec![row(&["a", long, "c"], plain), row(&["d", "e"], tall)]),
+        // Only colors change, which move nothing: the second row's
+        // background, and the first row's text color, which its labels
+        // inherit.
+        frame(vec![
+            row(&["a", long, "c"], "flex flex-row w-full h-1 text-red-400"),
+            row(&["d", "e"], "flex flex-row w-full h-3 bg-red-500"),
+        ]),
         // A child is added in the middle of a row.
         frame(vec![
             row(&["a", "x", long, "c"], plain),
