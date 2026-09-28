@@ -1,0 +1,19 @@
+[package]
+name = "reactive-tui-macros"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.91"
+description = "Procedural macros for reactive-tui"
+repository = "https://github.com/eas4ai/reactive-tui"
+license = "MIT"
+publish = false
+readme = "README.md"
+include = ["/src/**", "/README.md", "/LICENSE"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "extra-traits"] }
