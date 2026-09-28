@@ -12,9 +12,11 @@ build pushing the test onto the slower efficiency cores does not decide the
 answer to escalation 5c777a6a).
 
 widget-bar covers the widgets this work delivered or reworked: the chart
-family (tests/charts_contract.rs) and the image widget, whose block fallback
+family (tests/charts_contract.rs), the image widget, whose block fallback
 now draws through the renderer's blitters (tests/api_widget_behavior/image.rs
-and its screen-reader unit test in src/widgets/display/image/live.rs).
+and its screen-reader unit test in src/widgets/display/image/live.rs), and
+the graphics canvas (tests/canvas_widget.rs, built with wgpu-graphics).
+frame-budget also measures an animating canvas (tests/canvas_widget.rs).
 
 Its color check reads the production code of both widgets and of their
 builders, with comments and test items removed, and reports every color
@@ -71,6 +73,7 @@ WIDGET_CODE = {
     "chart": (("src/widgets/display/charts.rs", "src/widgets/display/charts", "src/builder/widgets/chart.rs"),
               r"\w*ChartBuilder"),
     "image": (("src/widgets/display/image", "src/builder/widgets/display.rs"), r"ImageBuilder"),
+    "canvas": (("src/graphics",), r"CanvasBuilder"),
 }
 BUILDERS = "src/builder"
 # The kernel's list of performance cores on a hybrid CPU.
@@ -184,12 +187,17 @@ def main() -> int:
         print("frame budget measured on CPUs", ",".join(map(str, sorted(os.sched_getaffinity(0)))),
               "(performance cores)" if cpus else "(no performance cores named: any core)", flush=True)
     results = {req: cargo_test_filtered("charts_contract", sub, release=release) for req, sub in GROUPS[group]}
+    if group == "frame-budget":
+        ok, why = results["BAR-005"]
+        canvas = cargo_test_filtered("canvas_widget", "bar_005_", features=["wgpu-graphics"], release=True)
+        results["BAR-005"] = (ok and canvas[0], f"charts and image: {why}; canvas: {canvas[1]}")
     if group == "widget-bar":
         ok, why = results["BAR-003"]
         problems = [] if ok else [f"charts: {why}"]
         for name, (passed, reason) in (
             ("image", cargo_test_filtered("api_widget_behavior", "bar_003_")),
             ("image screen reader", cargo_test_filtered(None, "bar_003_", package="reactive-tui")),
+            ("canvas", cargo_test_filtered("canvas_widget", "bar_003_", features=["wgpu-graphics"])),
         ):
             if not passed:
                 problems.append(f"{name}: {reason}")
@@ -197,7 +205,7 @@ def main() -> int:
             literals = color_literals(code)
             if literals:
                 problems.append(f"{len(literals)} hard-coded colors in {family} code: {', '.join(literals[:4])}")
-        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts and image: {why}")
+        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image and canvas: {why}")
     return finish(results)
 
 

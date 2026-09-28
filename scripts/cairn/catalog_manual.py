@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """BAR-006: a delivered widget has a catalog page and a manual section whose
 builder methods exist in the code. Scope: the chart family (line, area,
-scatter, bar, candlestick) and the image widget, reworked to draw its block
-fallback through the renderer's blitters.
+scatter, bar, candlestick), the image widget, reworked to draw its block
+fallback through the renderer's blitters, and the graphics canvas
+(src/graphics, manual/wgpu-graphics.md).
 
 Both files are read by their structure, not by substring. A catalog page is
 a CatalogPage listed in ALL that selected_page maps to a function; a chart
@@ -229,14 +230,40 @@ def image_docs_problems() -> list[str]:
     return problems
 
 
+CANVAS_MANUAL = ROOT / "manual/wgpu-graphics.md"
+
+
+def canvas_docs_problems() -> list[str]:
+    """The graphics canvas: a listed catalog page that builds a Canvas, a
+    manual section headed "Canvas widget", and every method that section
+    cites is a pub fn in src/graphics."""
+    problems = []
+    code, _, pages = catalog_pages()
+    if not any(re.search(r"\bCanvas\b", code[a:b]) for a, b in pages.values()):
+        problems.append("catalog has no page that builds a Canvas")
+    manual = CANVAS_MANUAL.read_text(errors="replace") if CANVAS_MANUAL.exists() else ""
+    text = section(manual, "Canvas widget")
+    if text is None:
+        problems.append("manual has no Canvas widget heading")
+        return problems
+    methods = set()
+    for f in rust_sources("src/graphics"):
+        methods |= set(re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", strip_test_modules(f.read_text(errors="replace"))))
+    for piece in citations(text):
+        for name in METHOD_CALL.findall(piece):
+            if name not in methods:
+                problems.append(f"manual cites .{name}() which is not a pub fn in src/graphics")
+    return problems
+
+
 def main() -> int:
-    problems = chart_docs_problems() + image_docs_problems()
+    problems = chart_docs_problems() + image_docs_problems() + canvas_docs_problems()
     if problems:
         print("BAR-006 violated:")
         for p in problems:
             print("  " + p)
         return 1
-    print("BAR-006 holds for the chart family and the image widget")
+    print("BAR-006 holds for the chart family, the image widget and the graphics canvas")
     return 0
 
 

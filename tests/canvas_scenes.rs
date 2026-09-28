@@ -90,6 +90,8 @@ fn gfx_001_linux_text_takes_fontconfigs_first_loadable_monospace() {
 }
 
 #[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
 fn gfx_001_a_cell_grid_is_one_instanced_draw() {
     let mut grid = reactive_tui::layout::CellGrid::new(40, 12);
     for y in 0..12 {
@@ -192,6 +194,8 @@ fn gfx_003_the_worker_keeps_no_interval_of_its_own() {
 }
 
 #[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
 fn gfx_007_faults_switch_to_the_software_renderer_for_good() {
     let scene = canvas_support::shapes();
     let mut problems = Vec::new();

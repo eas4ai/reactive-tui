@@ -554,6 +554,8 @@ fn feature_enabled_motion_fills_the_available_stage() {
 /// hardware adapter, and on the software renderer with `--cpu`'s option.
 #[cfg(feature = "wgpu-graphics")]
 #[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
 fn gfx_008_the_motion_page_draws_the_cube_on_each_renderer() {
     use reactive_tui::graphics::GraphicsOptions;
     for (force_cpu, label) in [(true, "CPU fallback"), (false, "GPU")] {

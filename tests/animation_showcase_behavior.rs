@@ -154,6 +154,8 @@ fn graphics_showcase_reaches_the_shader_page() {
 /// hardware adapter, and on the software renderer with `--cpu`'s option.
 #[cfg(feature = "wgpu-graphics")]
 #[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
 fn gfx_008_the_shader_page_draws_the_torus_on_each_renderer() {
     use reactive_tui::graphics::GraphicsOptions;
     use showcase::Showcase;

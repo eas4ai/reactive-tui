@@ -71,7 +71,10 @@ def remote(host: dict, command: str, timeout: int) -> subprocess.CompletedProces
                           timeout=timeout, encoding="utf-8", errors="replace")
 
 
-def build_on(name: str, host: dict, commit: str, bundle: Path) -> tuple[bool, str]:
+def run_on(name: str, host: dict, commit: str, bundle: Path, args: str, timeout: int = 3600) -> tuple[str, str]:
+    """Check the snapshot out in the host's clone and run `cargo <args>`
+    there; returns cargo's exit code and the output, as printed. A host that
+    cannot be reached or prepared raises Unreachable."""
     # Each snapshot is a new commit on HEAD, not a descendant of the last one,
     # so the fetch forces the ref (+).
     powershell = host.get("shell") == "powershell"
@@ -87,18 +90,22 @@ def build_on(name: str, host: dict, commit: str, bundle: Path) -> tuple[bool, st
         failed = "if ($LASTEXITCODE -ne 0) { 'PREPARE-FAILED'; exit 1 }"
         command = (f"cd {host['dir']}; git fetch -q $HOME\\rtui-host-builds.bundle +{REF}:{REF}; {failed}; "
                    f"git checkout -q -f --detach {commit}; {failed}; git clean -fdq -e target; {failed}; "
-                   f"{cargo} {BUILD} 2>&1 | ForEach-Object {{ \"$_\" }}; \"EXIT=$LASTEXITCODE\"")
+                   f"{cargo} {args} 2>&1 | ForEach-Object {{ \"$_\" }}; \"EXIT=$LASTEXITCODE\"")
     else:
         command = (f"cd {host['dir']} && git fetch -q ~/rtui-host-builds.bundle +{REF}:{REF} "
                    f"&& git checkout -q -f --detach {commit} && git clean -fdq -e target "
-                   f"|| {{ echo PREPARE-FAILED; exit 1; }}; {cargo} {BUILD} 2>&1; echo EXIT=$?")
-    result = remote(host, command, timeout=3600)
+                   f"|| {{ echo PREPARE-FAILED; exit 1; }}; {cargo} {args} 2>&1; echo EXIT=$?")
+    result = remote(host, command, timeout=timeout)
     output = result.stdout.replace("\r", "")
     print(f"--- {name} ---")
     print(output, end="" if output.endswith("\n") else "\n")
     if "PREPARE-FAILED" in output or "EXIT=" not in output:
         raise Unreachable(f"{name}: could not check out the snapshot: {result.stderr.strip()[:200]}")
-    code = output.rsplit("EXIT=", 1)[1].split()[0]
+    return output.rsplit("EXIT=", 1)[1].split()[0], output
+
+
+def build_on(name: str, host: dict, commit: str, bundle: Path, build: str = BUILD) -> tuple[bool, str]:
+    code, output = run_on(name, host, commit, bundle, build)
     warnings = [line.strip() for line in output.splitlines() if WARNING.search(line)]
     if code != "0":
         errors = [line.strip() for line in output.splitlines() if line.startswith("error")]
@@ -106,7 +113,7 @@ def build_on(name: str, host: dict, commit: str, bundle: Path) -> tuple[bool, st
     # A cargo that did not start leaves the exit code of the step before it,
     # so only cargo's own Finished line shows that the snapshot was built.
     if not re.search(r"^\s*Finished ", output, re.M):
-        raise Unreachable(f"{name}: cargo printed no Finished line: {result.stderr.strip()[:200]}")
+        raise Unreachable(f"{name}: cargo printed no Finished line")
     if warnings:
         return False, f"{name}: {len(warnings)} warning lines, for example {'; '.join(warnings[:3])}"
     return True, f"{name}: no warnings"

@@ -80,7 +80,7 @@ fn bar_004_canvas_goldens_at_80_by_24_and_400_by_100() {
             }
             match std::fs::read(&path) {
                 Ok(expected) if expected == bytes => {}
-                Ok(_) => mismatches.push(format!("{name}: differs from {}", path.display())),
+                Ok(_) => mismatches.push(format!("golden mismatch for {name}")),
                 Err(_) => mismatches.push(format!("{name}: no golden at {}", path.display())),
             }
         }
