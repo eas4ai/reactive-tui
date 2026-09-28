@@ -274,13 +274,82 @@ pub struct StartupReplies {
     pub keyboard: Option<KeyboardEnhancementFlags>,
     /// The background color, as 16-bit red, green and blue.
     pub background: Option<(u16, u16, u16)>,
+    /// Whether the terminal accepts Kitty graphics sent directly (`t=d`).
+    pub kitty_graphics: bool,
+    /// Whether it also read Kitty graphics from shared memory (`t=s`), which
+    /// only a terminal on the same machine can.
+    pub kitty_shared_memory: bool,
+    /// Whether its device attributes list Sixel graphics (attribute 4).
+    pub sixel: bool,
 }
 
-/// Asks the terminal for its keyboard enhancement flags and its background
-/// color, then its primary device attributes, whose reply ends the
-/// exchange, and waits at most `timeout` for the replies. Raw mode must be
-/// on. Other input read meanwhile, such as keys typed at startup, stays
-/// queued for the next read, and the replies never reach it as events.
+/// The ids of the Kitty graphics queries sent directly and through shared
+/// memory.
+#[cfg(feature = "events")]
+const KITTY_DIRECT_QUERY: u32 = 31;
+#[cfg(feature = "events")]
+const KITTY_SHARED_QUERY: u32 = 32;
+
+/// One black RGB pixel in POSIX shared memory, for the Kitty shared-memory
+/// query. A terminal that reads it removes it; dropping it removes it
+/// otherwise.
+#[cfg(feature = "events")]
+struct SharedPixel {
+    name: String,
+}
+
+#[cfg(feature = "events")]
+impl SharedPixel {
+    fn create() -> Option<Self> {
+        use rustix::fs::{ftruncate, Mode};
+        use rustix::shm;
+        let name = format!("/rtui-probe-{}", std::process::id());
+        // A leftover from an earlier process with this id is not ours to keep.
+        let _ = shm::unlink(name.as_str());
+        let flags = shm::OFlags::CREATE | shm::OFlags::EXCL | shm::OFlags::RDWR;
+        let fd = shm::open(name.as_str(), flags, Mode::RUSR | Mode::WUSR).ok()?;
+        let pixel = SharedPixel { name };
+        // Three zero bytes: one black pixel.
+        ftruncate(&fd, 3).ok()?;
+        Some(pixel)
+    }
+}
+
+#[cfg(feature = "events")]
+impl Drop for SharedPixel {
+    fn drop(&mut self) {
+        let _ = rustix::shm::unlink(self.name.as_str());
+    }
+}
+
+/// Standard base64 with padding, for the shared-memory object's name.
+#[cfg(feature = "events")]
+fn base64(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = chunk
+            .iter()
+            .enumerate()
+            .fold(0u32, |n, (i, byte)| n | u32::from(*byte) << (16 - 8 * i));
+        for i in 0..4 {
+            out.push(if i <= chunk.len() {
+                TABLE[(n >> (18 - 6 * i) & 63) as usize] as char
+            } else {
+                '='
+            });
+        }
+    }
+    out
+}
+
+/// Asks the terminal for its keyboard enhancement flags, its background
+/// color and whether it accepts Kitty graphics sent directly and through
+/// shared memory, then its primary device attributes, whose reply ends the
+/// exchange and says whether it draws Sixel, and waits at most `timeout`
+/// for the replies. Raw mode must be on. Other input read meanwhile, such
+/// as keys typed at startup, stays queued for the next read, and the
+/// replies never reach it as events.
 #[cfg(feature = "events")]
 pub fn query_startup(timeout: std::time::Duration) -> io::Result<StartupReplies> {
     use crate::event::{filter::StartupReplyFilter, poll_internal, read_internal, InternalEvent};
@@ -289,18 +358,32 @@ pub fn query_startup(timeout: std::time::Duration) -> io::Result<StartupReplies>
 
     // ESC [ ? u      the Kitty keyboard flags
     // ESC ] 11 ; ?   the background color, ended by ST
+    // ESC _ G ...    Kitty graphics queries (a=q, so nothing is shown): one
+    //                black pixel sent directly, and one in shared memory
     // ESC [ c        the primary device attributes, which every terminal answers
-    const QUERY: &[u8] = b"\x1B[?u\x1B]11;?\x1B\\\x1B[c";
+    let shared = SharedPixel::create();
+    let mut query = b"\x1B[?u\x1B]11;?\x1B\\".to_vec();
+    query.extend_from_slice(
+        format!("\x1B_Gi={KITTY_DIRECT_QUERY},s=1,v=1,a=q,t=d,f=24;AAAA\x1B\\").as_bytes(),
+    );
+    if let Some(shared) = &shared {
+        let name = base64(shared.name.as_bytes());
+        query.extend_from_slice(
+            format!("\x1B_Gi={KITTY_SHARED_QUERY},s=1,v=1,a=q,t=s,f=24;{name}\x1B\\").as_bytes(),
+        );
+    }
+    query.extend_from_slice(b"\x1B[c");
+    let query = query.as_slice();
 
     crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
         .store(true, std::sync::atomic::Ordering::Release);
     let written = File::open("/dev/tty").and_then(|mut file| {
-        file.write_all(QUERY)?;
+        file.write_all(query)?;
         file.flush()
     });
     if written.is_err() {
         let mut stdout = io::stdout();
-        if let Err(error) = stdout.write_all(QUERY).and_then(|()| stdout.flush()) {
+        if let Err(error) = stdout.write_all(query).and_then(|()| stdout.flush()) {
             // Nothing was asked, so no reply is due.
             crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
                 .store(false, std::sync::atomic::Ordering::Release);
@@ -319,7 +402,15 @@ pub fn query_startup(timeout: std::time::Duration) -> io::Result<StartupReplies>
             InternalEvent::BackgroundColor(red, green, blue) => {
                 replies.background = Some((red, green, blue))
             }
-            InternalEvent::PrimaryDeviceAttributes => return Ok(replies),
+            InternalEvent::KittyGraphicsReply { id, ok } => match id {
+                KITTY_DIRECT_QUERY => replies.kitty_graphics = ok,
+                KITTY_SHARED_QUERY => replies.kitty_shared_memory = ok,
+                _ => {}
+            },
+            InternalEvent::PrimaryDeviceAttributes { sixel } => {
+                replies.sixel = sixel;
+                return Ok(replies);
+            }
             _ => {}
         }
     }

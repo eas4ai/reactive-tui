@@ -388,6 +388,7 @@ mod tests {
                 sixel: protocol == 1,
                 iterm2_inline: protocol == 2,
                 cell_pixels: (1, 2),
+                ..Default::default()
             };
             let mut writer = DiffWriter::new();
             writer.set_image_options(options);

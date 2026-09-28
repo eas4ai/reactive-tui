@@ -66,7 +66,7 @@ fn parse_event_prefix(
                 return Ok(Some((key(alt), 2)));
             }
             [b'\x1B'] if input_available => return Ok(None),
-            [b'\x1B', b'[' | b']', ..] => return Ok(Some((key(KeyCode::Esc.into()), 1))),
+            [b'\x1B', b'[' | b']' | b'_', ..] => return Ok(Some((key(KeyCode::Esc.into()), 1))),
             [b'\x1B', _, ..] => return Ok(Some((key(KeyCode::Esc.into()), 2))),
             _ => {}
         }
@@ -147,6 +147,20 @@ pub(crate) fn parse_event(
                         }
                     }
                     b'[' => parse_csi(buffer),
+                    // While the startup replies are due, `ESC _ G` starts a Kitty
+                    // graphics reply; `ESC _` alone waits for the byte after it.
+                    b'_' if STARTUP_REPLIES_PENDING.load(std::sync::atomic::Ordering::Acquire)
+                        && match buffer.get(2) {
+                            Some(byte) => *byte == b'G',
+                            None => input_available,
+                        } =>
+                    {
+                        if buffer.len() == 2 {
+                            Ok(None)
+                        } else {
+                            parse_kitty_graphics_reply(buffer)
+                        }
+                    }
                     // While the startup replies are due, `ESC ] 11 ;` starts the
                     // background color reply, also when a read ends inside it;
                     // parse_event_prefix splits Alt+] from anything else.
@@ -378,12 +392,15 @@ fn parse_csi_primary_device_attributes(buffer: &[u8]) -> io::Result<Option<Inter
     assert!(buffer.starts_with(b"\x1B[?"));
     assert!(buffer.ends_with(b"c"));
 
-    // This is a stub for parsing the primary device attributes. This response is not
-    // exposed in the crossterm API so we don't need to parse the individual attributes yet.
-    // See <https://vt100.net/docs/vt510-rm/DA1.html>
+    // Of the attributes (<https://vt100.net/docs/vt510-rm/DA1.html>), only
+    // Sixel graphics, attribute 4, is read.
+    let attributes = &buffer[3..buffer.len() - 1];
+    let sixel = attributes
+        .split(|byte| *byte == b';')
+        .any(|attribute| attribute == b"4");
 
     STARTUP_REPLIES_PENDING.store(false, std::sync::atomic::Ordering::Release);
-    Ok(Some(InternalEvent::PrimaryDeviceAttributes))
+    Ok(Some(InternalEvent::PrimaryDeviceAttributes { sixel }))
 }
 
 fn parse_modifiers(mask: u8) -> KeyModifiers {
@@ -578,6 +595,30 @@ fn translate_functional_key_code(codepoint: u32) -> Option<(KeyCode, KeyEventSta
     }
 
     None
+}
+
+/// The reply to a Kitty graphics query: `ESC _ G i=<id> ; <status> ESC \`,
+/// where the status is `OK` or an error such as `EBADF:...`.
+fn parse_kitty_graphics_reply(buffer: &[u8]) -> io::Result<Option<InternalEvent>> {
+    assert!(buffer.starts_with(b"\x1B_G")); // ESC _ G
+    let Some(body) = buffer[3..].strip_suffix(b"\x1B\\") else {
+        return if buffer.len() > 256 {
+            Err(could_not_parse_event_error())
+        } else {
+            Ok(None)
+        };
+    };
+    let text = std::str::from_utf8(body).map_err(|_| could_not_parse_event_error())?;
+    let (controls, status) = text.split_once(';').unwrap_or((text, ""));
+    let id = controls
+        .split(',')
+        .find_map(|pair| pair.strip_prefix("i="))
+        .and_then(|id| id.parse().ok())
+        .unwrap_or(0);
+    Ok(Some(InternalEvent::KittyGraphicsReply {
+        id,
+        ok: status == "OK",
+    }))
 }
 
 /// The reply to `OSC 11 ; ?`: `ESC ] 11 ; rgb:R/G/B`, ended by BEL or ST,
@@ -1740,9 +1781,47 @@ mod tests {
         // The device attributes reply ends the exchange.
         assert_eq!(
             parse_event(b"\x1B[?62;22c", false).unwrap(),
-            Some(InternalEvent::PrimaryDeviceAttributes),
+            Some(InternalEvent::PrimaryDeviceAttributes { sixel: false }),
         );
         assert!(!STARTUP_REPLIES_PENDING.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn test_parse_the_graphics_replies_while_the_startup_replies_are_due() {
+        use std::sync::atomic::Ordering;
+        let _turn = STARTUP_FLAG
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        STARTUP_REPLIES_PENDING.store(true, Ordering::Release);
+        assert_eq!(
+            parse_event(b"\x1B_Gi=31;OK\x1B\\", false).unwrap(),
+            Some(InternalEvent::KittyGraphicsReply { id: 31, ok: true }),
+        );
+        assert_eq!(
+            parse_event(b"\x1B_Gi=32;EBADF:shared memory\x1B\\", false).unwrap(),
+            Some(InternalEvent::KittyGraphicsReply { id: 32, ok: false }),
+        );
+        // A read may end inside the reply, or right after ESC _.
+        assert_eq!(parse_event(b"\x1B_Gi=31;O", true).unwrap(), None);
+        assert_eq!(parse_event(b"\x1B_", true).unwrap(), None);
+        // Sixel is attribute 4 of the device attributes; 42 is not 4.
+        assert_eq!(
+            parse_event(b"\x1B[?62;42;22c", false).unwrap(),
+            Some(InternalEvent::PrimaryDeviceAttributes { sixel: false }),
+        );
+        STARTUP_REPLIES_PENDING.store(true, Ordering::Release);
+        assert_eq!(
+            parse_event(b"\x1B[?62;4;22c", false).unwrap(),
+            Some(InternalEvent::PrimaryDeviceAttributes { sixel: true }),
+        );
+        // Once the replies are over, ESC _ is Alt+_ again.
+        assert_eq!(
+            parse_event(b"\x1B_", false).unwrap(),
+            Some(InternalEvent::Event(Event::Key(KeyEvent::new(
+                KeyCode::Char('_'),
+                KeyModifiers::ALT,
+            )))),
+        );
     }
 
     /// The tests that set the process-wide startup flag take turns.

@@ -1497,9 +1497,14 @@ pub(crate) enum InternalEvent {
     /// The progressive keyboard enhancement flags enabled by the terminal.
     #[cfg(unix)]
     KeyboardEnhancementFlags(KeyboardEnhancementFlags),
-    /// Attributes and architectural class of the terminal.
+    /// Attributes and architectural class of the terminal: whether it
+    /// lists Sixel graphics (attribute 4).
     #[cfg(unix)]
-    PrimaryDeviceAttributes,
+    PrimaryDeviceAttributes { sixel: bool },
+    /// The reply to a Kitty graphics query with id `id`: `ok` when the
+    /// terminal accepted the query's transmission medium.
+    #[cfg(unix)]
+    KittyGraphicsReply { id: u32, ok: bool },
     /// The terminal's background color, as 16-bit red, green and blue, from
     /// the reply to `OSC 11 ; ?`.
     #[cfg(unix)]

@@ -49,9 +49,13 @@ handles them, only the latest of each run is delivered, and reports still
 queued when the application exits are dropped.
 
 Before the first frame the default backend on Unix asks the terminal whether
-it speaks the Kitty keyboard protocol and what its background color is. It
-waits at most 200 ms for the answers, and keys typed meanwhile reach the
-application in order. When the terminal speaks the protocol, the backend turns
+it speaks the Kitty keyboard protocol, what its background color is, and
+whether it accepts Kitty graphics sent directly and through shared memory,
+and reads Sixel support from the device attributes it answers last. It waits
+at most 200 ms for the answers, and keys typed meanwhile reach the
+application in order. A graphics protocol the terminal reports is added to
+what the environment variables already said; a terminal that answers
+nothing keeps that detection. When the terminal speaks the protocol, the backend turns
 on its flags 1, 8 and 16 (unambiguous escape codes, every key as an escape
 code, and the text a key types), and turns them off on every exit and before a
 suspend. A key then keeps its code and modifiers: Ctrl+I stays apart from Tab,
