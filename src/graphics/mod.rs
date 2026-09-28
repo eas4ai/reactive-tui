@@ -8,6 +8,7 @@
 //! waits for it.
 
 mod compile;
+mod cpu;
 pub mod fonts;
 mod geometry;
 mod glyphs;
@@ -17,7 +18,6 @@ mod output;
 mod paint;
 mod raster;
 mod scene;
-mod software;
 mod widget;
 mod worker;
 

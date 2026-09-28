@@ -250,7 +250,7 @@ right.
 - Renderer choice and faults: [`src/graphics/hybrid.rs`](../src/graphics/hybrid.rs)
 - Hardware renderer and its shader: [`src/graphics/gpu.rs`](../src/graphics/gpu.rs),
   [`src/graphics/canvas.wgsl`](../src/graphics/canvas.wgsl)
-- Software renderer: [`src/graphics/software.rs`](../src/graphics/software.rs)
+- Software renderer: [`src/graphics/cpu.rs`](../src/graphics/cpu.rs)
 - Fonts and glyphs: [`src/graphics/fonts.rs`](../src/graphics/fonts.rs),
   [`src/graphics/glyphs.rs`](../src/graphics/glyphs.rs)
 - Output choice: [`src/graphics/output.rs`](../src/graphics/output.rs)
