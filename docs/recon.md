@@ -487,3 +487,49 @@ at 60 fps at least; wgpu integration exists and is in scope for rendering.
 7. Is the 262,144-cell frame cap a limit you accept for the 500 to 700
    column target, or does the first commitment need to raise it and prove
    60 fps at that size?
+
+## 15. Recon for incremental-layout-rows (2026-09-27)
+
+Path B, for the successor of the superseded incremental-layout. The newest
+Agreed date is 2026-09-27; the commits that day, abb8a049 to 82862e18, fall
+into three ranges.
+
+- mouse-input and non-linux-build-warnings (abb8a049 to 059bb9a6): Done.
+  Mouse and paste modes, drag capture, clicks, wheel routing and motion
+  merging on the default backend (INP-001 to INP-006, docs/spec/input.md);
+  the macOS and Windows build warnings cleared (6fee4c49, faadad60).
+  Documented in manual/events-focus-and-input.md.
+- keyboard-and-queries (90efdf98 to 2f6f66ef): Done, done record d51c2f2d,
+  adversary report 33064ab81470 with 6 findings, 4 fixed and 2 closed by the
+  developer. Kitty keyboard flags, lock and media keys, terminal focus
+  reports, Ctrl+Z suspend and startup queries (INP-007 to INP-011, BAR-009).
+  Exists in crates/reactive-tui-crossterm/src/event/sys/unix/parse.rs and
+  src/backend/suprtui.rs; the vendored crate's changes are recorded in
+  crates/reactive-tui-crossterm/REACTIVE_TUI_PATCH.md. Two backlog items wait
+  until the next Done by the developer's ok (escalation 520f782f):
+  macos-pty-stop-hang and windows-startup-queries.
+- incremental-layout (08c148a6 to 82862e18): superseded by the developer's
+  ruling after PNT-005's falsifier was reworded. Measured at 2f6f66ef in
+  release at 700 by 200 with 4,975 text elements and one changing per
+  frame: 19.7 ms per frame, layout 7.1 ms (tests of a scratch copy; the
+  numbers are not reproducible from the tree). The same measure at 5003fc86:
+  15.2 ms per frame, layout 2.1 ms.
+
+Claims at 82862e18:
+
+- Exists: the painter keeps a changed frame's unchanged layout nodes
+  (src/layout/paint_tree/suprtui.rs, `Walk::update`), with `node_parts` in
+  src/layout/paint_tree.rs shared by the full build and the update. At
+  d4672161 tests/painter_hit.rs passed all nine tests, the two PNT-005 tests
+  among them.
+- Exists: the backend reports the layout nodes a frame built and the
+  elements whose text it measured (`SuprTuiBackend::layout_nodes_built`,
+  `SuprTuiBackend::layout_measured_elements`, src/backend/suprtui.rs).
+- Documented: PNT-005's falsifier as reworded by the developer's ok
+  (escalations a40aa2ef and b422f00f, docs/spec/painter.md); INP-007 and
+  INP-011 as revised on 2026-09-27 (docs/spec/input.md).
+- Unverified at 82862e18: the input checks (input-pty) and the workspace
+  gates. They last passed at b171b5d5 (receipts 46f97621 and 4f19963b),
+  before the painter changes, and have not run since.
+
+Earlier findings in section 12 are carried unchanged.
