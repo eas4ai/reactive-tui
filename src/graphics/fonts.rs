@@ -1,11 +1,13 @@
 //! The font the canvas draws text in (GFX-001): the font the application
 //! supplies, else on Linux the first file of fontconfig's sorted match for
 //! `monospace` that the canvas can load, else the bundled DejaVu Sans Mono.
-//! The canvas reads a font's tables itself (ttf-parser) and draws the glyph
-//! outlines with its own rasterizer, so text is the same pixels on both
-//! renderers.
+//! The canvas reads a font's outlines with skrifa and draws them with its
+//! own rasterizer, so text is the same pixels on both renderers.
 
 use super::scene::{Path, PathBuilder};
+use skrifa::instance::{LocationRef, Size};
+use skrifa::outline::{DrawSettings, OutlinePen};
+use skrifa::{FontRef, GlyphId, MetadataProvider};
 use std::path::{Path as FilePath, PathBuf};
 use std::sync::Arc;
 
@@ -36,10 +38,20 @@ pub fn loads(path: &FilePath) -> bool {
     std::fs::read(path).is_ok_and(|data| usable(&data))
 }
 
+/// The first font of `data`, a font file or a collection of fonts.
+fn first_font(data: &[u8]) -> Option<FontRef<'_>> {
+    FontRef::from_index(data, 0).ok()
+}
+
+/// Outlines as the font's designer drew them: in font units, not hinted.
+fn as_designed<'a>() -> DrawSettings<'a> {
+    DrawSettings::unhinted(Size::unscaled(), LocationRef::default())
+}
+
 /// Whether `data` is a font the canvas can draw text from.
 fn usable(data: &[u8]) -> bool {
     struct Any(bool);
-    impl ttf_parser::OutlineBuilder for Any {
+    impl OutlinePen for Any {
         fn move_to(&mut self, _: f32, _: f32) {
             self.0 = true;
         }
@@ -48,14 +60,19 @@ fn usable(data: &[u8]) -> bool {
         fn curve_to(&mut self, _: f32, _: f32, _: f32, _: f32, _: f32, _: f32) {}
         fn close(&mut self) {}
     }
-    let Ok(face) = ttf_parser::Face::parse(data, 0) else {
+    let Some(font) = first_font(data) else {
         return false;
     };
-    let Some(glyph) = face.glyph_index('a') else {
+    let Some(outline) = font
+        .charmap()
+        .map('a')
+        .and_then(|glyph| font.outline_glyphs().get(glyph))
+    else {
         return false;
     };
     let mut any = Any(false);
-    face.units_per_em() > 0 && face.outline_glyph(glyph, &mut any).is_some() && any.0
+    let metrics = font.metrics(Size::unscaled(), LocationRef::default());
+    metrics.units_per_em > 0 && outline.draw(as_designed(), &mut any).is_ok() && any.0
 }
 
 /// The font the canvas draws in: `application`'s when it names one that
@@ -155,15 +172,19 @@ impl Font {
             return None;
         }
         let (units_per_em, ascent, descent, advance) = {
-            let face = ttf_parser::Face::parse(&data, 0).ok()?;
-            let units_per_em = f32::from(face.units_per_em());
+            let font = first_font(&data)?;
+            let metrics = font.metrics(Size::unscaled(), LocationRef::default());
+            let units_per_em = f32::from(metrics.units_per_em);
+            let glyphs = font.glyph_metrics(Size::unscaled(), LocationRef::default());
             (
                 units_per_em,
-                f32::from(face.ascender()),
-                -f32::from(face.descender()),
-                face.glyph_index('0')
-                    .and_then(|glyph| face.glyph_hor_advance(glyph))
-                    .map_or(units_per_em * 0.6, f32::from),
+                metrics.ascent,
+                // The font gives the descent as a height below zero.
+                metrics.descent.abs(),
+                font.charmap()
+                    .map('0')
+                    .and_then(|glyph| glyphs.advance_width(glyph))
+                    .unwrap_or(units_per_em * 0.6),
             )
         };
         Some(Self {
@@ -176,30 +197,32 @@ impl Font {
         })
     }
 
-    fn face(&self) -> ttf_parser::Face<'_> {
-        // The bytes parsed when the font was loaded, so they parse again.
-        ttf_parser::Face::parse(&self.data, 0).expect("a font that was loaded")
+    fn font(&self) -> FontRef<'_> {
+        // The bytes read when the font was loaded, so they read again.
+        first_font(&self.data).expect("a font that was loaded")
     }
 
     /// The glyph of `character`; the font's missing-glyph box when it has
     /// none.
-    pub fn glyph(&self, character: char) -> u16 {
-        self.face()
-            .glyph_index(character)
-            .map_or(0, |glyph| glyph.0)
+    pub fn glyph(&self, character: char) -> u32 {
+        self.font()
+            .charmap()
+            .map(character)
+            .map_or(0, |glyph| glyph.to_u32())
     }
 
     /// The advance of `glyph` in font units.
-    pub fn glyph_advance(&self, glyph: u16) -> f32 {
-        self.face()
-            .glyph_hor_advance(ttf_parser::GlyphId(glyph))
-            .map_or(self.advance, f32::from)
+    pub fn glyph_advance(&self, glyph: u32) -> f32 {
+        self.font()
+            .glyph_metrics(Size::unscaled(), LocationRef::default())
+            .advance_width(GlyphId::new(glyph))
+            .unwrap_or(self.advance)
     }
 
     /// The outline of `glyph` in font units with its origin on the
     /// baseline and y growing downwards, as the canvas draws; `None` for a
     /// glyph that draws nothing, such as a space.
-    pub fn outline(&self, glyph: u16) -> Option<Path> {
+    pub fn outline(&self, glyph: u32) -> Option<Path> {
         struct Outline {
             builder: PathBuilder,
             any: bool,
@@ -212,7 +235,7 @@ impl Font {
                 self.builder = step(std::mem::take(&mut self.builder));
             }
         }
-        impl ttf_parser::OutlineBuilder for Outline {
+        impl OutlinePen for Outline {
             fn move_to(&mut self, x: f32, y: f32) {
                 let (x, y) = self.point(x, y);
                 self.any = true;
@@ -241,8 +264,11 @@ impl Font {
             builder: PathBuilder::new(),
             any: false,
         };
-        self.face()
-            .outline_glyph(ttf_parser::GlyphId(glyph), &mut outline)?;
+        self.font()
+            .outline_glyphs()
+            .get(GlyphId::new(glyph))?
+            .draw(as_designed(), &mut outline)
+            .ok()?;
         outline.any.then(|| outline.builder.build())
     }
 }
