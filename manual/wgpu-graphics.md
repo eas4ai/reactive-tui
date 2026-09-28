@@ -20,7 +20,13 @@ cargo run --locked --features wgpu-graphics --example animation_showcase
 ```
 
 The catalog's Motion page draws a lit cube. The showcase's Shader page
-(press `6`) draws a lit torus. Both are canvas scenes.
+(press `6`) draws a lit torus. Both are canvas scenes. The gallery shows the
+scenes the canvas's checks draw, one for each feature; the arrow keys step
+through them:
+
+```sh
+cargo run --locked --features wgpu-graphics --example canvas_gallery
+```
 
 ## Canvas widget
 
@@ -194,7 +200,8 @@ One worker serves one canvas. Both demos start theirs this way.
 - Text up to 96 pixels tall under a transform that only moves it is drawn
   from glyph bitmaps on whole pixels. Other text is drawn as filled
   outlines.
-- A cell grid follows only the moving part of the transform in force. Block,
+- A cell grid moves with the transform in force and stretches with it along
+  the axes, its cells rounded to whole pixels. It does not turn. Block,
   quadrant, sextant, octant and braille glyphs are drawn as the shapes they
   name. Box drawing is stretched to the cell. Other glyphs are fitted inside
   the cell.
@@ -257,6 +264,7 @@ right.
 - Scene, worker and fault tests: [`tests/canvas_scenes.rs`](../tests/canvas_scenes.rs)
 - Output tests: [`tests/canvas_output.rs`](../tests/canvas_output.rs)
 - Renderer comparison on each host: [`tests/canvas_hosts.rs`](../tests/canvas_hosts.rs)
+- Gallery of the reference scenes: [`examples/canvas_gallery.rs`](../examples/canvas_gallery.rs)
 - Measurement command: [`examples/wgpu_benchmark.rs`](../examples/wgpu_benchmark.rs)
 
 ## Related chapters

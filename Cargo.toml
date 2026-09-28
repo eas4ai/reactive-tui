@@ -166,6 +166,11 @@ name = "wgpu_benchmark"
 path = "examples/wgpu_benchmark.rs"
 required-features = ["wgpu-graphics"]
 
+[[example]]
+name = "canvas_gallery"
+path = "examples/canvas_gallery.rs"
+required-features = ["wgpu-graphics"]
+
 [[test]]
 name = "api_signal_ownership"
 path = "tests/api_signal_ownership.rs"
