@@ -1,0 +1,58 @@
+# Build artifacts
+target/
+build/
+dist/
+node_modules/
+__pycache__/
+*.py[cod]
+
+# For libraries, Cargo.lock should be committed for reproducible builds
+# Cargo.lock
+
+# Reference materials (keep local only)
+reference/
+.superpowers/
+docs/*
+!docs/spec/
+!docs/commitments/
+!docs/decisions/
+.nova/
+.zencoder/
+.agent-os/
+CLAUDE.md
+.claude/
+
+# Test artifacts
+test_image.png
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.bak
+*.orig
+*.tmp
+
+# Cairn keeps receipts and logs; only live action state is local.
+.sudus/in-progress
+!.sudus/evidence/**/*.log
+!.sudus/reviews/**/*.log
+# Preserve these existing local host diagnostics; none is tracked evidence.
+.sudus/reviews/api-020-closure/20260914T011625545295Z/**/*.log
+.sudus/reviews/api-020-closure/20260914T013605641169Z/**/*.log
+.sudus/reviews/api-020-closure/20260914T014530279104Z/**/*.log
+.sudus/reviews/api-image-hosts/20260913T205808901084Z/**/*.log
+.sudus/reviews/api-image-hosts/20260913T221919052255Z/**/*.log
+.gitnexus
