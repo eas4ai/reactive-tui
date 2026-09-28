@@ -194,7 +194,7 @@ impl SuprTuiBackend {
         // terminal that answers nothing keeps the environment's (GFX-006).
         images.kitty_graphics |= replies.kitty_graphics;
         images.kitty_shared_memory = images.kitty_graphics && replies.kitty_shared_memory;
-        images.sixel |= replies.sixel;
+        let _ = replies.sixel;
         let session = Session::ScreenAndInput {
             kitty: replies.keyboard.is_some(),
         };
