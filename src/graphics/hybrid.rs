@@ -223,7 +223,6 @@ impl HybridRenderer {
         let draws = catch_unwind(AssertUnwindSafe(|| compile(scene, base, size, glyphs)))
             .map_err(|panic| GraphicsError::Software(panic_text(panic)))?;
         let prepare = started.elapsed();
-        let started = Instant::now();
         if let Some(gpu) = &mut self.gpu {
             let fault = self.fault.take();
             if fault == Some(GraphicsFault::DeviceLoss) {
@@ -236,17 +235,19 @@ impl HybridRenderer {
             }))
             .unwrap_or_else(|panic| Err(GraphicsError::Readback(panic_text(panic))));
             match drawn {
-                Ok((bytes, draw_calls)) => {
+                Ok(drawn) => {
                     let timings = GraphicsTimings {
                         prepare,
-                        render: started.elapsed(),
+                        render: drawn.render,
+                        wait: drawn.wait,
+                        readback: drawn.readback,
                     };
                     return GraphicsFrame::drawn(
                         size,
-                        bytes,
+                        drawn.bytes,
                         self.mode.clone(),
                         timings,
-                        draw_calls,
+                        drawn.draw_calls,
                     );
                 }
                 Err(error) => {
@@ -266,6 +267,7 @@ impl HybridRenderer {
         let timings = GraphicsTimings {
             prepare,
             render: started.elapsed(),
+            ..Default::default()
         };
         GraphicsFrame::drawn(size, bytes, self.mode.clone(), timings, 0)
     }

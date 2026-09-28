@@ -22,6 +22,11 @@ use std::time::{Duration, Instant};
 /// take before the canvas gives the hardware adapter up.
 const DEADLINE: Duration = Duration::from_secs(5);
 
+/// How many picture sizes keep their textures, and how many pixels they
+/// may hold in all beside the size being drawn.
+const KEPT_SIZES: usize = 3;
+const KEPT_PIXELS: u64 = 24_000_000;
+
 /// Floats per edge instance and per cover instance.
 const EDGE_FLOATS: usize = 8;
 const COVER_FLOATS: usize = 16;
@@ -435,6 +440,19 @@ impl Frame {
     }
 }
 
+/// A picture the hardware adapter drew.
+pub(crate) struct Drawn {
+    /// Straight RGBA, row by row.
+    pub bytes: Vec<u8>,
+    pub draw_calls: u32,
+    /// Building the frame and handing it to the GPU.
+    pub render: Duration,
+    /// Waiting for the GPU to finish.
+    pub wait: Duration,
+    /// Copying the picture out.
+    pub readback: Duration,
+}
+
 /// The canvas's renderer on one hardware adapter.
 pub(crate) struct GpuRenderer {
     device: wgpu::Device,
@@ -451,7 +469,10 @@ pub(crate) struct GpuRenderer {
     /// One white pixel, bound where a batch has no image or no clip.
     blank_color: wgpu::TextureView,
     blank_mask: wgpu::TextureView,
-    targets: Option<Targets>,
+    /// The textures of the sizes drawn last, the newest first. A renderer
+    /// that draws two sizes in turn, such as a picture and its block
+    /// glyphs, makes the textures of neither again.
+    targets: Vec<Targets>,
     atlas: GlyphAtlas,
     images: HashMap<usize, ImageTexture>,
     edges: Option<wgpu::Buffer>,
@@ -774,7 +795,7 @@ impl GpuRenderer {
             shared_layout,
             sources_layout,
             sampler,
-            targets: None,
+            targets: Vec::new(),
             images: HashMap::new(),
             edges: None,
             covers: None,
@@ -831,12 +852,11 @@ impl GpuRenderer {
         })
     }
 
+    /// Put the textures for pictures of `size` first in `self.targets`,
+    /// making them when no size drawn lately is this one.
     fn targets(&mut self, size: (u32, u32)) {
-        if self
-            .targets
-            .as_ref()
-            .is_some_and(|targets| targets.size == size)
-        {
+        if let Some(kept) = self.targets.iter().position(|kept| kept.size == size) {
+            self.targets[..=kept].rotate_right(1);
             return;
         }
         let drawn = wgpu::TextureUsages::RENDER_ATTACHMENT;
@@ -860,15 +880,29 @@ impl GpuRenderer {
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
-        self.targets = Some(Targets {
-            size,
-            picture_view: picture.create_view(&Default::default()),
-            picture,
-            coverage_view: coverage.create_view(&Default::default()),
-            masks: Vec::new(),
-            readback,
-            padded_row,
-        });
+        self.targets.insert(
+            0,
+            Targets {
+                size,
+                picture_view: picture.create_view(&Default::default()),
+                picture,
+                coverage_view: coverage.create_view(&Default::default()),
+                masks: Vec::new(),
+                readback,
+                padded_row,
+            },
+        );
+        // Older sizes go when there are too many or they hold too much.
+        let mut pixels = 0u64;
+        let mut kept = 0;
+        for targets in &self.targets {
+            pixels += u64::from(targets.size.0) * u64::from(targets.size.1);
+            if kept > 0 && (kept >= KEPT_SIZES || pixels > KEPT_PIXELS) {
+                break;
+            }
+            kept += 1;
+        }
+        self.targets.truncate(kept);
     }
 
     /// A buffer of at least `bytes.len()` bytes holding `bytes`, reusing
@@ -1075,16 +1109,16 @@ impl GpuRenderer {
         frame
     }
 
-    /// Draw `draws` at `size` and read the picture back as straight RGBA
-    /// bytes, with the number of draw calls it took. `fail_readback` fails
-    /// the readback, as a fault would (GFX-007).
+    /// Draw `draws` at `size` and read the picture back. `fail_readback`
+    /// fails the readback, as a fault would (GFX-007).
     pub fn render(
         &mut self,
         draws: &[Draw],
         size: (u32, u32),
         glyphs: &mut Glyphs,
         fail_readback: bool,
-    ) -> Result<(Vec<u8>, u32), GraphicsError> {
+    ) -> Result<Drawn, GraphicsError> {
+        let started = Instant::now();
         self.check()?;
         self.images
             .retain(|_, texture| texture.image.upgrade().is_some());
@@ -1125,15 +1159,15 @@ impl GpuRenderer {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
         while self
             .targets
-            .as_ref()
+            .first()
             .is_some_and(|targets| targets.masks.len() < frame.deepest)
         {
             let mask = self.texture("canvas clip", size, MASK_FORMAT, mask_usage);
-            if let Some(targets) = &mut self.targets {
+            if let Some(targets) = self.targets.first_mut() {
                 targets.masks.push(mask.create_view(&Default::default()));
             }
         }
-        let targets = self.targets.as_ref().ok_or_else(|| {
+        let targets = self.targets.first().ok_or_else(|| {
             GraphicsError::Readback("the canvas has no texture to draw into".into())
         })?;
         let shared = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -1299,6 +1333,7 @@ impl GpuRenderer {
             },
         );
         self.queue.submit([encoder.finish()]);
+        let render = started.elapsed();
         let pixels = if fail_readback {
             Err(GraphicsError::Readback("injected readback failure".into()))
         } else {
@@ -1307,10 +1342,23 @@ impl GpuRenderer {
         self.edges = Some(edges);
         self.covers = Some(covers);
         self.paints = Some(paints);
-        pixels.map(|pixels| (pixels, draw_calls))
+        pixels.map(|(bytes, wait, readback)| Drawn {
+            bytes,
+            draw_calls,
+            render,
+            wait,
+            readback,
+        })
     }
 
-    fn read_back(&self, targets: &Targets, size: (u32, u32)) -> Result<Vec<u8>, GraphicsError> {
+    /// The picture as straight RGBA bytes, with how long the GPU took to
+    /// finish it and how long copying it out took.
+    fn read_back(
+        &self,
+        targets: &Targets,
+        size: (u32, u32),
+    ) -> Result<(Vec<u8>, Duration, Duration), GraphicsError> {
+        let started = Instant::now();
         let slice = targets.readback.slice(..);
         let (send, receive) = std::sync::mpsc::sync_channel(1);
         slice.map_async(wgpu::MapMode::Read, move |result| {
@@ -1344,6 +1392,8 @@ impl GpuRenderer {
                 ));
             }
         }
+        let wait = started.elapsed();
+        let started = Instant::now();
         let row = size.0 as usize * 4;
         let mut bytes = Vec::with_capacity(row * size.1 as usize);
         {
@@ -1359,6 +1409,6 @@ impl GpuRenderer {
         targets.readback.unmap();
         unpremultiply(&mut bytes);
         self.check()?;
-        Ok(bytes)
+        Ok((bytes, wait, started.elapsed()))
     }
 }
