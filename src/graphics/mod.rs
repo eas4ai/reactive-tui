@@ -33,8 +33,6 @@ pub use worker::{GraphicsWorker, WorkerStats};
 
 use std::time::Duration;
 
-fn bar_010_violating_example() {}
-
 /// The widest picture the canvas draws, in pixels.
 pub const MAX_WIDTH: u32 = 4096;
 /// The tallest picture the canvas draws, in pixels.
