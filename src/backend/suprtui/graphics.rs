@@ -81,6 +81,8 @@ pub(crate) trait RasterPlane: PartialEq {
     fn cells(&self) -> (u32, u32) {
         (0, 0)
     }
+    /// Tell the canvas whose picture this is why the frame cannot show it.
+    fn refuse(&self, _reason: &str) {}
     fn z_index(&self, order: usize) -> i32 {
         order as i32
     }
@@ -125,6 +127,9 @@ impl RasterPlane for Plane {
     }
     fn cells(&self) -> (u32, u32) {
         self.cells()
+    }
+    fn refuse(&self, reason: &str) {
+        self.refuse(reason);
     }
 }
 
@@ -174,90 +179,31 @@ impl<P: RasterPlane> Graphics<P> {
                 coverage.push(known.clone());
                 continue;
             }
-            let kept = kept.is_some();
-            let pixels = plane.raster(cell)?;
-            raster_bytes = raster_bytes.saturating_add(pixels.as_raw().len());
-            if raster_bytes > 64 * 1024 * 1024 {
-                return Err(ReactiveError::resource(
-                    "image frame exceeds 64 MiB raster limit",
-                ));
-            }
-            let (x, y) = plane.position();
-            coverage.push(coverage::Coverage::new((x, y), &pixels, cell));
-            if kept {
-                below.add(plane, &pixels);
-                continue;
-            }
-            let output = match plane.protocol() {
-                ImageProtocol::Kitty => plane
-                    .canvas()
-                    .filter(|picture| picture.shared_memory)
-                    .and_then(|_| self.shared.kitty(&pixels, plane.id(), plane.z_index(z)))
-                    .unwrap_or_else(|| {
-                        ProtocolRenderer::kitty_pixels(&pixels, plane.id(), plane.z_index(z), true)
-                    }),
-                ImageProtocol::Inline => {
-                    ProtocolRenderer::iterm_pixels(&below.flatten(plane, &pixels, false), false)?
+            let room = (64usize * 1024 * 1024).saturating_sub(after.len());
+            let drawn = self.draw(
+                plane,
+                z,
+                kept.is_some(),
+                cell,
+                blend_legacy,
+                &mut below,
+                &mut raster_bytes,
+                room,
+            );
+            match drawn {
+                Ok((covered, bytes)) => {
+                    coverage.push(covered);
+                    after.extend_from_slice(&bytes);
                 }
-                ImageProtocol::Sixel if plane.canvas().is_some() => {
-                    // A canvas's picture is drawn from the cursor, so it
-                    // touches no cell outside the canvas, and only in whole
-                    // bands of six rows, so none reaches below it.
-                    let mut pixels = below.flatten(plane, &pixels, true);
-                    // Sixel leaves a pixel it is not given as the screen
-                    // shows it, which after the first picture is the last
-                    // picture. So every pixel of a cell that shows the
-                    // canvas is drawn: where the picture is transparent,
-                    // in the cell's background.
-                    for (x, y, pixel) in pixels.enumerate_pixels_mut() {
-                        if pixel[3] == 0 && plane.shows(x, y, cell) {
-                            *pixel = plane.background(x, y, cell);
-                        }
-                    }
-                    let height = pixels.height() - pixels.height() % 6;
-                    if height == 0 {
-                        String::new()
-                    } else {
-                        let pixels =
-                            image::imageops::crop_imm(&pixels, 0, 0, pixels.width(), height)
-                                .to_image();
-                        SixelRenderer::encode_picture(&pixels)?
-                    }
+                // A canvas's picture that the frame cannot hold is left
+                // out and the canvas is told why (GFX-007).
+                Err(error) if plane.canvas().is_some() => {
+                    plane.refuse(&error.to_string());
+                    let nothing = image::RgbaImage::new(0, 0);
+                    coverage.push(coverage::Coverage::new(plane.position(), &nothing, cell));
                 }
-                ImageProtocol::Sixel => {
-                    let pixels = below.flatten(plane, &pixels, true);
-                    let pixels = below.absolute(plane, &pixels)?;
-                    raster_bytes = raster_bytes.saturating_add(pixels.as_raw().len());
-                    if raster_bytes > 64 * 1024 * 1024 {
-                        return Err(ReactiveError::resource(
-                            "image frame exceeds 64 MiB raster limit",
-                        ));
-                    }
-                    SixelRenderer::encode_pixels(&pixels, plane.quality())?
-                }
-            };
-            if blend_legacy {
-                below.add(plane, &pixels);
+                Err(error) => return Err(error),
             }
-            if after.len().saturating_add(output.len()) > 64 * 1024 * 1024 {
-                return Err(ReactiveError::resource(
-                    "image frame exceeds 64 MiB output limit",
-                ));
-            }
-            after.extend_from_slice(format!("\x1b[{};{}H", y + 1, x + 1).as_bytes());
-            // Sixel display mode (80) draws from the screen's corner; a
-            // canvas's picture is drawn from the cursor instead, which
-            // stays beside the picture (8452) so the screen never scrolls.
-            let sixel_modes: (&[u8], &[u8]) = match (plane.protocol(), plane.canvas()) {
-                (ImageProtocol::Sixel, None) => (b"\x1b[?80s\x1b[?80h", b"\x1b[?80r"),
-                (ImageProtocol::Sixel, Some(_)) => {
-                    (b"\x1b[?80;8452s\x1b[?80l\x1b[?8452h", b"\x1b[?80;8452r")
-                }
-                _ => (b"", b""),
-            };
-            after.extend_from_slice(sixel_modes.0);
-            after.extend_from_slice(output.as_bytes());
-            after.extend_from_slice(sixel_modes.1);
         }
         if !next.is_empty() {
             after.extend_from_slice(b"\x1b8");
@@ -277,6 +223,106 @@ impl<P: RasterPlane> Graphics<P> {
         self.possible_legacy |= next.iter().any(|p| p.protocol() != ImageProtocol::Kitty);
         self.candidate_coverage = Some(coverage);
         Ok(Some((before, after)))
+    }
+    /// The cells `plane` covers and the bytes that show it, of at most
+    /// `room` bytes; no bytes for a plane that is `kept` as it is.
+    #[allow(clippy::too_many_arguments)]
+    fn draw(
+        &mut self,
+        plane: &P,
+        z: usize,
+        kept: bool,
+        cell: (u16, u16),
+        blend_legacy: bool,
+        below: &mut PixelLayers,
+        raster_bytes: &mut usize,
+        room: usize,
+    ) -> Result<(coverage::Coverage, Vec<u8>)> {
+        let pixels = plane.raster(cell)?;
+        let rastered = raster_bytes.saturating_add(pixels.as_raw().len());
+        if rastered > 64 * 1024 * 1024 {
+            return Err(ReactiveError::resource(
+                "image frame exceeds 64 MiB raster limit",
+            ));
+        }
+        *raster_bytes = rastered;
+        let (x, y) = plane.position();
+        let covered = coverage::Coverage::new((x, y), &pixels, cell);
+        if kept {
+            below.add(plane, &pixels);
+            return Ok((covered, Vec::new()));
+        }
+        let output = match plane.protocol() {
+            ImageProtocol::Kitty => plane
+                .canvas()
+                .filter(|picture| picture.shared_memory)
+                .and_then(|_| self.shared.kitty(&pixels, plane.id(), plane.z_index(z)))
+                .unwrap_or_else(|| {
+                    ProtocolRenderer::kitty_pixels(&pixels, plane.id(), plane.z_index(z), true)
+                }),
+            ImageProtocol::Inline => {
+                ProtocolRenderer::iterm_pixels(&below.flatten(plane, &pixels, false), false)?
+            }
+            ImageProtocol::Sixel if plane.canvas().is_some() => {
+                // A canvas's picture is drawn from the cursor, so it
+                // touches no cell outside the canvas, and only in whole
+                // bands of six rows, so none reaches below it.
+                let mut pixels = below.flatten(plane, &pixels, true);
+                // Sixel leaves a pixel it is not given as the screen
+                // shows it, which after the first picture is the last
+                // picture. So every pixel of a cell that shows the
+                // canvas is drawn: where the picture is transparent,
+                // in the cell's background.
+                for (x, y, pixel) in pixels.enumerate_pixels_mut() {
+                    if pixel[3] == 0 && plane.shows(x, y, cell) {
+                        *pixel = plane.background(x, y, cell);
+                    }
+                }
+                let height = pixels.height() - pixels.height() % 6;
+                if height == 0 {
+                    String::new()
+                } else {
+                    let pixels =
+                        image::imageops::crop_imm(&pixels, 0, 0, pixels.width(), height).to_image();
+                    SixelRenderer::encode_picture(&pixels)?
+                }
+            }
+            ImageProtocol::Sixel => {
+                let pixels = below.flatten(plane, &pixels, true);
+                let pixels = below.absolute(plane, &pixels)?;
+                let rastered = raster_bytes.saturating_add(pixels.as_raw().len());
+                if rastered > 64 * 1024 * 1024 {
+                    return Err(ReactiveError::resource(
+                        "image frame exceeds 64 MiB raster limit",
+                    ));
+                }
+                *raster_bytes = rastered;
+                SixelRenderer::encode_pixels(&pixels, plane.quality())?
+            }
+        };
+        if output.len() > room {
+            return Err(ReactiveError::resource(
+                "image frame exceeds 64 MiB output limit",
+            ));
+        }
+        if blend_legacy {
+            below.add(plane, &pixels);
+        }
+        let mut bytes = format!("\x1b[{};{}H", y + 1, x + 1).into_bytes();
+        // Sixel display mode (80) draws from the screen's corner; a
+        // canvas's picture is drawn from the cursor instead, which
+        // stays beside the picture (8452) so the screen never scrolls.
+        let sixel_modes: (&[u8], &[u8]) = match (plane.protocol(), plane.canvas()) {
+            (ImageProtocol::Sixel, None) => (b"\x1b[?80s\x1b[?80h", b"\x1b[?80r"),
+            (ImageProtocol::Sixel, Some(_)) => {
+                (b"\x1b[?80;8452s\x1b[?80l\x1b[?8452h", b"\x1b[?80;8452r")
+            }
+            _ => (b"", b""),
+        };
+        bytes.extend_from_slice(sixel_modes.0);
+        bytes.extend_from_slice(output.as_bytes());
+        bytes.extend_from_slice(sixel_modes.1);
+        Ok((covered, bytes))
     }
     /// Whether the last `prepare` changed canvas pictures only and cleared
     /// nothing: the cells stay as they are written, but the `stale` ones.

@@ -565,19 +565,29 @@ pub(crate) fn paint_frame(
                     crate::graphics::CanvasOutput::Blocks => None,
                 });
                 if let Some(((frame, _), protocol)) = canvas.pixels.as_ref().zip(protocol) {
+                    // A picture the frame cannot hold is left out of it and
+                    // the canvas is told why: a canvas never ends the App
+                    // (GFX-007).
+                    let link = canvas.link.clone();
+                    let size = (frame.width(), frame.height());
+                    let refused: images::Refusal =
+                        Arc::new(move |reason: &str| link.refuse(size, reason));
                     let picture = images::ImagePaint::canvas(
                         canvas.id,
                         frame.image().clone(),
                         image_options.kitty_shared_memory,
+                        refused.clone(),
                     );
-                    if let Some(plane) = images::Plane::new(
+                    let placed = images::Plane::new(
                         Arc::new(picture),
                         &paints[&node.id],
                         node,
                         target,
                         protocol,
-                    )? {
-                        images.push(plane)?;
+                    )
+                    .and_then(|plane| plane.map_or(Ok(()), |plane| images.push(plane)));
+                    if let Err(error) = placed {
+                        refused(&error.to_string());
                     }
                 }
             }

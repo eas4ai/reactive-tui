@@ -24,7 +24,13 @@ pub(crate) struct ImagePaint {
     /// place by the next one, and sent through shared memory where the
     /// host reads it (GFX-005).
     pub canvas: Option<CanvasPicture>,
+    /// Told why, when a frame cannot show a canvas's picture: the frame is
+    /// shown without it and the canvas shows the reason (GFX-007).
+    pub refused: Option<Refusal>,
 }
+
+/// Tells a canvas why a frame cannot show its picture.
+pub(crate) type Refusal = Arc<dyn Fn(&str) + Send + Sync>;
 
 /// How a canvas's picture is sent.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,7 +42,12 @@ pub(crate) struct CanvasPicture {
 impl ImagePaint {
     /// The picture of a canvas, which fills the canvas's area as it is.
     #[cfg(feature = "wgpu-graphics")]
-    pub fn canvas(id: u32, pixels: Arc<image::RgbaImage>, shared_memory: bool) -> Self {
+    pub fn canvas(
+        id: u32,
+        pixels: Arc<image::RgbaImage>,
+        shared_memory: bool,
+        refused: Refusal,
+    ) -> Self {
         Self {
             id,
             pixels,
@@ -46,6 +57,7 @@ impl ImagePaint {
             quality: ImageQuality::Fast,
             max_size: None,
             canvas: Some(CanvasPicture { shared_memory }),
+            refused: Some(refused),
         }
     }
 
@@ -59,6 +71,7 @@ impl ImagePaint {
             quality: config.quality,
             max_size: config.size_constraints,
             canvas: None,
+            refused: None,
         }
     }
 }

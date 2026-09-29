@@ -1,6 +1,8 @@
 //! Image placement follows the painter's cell transforms and coverage.
 use super::{inside_masks, Affine, NodePaint, PaintNode, Rect};
 use crate::error::{ReactiveError, Result};
+#[cfg(feature = "wgpu-graphics")]
+pub(super) use crate::widgets::display::image::paint::Refusal;
 pub(super) use crate::widgets::display::image::paint::{ImagePaint, ImageProtocol};
 use ::suprtui::ansi;
 use std::sync::Arc;
@@ -25,12 +27,15 @@ impl Layers {
         }
     }
     pub fn push(&mut self, plane: Plane) -> Result<()> {
-        self.entries += plane.cover.len();
-        if self.entries > 4_194_304 {
+        // A plane that is refused leaves the count as it was, so the
+        // planes after it are judged without it.
+        let entries = self.entries + plane.cover.len();
+        if entries > 4_194_304 {
             return Err(ReactiveError::resource(
                 "image coverage exceeds frame limit",
             ));
         }
+        self.entries = entries;
         let cells = self
             .cells
             .get_or_insert_with(|| vec![Vec::new(); self.width * self.height]);
@@ -253,6 +258,12 @@ impl Plane {
     }
     pub fn position(&self) -> (u32, u32) {
         (self.bounds.left as u32, self.bounds.top as u32)
+    }
+    /// Tell the canvas whose picture this is why a frame cannot show it.
+    pub fn refuse(&self, reason: &str) {
+        if let Some(refused) = &self.image.refused {
+            refused(reason);
+        }
     }
     /// The plane's columns and rows.
     pub fn cells(&self) -> (u32, u32) {

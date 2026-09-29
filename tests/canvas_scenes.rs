@@ -13,6 +13,7 @@ mod common;
 use canvas_support::{check_reference, reference_options, references, SIZE};
 use common::app_input;
 use reactive_tui::app::{RootComponent, RootUpdate};
+use reactive_tui::backend::ImageOutputOptions;
 use reactive_tui::component::Element;
 use reactive_tui::event::router::EventResult;
 use reactive_tui::event::types::{Event, KeyCode, KeyEvent};
@@ -350,6 +351,135 @@ fn gfx_007_a_failing_software_renderer_shows_a_message_and_the_app_goes_on() {
         frames.len() >= 2 && last.text.contains("software"),
         "GFX-007: with both renderers failing the canvas area read {:?}",
         last.text
+    );
+}
+
+/// One canvas of the shapes scene, on the software renderer.
+fn shapes_canvas() -> Element {
+    let props =
+        CanvasProps::new(Arc::new(canvas_support::shapes())).options(reference_options(true));
+    Element::typed::<Canvas>(props)
+}
+
+/// What a terminal of `size` cells that takes `images` is sent by an App
+/// that shows `root`. Each step waits for a finished frame whose output
+/// holds its text and then sends its event, if it has one.
+fn sent_until(
+    root: Element,
+    size: (u16, u16),
+    images: ImageOutputOptions,
+    steps: Vec<(&str, Option<Event>)>,
+) -> String {
+    let frames = app_input::run_when_output(
+        Root(root),
+        size,
+        images,
+        steps
+            .into_iter()
+            .map(|(needle, event)| (needle.to_owned(), 1, event))
+            .collect(),
+    );
+    frames
+        .iter()
+        .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
+        .collect()
+}
+
+/// The width and height each Kitty picture in `output` states for itself.
+fn kitty_sizes(output: &str) -> Vec<(u32, u32)> {
+    output
+        .split("\x1b_G")
+        .skip(1)
+        .filter(|command| command.contains("a=T"))
+        .filter_map(|command| {
+            let controls = command.split(';').next()?;
+            let number = |key: &str| {
+                controls
+                    .split(',')
+                    .find_map(|pair| pair.strip_prefix(key))
+                    .and_then(|value| value.parse::<u32>().ok())
+            };
+            Some((number("s=")?, number("v=")?))
+        })
+        .collect()
+}
+
+#[test]
+fn gfx_001_an_area_above_the_largest_picture_shows_that_picture() {
+    // 700 by 200 cells of 8 by 16 pixels are 5600 by 3200 pixels; the
+    // largest picture is 4096 pixels wide, which is 512 of those cells.
+    let shared = ImageOutputOptions {
+        kitty_graphics: true,
+        kitty_shared_memory: true,
+        ..Default::default()
+    };
+    let sizes = kitty_sizes(&sent_until(
+        shapes_canvas(),
+        (700, 200),
+        shared,
+        vec![("a=T", None)],
+    ));
+    // Sent in the command itself a picture is written as base64, and a
+    // frame's output holds 64 MiB: 520 by 260 cells, 4160 by 4160 pixels,
+    // are drawn as far as that allows.
+    let direct = ImageOutputOptions {
+        kitty_graphics: true,
+        ..Default::default()
+    };
+    let sent = kitty_sizes(&sent_until(
+        shapes_canvas(),
+        (520, 260),
+        direct,
+        vec![("a=T", None)],
+    ));
+    let fits = |&(width, height): &(u32, u32)| {
+        width == 4096
+            && height % 16 == 0
+            && u64::from(width) * u64::from(height) * 16 / 3 < 64 << 20
+    };
+    assert!(
+        sizes.first() == Some(&(4096, 3200)) && sent.first().is_some_and(fits),
+        "GFX-001: an area of 5600 by 3200 pixels was sent pictures of {sizes:?} through shared memory, and one of 4160 by 4160 pixels was sent pictures of {sent:?} in the command itself"
+    );
+}
+
+#[test]
+fn gfx_007_a_picture_the_frame_cannot_hold_shows_a_message_and_the_app_goes_on() {
+    use reactive_tui::builder::core::div;
+    // Two canvases side by side, each 260 by 260 cells of 16 by 32 pixels:
+    // each draws the largest picture, 4096 by 4096 pixels, and a frame
+    // holds 64 MiB of pictures, which is one of them. The pictures come
+    // one after the other and each frame shows the one that is new; after
+    // a resize one frame has to show both.
+    let large_cells = ImageOutputOptions {
+        kitty_graphics: true,
+        kitty_shared_memory: true,
+        cell_pixels: (16, 32),
+        ..Default::default()
+    };
+    let half = || {
+        div()
+            .class("w-1/2 h-full")
+            .children(vec![shapes_canvas()])
+            .build()
+    };
+    let root = div()
+        .class("flex flex-row w-full h-full")
+        .children(vec![half(), half()])
+        .build();
+    let resize = Event::Resize(reactive_tui::event::types::ResizeEvent::new(520, 259));
+    let output = sent_until(
+        root,
+        (520, 260),
+        large_cells,
+        // The renderer steps over blank cells, so the message's words
+        // are apart in the output: its first word is what is waited for.
+        vec![("a=T", Some(resize)), ("Canvas:", None)],
+    );
+    let sizes = kitty_sizes(&output);
+    assert!(
+        output.contains("limit") && sizes.len() >= 3 && sizes.contains(&(4096, 4096)),
+        "GFX-007: of two canvases whose pictures one frame cannot hold, the pictures sent were {sizes:?}"
     );
 }
 

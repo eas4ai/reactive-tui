@@ -110,6 +110,15 @@ impl Submitted {
     }
 }
 
+/// The most pixels of a picture that is sent in the command itself. Such a
+/// picture is written as base64, four bytes for three, and a frame's output
+/// holds 64 MiB.
+const DIRECT_PIXELS: u32 = 12_000_000;
+
+/// What a canvas asks of its worker, for which output, and the columns and
+/// rows its picture covers.
+type Wanted = (Job, CanvasOutput, (u32, u32));
+
 #[derive(Default)]
 struct View {
     submitted: Option<Submitted>,
@@ -163,9 +172,10 @@ impl Canvas {
         })
     }
 
-    /// The job for the canvas's area as it is, and the output it is for;
+    /// The job for the canvas's area as it is, the output it is for and the
+    /// cells its picture covers: the area's, up to the largest picture.
     /// `None` before the first layout, which gives the area its size.
-    fn job(&self, waited: bool) -> Option<(Job, CanvasOutput)> {
+    fn job(&self, waited: bool) -> Option<Wanted> {
         let (columns, rows) = self.cells();
         if columns == 0 || rows == 0 {
             return None;
@@ -201,7 +211,11 @@ impl Canvas {
             }
             CanvasOutput::Kitty | CanvasOutput::Sixel => {
                 let columns = columns.min(MAX_WIDTH / cell_width);
-                let rows = rows.min(MAX_HEIGHT / cell_height);
+                let mut rows = rows.min(MAX_HEIGHT / cell_height);
+                let shared = host.is_some_and(|host| host.kitty_shared_memory);
+                if output == CanvasOutput::Kitty && !shared {
+                    rows = rows.min(DIRECT_PIXELS / (columns * cell_width).max(1) / cell_height);
+                }
                 (
                     Want::Pixels,
                     (columns * cell_width, rows * cell_height),
@@ -226,6 +240,7 @@ impl Canvas {
                 base,
             },
             output,
+            (columns, rows),
         ))
     }
 
@@ -284,9 +299,16 @@ impl Component for Canvas {
         let wanted = self.job(view.waited);
         view.waited = true;
         let theme = crate::theme::Theme::generation();
+        // A frame that could not hold the picture said so: the canvas
+        // shows why and draws no more pictures of that size (GFX-007).
+        let refused = wanted.as_ref().and_then(|(job, output, _)| {
+            matches!(output, CanvasOutput::Kitty | CanvasOutput::Sixel)
+                .then(|| self.link.refused(job.size))
+                .flatten()
+        });
         if let Some(worker) = &self.worker {
             worker.observe();
-            if let Some((job, _)) = &wanted {
+            if let Some((job, _, _)) = wanted.as_ref().filter(|_| refused.is_none()) {
                 if !view
                     .submitted
                     .as_ref()
@@ -312,14 +334,18 @@ impl Component for Canvas {
             .shown
             .clone()
             .zip(wanted.as_ref())
-            .filter(|(shown, (job, _))| shown.size == job.size && shown.want == job.want);
+            .filter(|(shown, (job, _, _))| shown.size == job.size && shown.want == job.want);
         drop(view);
 
-        let (columns, rows) = self.cells();
+        // The picture's cells: the area's, up to the largest picture. The
+        // painter shows the picture over them pixel for pixel (GFX-001).
+        let area = self.cells();
+        let (columns, rows) = wanted.as_ref().map_or(area, |(_, _, cells)| *cells);
         let insets = self.viewport.map_or([0.0; 4], |viewport| viewport.insets);
         let failure = self
             .failure
             .clone()
+            .or_else(|| refused.clone())
             .or_else(|| shown.as_ref().and_then(|(shown, _)| shown.error.clone()));
         let message = failure.as_ref().map(|failure| format!("Canvas: {failure}"));
         let mut content =
@@ -341,7 +367,7 @@ impl Component for Canvas {
                 .build();
         content.metadata.inert = true;
         let mut pixels = None;
-        if let (Some((shown, (_, output))), None) = (&shown, &message) {
+        if let (Some((shown, (_, output, _))), None) = (&shown, &message) {
             match (output, &shown.cells, &shown.frame) {
                 (CanvasOutput::Blocks, Some(grid), _) => {
                     content = content.with_cells(grid.clone());
@@ -352,6 +378,12 @@ impl Component for Canvas {
                 _ => {}
             }
         }
+        // The painter shows the picture over the element that carries it.
+        content.metadata.canvas = Some(Arc::new(CanvasPaint {
+            id: self.image_id,
+            link: self.link.clone(),
+            pixels,
+        }));
         let renderer = self.renderer();
         let label = self.props.label.as_deref().unwrap_or("Canvas");
         let mut root = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
@@ -381,18 +413,14 @@ impl Component for Canvas {
         // a theme that is no longer the active one, which stays until the
         // next is drawn: the worker's finish signal, or the painter's
         // report, redraws the canvas.
-        let finished = shown
-            .as_ref()
-            .is_some_and(|(shown, _)| shown.theme == theme);
-        if !finished && self.worker.is_some() && columns > 0 && rows > 0 {
+        let finished = refused.is_some()
+            || shown
+                .as_ref()
+                .is_some_and(|(shown, _)| shown.theme == theme);
+        if !finished && self.worker.is_some() && area.0 > 0 && area.1 > 0 {
             node.set_busy();
         }
         root.metadata.accessibility = Some(node);
-        root.metadata.canvas = Some(Arc::new(CanvasPaint {
-            id: self.image_id,
-            link: self.link.clone(),
-            pixels,
-        }));
         root
     }
 
