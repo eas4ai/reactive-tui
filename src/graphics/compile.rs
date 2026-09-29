@@ -7,7 +7,7 @@ use super::geometry::{fill_polygons, stroke_polygons, Polygon};
 use super::glyphs::{Glyphs, Placed, Text};
 use super::paint::{premultiply, Premul, Shader};
 use super::raster::{window_of, Window};
-use super::scene::{Color, Command, Path, Scene, Transform};
+use super::scene::{Command, Path, Scene, Transform};
 use crate::layout::CellGrid;
 use std::sync::Arc;
 
@@ -64,6 +64,15 @@ fn axis_rectangle(polygons: &[Polygon]) -> Option<[f32; 4]> {
     (across_first || down_first).then(|| [a.0.min(c.0), a.1.min(c.1), a.0.max(c.0), a.1.max(c.1)])
 }
 
+/// The color of a cell that names none: `theme`'s text color, and the
+/// default theme's where `theme` has none.
+fn cell_foreground(theme: &crate::theme::Theme) -> Premul {
+    theme
+        .resolve_color("foreground")
+        .or_else(|| crate::theme::dark_theme().resolve_color("foreground"))
+        .map_or([0.0; 4], |(r, g, b, a)| premultiply([r, g, b, a]))
+}
+
 /// The draws of `scene` for a picture of `size` pixels, with `base` applied
 /// to every scene coordinate.
 pub(crate) fn compile(
@@ -74,14 +83,7 @@ pub(crate) fn compile(
 ) -> Vec<Draw> {
     let mut draws = Vec::with_capacity(scene.commands.len());
     let mut transforms = vec![*base];
-    // A cell that names no color takes the theme's text color; a theme
-    // without one leaves the glyph at full strength.
-    let foreground = crate::theme::Theme::active()
-        .resolve_color("foreground")
-        .map_or_else(
-            || [1.0; 4],
-            |_| premultiply(Color::token("foreground").resolve()),
-        );
+    let foreground = cell_foreground(&crate::theme::Theme::active());
     // Whether anything can show inside each clip in force.
     let mut clips: Vec<bool> = Vec::new();
     let fill = |draws: &mut Vec<Draw>, polygons: Vec<Polygon>, shader: Shader| {
@@ -214,6 +216,24 @@ mod tests {
 
     fn red() -> Paint {
         Paint::solid(Color::rgba(255, 0, 0, 255))
+    }
+
+    #[test]
+    fn a_cell_without_a_color_takes_the_themes_text_color_else_the_default_themes() {
+        use crate::theme::{dark_theme, Theme, ThemeVariables};
+        let channels = |color: Premul| color.map(|channel| (channel * 255.0).round() as u8);
+        let own = Theme::new("own")
+            .with_variables(ThemeVariables::new().set("--color-foreground", "#102030"));
+        assert_eq!(channels(cell_foreground(&own)), [16, 32, 48, 255]);
+        // A theme with no text color and no theme below it.
+        let bare = Theme::new("bare");
+        let (r, g, b, a) = dark_theme()
+            .resolve_color("foreground")
+            .expect("the default theme has a text color");
+        assert_eq!(bare.resolve_color("foreground"), None);
+        assert_eq!(cell_foreground(&bare), premultiply([r, g, b, a]));
+        // Not the white the canvas once drew such a cell in.
+        assert!(a > 0.0 && [r, g, b] != [1.0; 3]);
     }
 
     #[test]
