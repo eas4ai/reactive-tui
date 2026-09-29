@@ -204,6 +204,10 @@ One worker serves one canvas. Both demos start theirs this way.
 - A Kitty picture that is sent in the command itself, because the terminal
   does not take shared memory, is at most 12 million pixels, so that a
   frame's output holds it.
+- When the operating system refuses the shared memory for a picture, for
+  example because it is full, that one picture is sent in the command
+  itself. A picture of more than about 12 million pixels does not fit the
+  frame's output then, and the canvas shows the reason in its own area.
 - A frame holds 64 MiB of new pictures and 64 MiB of output. When a
   canvas's picture does not fit, the frame is shown without it and the
   canvas shows the reason in its own area, until its picture has another
