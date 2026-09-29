@@ -416,6 +416,89 @@ fn lay_001_a_flex_row_and_a_flex_column_keep_their_gap() {
     }
 }
 
+/// The runs of painted cells in the first row of `surface`: the first
+/// column and the width of each run of one background color. A cell that
+/// was not painted is black.
+fn runs(surface: &reactive_tui::core::surface::Surface, width: usize) -> Vec<(usize, usize)> {
+    let color = |x: usize| {
+        let background = surface.get(x, 0).bg;
+        [background.r, background.g, background.b].map(|channel| (channel * 255.0).round() as u8)
+    };
+    let mut runs: Vec<(usize, usize)> = Vec::new();
+    let mut open: Option<(usize, [u8; 3])> = None;
+    for x in 0..=width {
+        let here = (x < width)
+            .then(|| color(x))
+            .filter(|color| *color != [0, 0, 0]);
+        if let Some((start, painted)) = open {
+            if here != Some(painted) {
+                runs.push((start, x - start));
+                open = None;
+            }
+        }
+        if open.is_none() {
+            open = here.map(|painted| (x, painted));
+        }
+    }
+    runs
+}
+
+/// The older painter, which the debug backend uses for patched frames and
+/// the screen transitions use, reads its classes from a `NodeSpec`.
+#[test]
+fn lay_001_the_older_painter_keeps_the_gap_of_a_grid() {
+    use reactive_tui::core::surface::Surface;
+    use reactive_tui::layout::paint_tree::{layout_and_paint, NodeSpec};
+    use std::borrow::Cow;
+    let node = |class: String, children: Vec<NodeSpec<'static>>| NodeSpec {
+        class: Cow::from(class),
+        text: children.is_empty().then(|| Cow::from(" ")),
+        children,
+    };
+    for columns in 2..=6usize {
+        for gap in 1..=2usize {
+            for width in 40..=512usize {
+                let items = (0..columns)
+                    .map(|item| {
+                        let color = ["bg-blue-500", "bg-green-500"][item % 2];
+                        node(format!("min-w-0 h-1 {color}"), Vec::new())
+                    })
+                    .collect();
+                let root = node(
+                    "flex flex-row w-full h-full".into(),
+                    vec![
+                        node("w-1/3 h-1 shrink-0 bg-red-500".into(), Vec::new()),
+                        node(
+                            "flex flex-col flex-1 min-w-0 h-full".into(),
+                            vec![node(
+                                format!("w-full grid grid-cols-{columns} gap-{gap}"),
+                                items,
+                            )],
+                        ),
+                    ],
+                );
+                let mut surface = Surface::new(width, 4);
+                layout_and_paint(&root, &mut surface, width);
+                let what = format!("{columns} columns, gap {gap}, width {width}");
+                let painted = runs(&surface, width);
+                assert_eq!(painted.len(), columns + 1, "{what}: {painted:?}");
+                let third = painted[0];
+                assert_eq!(third.0, 0, "{what}: {painted:?}");
+                let row: Vec<Cells> = painted[1..]
+                    .iter()
+                    .map(|(left, width)| Cells {
+                        left: *left,
+                        top: 0,
+                        width: *width,
+                        height: 1,
+                    })
+                    .collect();
+                assert_row(&row, gap, (third.0 + third.1, width), &what);
+            }
+        }
+    }
+}
+
 fn style(class: &str) -> Style {
     apply_utility_classes(class, StyleBuilder::new()).build()
 }
@@ -663,9 +746,9 @@ fn geometry(nodes: &[PaintedNode]) -> Geometry {
 const PRESENTS: usize = 12;
 const IDLE_TURNS: usize = 400;
 
-/// Every presented frame's geometry, and how many frames were presented
-/// when the last click was sent.
-type Frames = Arc<Mutex<(Vec<Geometry>, usize)>>;
+/// Every presented frame's geometry, how many frames were presented when
+/// the last click was sent, and the text of the last frame.
+type Frames = Arc<Mutex<(Vec<Geometry>, usize, String)>>;
 
 /// A debug backend that clicks each text of a script once the frame shows
 /// it, then lets the App run until it has stopped presenting.
@@ -722,7 +805,9 @@ impl Backend for Settling {
     fn present(&mut self) -> Result<()> {
         self.inner.present()?;
         let nodes = self.inner.painted_nodes().unwrap_or_default();
-        self.frames.lock().unwrap().0.push(geometry(nodes));
+        let mut frames = self.frames.lock().unwrap();
+        frames.0.push(geometry(nodes));
+        frames.2 = self.inner.screen_content();
         Ok(())
     }
     fn resize(&mut self, width: usize, height: usize) {
@@ -778,6 +863,15 @@ fn settle(
     size: (u16, u16),
     script: &[&'static str],
 ) -> Vec<Geometry> {
+    settle_and_read(root, size, script).0
+}
+
+/// `settle`, and the text of the last frame.
+fn settle_and_read(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    script: &[&'static str],
+) -> (Vec<Geometry>, String) {
     let frames = Frames::default();
     let backend = Settling {
         inner: DebugBackend::new(size.0, size.1),
@@ -794,8 +888,8 @@ fn settle(
         .unwrap()
         .run()
         .unwrap();
-    let (all, from) = Arc::try_unwrap(frames).ok().unwrap().into_inner().unwrap();
-    all[from..].to_vec()
+    let (all, from, text) = Arc::try_unwrap(frames).ok().unwrap().into_inner().unwrap();
+    (all[from..].to_vec(), text)
 }
 
 /// LAY-004: every frame after the third has the third's geometry.
@@ -884,32 +978,55 @@ impl RootComponent for TableOf {
     }
 }
 
+/// The rows of `text` from the one that holds `first` to the one before the
+/// one that holds `last`, with the rows between them that hold no text.
+fn rows_between(text: &str, first: &str, last: &str) -> (usize, usize) {
+    let rows: Vec<&str> = text.lines().collect();
+    let from = rows
+        .iter()
+        .position(|row| row.contains(first))
+        .unwrap_or_else(|| panic!("no row holds {first:?}:\n{text}"));
+    let to = rows
+        .iter()
+        .position(|row| row.contains(last))
+        .unwrap_or_else(|| panic!("no row holds {last:?}:\n{text}"));
+    assert!(from < to, "{first:?} is not above {last:?}:\n{text}");
+    let empty = rows[from..to]
+        .iter()
+        .filter(|row| row.trim().is_empty())
+        .count();
+    (to - from, empty)
+}
+
 #[test]
 fn lay_004_a_panel_takes_the_rows_of_its_content() {
     // Two columns give the filter panel five rows: a row of buttons and a
-    // field for each, and the button that clears the filters.
-    let frames = settle(Table, (100, 60), &["Filters"]);
-    let tall: Vec<i64> = frames
-        .last()
-        .unwrap()
-        .iter()
-        .map(|node| node.1[3])
-        .collect();
-    assert!(
-        tall.contains(&5),
-        "no element is five rows tall with the filter panel open: {tall:?}"
+    // field for each, and the button that clears the filters. The table's
+    // frame, its header and its two rows come right below.
+    let (_, text) = settle_and_read(Table, (100, 60), &["Filters"]);
+    assert_eq!(
+        rows_between(&text, "Widget: contains", "Clear filters"),
+        (4, 0),
+        "the filter panel's rows above its last:\n{text}"
     );
-    // In a box of eight rows the panel takes half of them at most.
-    let frames = settle(TableOf(8), (100, 60), &["Filters"]);
-    let tall: Vec<i64> = frames
-        .last()
-        .unwrap()
-        .iter()
-        .map(|node| node.1[3])
-        .collect();
+    let (rows, empty) = rows_between(&text, "Clear filters", "Input");
+    assert_eq!(
+        empty, 0,
+        "{rows} rows from the panel's last row to the table's first, {empty} of them empty:\n{text}"
+    );
+    // The column panel has a row for each column.
+    let (_, text) = settle_and_read(Table, (100, 60), &["Filters", "Columns"]);
+    assert_eq!(
+        rows_between(&text, "[x] Widget", "Input").1,
+        0,
+        "empty rows under the column panel:\n{text}"
+    );
+    // In a box of eight rows a panel takes half of them at most: four of
+    // the filter panel's five rows show, and its last is scrolled to.
+    let (_, text) = settle_and_read(TableOf(8), (100, 60), &["Filters"]);
     assert!(
-        tall.contains(&4) && !tall.contains(&5),
-        "the filter panel is not held to half of eight rows: {tall:?}"
+        text.contains("Filter Widget") && !text.contains("Clear filters"),
+        "the filter panel is not held to half of eight rows:\n{text}"
     );
 }
 
