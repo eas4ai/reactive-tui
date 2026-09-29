@@ -80,12 +80,12 @@ pub fn apply_gap(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
 
     // Horizontal gap
     if let Some(px) = parse_spacing(token, "gap-x-") {
-        return Some(sb.gap_px(px, 0.0));
+        return Some(sb.gap_x_px(px));
     }
 
     // Vertical gap
     if let Some(px) = parse_spacing(token, "gap-y-") {
-        return Some(sb.gap_px(0.0, px));
+        return Some(sb.gap_y_px(px));
     }
 
     None
@@ -97,12 +97,12 @@ pub fn apply_space_between(token: &str, sb: StyleBuilder) -> Option<StyleBuilder
     if let Some(px) = parse_spacing(token, "space-x-") {
         // This would need special handling in the layout system
         // For now, we can approximate with gap
-        return Some(sb.gap_px(px, 0.0));
+        return Some(sb.gap_x_px(px));
     }
 
     // Vertical space between
     if let Some(px) = parse_spacing(token, "space-y-") {
-        return Some(sb.gap_px(0.0, px));
+        return Some(sb.gap_y_px(px));
     }
 
     None
@@ -152,8 +152,8 @@ mod tests {
         };
         let cells = LengthPercentage::length;
 
-        // Test all-sides padding (p-4 is 16 cells on the utility scale)
-        let result = apply_padding("p-4", sb).expect("CSS spacing test should succeed");
+        // Test all-sides padding (p-16 is 16 cells)
+        let result = apply_padding("p-16", sb).expect("CSS spacing test should succeed");
         assert_eq!(
             sides(&result.build()),
             (cells(16.0), cells(16.0), cells(16.0), cells(16.0))
@@ -161,14 +161,14 @@ mod tests {
 
         // Test directional padding
         let sb = StyleBuilder::new();
-        let result = apply_padding("px-2", sb).expect("CSS spacing test should succeed");
+        let result = apply_padding("px-8", sb).expect("CSS spacing test should succeed");
         assert_eq!(
             sides(&result.build()),
             (cells(8.0), cells(8.0), cells(0.0), cells(0.0))
         );
 
         let sb = StyleBuilder::new();
-        let result = apply_padding("py-8", sb).expect("CSS spacing test should succeed");
+        let result = apply_padding("py-32", sb).expect("CSS spacing test should succeed");
         assert_eq!(
             sides(&result.build()),
             (cells(0.0), cells(0.0), cells(32.0), cells(32.0))
@@ -180,7 +180,7 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test all-sides margin
-        let result = apply_margin("m-4", sb).expect("CSS spacing test should succeed");
+        let result = apply_margin("m-16", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
 
         // Test directional margin
@@ -189,7 +189,7 @@ mod tests {
         assert!(result.is_none()); // mx-auto needs special handling
 
         let sb = StyleBuilder::new();
-        let result = apply_margin("ml-2", sb).expect("CSS spacing test should succeed");
+        let result = apply_margin("ml-8", sb).expect("CSS spacing test should succeed");
         let _style = result.build();
     }
 
@@ -202,16 +202,16 @@ mod tests {
         let cells = LengthPercentage::length;
 
         // Test gap
-        let result = apply_gap("gap-4", sb).expect("CSS spacing test should succeed");
+        let result = apply_gap("gap-16", sb).expect("CSS spacing test should succeed");
         assert_eq!(gap(&result.build()), (cells(16.0), cells(16.0)));
 
         // Test directional gap
         let sb = StyleBuilder::new();
-        let result = apply_gap("gap-x-2", sb).expect("CSS spacing test should succeed");
+        let result = apply_gap("gap-x-8", sb).expect("CSS spacing test should succeed");
         assert_eq!(gap(&result.build()), (cells(8.0), cells(0.0)));
 
         let sb = StyleBuilder::new();
-        let result = apply_gap("gap-y-8", sb).expect("CSS spacing test should succeed");
+        let result = apply_gap("gap-y-32", sb).expect("CSS spacing test should succeed");
         assert_eq!(gap(&result.build()), (cells(0.0), cells(32.0)));
     }
 
@@ -230,9 +230,9 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test that the main function routes correctly
-        assert!(apply_spacing_utilities("p-4", sb.clone()).is_some());
-        assert!(apply_spacing_utilities("m-2", sb.clone()).is_some());
-        assert!(apply_spacing_utilities("gap-8", sb.clone()).is_some());
+        assert!(apply_spacing_utilities("p-16", sb.clone()).is_some());
+        assert!(apply_spacing_utilities("m-8", sb.clone()).is_some());
+        assert!(apply_spacing_utilities("gap-32", sb.clone()).is_some());
         assert!(apply_spacing_utilities("invalid", sb.clone()).is_none());
     }
 }

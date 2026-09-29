@@ -29,7 +29,7 @@ use reactive_tui::builder::*;
 let view = screen()
     .child(
         div()
-            .class("flex flex-col gap-1 p-1")
+            .class("flex flex-col gap-4 p-4")
             .child(h1().text("Status").build())
             .child(p().text("Ready").build())
             .build(),

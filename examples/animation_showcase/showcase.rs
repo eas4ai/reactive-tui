@@ -309,9 +309,7 @@ impl RootComponent for Showcase {
             .class("w-screen h-screen flex-col bg-black text-gray-200")
             .child(
                 div()
-                    .class(
-                        "w-full shrink-0 h-1 flex-row px-0.25 bg-gray-950 border-b border-gray-700",
-                    )
+                    .class("w-full shrink-0 h-1 flex-row px-0 bg-gray-950 border-b border-gray-700")
                     .child(
                         div()
                             .class("flex-1 text-cyan-300 font-bold")
@@ -335,7 +333,7 @@ impl RootComponent for Showcase {
             .child(stage)
             .child(
                 div()
-                    .class("w-full shrink-0 h-1 px-0.25 bg-gray-950 text-gray-500")
+                    .class("w-full shrink-0 h-1 px-0 bg-gray-950 text-gray-500")
                     .text(self.footer_text())
                     .build(),
             )

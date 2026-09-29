@@ -52,7 +52,7 @@ fn test_css_animation_integration_basic() {
             message: "Hello Animated World!".to_string(),
         },
     )
-    .with_class("animate-pulse bg-blue-500 p-4");
+    .with_class("animate-pulse bg-blue-500 p-16");
 
     // Convert to render node (this triggers component registration with CSS animations)
     let _render_node = element_to_render_node(element);

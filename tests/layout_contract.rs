@@ -101,6 +101,10 @@ impl Painted {
                     .all(|edge| edge.fract() == 0.0 && *edge >= 0.0),
                 "{what}: element {element} has bounds that are no whole cells: {bounds:?}"
             );
+            assert!(
+                bounds[2] > 0.0 && bounds[3] > 0.0,
+                "{what}: element {element} painted no cell: {bounds:?}"
+            );
             return Cells {
                 left: bounds[0] as usize,
                 top: bounds[1] as usize,
@@ -575,8 +579,8 @@ fn lay_003_a_full_span_adds_no_track() {
             "{what}: the item spans the grid"
         );
 
-        let mut items = vec![leaf("min-h-0 w-full row-span-full")];
-        items.extend((0..4).map(|_| leaf("min-h-0 w-full")));
+        let mut items = vec![leaf("min-w-0 min-h-0 row-span-full")];
+        items.extend((0..4).map(|_| leaf("min-w-0 min-h-0")));
         let class = "w-full h-full grid grid-cols-2 grid-rows-4";
         let root = spaced(LayoutType::Grid, class, 1, items);
         let what = format!("{painter:?}, row-span-full");
@@ -597,6 +601,16 @@ fn lay_003_a_full_span_adds_no_track() {
             (cells[1].top, cells[4].bottom()),
             (0, 19),
             "{what}: four rows fill the grid: {cells:?}"
+        );
+        assert_eq!(
+            (
+                cells[0].left,
+                cells[0].right(),
+                cells[1].left,
+                cells[1].right()
+            ),
+            (0, 10, 11, 21),
+            "{what}: the item takes one column and the rows the other: {cells:?}"
         );
     }
 }
@@ -805,6 +819,15 @@ fn assert_settled(frames: &[Geometry], what: &str) {
     }
 }
 
+fn table() -> Element {
+    data_table()
+        .column("Widget", "widget")
+        .column("State", "state")
+        .simple_row(vec![("widget", "Input"), ("state", "Ready")])
+        .simple_row(vec![("widget", "Layout"), ("state", "Ready")])
+        .build()
+}
+
 /// A data table in a box whose height follows its content, as a card's does.
 struct Table;
 impl RootComponent for Table {
@@ -814,14 +837,7 @@ impl RootComponent for Table {
             .child(
                 div()
                     .class("flex-col w-full shrink-0")
-                    .child(
-                        data_table()
-                            .column("Widget", "widget")
-                            .column("State", "state")
-                            .simple_row(vec![("widget", "Input"), ("state", "Ready")])
-                            .simple_row(vec![("widget", "Layout"), ("state", "Ready")])
-                            .build(),
-                    )
+                    .child(table())
                     .build(),
             )
             .build()
@@ -849,5 +865,71 @@ fn lay_004_a_catalog_page_settles() {
             let frames = settle(catalog, size, &[]);
             assert_settled(&frames, &format!("the catalog's {page:?} page at {size:?}"));
         }
+    }
+}
+
+/// A data table in a box of a given height.
+struct TableOf(u16);
+impl RootComponent for TableOf {
+    fn render(&self) -> Element {
+        div()
+            .class("flex-col w-full h-full")
+            .child(
+                div()
+                    .class(&format!("flex-col w-full shrink-0 h-{}", self.0))
+                    .child(table())
+                    .build(),
+            )
+            .build()
+    }
+}
+
+#[test]
+fn lay_004_a_panel_takes_the_rows_of_its_content() {
+    // Two columns give the filter panel five rows: a row of buttons and a
+    // field for each, and the button that clears the filters.
+    let frames = settle(Table, (100, 60), &["Filters"]);
+    let tall: Vec<i64> = frames
+        .last()
+        .unwrap()
+        .iter()
+        .map(|node| node.1[3])
+        .collect();
+    assert!(
+        tall.contains(&5),
+        "no element is five rows tall with the filter panel open: {tall:?}"
+    );
+    // In a box of eight rows the panel takes half of them at most.
+    let frames = settle(TableOf(8), (100, 60), &["Filters"]);
+    let tall: Vec<i64> = frames
+        .last()
+        .unwrap()
+        .iter()
+        .map(|node| node.1[3])
+        .collect();
+    assert!(
+        tall.contains(&4) && !tall.contains(&5),
+        "the filter panel is not held to half of eight rows: {tall:?}"
+    );
+}
+
+#[test]
+fn lay_003_auto_fit_makes_rows_of_a_least_height() {
+    for painter in PAINTERS {
+        let items = (0..8).map(|_| leaf("min-w-0 min-h-0")).collect();
+        let root = Element::layout(LayoutType::Grid)
+            .with_class("w-full h-full grid grid-flow-col grid-rows-auto-fit-3")
+            .with_children(items);
+        let what = format!("{painter:?}, grid-rows-auto-fit-3");
+        let cells = rectangles(&paint(painter, &root, (20, 13)), &root, &what);
+        let first_column = cells
+            .iter()
+            .filter(|item| item.left == cells[0].left)
+            .count();
+        assert_eq!(first_column, 4, "{what}: rows in 13 cells: {cells:?}");
+        assert!(
+            cells.iter().all(|item| item.height >= 3),
+            "{what}: a row lower than 3 cells: {cells:?}"
+        );
     }
 }

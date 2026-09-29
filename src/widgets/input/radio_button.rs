@@ -204,7 +204,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
         use crate::accessibility::{Node, Role, Toggled};
         let mut root = Element::layout(crate::component::LayoutType::Flex)
             .with_class(if props.orientation == RadioOrientation::Horizontal {
-                "flex flex-row gap-0.5 overflow-hidden"
+                "flex flex-row gap-2 overflow-hidden"
             } else {
                 "flex flex-col overflow-hidden"
             })

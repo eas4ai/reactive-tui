@@ -29,7 +29,7 @@ struct Root;
 
 impl RootComponent for Root {
     fn render(&self) -> Element {
-        div().class("p-1").text("Hello").build()
+        div().class("p-4").text("Hello").build()
     }
 }
 

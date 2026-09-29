@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn test_apply_utility_classes_multiple() {
         let sb = StyleBuilder::new();
-        let result = apply_utility_classes("flex flex-col items-center p-4", sb);
+        let result = apply_utility_classes("flex flex-col items-center p-16", sb);
         let style = result.build();
 
         // Should be flex with column direction
@@ -97,11 +97,11 @@ mod tests {
     #[test]
     fn test_apply_utility_classes_spacing() {
         let sb = StyleBuilder::new();
-        let result = apply_utility_classes("p-4 m-2 gap-8", sb);
+        let result = apply_utility_classes("p-16 m-8 gap-32", sb);
         let style = result.build();
 
         // Verify spacing utilities were actually applied to the style
-        // Check that padding was set (p-4 = 1rem = 16px in our system)
+        // Check that padding was set (p-16 is 16 cells)
         use taffy::geometry::Rect;
         let expected_padding = taffy::style::LengthPercentage::length(16.0);
         assert_eq!(
@@ -114,7 +114,7 @@ mod tests {
             }
         );
 
-        // Check that margin was set (m-2 = 0.5rem = 8px)
+        // Check that margin was set (m-8 is 8 cells)
         let expected_margin = taffy::style::LengthPercentageAuto::length(8.0);
         assert_eq!(
             style.margin,
@@ -126,7 +126,7 @@ mod tests {
             }
         );
 
-        // Check that gap was set (gap-8 = 2rem = 32px)
+        // Check that gap was set (gap-32 is 32 cells)
         use taffy::geometry::Size;
         let expected_gap = taffy::style::LengthPercentage::length(32.0);
         assert_eq!(
@@ -205,7 +205,7 @@ mod tests {
     fn test_apply_utility_classes_mixed() {
         let sb = StyleBuilder::new();
         let result = apply_utility_classes(
-            "flex flex-col items-center justify-center p-6 m-4 w-full h-screen bg-gray-100 text-gray-900 font-bold opacity-90 z-50",
+            "flex flex-col items-center justify-center p-24 m-16 w-full h-screen bg-gray-100 text-gray-900 font-bold opacity-90 z-50",
             sb
         );
         let style = result.build();

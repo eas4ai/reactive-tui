@@ -584,12 +584,12 @@ mod tests {
     #[test]
     fn test_node_spec_creation() {
         let spec = NodeSpec {
-            class: Cow::Borrowed("flex p-4"),
+            class: Cow::Borrowed("flex p-16"),
             text: Some(Cow::Borrowed("Hello")),
             children: vec![],
         };
 
-        assert_eq!(spec.class, "flex p-4");
+        assert_eq!(spec.class, "flex p-16");
         assert_eq!(spec.text, Some(Cow::Borrowed("Hello")));
         assert_eq!(spec.children.len(), 0);
     }
@@ -624,7 +624,7 @@ mod tests {
         let mut surface = Surface::new(80, 24);
 
         let spec = NodeSpec {
-            class: Cow::Borrowed("p-2"),
+            class: Cow::Borrowed("p-8"),
             text: Some(Cow::Borrowed("Test")),
             children: vec![],
         };
@@ -676,7 +676,7 @@ mod tests {
         let mut surface = Surface::new(100, 50);
 
         let spec = NodeSpec {
-            class: Cow::Borrowed("flex flex-col p-4"),
+            class: Cow::Borrowed("flex flex-col p-16"),
             text: None,
             children: vec![
                 NodeSpec {
@@ -685,7 +685,7 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: Cow::Borrowed("flex flex-row gap-2"),
+                    class: Cow::Borrowed("flex flex-row gap-8"),
                     text: None,
                     children: vec![
                         NodeSpec {

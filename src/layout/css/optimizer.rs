@@ -318,10 +318,10 @@ fn register_flexbox_utilities(registry: &mut HashMap<&'static str, UtilityEntry>
 fn register_static_spacing_utilities(registry: &mut HashMap<&'static str, UtilityEntry>) {
     // Only register common static spacing values
     let spacings = [
-        "p-0", "p-1", "p-2", "p-3", "p-4", "p-5", "p-6", "p-8", "m-0", "m-1", "m-2", "m-3", "m-4",
-        "m-5", "m-6", "m-8", "px-0", "px-1", "px-2", "px-3", "px-4", "py-0", "py-1", "py-2",
-        "py-3", "py-4", "mx-0", "mx-1", "mx-2", "mx-3", "mx-4", "my-0", "my-1", "my-2", "my-3",
-        "my-4", "m-auto", "mx-auto", "my-auto",
+        "p-0", "p-4", "p-8", "p-12", "p-16", "p-20", "p-24", "p-32", "m-0", "m-4", "m-8", "m-12",
+        "m-16", "m-20", "m-24", "m-32", "px-0", "px-4", "px-8", "px-12", "px-16", "py-0", "py-4",
+        "py-8", "py-12", "py-16", "mx-0", "mx-4", "mx-8", "mx-12", "mx-16", "my-0", "my-4", "my-8",
+        "my-12", "my-16", "m-auto", "mx-auto", "my-auto",
     ];
 
     for spacing in spacings {
@@ -565,46 +565,9 @@ fn apply_margin_y_dynamic(token: &str, sb: StyleBuilder) -> Option<StyleBuilder>
     None
 }
 
-/// Parse utility spacing scale to pixel values
+/// The cells the number of a padding or margin class asks for.
 fn parse_spacing_value(value: &str) -> Option<f32> {
-    match value {
-        "0" => Some(0.0),
-        "px" => Some(1.0),
-        "0.5" => Some(2.0),
-        "1" => Some(4.0),
-        "1.5" => Some(6.0),
-        "2" => Some(8.0),
-        "2.5" => Some(10.0),
-        "3" => Some(12.0),
-        "3.5" => Some(14.0),
-        "4" => Some(16.0),
-        "5" => Some(20.0),
-        "6" => Some(24.0),
-        "7" => Some(28.0),
-        "8" => Some(32.0),
-        "9" => Some(36.0),
-        "10" => Some(40.0),
-        "11" => Some(44.0),
-        "12" => Some(48.0),
-        "14" => Some(56.0),
-        "16" => Some(64.0),
-        "20" => Some(80.0),
-        "24" => Some(96.0),
-        "28" => Some(112.0),
-        "32" => Some(128.0),
-        "36" => Some(144.0),
-        "40" => Some(160.0),
-        "44" => Some(176.0),
-        "48" => Some(192.0),
-        "52" => Some(208.0),
-        "56" => Some(224.0),
-        "60" => Some(240.0),
-        "64" => Some(256.0),
-        "72" => Some(288.0),
-        "80" => Some(320.0),
-        "96" => Some(384.0),
-        _ => value.parse::<f32>().ok(),
-    }
+    super::parsers::spacing_cells(value)
 }
 
 #[cfg(test)]
@@ -618,7 +581,7 @@ mod tests {
     #[test]
     fn test_fast_parsing() {
         let sb = StyleBuilder::new();
-        let classes = "flex flex-col justify-center items-center p-4 m-2";
+        let classes = "flex flex-col justify-center items-center p-16 m-8";
         let result = apply_utility_classes(classes, sb, None);
         // Every utility in the class list lands in the built style
         let style = result.build();
@@ -633,7 +596,7 @@ mod tests {
     #[test]
     fn test_cache_hit() {
         let sb = StyleBuilder::new();
-        let classes = "flex p-4";
+        let classes = "flex p-16";
 
         // First call - cache miss
         let _result1 = apply_utility_classes(classes, sb.clone(), None);
@@ -653,11 +616,11 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test padding
-        let result = apply_padding_dynamic("p-4", sb.clone());
+        let result = apply_padding_dynamic("p-16", sb.clone());
         assert!(result.is_some());
 
         // Test margin
-        let result = apply_margin_dynamic("m-2", sb);
+        let result = apply_margin_dynamic("m-8", sb);
         assert!(result.is_some());
     }
 

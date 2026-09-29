@@ -58,7 +58,7 @@ fn accordion_clicks_measured_custom_headers_and_not_expanded_content() {
     for size in [(36, 14), (64, 20)] {
         let make = || {
             Element::layout(LayoutType::Flex)
-                .with_class("flex flex-col p-1")
+                .with_class("flex flex-col p-4")
                 .with_child(
                     AccordionBuilder::new()
                         .animated(false)

@@ -261,18 +261,21 @@ impl LiveDataTable {
         row(buttons).with_key("toolbar")
     }
 
+    /// A panel as tall as its rows of content, and at most half as tall as
+    /// the table when the table's parent gives it a height. The limit is
+    /// the layout's, not a share of the table's last measured height: a
+    /// table whose height follows its content would grow with its panel,
+    /// and with two panels open without end (LAY-004).
     fn panel(&self, content: Element, key: &str) -> Element {
-        let (width, height) = self
+        let (width, _) = self
             .viewport
             .map_or((0.0, 0.0), |layout| layout.content_size());
+        let rows = content.children.len().max(1);
         ScrollViewBuilder::new(content)
             .scroll_x(false)
-            .viewport_size(
-                width.max(0.0) as usize,
-                (height.max(0.0) as usize / 2).max(1),
-            )
+            .viewport_size(width.max(0.0) as usize, rows)
             .render()
-            .with_class("w-full shrink-0")
+            .with_class("w-full shrink-0 max-h-1/2")
             .with_key(key)
     }
 

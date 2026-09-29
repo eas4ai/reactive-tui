@@ -214,7 +214,7 @@ pub struct Element {
     pub children: Vec<Element>,
     /// Optional unique key for efficient diffing
     pub key: Option<String>,
-    /// Optional utility-css style class (e.g., "flex flex-row p-2")
+    /// Optional utility-css style class (e.g., "flex flex-row p-8")
     pub class: Option<String>,
     /// Optional focus properties for declarative focus management
     pub focus: Option<super::focus::FocusProps>,
@@ -593,12 +593,12 @@ mod tests {
     fn test_element_builder_pattern() {
         let element = Element::component("Container")
             .with_key("main-container")
-            .with_class("flex flex-col p-4")
+            .with_class("flex flex-col p-16")
             .with_child(Element::text("Title"))
             .with_child(Element::text("Content"));
 
         assert_eq!(element.key, Some("main-container".to_string()));
-        assert_eq!(element.class, Some("flex flex-col p-4".to_string()));
+        assert_eq!(element.class, Some("flex flex-col p-16".to_string()));
         assert_eq!(element.children.len(), 2);
     }
 
@@ -606,12 +606,12 @@ mod tests {
     fn test_element_convenience_methods() {
         let element = Element::layout(LayoutType::Grid)
             .key("grid-layout")
-            .class("grid-cols-2 gap-4")
+            .class("grid-cols-2 gap-16")
             .child(Element::text("Cell 1"))
             .child(Element::text("Cell 2"));
 
         assert_eq!(element.key, Some("grid-layout".to_string()));
-        assert_eq!(element.class, Some("grid-cols-2 gap-4".to_string()));
+        assert_eq!(element.class, Some("grid-cols-2 gap-16".to_string()));
         assert_eq!(element.children.len(), 2);
     }
 

@@ -68,14 +68,13 @@ pub fn flex() -> ElementBuilder {
 
 /// Create a button-like element
 pub fn button() -> ElementBuilder {
-    div().class("px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer")
+    div().class("px-16 py-8 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer")
 }
 
 /// Create an editable single-line input. `text` supplies its initial value.
 pub fn input() -> ElementBuilder {
-    let mut builder = div().class(
-        "px-0.5 py-0.25 border border-gray-300 rounded focus:outline-none focus:border-blue-500",
-    );
+    let mut builder = div()
+        .class("px-2 py-0 border border-gray-300 rounded focus:outline-none focus:border-blue-500");
     builder.input = Some(crate::widgets::TextInputProps::default());
     builder
 }

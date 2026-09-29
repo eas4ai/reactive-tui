@@ -450,7 +450,7 @@ fn api_image_graphics_cell_pixels_padding_tint_and_layer_order_follow_the_painte
         },
     )
     .unwrap();
-    let mut image = picture(45, [0, 255, 255, 255], "absolute w-4 h-2 pl-1");
+    let mut image = picture(45, [0, 255, 255, 255], "absolute w-4 h-2 pl-4");
     // Padding utility uses four cells; an empty content box emits no graphics.
     present(&mut backend, &frame(vec![image.clone()]));
     assert!(payloads(&capture.take()).is_empty());

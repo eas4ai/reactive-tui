@@ -179,7 +179,7 @@ fn breadcrumb_clicks_use_presented_unicode_bounds_inside_padding() {
     for size in [(44, 20), (68, 24)] {
         let make = || {
             Element::layout(LayoutType::Flex)
-                .with_class("flex flex-col p-2")
+                .with_class("flex flex-col p-8")
                 .with_child(Element::typed::<Breadcrumb>(BreadcrumbProps {
                     segments: segments(),
                     show_icons: false,

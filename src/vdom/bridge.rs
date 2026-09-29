@@ -156,7 +156,7 @@ pub fn vdom_to_element(node: VNode) -> Element {
 /// Convenience macro: convert any VNode expression into an Element using vdom_to_element.
 ///
 /// Usage:
-///   let el = vdom!(h!("div", { class: "p-2" }, [VNode::text("Hello") ]));
+///   let el = vdom!(h!("div", { class: "p-8" }, [VNode::text("Hello") ]));
 #[macro_export]
 macro_rules! vdom {
     ($vnode_expr:expr) => {
@@ -199,13 +199,13 @@ mod tests {
     #[test]
     fn roundtrip_to_nodespec_keeps_class_and_children() {
         let v = VNode::element("flex")
-            .class("flex gap-2")
+            .class("flex gap-8")
             .child(VNode::text("A"))
             .child(VNode::text("B"))
             .build();
         let e = vdom_to_element(v);
         let ns = element_to_nodespec(&e);
-        assert_eq!(ns.class.as_ref(), "flex gap-2");
+        assert_eq!(ns.class.as_ref(), "flex gap-8");
         assert_eq!(ns.children.len(), 2);
     }
 }

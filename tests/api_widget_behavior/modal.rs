@@ -628,7 +628,7 @@ fn modal_border_and_region_styles_reach_actual_cells() {
         title: Some("TITLE".into()),
         footer: Some(Element::text("FOOT")),
         header_style: Some("text-blue-500".into()),
-        content_style: Some("p-0.5 text-red-500".into()),
+        content_style: Some("p-2 text-red-500".into()),
         footer_style: Some("text-green-500".into()),
         border: Border::default(),
         ..props()

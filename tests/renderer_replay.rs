@@ -31,7 +31,7 @@ impl RootComponent for Root {
 fn renderer_frames() -> Vec<(&'static str, (u16, u16), Element)> {
     let styled = |text: &str| {
         Element::layout(LayoutType::Flex)
-            .with_class("flex flex-col w-full h-full p-0.5 bg-blue-500")
+            .with_class("flex flex-col w-full h-full p-2 bg-blue-500")
             .with_children(vec![
                 Element::text(text).with_class("w-full h-1 text-red-500 font-bold")
             ])
@@ -47,7 +47,7 @@ fn renderer_frames() -> Vec<(&'static str, (u16, u16), Element)> {
             "nested_clip",
             (12, 8),
             Element::layout(LayoutType::Flex)
-                .with_class("flex flex-col w-full h-full p-0.5")
+                .with_class("flex flex-col w-full h-full p-2")
                 .with_children(vec![Element::layout(LayoutType::Flex)
                     .with_class("relative w-3 h-1 overflow-hidden")
                     .with_children(vec![
@@ -75,7 +75,7 @@ fn renderer_frames() -> Vec<(&'static str, (u16, u16), Element)> {
             "nested_background",
             (20, 10),
             Element::layout(LayoutType::Flex)
-                .with_class("flex flex-col w-full h-full p-0.5")
+                .with_class("flex flex-col w-full h-full p-2")
                 .with_children(vec![Element::layout(LayoutType::Flex)
                     .with_class("relative flex flex-col w-8 h-3 bg-green-500")
                     .with_children(vec![Element::text("child").with_class("w-full h-1")])]),

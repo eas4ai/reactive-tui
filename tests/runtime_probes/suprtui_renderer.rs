@@ -17,7 +17,7 @@ struct Counter {
 impl RootComponent for Counter {
     fn render(&self) -> Element {
         Element::layout(LayoutType::Flex)
-            .with_class("flex flex-col w-full h-full p-0.5 bg-blue-900")
+            .with_class("flex flex-col w-full h-full p-2 bg-blue-900")
             .with_children(vec![
                 Element::text("Reactive-TUI / SuprTUI")
                     .with_class("w-full h-1 text-cyan-300 font-bold"),

@@ -17,7 +17,7 @@ fn region_text(surface: &Surface, x0: usize, y0: usize, x1: usize, y1: usize) ->
 #[test]
 fn test_flex_row_layout() {
     let root = NodeSpec {
-        class: Cow::Borrowed("flex flex-row w-40 h-10 gap-2"),
+        class: Cow::Borrowed("flex flex-row w-40 h-10 gap-8"),
         text: None,
         children: vec![
             NodeSpec {
@@ -61,7 +61,7 @@ fn test_flex_row_layout() {
 #[test]
 fn test_flex_column_layout() {
     let root = NodeSpec {
-        class: Cow::Borrowed("flex flex-col w-20 h-15 gap-1"),
+        class: Cow::Borrowed("flex flex-col w-20 h-15 gap-4"),
         text: None,
         children: vec![
             NodeSpec {
@@ -138,7 +138,7 @@ fn test_justify_content() {
 #[test]
 fn test_grid_layout() {
     let root = NodeSpec {
-        class: Cow::Borrowed("grid grid-cols-3 gap-1 w-30 h-10"),
+        class: Cow::Borrowed("grid grid-cols-3 gap-4 w-30 h-10"),
         text: None,
         children: vec![
             NodeSpec {

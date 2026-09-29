@@ -145,7 +145,7 @@ fn grid_child_to_node_spec(child: &GridChild) -> NodeSpec<'static> {
     classes.push("min-w-80".to_string());
     classes.push("min-h-40".to_string());
     classes.push("flex-1".to_string());
-    classes.push("p-4".to_string());
+    classes.push("p-16".to_string());
     classes.push("flex".to_string());
     classes.push("items-center".to_string());
     classes.push("justify-center".to_string());
@@ -192,7 +192,7 @@ fn area_to_node_spec(area: &GridArea) -> NodeSpec<'static> {
     classes.push("min-w-80".to_string()); // Minimum width for visibility
     classes.push("min-h-40".to_string()); // Minimum height for visibility
     classes.push("flex-1".to_string()); // Grow to fill available space
-    classes.push("p-4".to_string()); // Padding for better appearance
+    classes.push("p-16".to_string()); // Padding for better appearance
     classes.push("flex".to_string()); // Flexbox for centering
     classes.push("items-center".to_string()); // Center items vertically
     classes.push("justify-center".to_string()); // Center content horizontally

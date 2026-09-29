@@ -153,7 +153,7 @@ impl LiveBreadcrumb {
             .class(if props.compact {
                 "flex flex-row shrink-0"
             } else {
-                "flex flex-row shrink-0 px-1"
+                "flex flex-row shrink-0 px-4"
             })
             .children(children)
             .build()

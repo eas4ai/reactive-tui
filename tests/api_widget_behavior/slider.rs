@@ -51,7 +51,7 @@ fn slider_mouse_uses_padded_track_and_vertical_rows() {
             let callback = callback.clone();
             Slider::new(p).with_on_change(move |v| callback.lock().unwrap().push(v))
         })
-        .with_class("w-28 h-5 p-0.5");
+        .with_class("w-28 h-5 p-2");
         // 24 content cells: two focus cells, five min-label cells, brackets,
         // four max-label cells leave an 11-cell track from x=10 through x=20.
         let frames = run(Control(slider), size, vec![(1, click(20, 2)), (2, None)]);

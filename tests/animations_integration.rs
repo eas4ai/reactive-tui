@@ -16,7 +16,7 @@ mod tests {
 
         // Test Animation & Transition utilities
         let root = NodeSpec {
-            class: "flex flex-col gap-2 p-2".into(),
+            class: "flex flex-col gap-8 p-8".into(),
             text: None,
             children: vec![
                 // Header
@@ -32,21 +32,21 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: "flex flex-row gap-4".into(),
+                    class: "flex flex-row gap-16".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "transition-all duration-300 ease-in-out p-2 bg-blue-500".into(),
+                            class: "transition-all duration-300 ease-in-out p-8 bg-blue-500".into(),
                             text: Some("Transition All".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "transition-colors duration-150 p-2 bg-green-500".into(),
+                            class: "transition-colors duration-150 p-8 bg-green-500".into(),
                             text: Some("Transition Colors".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "transition-opacity duration-500 p-2 bg-purple-500".into(),
+                            class: "transition-opacity duration-500 p-8 bg-purple-500".into(),
                             text: Some("Transition Opacity".into()),
                             children: vec![],
                         },
@@ -59,31 +59,31 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: "flex flex-row gap-2".into(),
+                    class: "flex flex-row gap-8".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "duration-75 p-1 bg-red-400".into(),
+                            class: "duration-75 p-4 bg-red-400".into(),
                             text: Some("75ms".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "duration-150 p-1 bg-red-500".into(),
+                            class: "duration-150 p-4 bg-red-500".into(),
                             text: Some("150ms".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "duration-300 p-1 bg-red-600".into(),
+                            class: "duration-300 p-4 bg-red-600".into(),
                             text: Some("300ms".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "duration-500 p-1 bg-red-700".into(),
+                            class: "duration-500 p-4 bg-red-700".into(),
                             text: Some("500ms".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "duration-1000 p-1 bg-red-800".into(),
+                            class: "duration-1000 p-4 bg-red-800".into(),
                             text: Some("1000ms".into()),
                             children: vec![],
                         },
@@ -96,26 +96,26 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: "flex flex-row gap-4".into(),
+                    class: "flex flex-row gap-16".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "ease-linear p-2 bg-yellow-400".into(),
+                            class: "ease-linear p-8 bg-yellow-400".into(),
                             text: Some("Linear".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "ease-in p-2 bg-yellow-500".into(),
+                            class: "ease-in p-8 bg-yellow-500".into(),
                             text: Some("Ease In".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "ease-out p-2 bg-yellow-600".into(),
+                            class: "ease-out p-8 bg-yellow-600".into(),
                             text: Some("Ease Out".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "ease-in-out p-2 bg-yellow-700".into(),
+                            class: "ease-in-out p-8 bg-yellow-700".into(),
                             text: Some("Ease In-Out".into()),
                             children: vec![],
                         },
@@ -128,42 +128,42 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: "flex flex-row gap-3".into(),
+                    class: "flex flex-row gap-12".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "scale-75 p-2 bg-cyan-500".into(),
+                            class: "scale-75 p-8 bg-cyan-500".into(),
                             text: Some("Scale 75%".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "scale-100 p-2 bg-cyan-600".into(),
+                            class: "scale-100 p-8 bg-cyan-600".into(),
                             text: Some("Scale 100%".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "scale-125 p-2 bg-cyan-700".into(),
+                            class: "scale-125 p-8 bg-cyan-700".into(),
                             text: Some("Scale 125%".into()),
                             children: vec![],
                         },
                     ],
                 },
                 NodeSpec {
-                    class: "flex flex-row gap-3".into(),
+                    class: "flex flex-row gap-12".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "translate-x-2 p-2 bg-orange-500".into(),
+                            class: "translate-x-2 p-8 bg-orange-500".into(),
                             text: Some("Translate X".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "translate-y-1 p-2 bg-orange-600".into(),
+                            class: "translate-y-1 p-8 bg-orange-600".into(),
                             text: Some("Translate Y".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "transform-none p-2 bg-orange-700".into(),
+                            class: "transform-none p-8 bg-orange-700".into(),
                             text: Some("No Transform".into()),
                             children: vec![],
                         },
@@ -176,26 +176,26 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: "flex flex-row gap-4".into(),
+                    class: "flex flex-row gap-16".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "animate-pulse p-2 bg-pink-500".into(),
+                            class: "animate-pulse p-8 bg-pink-500".into(),
                             text: Some("Pulse".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "animate-bounce p-2 bg-pink-600".into(),
+                            class: "animate-bounce p-8 bg-pink-600".into(),
                             text: Some("Bounce".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "animate-spin p-2 bg-pink-700".into(),
+                            class: "animate-spin p-8 bg-pink-700".into(),
                             text: Some("Spin".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "animate-ping p-2 bg-pink-800".into(),
+                            class: "animate-ping p-8 bg-pink-800".into(),
                             text: Some("Ping".into()),
                             children: vec![],
                         },
@@ -208,21 +208,21 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: "flex flex-col gap-1".into(),
+                    class: "flex flex-col gap-4".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "hover:bg-blue-600 hover:text-white p-2 bg-blue-400".into(),
+                            class: "hover:bg-blue-600 hover:text-white p-8 bg-blue-400".into(),
                             text: Some("Hover Effects".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "active:bg-green-700 active:scale-95 p-2 bg-green-500".into(),
+                            class: "active:bg-green-700 active:scale-95 p-8 bg-green-500".into(),
                             text: Some("Active Effects".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "disabled:opacity-50 disabled:bg-gray-400 p-2 bg-red-500".into(),
+                            class: "disabled:opacity-50 disabled:bg-gray-400 p-8 bg-red-500".into(),
                             text: Some("Disabled Effects".into()),
                             children: vec![],
                         },
@@ -235,26 +235,26 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: "flex flex-col gap-1".into(),
+                    class: "flex flex-col gap-4".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "first:border-t-2 first:font-bold p-1 bg-gray-200".into(),
+                            class: "first:border-t-2 first:font-bold p-4 bg-gray-200".into(),
                             text: Some("First Item".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "odd:bg-gray-100 even:bg-gray-300 p-1".into(),
+                            class: "odd:bg-gray-100 even:bg-gray-300 p-4".into(),
                             text: Some("Odd/Even Item 1".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "odd:bg-gray-100 even:bg-gray-300 p-1".into(),
+                            class: "odd:bg-gray-100 even:bg-gray-300 p-4".into(),
                             text: Some("Odd/Even Item 2".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "last:border-b-2 last:font-bold p-1 bg-gray-200".into(),
+                            class: "last:border-b-2 last:font-bold p-4 bg-gray-200".into(),
                             text: Some("Last Item".into()),
                             children: vec![],
                         },
@@ -267,16 +267,16 @@ mod tests {
                     children: vec![],
                 },
                 NodeSpec {
-                    class: "group p-2 bg-indigo-100".into(),
+                    class: "group p-8 bg-indigo-100".into(),
                     text: None,
                     children: vec![
                         NodeSpec {
-                            class: "group-hover:text-white group-hover:bg-indigo-600 p-1".into(),
+                            class: "group-hover:text-white group-hover:bg-indigo-600 p-4".into(),
                             text: Some("Group Hover Child".into()),
                             children: vec![],
                         },
                         NodeSpec {
-                            class: "group-focus:visible group-focus:bg-indigo-500 p-1".into(),
+                            class: "group-focus:visible group-focus:bg-indigo-500 p-4".into(),
                             text: Some("Group Focus Child".into()),
                             children: vec![],
                         },
@@ -312,7 +312,7 @@ mod tests {
             rendered.push('\n');
         }
         // The 30-row surface shows the header and the first section label;
-        // the gap-2 column pushes the later sections below the viewport.
+        // the gap-8 column pushes the later sections below the viewport.
         for expected in ["Animation &", "Transition Examples:"] {
             assert!(
                 rendered.contains(expected),

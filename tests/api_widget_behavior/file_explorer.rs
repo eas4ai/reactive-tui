@@ -600,7 +600,7 @@ fn explorer_uses_padded_parent_layout_and_handles_resize() {
             .build()
             .auto_focus();
         let element = Element::layout(LayoutType::Flex)
-            .with_class("flex-col pl-1 pt-1")
+            .with_class("flex-col pl-4 pt-4")
             .with_children(vec![explorer]);
         run_when(
             Notifications {

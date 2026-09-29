@@ -90,7 +90,7 @@ pub mod docs {
         screen()
             .children(vec![
                 header()
-                    .class("bg-blue-600 text-white p-4")
+                    .class("bg-blue-600 text-white p-16")
                     .child(h1().text("My App").build())
                     .build(),
                 div()
@@ -116,7 +116,7 @@ pub mod docs {
                     ])
                     .build(),
                 footer()
-                    .class("bg-gray-100 p-4 text-center")
+                    .class("bg-gray-100 p-16 text-center")
                     .child(text("© 2024 My App"))
                     .build(),
             ])

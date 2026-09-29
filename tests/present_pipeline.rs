@@ -81,7 +81,7 @@ impl Writer {
 
 fn frame(text: &str) -> Element {
     Element::layout(LayoutType::Flex)
-        .with_class("flex flex-col w-full h-full p-0.5 bg-blue-500")
+        .with_class("flex flex-col w-full h-full p-2 bg-blue-500")
         .with_children(vec![
             Element::text(text).with_class("w-full h-1 text-red-500 font-bold")
         ])
@@ -90,7 +90,7 @@ fn frame(text: &str) -> Element {
 /// A frame whose child is narrower, so its painted geometry differs.
 fn narrow_frame(text: &str) -> Element {
     Element::layout(LayoutType::Flex)
-        .with_class("flex flex-col w-full h-full p-0.5 bg-blue-500")
+        .with_class("flex flex-col w-full h-full p-2 bg-blue-500")
         .with_children(vec![
             Element::text(text).with_class("w-6 h-1 text-red-500 font-bold")
         ])

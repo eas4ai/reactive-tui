@@ -80,7 +80,7 @@ impl RootComponent for Gallery {
             .class("w-screen h-screen flex-col bg-black text-gray-200")
             .child(
                 div()
-                    .class("w-full shrink-0 h-1 flex-row px-0.25 bg-gray-950")
+                    .class("w-full shrink-0 h-1 flex-row px-0 bg-gray-950")
                     .child(
                         div()
                             .class("flex-1 text-cyan-300 font-bold")
@@ -97,7 +97,7 @@ impl RootComponent for Gallery {
             )
             .child(
                 div()
-                    .class("w-full shrink-0 h-1 px-0.25 text-cyan-300")
+                    .class("w-full shrink-0 h-1 px-0 text-cyan-300")
                     .text(&renderer)
                     .build(),
             )
@@ -109,7 +109,7 @@ impl RootComponent for Gallery {
             )
             .child(
                 div()
-                    .class("w-full shrink-0 h-1 px-0.25 bg-gray-950 text-gray-500")
+                    .class("w-full shrink-0 h-1 px-0 bg-gray-950 text-gray-500")
                     .text("←/→ scene · 1–9 jump · Ctrl+Q quit")
                     .build(),
             )

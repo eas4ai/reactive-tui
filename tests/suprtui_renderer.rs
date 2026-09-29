@@ -108,7 +108,7 @@ impl Capture {
 
 fn frame(text: &str) -> Element {
     Element::layout(LayoutType::Flex)
-        .with_class("flex flex-col w-full h-full p-0.5 bg-blue-500")
+        .with_class("flex flex-col w-full h-full p-2 bg-blue-500")
         .with_children(vec![
             Element::text(text).with_class("w-full h-1 text-red-500 font-bold")
         ])
@@ -246,7 +246,7 @@ fn rnd_002_nested_absolute_text_obeys_ancestor_clip() {
     let out = Capture::default();
     let mut backend = SuprTuiBackend::with_writer(12, 8, out.clone()).unwrap();
     let root = Element::layout(LayoutType::Flex)
-        .with_class("flex flex-col w-full h-full p-0.5")
+        .with_class("flex flex-col w-full h-full p-2")
         .with_children(vec![Element::layout(LayoutType::Flex)
             .with_class("relative w-3 h-1 overflow-hidden")
             .with_children(vec![
@@ -326,7 +326,7 @@ fn rnd_001_nested_layout_keeps_children_above_their_parent_background() {
     let out = Capture::default();
     let mut backend = SuprTuiBackend::with_writer(20, 10, out.clone()).unwrap();
     let root = Element::layout(LayoutType::Flex)
-        .with_class("flex flex-col w-full h-full p-0.5")
+        .with_class("flex flex-col w-full h-full p-2")
         .with_children(vec![Element::layout(LayoutType::Flex)
             .with_class("relative flex flex-col w-8 h-3 bg-green-500")
             .with_children(vec![Element::text("child").with_class("w-full h-1")])]);

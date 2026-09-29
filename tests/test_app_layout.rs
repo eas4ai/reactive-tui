@@ -7,7 +7,7 @@ struct TestLayoutComponent;
 impl RootComponent for TestLayoutComponent {
     fn render(&self) -> Element {
         div()
-            .class("flex flex-col w-40 h-10 gap-2")
+            .class("flex flex-col w-40 h-10 gap-8")
             .children(vec![
                 div()
                     .class("absolute left-10 top-3 w-8 h-1")

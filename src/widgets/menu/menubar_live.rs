@@ -152,7 +152,7 @@ impl Component for MenuBarRuntime {
         }
         let mut bar = vec![];
         if let Some(title) = &props.config.title {
-            bar.push(Element::text(title).with_class("px-1 font-bold"));
+            bar.push(Element::text(title).with_class("px-4 font-bold"));
         }
         bar.extend(
             self.menu

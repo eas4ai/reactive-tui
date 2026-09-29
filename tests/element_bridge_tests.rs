@@ -21,10 +21,10 @@ fn layout_default_class_mapping() {
 
 #[test]
 fn element_with_class_overrides_default() {
-    let el = Element::layout(LayoutType::Flex).with_class("flex items-center p-2");
+    let el = Element::layout(LayoutType::Flex).with_class("flex items-center p-8");
     let ns = element_to_nodespec(&el);
     assert_eq!(
         ns.class,
-        Cow::<str>::Owned("flex items-center p-2".to_string())
+        Cow::<str>::Owned("flex items-center p-8".to_string())
     );
 }
