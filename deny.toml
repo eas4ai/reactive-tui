@@ -32,6 +32,9 @@ allow = [
     "Unicode-3.0",
     "Unicode-DFS-2016",
     "Zlib",
+    # Reactive TUI's own crates: the MIT grant with the framework rider and
+    # the sponsorship rider, under a license name of its own (see LICENSE).
+    "LicenseRef-ReactiveTUI-1.0",
 ]
 exceptions = [
     # bindgen only, approved by the developer on 2026-09-26: libghostty-vt-sys's

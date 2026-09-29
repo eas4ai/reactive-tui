@@ -5,6 +5,14 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- Changed the license from the MIT License to The Reactive TUI License,
+  Version 1.0 (`LICENSE`, SPDX `LicenseRef-ReactiveTUI-1.0`): the MIT License
+  with two riders. Offering Reactive TUI or a copy of it to developers as a
+  framework needs a Framework License, and an organization that earns money
+  from software built with Reactive TUI and has revenue above USD 1,000,000
+  a year must sponsor the project. Versions published under the MIT License
+  alone stay under it.
+
 ## [1.0.0] - Unreleased
 
 - Vendored the companion crates under `crates/` as path-only workspace

@@ -163,6 +163,14 @@ Releases follow semantic versioning:
 - **Issues**: Search existing issues or create a new one
 - **Discussions**: Use GitHub Discussions for questions
 
+## License of contributions
+
+Reactive TUI is licensed under The Reactive TUI License, Version 1.0
+([`LICENSE`](LICENSE)). Unless you say otherwise in writing, what you submit
+for inclusion is submitted under that license, and you also give the
+Licensor the right to license it to others under Framework Licenses and
+under other written terms (Section 6 of the license).
+
 ## Recognition
 
 Contributors are recognized in:
