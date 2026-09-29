@@ -165,6 +165,10 @@ cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion
 cargo run --locked --features wgpu-graphics --example widget_catalog -- --motion --graphics-fault software
 ```
 
+The first three faults leave the software renderer to draw. The `software`
+fault makes both renderers fail: the hardware renderer's first picture and
+every picture of the software renderer, so the canvas shows its message.
+
 ## The worker
 
 Each canvas draws on its own thread, named `rtui-canvas-` and a number. The
