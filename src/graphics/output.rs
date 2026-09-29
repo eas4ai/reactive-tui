@@ -41,17 +41,22 @@ impl CanvasOutput {
             .find(|output| output.name().eq_ignore_ascii_case(name.trim()))
     }
 
-    /// The output the environment names, if it names one.
+    /// The output the environment names, if it names one. The variable is
+    /// read once in a process, so a value that names no output is reported
+    /// once.
     pub(crate) fn from_environment() -> Option<Self> {
-        let value = std::env::var(Self::ENV).ok()?;
-        let named = Self::from_name(&value);
-        if named.is_none() && !value.trim().is_empty() {
-            log::warn!(
-                "{}={value:?} names no canvas output; use kitty, sixel or blocks",
-                Self::ENV
-            );
-        }
-        named
+        static NAMED: std::sync::OnceLock<Option<CanvasOutput>> = std::sync::OnceLock::new();
+        *NAMED.get_or_init(|| {
+            let value = std::env::var(Self::ENV).ok()?;
+            let named = Self::from_name(&value);
+            if named.is_none() && !value.trim().is_empty() {
+                log::warn!(
+                    "{}={value:?} names no canvas output; use kitty, sixel or blocks",
+                    Self::ENV
+                );
+            }
+            named
+        })
     }
 
     /// The output of a canvas: the environment's, else the application's,
