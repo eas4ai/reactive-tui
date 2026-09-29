@@ -87,8 +87,14 @@ fn run_scenario(scenario: &str) {
     if scenario == "theme-set" {
         crate::theme::Theme::set_active(crate::theme::high_contrast_theme());
     }
-    let backend = SuprTuiBackend::new().expect("the default backend on the pseudo-terminal");
-    if scenario == "caps" {
+    let backend = if scenario == "caps-named" {
+        // An application that names what the terminal takes: no pictures.
+        SuprTuiBackend::new_with_images(crate::backend::ImageOutputOptions::default())
+    } else {
+        SuprTuiBackend::new()
+    }
+    .expect("the default backend on the pseudo-terminal");
+    if scenario.starts_with("caps") {
         // The graphics support the backend settled on at startup (GFX-006).
         log(format!("CAPS {:?}", backend.images));
     }
@@ -1641,6 +1647,20 @@ fn gfx_006_a_terminal_that_answers_neither_keeps_the_environment() {
     assert!(
         caps.contains("sixel: true"),
         "GFX-006: TERM_PROGRAM=WezTerm with no graphics answer gave {caps:?}"
+    );
+}
+
+#[test]
+fn gfx_006_an_application_that_names_the_support_keeps_it() {
+    let terminal = graphics_terminal(Graphics::SharedMemory, SIXEL_ATTRIBUTES_REPLY);
+    let mut session = Session::start_with("caps-named", "PROBE", terminal);
+    let caps = capabilities(&mut session);
+    assert!(
+        caps.contains("kitty_graphics: false")
+            && caps.contains("kitty_shared_memory: false")
+            && caps.contains("sixel: false"),
+        "GFX-006: an application that named no picture support, on a terminal that answers Kitty \
+         graphics, shared memory and Sixel, got {caps:?}"
     );
 }
 
