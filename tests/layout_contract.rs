@@ -763,7 +763,14 @@ fn lay_002_a_spacing_class_counts_cells() {
 #[test]
 fn lay_002_a_fraction_counts_as_the_next_whole_cell() {
     for prefix in SPACING {
-        for (number, cells) in [("0.25", 1.0), ("0.5", 1.0), ("1.5", 2.0), ("2.5", 3.0)] {
+        for (number, cells) in [
+            ("0.25", 1.0),
+            ("0.5", 1.0),
+            ("1.5", 2.0),
+            ("2.5", 3.0),
+            // A fraction smaller than an f32 holds beside the whole number.
+            ("2.00000001", 3.0),
+        ] {
             let class = format!("{prefix}-{number}");
             for length in lengths(prefix, &class) {
                 assert_eq!(length, cells, "{class}");
