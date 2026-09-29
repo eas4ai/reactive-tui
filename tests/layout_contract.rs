@@ -882,6 +882,24 @@ fn lay_003_a_full_span_adds_no_track() {
     }
 }
 
+/// A full span counts the tracks the grid's class names. The rows a grid
+/// adds for items beyond its columns are not among them, so in a grid with
+/// no `grid-rows-N` a full span down is one row, and it adds none.
+#[test]
+fn lay_003_a_full_span_counts_the_tracks_the_class_names() {
+    for painter in PAINTERS {
+        let mut items = vec![leaf("min-w-0 h-1 row-span-full")];
+        items.extend((0..5).map(|_| leaf("min-w-0 h-1")));
+        let root = spaced(LayoutType::Grid, "w-full grid grid-cols-2", 1, items);
+        let what = format!("{painter:?}, row-span-full without grid-rows");
+        let cells = rectangles(&paint(painter, &root, (21, 12)), &root, &what);
+        assert_eq!((cells[0].top, cells[0].height), (0, 1), "{what}: {cells:?}");
+        // Six items in two columns: three rows, a gap of one between them.
+        let tops: Vec<usize> = cells.iter().map(|item| item.top).collect();
+        assert_eq!(tops, [0, 0, 2, 2, 4, 4], "{what}: {cells:?}");
+    }
+}
+
 /// Classes are applied in the order they are written, so of two that set
 /// the same thing the later one decides.
 #[test]

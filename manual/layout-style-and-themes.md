@@ -63,8 +63,11 @@ height of 3 is 3 rows.
   their share of the container whatever their items hold. An item larger
   than its column does not widen the column; it reaches over the columns
   after it unless its own class cuts it, for example `overflow-hidden`.
-- `col-span-full` and `row-span-full` span every track of the grid they are
-  in.
+- `col-span-full` and `row-span-full` span every track the grid's class
+  names, from its first line to its last: the columns of `grid-cols-N`, the
+  rows of `grid-rows-N`. A grid adds rows for the items that do not fit its
+  columns, and a full span does not count those: in a grid with
+  `grid-cols-2` and no `grid-rows-N`, `row-span-full` spans one row.
 - `grid-cols-auto-fit-N` and `grid-cols-auto-fill-N` make as many columns of
   at least N cells as the container holds. `grid-rows-auto-fit-N` and
   `grid-rows-auto-fill-N` do the same for rows.
