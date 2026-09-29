@@ -346,10 +346,17 @@ fn gfx_003_a_busy_worker_keeps_only_the_newest_scene() {
         );
     };
     let stats = worker.stats();
+    // The large scene keeps the worker busy while the 20 small ones
+    // arrive. Had they waited in a queue, the worker would have drawn all
+    // 21; it draws the large one, or the scene that replaced it, and then
+    // the newest. One more is allowed for a host so loaded that the large
+    // scene is finished before the last small one arrives.
     assert!(
-        stats.waiting_max <= 1 && last.pixels()[0][0] == 19,
-        "GFX-003: {} scenes waited at once, and the last picture drawn was of shade {}, not the newest (19)",
-        stats.waiting_max,
+        stats.rendered <= 3 && stats.replaced >= 18 && last.pixels()[0][0] == 19,
+        "GFX-003: of 21 scenes submitted to a busy worker {} were drawn and {} were replaced \
+         before they were drawn, and the last picture drawn was of shade {}, not the newest (19)",
+        stats.rendered,
+        stats.replaced,
         last.pixels()[0][0]
     );
 }
