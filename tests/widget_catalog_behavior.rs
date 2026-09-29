@@ -550,21 +550,23 @@ fn feature_enabled_motion_fills_the_available_stage() {
 }
 
 /// GFX-008: the Motion page draws the cube through the canvas on the
-/// hardware adapter, and on the software renderer with `--cpu`'s option.
+/// hardware adapter, and on the software renderer with `--cpu`, each as
+/// the command line of the manual asks for it.
 #[cfg(feature = "wgpu-graphics")]
 #[test]
 // Tests that use the GPU take turns: one adapter serves them all.
 #[serial_test::serial(gpu)]
 fn gfx_008_the_motion_page_draws_the_cube_on_each_renderer() {
-    use reactive_tui::graphics::GraphicsOptions;
-    for (force_cpu, label) in [(true, "CPU fallback"), (false, "GPU")] {
-        let catalog = Catalog::with_graphics(
-            GraphicsOptions {
-                force_cpu,
-                ..Default::default()
-            },
-            true,
-        );
+    // A renderer's name begins its label; the reason of a fallback can
+    // hold the other's.
+    for (words, label, other) in [
+        (vec!["--motion", "--cpu"], "CPU fallback · ", "GPU · "),
+        (vec!["--motion"], "GPU · ", "CPU fallback"),
+    ] {
+        let (options, start_motion) =
+            catalog::graphics_from(words.iter().map(|word| word.to_string()))
+                .expect("options the manual names");
+        let catalog = Catalog::with_graphics(options, start_motion);
         let frames = app_input::run_when(catalog, (120, 40), vec![(label, None), (label, None)]);
         let last = frames.last().expect("frames");
         let blocks = last
@@ -573,9 +575,33 @@ fn gfx_008_the_motion_page_draws_the_cube_on_each_renderer() {
             .filter(|c| "▀▄█▌▐".contains(*c) || ('\u{1FB00}'..='\u{1FB3B}').contains(c))
             .count();
         assert!(
-            blocks > 100,
-            "GFX-008: the Motion page on the {label} renderer drew {blocks} block cells:\n{}",
+            blocks > 100 && !last.text.contains(other),
+            "GFX-008: the Motion page started with {words:?} drew {blocks} block cells, under a line that names the renderer:\n{}",
             last.text
         );
     }
+}
+
+/// GFX-008: the catalog reads every option the manual names, and refuses
+/// what it does not know.
+#[cfg(feature = "wgpu-graphics")]
+#[test]
+fn gfx_008_the_catalog_reads_its_command_line() {
+    use reactive_tui::graphics::GraphicsFault;
+    let read = |words: &[&str]| catalog::graphics_from(words.iter().map(|word| word.to_string()));
+    let plain = read(&[]).expect("no options");
+    assert!(!plain.0.force_cpu && plain.0.fault.is_none() && !plain.1);
+    for (name, fault) in [
+        ("adapter", GraphicsFault::Adapter),
+        ("device-loss", GraphicsFault::DeviceLoss),
+        ("readback", GraphicsFault::Readback),
+        ("software", GraphicsFault::Software),
+    ] {
+        let (options, start_motion) =
+            read(&["--motion", "--graphics-fault", name]).expect("a fault the manual names");
+        assert!(options.fault == Some(fault) && start_motion && !options.force_cpu);
+    }
+    assert!(read(&["--graphics-fault"]).is_err());
+    assert!(read(&["--graphics-fault", "gpu"]).is_err());
+    assert!(read(&["--fast"]).is_err());
 }
