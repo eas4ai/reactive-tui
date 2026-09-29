@@ -17,6 +17,9 @@ Clipboard hooks copy and read text through platform clipboard commands.
 - `Blitter`, `set_image_blitter` and `image_blitter` choose the block glyphs
   that cell fallback draws an image with.
 - `SuprTuiBackend::new_with_images` enables terminal image output options.
+  The terminal is sent the pictures the application names there and no
+  others. `SuprTuiBackend::new` reads the environment and, on Unix, asks the
+  terminal what it takes.
 - `use_clipboard` and `use_simple_clipboard` expose clipboard state and
   operations through hooks.
 - Platform image APIs detect and transmit Kitty, Sixel, and iTerm2 forms.
