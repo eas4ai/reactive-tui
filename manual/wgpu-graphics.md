@@ -102,10 +102,12 @@ hex color. A token takes the active theme's color when the scene is drawn.
 
 Text is drawn in the font the application supplies through
 `GraphicsOptions::font`. Without one, on Linux the canvas takes the first
-font file of `fc-match -s monospace` that it can read. On other systems, and
-when no such file can be read, it uses DejaVu Sans Mono, which the crate
-bundles. `FontSource::Bundled` selects the bundled font on every system, so
-a picture is the same everywhere.
+font file of `fc-match -s monospace` that it can read. Where that file is a
+collection of fonts (`.ttc`), it draws in the face fontconfig matched. On
+other systems, and when no such file can be read, it uses DejaVu Sans Mono,
+which the crate bundles. `FontSource::Bundled` selects the bundled font on
+every system, so a picture is the same everywhere. A font file the
+application names with `FontSource::File` is read as its first face.
 
 The canvas reads the font's outlines with the `skrifa` crate and draws
 them with its own rasterizer, without hinting. It does no shaping: each
