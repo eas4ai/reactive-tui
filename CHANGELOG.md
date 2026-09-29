@@ -27,6 +27,8 @@ This file records user-visible changes to Reactive TUI. The project follows
   take their share of the container whatever their items hold (each track
   is `minmax(0, 1fr)`). An item larger than its share widened its track
   before and pushed the tracks after it out.
+- **Breaking:** removed `layout::css::parsers::parse_spacing_pixels`, which
+  nothing called and which kept the scale of fours.
 - Fixed gaps between neighbouring boxes that were painted one cell too wide
   or too narrow when their container started at a fraction of a cell, for
   example beside a box of a third of the screen. A gap is painted with
