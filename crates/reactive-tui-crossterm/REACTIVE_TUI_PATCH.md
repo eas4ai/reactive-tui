@@ -28,7 +28,9 @@ the startup queries:
   `STARTUP_REPLIES_PENDING`, lets the parser read `ESC ] 11 ;` as the
   background reply (`InternalEvent::BackgroundColor`) instead of Alt+], and
   `ESC _ G` as a Kitty graphics reply (`InternalEvent::KittyGraphicsReply`)
-  instead of Alt+_.
+  instead of Alt+_. Alt+] or Alt+_ followed by any other byte is that key,
+  and the byte starts what comes next; when a read ends right after
+  `ESC ]` or `ESC _`, the parser waits for the next byte.
 - The Unix event sources parse again the bytes left after each event, so a
   key read in the same buffer as a reply stays apart from it.
 
