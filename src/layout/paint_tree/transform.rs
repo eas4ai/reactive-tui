@@ -2,6 +2,21 @@
 
 use crate::layout::motion::CellTransform;
 
+/// How far below the middle of a cell an edge still counts as the middle.
+/// An edge that the layout means to put at the middle of a cell, such as
+/// 31.5, arrives as 31.499998 after sums of `f32`, and would round down while
+/// the edge a gap away, 33.5, rounds up.
+const EDGE_TOLERANCE: f32 = 1.0 / 1024.0;
+
+/// The cell boundary nearest to the position `edge` in the layout, the
+/// middle of a cell counting as the boundary after it. The same position
+/// gives the same boundary wherever it is computed, and a position a whole
+/// number of cells further gives the boundary as many cells further, also
+/// across zero (LAY-001).
+pub(crate) fn cell_edge(edge: f32) -> f32 {
+    (edge + 0.5 + EDGE_TOLERANCE).floor()
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Affine {
     a: f32,

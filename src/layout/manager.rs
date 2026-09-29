@@ -2,6 +2,7 @@
 
 use crate::component::{Element, ElementType};
 use crate::error::{ReactiveError, Result};
+use crate::layout::paint_tree::cell_edge;
 use std::collections::{HashMap, HashSet};
 use taffy::{AvailableSpace, Display, FlexDirection, NodeId, Position, Size, Style, TaffyTree};
 
@@ -415,23 +416,29 @@ impl LayoutManager {
     /// Paint a node and its children
     fn paint_node(&mut self, node: NodeId, parent_x: f32, parent_y: f32) -> Result<()> {
         if let Some(meta) = self.meta.get(&node) {
-            let layout = meta.layout;
-
             // Check if node is absolutely positioned
             let style = self.taffy.style(node).unwrap();
             let is_absolute = matches!(style.position, taffy::style::Position::Absolute);
 
-            // Absolute elements use location directly, relative add parent offset
-            let x = if is_absolute {
-                layout.location.x
+            // Absolute elements use location directly, relative add parent offset.
+            // `origin` is where the box starts on the screen before rounding.
+            let unrounded = self.taffy.unrounded_layout(node);
+            let origin = if is_absolute {
+                (unrounded.location.x, unrounded.location.y)
             } else {
-                parent_x + layout.location.x
+                (
+                    parent_x + unrounded.location.x,
+                    parent_y + unrounded.location.y,
+                )
             };
-            let y = if is_absolute {
-                layout.location.y
-            } else {
-                parent_y + layout.location.y
-            };
+            // Every edge is rounded from its own position on the screen, so
+            // a box and its neighbour agree on each edge they share
+            // (LAY-001).
+            let x = cell_edge(origin.0);
+            let y = cell_edge(origin.1);
+            let mut layout = meta.layout;
+            layout.size.width = cell_edge(origin.0 + unrounded.size.width) - x;
+            layout.size.height = cell_edge(origin.1 + unrounded.size.height) - y;
 
             // Generate paint ops based on element type
             match &meta.element.element_type {
@@ -483,7 +490,7 @@ impl LayoutManager {
                 .to_vec();
 
             for child in children {
-                self.paint_node(child, x, y)?;
+                self.paint_node(child, origin.0, origin.1)?;
             }
         }
 

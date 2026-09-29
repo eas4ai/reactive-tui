@@ -382,7 +382,10 @@ fn lay_001_a_flex_row_and_a_flex_column_keep_their_gap() {
                         assert_row(&cells, gap, content(place, width.into(), &frame), &what);
                     }
                 }
-                for height in 10..=60u16 {
+                // The shortest column that holds the gaps and one row for
+                // each item.
+                let least = (items + (items - 1) * gap) as u16;
+                for height in least..=60 {
                     let children = (0..items).map(|_| leaf("flex-1 min-h-0 w-full")).collect();
                     let root = spaced(LayoutType::Flex, "flex-col w-full h-full", gap, children);
                     let frame = paint(painter, &root, (20, height));

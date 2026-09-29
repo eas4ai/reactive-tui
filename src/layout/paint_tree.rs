@@ -5,6 +5,7 @@ pub mod cells;
 pub(crate) mod suprtui;
 mod transform;
 use taffy::style::Overflow;
+pub(crate) use transform::cell_edge;
 /// Options for controlling paint behavior
 #[derive(Default)]
 pub struct PaintOptions {
@@ -480,7 +481,7 @@ fn collect_nodes_by_z_index(
     map: &HashMap<NodeId, NodePaint>,
     layers: &mut LayerMap,
 ) {
-    collect_nodes_by_z_index_recursive(taffy, node, map, layers, 0, 0);
+    collect_nodes_by_z_index_recursive(taffy, node, map, layers, (0.0, 0.0));
 }
 
 /// Recursively collect nodes with absolute positioning
@@ -489,27 +490,28 @@ fn collect_nodes_by_z_index_recursive(
     node: NodeId,
     map: &HashMap<NodeId, NodePaint>,
     layers: &mut LayerMap,
-    parent_x: usize,
-    parent_y: usize,
+    parent: (f32, f32),
 ) {
-    if let Ok(layout) = taffy.layout(node) {
+    if taffy.layout(node).is_ok() {
         // Check if this node is absolutely positioned
         let style = taffy.style(node).unwrap();
         let is_absolute = matches!(style.position, taffy::style::Position::Absolute);
 
-        // For absolute positioning, use location directly; for relative, add parent offset
-        let x = if is_absolute {
-            layout.location.x.max(0.0) as usize
-        } else {
-            parent_x + layout.location.x.max(0.0) as usize
-        };
-        let y = if is_absolute {
-            layout.location.y.max(0.0) as usize
-        } else {
-            parent_y + layout.location.y.max(0.0) as usize
-        };
-        let w = layout.size.width.max(0.0) as usize;
-        let h = layout.size.height.max(0.0) as usize;
+        // For absolute positioning, use location directly; for relative, add parent offset.
+        // `origin` is where the box starts on the screen before rounding.
+        let layout = taffy.unrounded_layout(node);
+        let base = if is_absolute { (0.0, 0.0) } else { parent };
+        let origin = (
+            base.0 + layout.location.x.max(0.0),
+            base.1 + layout.location.y.max(0.0),
+        );
+        // Every edge is rounded from its own position on the screen, so a
+        // box and its neighbour agree on each edge they share (LAY-001).
+        let (left, top) = (cell_edge(origin.0), cell_edge(origin.1));
+        let x = left as usize;
+        let y = top as usize;
+        let w = (cell_edge(origin.0 + layout.size.width) - left).max(0.0) as usize;
+        let h = (cell_edge(origin.1 + layout.size.height) - top).max(0.0) as usize;
 
         // Debug output for tests (disabled in production)
         #[cfg(test)]
@@ -520,8 +522,8 @@ fn collect_nodes_by_z_index_recursive(
                 y,
                 w,
                 h,
-                parent_x,
-                parent_y,
+                cell_edge(parent.0),
+                cell_edge(parent.1),
                 map.get(&node).and_then(|np| np.text.as_ref()).is_some()
             );
         }
@@ -535,7 +537,7 @@ fn collect_nodes_by_z_index_recursive(
         // Recurse to children with updated absolute position
         if let Ok(children) = taffy.children(node) {
             for child in children {
-                collect_nodes_by_z_index_recursive(taffy, child, map, layers, x, y);
+                collect_nodes_by_z_index_recursive(taffy, child, map, layers, origin);
             }
         }
     }
