@@ -166,20 +166,31 @@ pub struct SuprTuiBackend {
 }
 
 impl SuprTuiBackend {
-    /// Enter raw mode and the alternate screen on stdout.
+    /// Enter raw mode and the alternate screen on stdout. The pictures the
+    /// terminal takes are what the environment says and, on Unix, what the
+    /// terminal answers at startup (GFX-006).
     pub fn new() -> Result<Self> {
         let caps = crate::core::capabilities::TerminalQuery::detect_from_env();
-        Self::new_with_images(ImageOutputOptions {
+        let images = ImageOutputOptions {
             kitty_graphics: caps.kitty_graphics,
             sixel: caps.sixel,
             iterm2_inline: caps.iterm2_graphics,
             ..Default::default()
-        })
+        };
+        Self::enter(images, true)
     }
 
-    /// Enter an interactive terminal with caller-confirmed graphics support.
-    /// Physical cell dimensions are refreshed from the terminal when available.
-    pub fn new_with_images(mut images: ImageOutputOptions) -> Result<Self> {
+    /// Enter an interactive terminal with caller-confirmed graphics support:
+    /// the terminal is sent the pictures `images` names and no others,
+    /// whatever it answers at startup. Physical cell dimensions are
+    /// refreshed from the terminal when available.
+    pub fn new_with_images(images: ImageOutputOptions) -> Result<Self> {
+        Self::enter(images, false)
+    }
+
+    /// Enter the terminal. `asked` says whether what the terminal answers
+    /// about pictures adds to `images`.
+    fn enter(mut images: ImageOutputOptions, asked: bool) -> Result<Self> {
         let (width, height) = crossterm::terminal::size()?;
         let raw_mode = RawMode::enter()?;
         images.refresh_cell_pixels();
@@ -192,9 +203,11 @@ impl SuprTuiBackend {
         follow_terminal_background(replies.background);
         // What the terminal answered adds to what the environment said; a
         // terminal that answers nothing keeps the environment's (GFX-006).
-        images.kitty_graphics |= replies.kitty_graphics;
-        images.kitty_shared_memory = images.kitty_graphics && replies.kitty_shared_memory;
-        images.sixel |= replies.sixel;
+        if asked {
+            images.kitty_graphics |= replies.kitty_graphics;
+            images.kitty_shared_memory = images.kitty_graphics && replies.kitty_shared_memory;
+            images.sixel |= replies.sixel;
+        }
         let session = Session::ScreenAndInput {
             kitty: replies.keyboard.is_some(),
         };
