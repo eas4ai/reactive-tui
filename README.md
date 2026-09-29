@@ -88,7 +88,7 @@ struct Root;
 impl RootComponent for Root {
     fn render(&self) -> Element {
         div()
-            .class("flex-col w-full h-full p-1 bg-blue-900")
+            .class("flex-col w-full h-full p-4 bg-blue-900")
             .text("Hello, Reactive TUI!")
             .build()
     }

@@ -5,6 +5,25 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- **Breaking:** the number in a padding, margin, gap or space class is a
+  count of cells, as in the width and height classes: `p-1` pads one cell
+  and `gap-2` leaves two. These classes counted in fours before: `p-1` was
+  four cells and `gap-4` sixteen. To keep the size of an existing class,
+  multiply its number by four. Whole numbers from 0 to 512 are accepted,
+  and a number with a fraction counts as the next whole number.
+- **Breaking:** `grid-cols-auto-fit-N`, `grid-cols-auto-fill-N` and their
+  row forms make as many tracks of at least N cells as the container holds.
+  They made N tracks before. `col-span-full` and `row-span-full` span the
+  grid they are in; they spanned twelve tracks before.
+- Fixed gaps between neighbouring boxes that were painted one cell too wide
+  or too narrow when their container started at a fraction of a cell, for
+  example beside a box of a third of the screen. A gap is painted with
+  exactly its number of cells at every width.
+- Fixed `gap-x-N`, `gap-y-N`, `space-x-N` and `space-y-N` setting the gap
+  of the other direction to zero. Added `StyleBuilder::gap_x_px`,
+  `gap_y_px`, `col_span_full` and `row_span_full`.
+- Fixed the data table growing taller on every layout while its filter and
+  column panels were open.
 - Changed the license from the MIT License to The Reactive TUI License,
   Version 1.0 (`LICENSE`, SPDX `LicenseRef-ReactiveTUI-1.0`): the MIT License
   with two riders. Offering Reactive TUI or a copy of it to developers as a
