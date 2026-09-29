@@ -12,8 +12,8 @@ which owns terminal setup, input, presentation and restoration. A debug
 backend renders into memory so behavior can be checked without a terminal.
 The crate ships a widget library (inputs, tables, trees, menus, dialogs,
 images, charts, an embedded terminal), an optional C ABI with a TypeScript
-binding, Linux screen-reader support over AT-SPI, and an offscreen wgpu
-graphics demo that canvas.md makes a canvas widget.
+binding, Linux screen-reader support over AT-SPI, and an optional graphics
+canvas drawn with wgpu (canvas.md).
 
 Version as recorded in Cargo.toml and git tags: 1.0.0, a source-only release
 with all companion crates marked publish = false. The README still describes
@@ -55,6 +55,7 @@ component library as closely as a cell grid allows.
 | presentation.md | PIP | pipelined presentation: geometry returned before the terminal write, one frame in flight, flush failure reporting |
 | input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging, the Kitty keyboard protocol, lock and media keys, terminal focus reports, suspend and resume, startup queries |
 | blitters.md | BLT | image fallback to block glyphs: half, quadrant, sextant, octant and braille blitters and their tier choice |
+| layout.md | LAY | gaps, grid tracks and spans in whole cells, the spacing classes' unit, the gap and grid classes, layout that settles |
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults and the demos |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
@@ -70,7 +71,8 @@ is contract.
   docs/recon.md section 8.
 - Components, elements, hooks, signals, scheduler, wake (src/component,
   src/reactive).
-- Layout, utility classes, themes (src/layout, src/theme).
+- Layout and utility classes other than layout.md's, and themes
+  (src/layout, src/theme).
 - Widgets other than charts (src/widgets).
 - Image protocols and terminal capability detection (src/widgets/display/image
   other than fallback, src/core/capabilities).

@@ -35,14 +35,14 @@ Terms as the code uses them. Each names where it is defined.
   channel, stopped by a flag and joined on drop, that publishes results
   through the AppWaker (src/backend/suprtui.rs:196, src/embedded/mod.rs:79).
 - **Chart.** The display widget that draws one or more DataSeries as bars,
-  lines, areas, pies or scatter points on a cell canvas
-  (src/widgets/display/charts.rs:513).
+  lines, areas, candles, pies, radar polygons, flows or scatter points on a
+  cell canvas (`Chart` in src/widgets/display/charts.rs).
 - **DataSeries.** A named list of DataPoints with a color, a line style and a
-  fill style (src/widgets/display/charts.rs:341-354).
+  fill style (`DataSeries` in src/widgets/display/charts.rs).
 - **Plot layer.** The shared scales, ticks, axes, grid, legend, labels and
-  tooltip that every chart type draws through. Planned; the name follows
-  gpui-kit's plot module. Today each chart type maps values privately
-  (src/widgets/display/charts/live/canvas/cartesian.rs:3-23).
+  tooltip that every chart type draws through
+  (src/widgets/display/charts/plot); the name follows gpui-kit's plot
+  module.
 - **CellGrid.** A widget-sized grid of interned glyphs with packed
   foreground and background colors, attached to an Element with
   `with_cells`; charts and image fallback hand their cells to the painter
@@ -52,15 +52,20 @@ Terms as the code uses them. Each names where it is defined.
   renderer, and shows it as pixels or block glyphs. Distinct from the chart's
   cell canvas.
 - **Hardware adapter.** A wgpu adapter whose device type is a discrete or
-  integrated GPU (src/graphics/mod.rs:286-289); WARP and lavapipe are
-  software adapters and do not count.
-- **Software renderer.** The CPU renderer that draws what the GPU would when
-  no hardware adapter is usable; today src/graphics/cpu.rs for the cube.
+  integrated GPU (`hardware_adapters` in src/graphics/gpu.rs); WARP and
+  lavapipe are software adapters and do not count.
+- **Software renderer.** The CPU renderer that draws every canvas scene the
+  GPU would when no hardware adapter is usable (src/graphics/cpu.rs).
 - **Glyph atlas.** A texture holding each glyph a CellGrid uses once, so the
   GPU draws the whole grid as one instanced draw.
-- **Cell canvas.** The chart's in-memory grid of glyphs and colors, painted
-  today as absolutely positioned text runs
-  (src/widgets/display/charts/live/canvas.rs:99-142).
+- **Cell canvas.** The chart's shared mask canvas, which resolves each cell
+  to a glyph and its colors (src/widgets/display/charts/mask.rs) and hands
+  them to the painter as a CellGrid.
+- **Cell.** One character position of the terminal's grid, the unit of
+  every length in the layout: a width of 24 is 24 cells across, a height
+  of 3 is 3 rows.
+- **Spacing class.** A padding, margin, gap or space class (`p-1`, `mx-2`,
+  `gap-1`, `space-y-1`); its number is a count of cells (layout.md).
 - **Theme.** Named color variables with presets that utility classes resolve
   against (src/theme/mod.rs:10-80).
 - **Kitty keyboard protocol.** Progressive keyboard enhancement flags a

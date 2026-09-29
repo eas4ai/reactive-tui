@@ -40,11 +40,11 @@ Falsifier: A delivered widget is absent from examples/widget_catalog, has no man
 Mechanism: catalog-manual
 Status: Agreed 2026-09-22
 
-[BAR-007] A commitment MUST NOT leave a document link, script input or test path, in any form including relative `../` links, that does not exist in the tree at its final commit.
-Falsifier: A tracked file references a repository path that `git ls-files` does not list.
+[BAR-007] A commitment MUST NOT leave a document link, script input or test path, in any form including relative `../` links, that does not exist in the tree at its final commit; a dated report (`docs/recon.md`, `docs/widget-study.md`) and a record of what was decided or printed on its day keep the paths they named and do not count.
+Falsifier: A tracked file that is neither a dated report nor such a record references a repository path that `git ls-files` does not list.
 Mechanism: dangling-paths
 Rationale: Whole-tree, not range-based: deleting a target strands references in files that did not change, which is how the README and a dozen scripts broke before this bar existed.
-Status: Agreed 2026-09-22
+Status: Agreed 2026-09-29
 
 [BAR-008] Every commitment MUST leave `cargo deny --workspace --locked check advisories bans licenses sources` passing at its final commit, against the RustSec advisory database as cargo deny fetches it on the day of the check, and every advisory ignore and bans skip entry in deny.toml MUST state its reason.
 Falsifier: The command exits non-zero at the commitment's final commit on a database fetched that day, or an advisory ignore, bans skip or skip-tree entry in deny.toml gives no reason.

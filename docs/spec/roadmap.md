@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: graphics-canvas
+Current: layout-cells
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -17,7 +17,10 @@ until input protocols, incremental layout and the graphics canvas are
 done. After keyboard-and-queries the developer put incremental layout
 next, then the graphics canvas. After incremental-layout-rows the developer
 confirmed the graphics canvas next and kept the charts in characters until
-the commitment after it.
+the commitment after it. On 2026-09-29, after the graphics canvas, the developer
+opened the widget work, which includes the charts ("charts are widgets are
+they not?"), asked for it to be measured against gpui-kit 0.7.0, and put
+the layout first, because every widget and every chart sits in it.
 
 ## charts-plot-layer
 
@@ -607,3 +610,43 @@ canvas-hosts, canvas-output, canvas-gates) has recorded a fail on a
 violating example, and the review records the developer's smoke test of the
 Motion page and the reference scenes on a Kitty or Sixel terminal.
 
+
+## layout-cells
+
+Requirements: LAY-001, LAY-002, LAY-003, LAY-004, BAR-001, BAR-002, BAR-004, BAR-005, BAR-007, BAR-008, BAR-009, BAR-010, PNT-001, PNT-002, PNT-004, PNT-005
+
+The first piece of the widget work. It takes in backlog item
+wide-grid-gap-collapse (3b93aecd) and the next-feature items
+data-table-panel-growth (b1947cfb), glossary-canvas-citations (62adabf0)
+and bar-007-dated-reports (9fe6d0d5). In the widget catalog on 2026-09-29,
+at 160 columns, the first two cards of a row touched and the third stood
+two cells off; a cell spanning a whole grid ended one cell short; and the
+data table's card grew on every layout while its filter and column panels
+were open.
+
+The commitment makes a gap the number of cells its class asks for, at every
+width, with equal tracks at most one cell apart and spanning items ending
+where their tracks end (LAY-001). The padding, margin, gap and space classes
+count in cells, as the width and height classes do (LAY-002): every such
+class in src, examples, tests, the manual and the README is rewritten to
+the number that paints what it painted before, so `p-1` becomes `p-4` and
+`gap-0.25` becomes `gap-1`, and no golden changes because of the unit.
+`gap-x-N` and `gap-y-N` keep the other direction, `col-span-full` spans the
+grid it is in, and the auto-fit and auto-fill classes make columns of at
+least the width they name (LAY-003). A layout settles within three presents (LAY-004):
+each panel of the data table takes the height of its content, up to half
+of the space the table's parent gives. BAR-007 carries the developer's
+ruling of 2026-09-29 on dated reports, and the path check leaves out the
+widget study as it does the recon. PNT-001, PNT-002, PNT-004 and PNT-005
+and the goldens of BAR-004 keep holding on the same checks.
+
+Widget sizes, widget colors and the charts are not part of this commitment.
+Each widget family is brought to the widget bar (BAR-003 to BAR-006) in a
+commitment of its own, where the defects found in it are fixed with it.
+
+Done when every named requirement passes; the new mechanism (layout) has
+recorded a fail on a violating example for each of its requirements; every
+golden that changed is regenerated and looked at; the manual's layout page
+states the unit and the changelog names its change as breaking; and the
+review records screenshots from Kitty of the catalog's Input, Layout and
+Data display pages at 100, 160, 240 and 400 columns.
