@@ -59,6 +59,10 @@ height of 3 is 3 rows.
 - A gap is painted with exactly its number of cells at every width. Grid
   columns of equal weight differ by one cell at most when the width does not
   divide evenly. An item that spans columns ends where its last column ends.
+- The columns of `grid-cols-N` and the rows of `grid-rows-N` each take
+  their share of the container whatever their items hold. An item larger
+  than its column does not widen the column; it reaches over the columns
+  after it unless its own class cuts it, for example `overflow-hidden`.
 - `col-span-full` and `row-span-full` span every track of the grid they are
   in.
 - `grid-cols-auto-fit-N` and `grid-cols-auto-fill-N` make as many columns of

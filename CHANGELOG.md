@@ -20,6 +20,10 @@ This file records user-visible changes to Reactive TUI. The project follows
   row forms make as many tracks of at least N cells as the container holds.
   They made N tracks before. `col-span-full` and `row-span-full` span the
   grid they are in; they spanned twelve tracks before.
+- **Breaking:** the columns of `grid-cols-N` and the rows of `grid-rows-N`
+  take their share of the container whatever their items hold (each track
+  is `minmax(0, 1fr)`). An item larger than its share widened its track
+  before and pushed the tracks after it out.
 - Fixed gaps between neighbouring boxes that were painted one cell too wide
   or too narrow when their container started at a fraction of a cell, for
   example beside a box of a third of the screen. A gap is painted with
