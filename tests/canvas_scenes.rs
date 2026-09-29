@@ -410,11 +410,41 @@ impl RootComponent for Root {
 }
 
 #[test]
-fn gfx_007_a_failing_software_renderer_shows_a_message_and_the_app_goes_on() {
-    let props = CanvasProps::new(Arc::new(canvas_support::shapes())).options(GraphicsOptions {
-        force_cpu: true,
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
+fn gfx_007_a_software_fault_fails_both_renderers() {
+    let scene = canvas_support::shapes();
+    let mut renderer = HybridRenderer::new(GraphicsOptions {
         fault: Some(GraphicsFault::Software),
-        ..reference_options(true)
+        ..reference_options(false)
+    });
+    let began = renderer.mode().clone();
+    let drawn: Vec<String> = (0..3)
+        .map(|_| match renderer.render(&scene, SIZE.0, SIZE.1) {
+            Ok(frame) => format!("a picture by {:?}", frame.mode()),
+            Err(error) => format!("error: {error}"),
+        })
+        .collect();
+    assert!(
+        matches!(began, GraphicsMode::Gpu(_))
+            && matches!(renderer.mode(), GraphicsMode::CpuFallback(_))
+            && drawn
+                .iter()
+                .all(|drawn| drawn.starts_with("error") && drawn.contains("software")),
+        "GFX-007: a renderer that began as {began:?} with a software fault injected drew {drawn:?} \
+         and ended as {:?}",
+        renderer.mode()
+    );
+}
+
+#[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
+fn gfx_007_a_failing_software_renderer_shows_a_message_and_the_app_goes_on() {
+    // The hardware renderer is tried first and fails too.
+    let props = CanvasProps::new(Arc::new(canvas_support::shapes())).options(GraphicsOptions {
+        fault: Some(GraphicsFault::Software),
+        ..reference_options(false)
     });
     let frames = app_input::run_when(
         Root(Element::typed::<Canvas>(props)),

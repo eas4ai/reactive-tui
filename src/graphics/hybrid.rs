@@ -44,7 +44,8 @@ pub enum GraphicsFault {
     DeviceLoss,
     /// Reading the picture back fails.
     Readback,
-    /// The software renderer fails.
+    /// Both renderers fail: the hardware renderer's first picture, where
+    /// the host has an adapter, and every picture of the software renderer.
     Software,
 }
 
@@ -265,11 +266,14 @@ impl HybridRenderer {
             .map_err(|panic| GraphicsError::Software(panic_text(panic)))?;
         let prepare = started.elapsed();
         if let Some(gpu) = &mut self.gpu {
-            let fault = self.fault.take();
+            // A hardware fault happens once. A software fault stays, for
+            // the software renderer that draws after the hardware one.
+            let software = self.fault == Some(GraphicsFault::Software);
+            let fault = self.fault.take_if(|_| !software);
             if fault == Some(GraphicsFault::DeviceLoss) {
                 gpu.lose_device();
             }
-            let fail_readback = fault == Some(GraphicsFault::Readback);
+            let fail_readback = software || fault == Some(GraphicsFault::Readback);
             let glyphs = &mut self.glyphs;
             let drawn = catch_unwind(AssertUnwindSafe(|| {
                 gpu.render(&draws, size, glyphs, fail_readback)
