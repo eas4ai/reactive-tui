@@ -234,6 +234,29 @@ fn gfx_001_linux_text_takes_fontconfigs_first_loadable_monospace() {
         &candidates[..candidates.len().min(4)],
         fonts::choose(None, &[])
     );
+    // The canvas's own way to its font: a renderer of an application that
+    // names none. The software renderer takes its font as the hardware one does.
+    let with_font = |font| GraphicsOptions {
+        force_cpu: true,
+        font,
+        ..Default::default()
+    };
+    let mut scene = Scene::new();
+    let white = Paint::solid(Color::rgba(255, 255, 255, 255));
+    scene.text((4.0, 4.0), 24.0, "Canvas 0O1l", &white);
+    let mut own = HybridRenderer::new(with_font(FontSource::Auto));
+    let mut named = HybridRenderer::new(with_font(expected.clone()));
+    let drawn = own.render(&scene, 320, 48).expect("a line of text");
+    let wanted = named.render(&scene, 320, 48).expect("a line of text");
+    let inked = drawn.pixels().iter().filter(|pixel| pixel[3] > 0).count();
+    assert!(
+        *own.font() == expected && drawn.pixels() == wanted.pixels() && inked > 0,
+        "GFX-001: fontconfig's first loadable font is {expected:?}; a canvas with no application \
+         font draws in {:?}, {} of its pixels differ from the text drawn in that font, and {inked} \
+         pixels hold ink",
+        own.font(),
+        unlike(drawn.pixels(), wanted.pixels())
+    );
 }
 
 #[test]
