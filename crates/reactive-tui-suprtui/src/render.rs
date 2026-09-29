@@ -1785,11 +1785,13 @@ fn thread_parity() {
 fn lifecycle_sequences() {
     let mut renderer = test_renderer(8, 3);
     renderer.setup_terminal(true);
-    assert!(renderer
-        .backend()
-        .direct_output()
-        .windows(8)
-        .any(|w| w == b"\x1b[?1049h"));
+    assert!(
+        renderer
+            .backend()
+            .direct_output()
+            .windows(8)
+            .any(|w| w == b"\x1b[?1049h")
+    );
     renderer.shutdown();
     let out = renderer.backend().direct_output().to_vec();
     assert!(out.windows(8).any(|w| w == b"\x1b[?1049l"));
@@ -1798,11 +1800,13 @@ fn lifecycle_sequences() {
     // the clear flag on homes and clears.
     let mut plain = test_renderer(8, 3);
     plain.setup_terminal(false);
-    assert!(!plain
-        .backend()
-        .direct_output()
-        .windows(8)
-        .any(|w| w == b"\x1b[?1049h"));
+    assert!(
+        !plain
+            .backend()
+            .direct_output()
+            .windows(8)
+            .any(|w| w == b"\x1b[?1049h")
+    );
     plain.shutdown();
     let plain_out = plain.backend().direct_output().to_vec();
     assert!(plain_out.windows(6).any(|w| w == b"\x1b[H\x1b[J"));
@@ -1812,28 +1816,33 @@ fn lifecycle_sequences() {
     noclear.set_clear_on_shutdown(false);
     noclear.setup_terminal(false);
     noclear.shutdown();
-    assert!(!noclear
-        .backend()
-        .direct_output()
-        .windows(6)
-        .any(|w| w == b"\x1b[H\x1b[J"));
+    assert!(
+        !noclear
+            .backend()
+            .direct_output()
+            .windows(6)
+            .any(|w| w == b"\x1b[H\x1b[J")
+    );
 
     // Suspend restores like shutdown; resume re-runs setup.
     let mut susp = test_renderer(8, 3);
     susp.setup_terminal(true);
     susp.suspend();
     assert!(susp.suspended());
-    assert!(susp
-        .backend()
-        .direct_output()
-        .windows(8)
-        .any(|w| w == b"\x1b[?1049l"));
+    assert!(
+        susp.backend()
+            .direct_output()
+            .windows(8)
+            .any(|w| w == b"\x1b[?1049l")
+    );
     let before = susp.backend().direct_output().len();
     susp.resume();
     assert!(!susp.suspended());
-    assert!(susp.backend().direct_output()[before..]
-        .windows(8)
-        .any(|w| w == b"\x1b[?1049h"));
+    assert!(
+        susp.backend().direct_output()[before..]
+            .windows(8)
+            .any(|w| w == b"\x1b[?1049h")
+    );
 }
 
 /// REN-008 falsifier: a hit answer comes from a failed frame, or an id
@@ -1970,7 +1979,7 @@ fn split_offset() {
 #[cfg(test)]
 #[test]
 fn image_fallback() {
-    use crate::buffer::{make_cell, ImagePlacement, ImageProtocol};
+    use crate::buffer::{ImagePlacement, ImageProtocol, make_cell};
     use crate::uni::segments::pack_image_cell;
     let mut renderer = test_renderer(8, 4);
     renderer.next_buffer().push_placement(ImagePlacement {
@@ -2004,9 +2013,11 @@ fn image_fallback() {
     let quadrant = char::from_u32(crate::buffer::draw::QUADRANT_CHARS[5])
         .unwrap()
         .to_string();
-    assert!(frame
-        .windows(quadrant.len())
-        .any(|w| w == quadrant.as_bytes()));
+    assert!(
+        frame
+            .windows(quadrant.len())
+            .any(|w| w == quadrant.as_bytes())
+    );
     assert!(!frame.windows(4).any(|w| w == b"\x1b_G"));
     assert_eq!(&[1], renderer.committed_images());
 
@@ -2015,9 +2026,11 @@ fn image_fallback() {
     renderer.set_kitty_supported(true);
     assert_eq!(RenderStatus::Rendered, renderer.render(true));
     let held = renderer.backend().frames()[1].clone();
-    assert!(!held
-        .windows(quadrant.len())
-        .any(|w| w == quadrant.as_bytes()));
+    assert!(
+        !held
+            .windows(quadrant.len())
+            .any(|w| w == quadrant.as_bytes())
+    );
 }
 
 /// REN-012: committed bytes arrive in order through a writer.
