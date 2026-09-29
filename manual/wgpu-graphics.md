@@ -133,7 +133,8 @@ To choose the output yourself, set `GraphicsOptions::output` to
 `CanvasOutput::Kitty`, `CanvasOutput::Sixel` or `CanvasOutput::Blocks`. The
 environment variable `REACTIVE_TUI_CANVAS` (`kitty`, `sixel` or `blocks`)
 wins over both, so a user can correct a terminal that reports what it cannot
-show.
+show. The variable is read once, when the first canvas is drawn. A value
+that names none of the three is logged as a warning and changes nothing.
 
 ## Renderers and faults
 
