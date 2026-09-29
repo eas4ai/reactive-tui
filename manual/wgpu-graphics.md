@@ -210,6 +210,9 @@ One worker serves one canvas. Both demos start theirs this way.
   size.
 - An image is at most 4096 by 4096 pixels.
 - A gradient keeps its first 16 stops.
+- A dash pattern draws at most 65 536 dashes on one line. A line that would
+  take more is drawn solid. So is a line whose pattern's lengths add up to
+  less than a quarter of a pixel of the picture, as a pattern of zeros is.
 - Text up to 96 pixels tall under a transform that only moves it is drawn
   from glyph bitmaps on whole pixels. Other text is drawn as filled
   outlines.
