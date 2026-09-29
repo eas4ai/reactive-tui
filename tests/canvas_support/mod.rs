@@ -225,6 +225,31 @@ pub fn gradients() -> Scene {
         &Path::ellipse(160.0, 96.0, 70.0, 40.0),
         &Paint::solid(rgb(255, 200, 0)).opacity(0.5),
     );
+    // Gradients with opacity, over both gradients below them.
+    scene.fill(
+        &Path::rounded_rect(16.0, 60.0, 96.0, 72.0, 12.0),
+        &Paint::linear(
+            (16.0, 60.0),
+            (112.0, 132.0),
+            vec![
+                GradientStop::new(0.0, rgb(0, 255, 255)),
+                GradientStop::new(1.0, rgb(255, 0, 255)),
+            ],
+        )
+        .opacity(0.6),
+    );
+    scene.fill(
+        &Path::ellipse(264.0, 96.0, 44.0, 44.0),
+        &Paint::radial(
+            (264.0, 96.0),
+            44.0,
+            vec![
+                GradientStop::new(0.0, rgb(255, 255, 0)),
+                GradientStop::new(1.0, rgb(0, 60, 255)),
+            ],
+        )
+        .opacity(0.4),
+    );
     scene
 }
 
@@ -250,7 +275,8 @@ pub fn image() -> Scene {
     scene
 }
 
-/// Text in the bundled monospace font at two sizes.
+/// Text in the bundled monospace font at two sizes, drawn from glyph
+/// bitmaps, and turned and stretched, drawn as filled outlines.
 pub fn text() -> Scene {
     let mut scene = Scene::new();
     scene.fill(
@@ -269,10 +295,36 @@ pub fn text() -> Scene {
         "canvas text 0123456789",
         &Paint::solid(rgb(120, 200, 255)),
     );
+    // Text under a transform that does more than move it is outlines. It
+    // is turned, or stretched, about its origin and then moved into place.
+    scene.push_transform(Transform::rotate(-12.0).then(Transform::translate(16.0, 180.0)));
+    scene.text(
+        (0.0, 0.0),
+        20.0,
+        "turned outline",
+        &Paint::solid(rgb(255, 180, 80)),
+    );
+    scene.pop_transform();
+    scene.push_transform(Transform::scale(1.0, 2.5).then(Transform::translate(210.0, 160.0)));
+    scene.text(
+        (0.0, 0.0),
+        16.0,
+        "tall Qg",
+        &Paint::linear(
+            (0.0, 0.0),
+            (100.0, 0.0),
+            vec![
+                GradientStop::new(0.0, rgb(120, 255, 160)),
+                GradientStop::new(1.0, rgb(255, 120, 200)),
+            ],
+        ),
+    );
+    scene.pop_transform();
     scene
 }
 
-/// A CellGrid of box drawing, blocks and letters, drawn through the glyph atlas.
+/// A CellGrid of box drawing, blocks and letters, some over a background
+/// color, drawn through the glyph atlas.
 pub fn cells() -> Scene {
     let mut grid = CellGrid::new(20, 6);
     let fg = (0.9, 0.9, 0.95, 1.0);
@@ -288,6 +340,19 @@ pub fn cells() -> Scene {
             Some((1.0, 0.8, 0.2, 1.0)),
         );
     }
+    // Cells with a background: a letter, a half block, which shows both
+    // colors, and an empty cell, which shows its background alone.
+    for (x, glyph) in "on ▀▌ bg".chars().enumerate() {
+        grid.set_with_background(
+            2 + x as u16,
+            3,
+            &glyph.to_string(),
+            Some((0.1, 0.1, 0.2, 1.0)),
+            Some((0.3, 0.8, 0.9, 1.0)),
+        );
+    }
+    grid.set_with_background(12, 3, " ", None, Some((0.8, 0.2, 0.4, 1.0)));
+    grid.set_with_background(13, 3, "x", None, Some((0.2, 0.2, 0.6, 0.5)));
     let mut scene = Scene::new();
     scene.fill(
         &Path::rect(0.0, 0.0, 320.0, 192.0),
@@ -297,7 +362,7 @@ pub fn cells() -> Scene {
     scene
 }
 
-/// Nested transforms and a clip.
+/// Nested transforms, a clip, and a clip inside a clip.
 pub fn transforms_and_clips() -> Scene {
     let mut scene = Scene::new();
     scene.fill(
@@ -318,6 +383,24 @@ pub fn transforms_and_clips() -> Scene {
     scene.fill(
         &Path::rect(0.0, 0.0, 120.0, 192.0),
         &Paint::solid(rgb(220, 40, 40)),
+    );
+    scene.pop_clip();
+    // A clip inside a clip shows only what both show.
+    scene.push_clip(&Path::rounded_rect(216.0, 100.0, 96.0, 84.0, 16.0));
+    scene.fill(
+        &Path::rect(200.0, 90.0, 120.0, 102.0),
+        &Paint::solid(rgb(250, 190, 40)),
+    );
+    scene.push_clip(&Path::ellipse(300.0, 142.0, 52.0, 34.0));
+    scene.fill(
+        &Path::rect(200.0, 90.0, 120.0, 102.0),
+        &Paint::solid(rgb(30, 140, 70)),
+    );
+    scene.pop_clip();
+    // Under the outer clip alone again.
+    scene.fill(
+        &Path::rect(216.0, 100.0, 96.0, 10.0),
+        &Paint::solid(rgb(90, 40, 160)),
     );
     scene.pop_clip();
     scene
