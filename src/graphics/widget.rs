@@ -95,11 +95,15 @@ struct Submitted {
     size: (u32, u32),
     want: Want,
     base: Transform,
+    /// The theme in force when the job was submitted: a scene's tokens
+    /// take their colors when the worker draws (GFX-001).
+    theme: u64,
 }
 
 impl Submitted {
-    fn is(&self, job: &Job) -> bool {
-        self.size == job.size
+    fn is(&self, job: &Job, theme: u64) -> bool {
+        self.theme == theme
+            && self.size == job.size
             && self.want == job.want
             && self.base == job.base
             && (Arc::ptr_eq(&self.scene, &job.scene) || self.scene == job.scene)
@@ -279,16 +283,22 @@ impl Component for Canvas {
         let mut view = self.view.lock().unwrap_or_else(|e| e.into_inner());
         let wanted = self.job(view.waited);
         view.waited = true;
+        let theme = crate::theme::Theme::generation();
         if let Some(worker) = &self.worker {
             worker.observe();
             if let Some((job, _)) = &wanted {
-                if !view.submitted.as_ref().is_some_and(|last| last.is(job)) {
+                if !view
+                    .submitted
+                    .as_ref()
+                    .is_some_and(|last| last.is(job, theme))
+                {
                     worker.submit_job(job.clone());
                     view.submitted = Some(Submitted {
                         scene: job.scene.clone(),
                         size: job.size,
                         want: job.want,
                         base: job.base,
+                        theme,
                     });
                 }
             }
@@ -367,9 +377,14 @@ impl Component for Canvas {
             Some(message) => message.clone(),
             None => format!("Drawn by {renderer}"),
         });
-        // Nothing to show yet for this size: the worker's finish signal, or
-        // the painter's report, redraws the canvas.
-        if shown.is_none() && self.worker.is_some() && columns > 0 && rows > 0 {
+        // Nothing to show yet for this size, or a picture in the colors of
+        // a theme that is no longer the active one, which stays until the
+        // next is drawn: the worker's finish signal, or the painter's
+        // report, redraws the canvas.
+        let finished = shown
+            .as_ref()
+            .is_some_and(|(shown, _)| shown.theme == theme);
+        if !finished && self.worker.is_some() && columns > 0 && rows > 0 {
             node.set_busy();
         }
         root.metadata.accessibility = Some(node);
