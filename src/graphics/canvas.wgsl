@@ -248,6 +248,12 @@ fn cover_fragment(in: CoverVarying) -> @location(0) vec4<f32> {
         } else {
             coverage = textureLoad(glyph_atlas, texel, 0).r;
         }
+        // A shape's window holds pixels the shape does not reach. They
+        // would add nothing to the picture, so they are left out before
+        // the paint is worked out.
+        if coverage <= 0.0 {
+            discard;
+        }
         color = paint_at(u32(in.source.w), pixel + vec2<f32>(0.5)) * coverage;
     }
     if (how & CLIPPED) != 0u {
