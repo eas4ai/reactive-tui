@@ -144,7 +144,16 @@ impl Painted {
 
 /// Lay `element` out and paint it at `size` with `painter`.
 fn paint(painter: Painter, element: &Element, size: (u16, u16)) -> Painted {
-    let (hits, nodes) = match painter {
+    paint_and_tell(painter, element, size).0
+}
+
+/// `paint`, and the layout each component of the frame is told.
+fn paint_and_tell(
+    painter: Painter,
+    element: &Element,
+    size: (u16, u16),
+) -> (Painted, Vec<PresentedLayout>) {
+    let (hits, nodes, layouts) = match painter {
         Painter::Debug => {
             let mut backend = DebugBackend::new(size.0, size.1);
             assert!(backend.render_frame(element).unwrap());
@@ -152,6 +161,7 @@ fn paint(painter: Painter, element: &Element, size: (u16, u16)) -> Painted {
             (
                 None,
                 backend.painted_nodes().expect("painted nodes").to_vec(),
+                backend.component_layouts().expect("layouts").to_vec(),
             )
         }
         Painter::Terminal => {
@@ -162,15 +172,19 @@ fn paint(painter: Painter, element: &Element, size: (u16, u16)) -> Painted {
             (
                 Some(backend.hit_cells().expect("a hit grid").to_vec()),
                 backend.painted_nodes().expect("painted nodes").to_vec(),
+                backend.component_layouts().expect("layouts").to_vec(),
             )
         }
     };
-    Painted {
-        width: size.0.into(),
-        height: size.1.into(),
-        hits,
-        nodes,
-    }
+    (
+        Painted {
+            width: size.0.into(),
+            height: size.1.into(),
+            hits,
+            nodes,
+        },
+        layouts,
+    )
 }
 
 /// The measured elements of `root`, by their index in a preorder walk, in
@@ -432,6 +446,105 @@ fn assert_equal_steps(starts: &[usize], first: usize, what: &str) {
         longest - shortest <= 1,
         "{what}: tracks start at {starts:?}"
     );
+}
+
+/// What a component is told of its box adds up to what is painted: its
+/// size is the painted size, and its size less its insets is the room its
+/// content was given.
+#[test]
+fn lay_001_a_component_is_told_the_box_that_is_painted() {
+    for painter in PAINTERS {
+        for padding in [1.0f32, 1.5, 2.25] {
+            for width in 40..=200u16 {
+                // A padded box beside a box of a third, with a leaf that
+                // fills its content.
+                let boxed = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+                    .styles(StyleBuilder::new().padding_all_px(padding))
+                    .class("flex-col flex-1 min-w-0 h-full")
+                    .child(leaf("w-full h-full"))
+                    .build();
+                let root = Element::layout(LayoutType::Flex)
+                    .with_class("flex-row w-full h-full")
+                    .with_children(vec![
+                        Element::text("t").with_class("w-1/3 h-1 shrink-0"),
+                        boxed,
+                    ]);
+                let what = format!("{painter:?}, padding {padding}, width {width}");
+                let (frame, layouts) = paint_and_tell(painter, &root, (width, 9));
+                let outer = frame.bounds(2, &what);
+                let inner = frame.bounds(3, &what);
+                let told = layouts
+                    .iter()
+                    .find(|layout| layout.element_index == 2)
+                    .unwrap_or_else(|| panic!("{what}: no layout for the box"))
+                    .layout;
+                assert_eq!(
+                    told.size,
+                    (outer.width as f32, outer.height as f32),
+                    "{what}: the size told and the size painted"
+                );
+                assert_eq!(
+                    told.insets,
+                    [
+                        (inner.left - outer.left) as f32,
+                        (inner.top - outer.top) as f32,
+                        (outer.right() - inner.right()) as f32,
+                        (outer.bottom() - inner.bottom()) as f32,
+                    ],
+                    "{what}: the insets told and the room painted around the content"
+                );
+                assert_eq!(
+                    told.content_size(),
+                    (inner.width as f32, inner.height as f32),
+                    "{what}: the content size told and the content painted"
+                );
+            }
+        }
+    }
+}
+
+/// A box that starts before the screen's first column, at a fraction of a
+/// cell, paints its items as the same box does a whole number of cells
+/// further: rounding does not change at zero.
+#[test]
+fn lay_001_a_box_paints_the_same_on_both_sides_of_zero() {
+    for painter in PAINTERS {
+        for start in [-7.5f32, -7.25, -3.5, -0.5] {
+            let paint_at = |left: f32| {
+                let items = (0..3).map(|_| leaf("min-w-0 h-1")).collect();
+                let grid = spaced(LayoutType::Grid, "w-full grid grid-cols-3", 1, items);
+                let boxed = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+                    .styles(
+                        StyleBuilder::new()
+                            .position_absolute()
+                            .inset_left(left)
+                            .inset_top(1.0)
+                            .size_px(Some(61.0), Some(3.0)),
+                    )
+                    .class("flex-col")
+                    .child(grid)
+                    .build();
+                let root = Element::layout(LayoutType::Flex)
+                    .with_class("relative w-full h-full")
+                    .with_children(vec![boxed]);
+                let what = format!("{painter:?}, a box at {left}");
+                let frame = paint(painter, &root, (100, 6));
+                // The second and the third item are on the screen at every
+                // start; the first is cut by the screen's edge.
+                let items = measured(&root);
+                (frame.bounds(items[1], &what), frame.bounds(items[2], &what))
+            };
+            let (second, third) = paint_at(start);
+            let (second_moved, third_moved) = paint_at(start + 8.0);
+            for (here, moved) in [(second, second_moved), (third, third_moved)] {
+                assert_eq!(
+                    (here.left + 8, here.width),
+                    (moved.left, moved.width),
+                    "{painter:?}: a box at {start} and the same box eight cells further"
+                );
+            }
+        }
+    }
 }
 
 /// An item that is larger than its share does not widen its track: the
