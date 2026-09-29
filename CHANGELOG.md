@@ -15,7 +15,10 @@ This file records user-visible changes to Reactive TUI. The project follows
   the number of such a class and counts in cells too. So do the declarative
   grid's `gap`, `column_gap` and `row_gap`, which its documentation already
   gave in cells: `gap(1)` was four cells, and the default gaps were none
-  across and four down where they are now one and one.
+  across and four down where they are now one and one. The TypeScript
+  binding's `CSSUtilities` (`flex`, `grid` and `spacing`) and the layouts
+  built on it write the caller's numbers into these classes, so their gap,
+  margin and padding numbers count in cells as well.
 - **Breaking:** `grid-cols-auto-fit-N`, `grid-cols-auto-fill-N` and their
   row forms make as many tracks of at least N cells as the container holds.
   They made N tracks before. `col-span-full` and `row-span-full` span the

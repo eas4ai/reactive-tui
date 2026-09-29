@@ -105,7 +105,7 @@ try {
   } finally { parent.dispose(); builder.dispose(); child.dispose(); }
   assert.equal(clone.getText(), 'owned child 界'); clone.dispose();
 
-  const component = new sdk.Component('example', { key: 'id', class: 'p-2' });
+  const component = new sdk.Component('example', { key: 'id', class: 'p-8' });
   try {
     assert.equal(component.getName(), 'example'); assert.equal(component.getKey(), 'id');
     component.update({ key: 'next' }); assert.equal(component.getKey(), 'next');
