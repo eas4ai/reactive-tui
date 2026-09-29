@@ -53,8 +53,6 @@ pub(crate) struct Finished {
 /// What the worker has done so far.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct WorkerStats {
-    /// The most scenes that waited at once: never more than one.
-    pub waiting_max: usize,
     /// Scenes replaced by a newer one before the worker drew them.
     pub replaced: u64,
     /// Pictures finished, failed ones included.
@@ -145,10 +143,10 @@ impl GraphicsWorker {
         let mut slots = self.shared.slots();
         slots.next_id += 1;
         let id = slots.next_id;
+        // One place holds the scene that waits, so a newer one takes it.
         if slots.waiting.replace((id, job)).is_some() {
             slots.stats.replaced += 1;
         }
-        slots.stats.waiting_max = slots.stats.waiting_max.max(1);
         drop(slots);
         self.shared.ready.notify_one();
         id

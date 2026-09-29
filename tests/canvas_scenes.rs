@@ -346,10 +346,17 @@ fn gfx_003_a_busy_worker_keeps_only_the_newest_scene() {
         );
     };
     let stats = worker.stats();
+    // The large scene keeps the worker busy while the 20 small ones
+    // arrive. Had they waited in a queue, the worker would have drawn all
+    // 21; it draws the large one, or the scene that replaced it, and then
+    // the newest. One more is allowed for a host so loaded that the large
+    // scene is finished before the last small one arrives.
     assert!(
-        stats.waiting_max <= 1 && last.pixels()[0][0] == 19,
-        "GFX-003: {} scenes waited at once, and the last picture drawn was of shade {}, not the newest (19)",
-        stats.waiting_max,
+        stats.rendered <= 3 && stats.replaced >= 18 && last.pixels()[0][0] == 19,
+        "GFX-003: of 21 scenes submitted to a busy worker {} were drawn and {} were replaced \
+         before they were drawn, and the last picture drawn was of shade {}, not the newest (19)",
+        stats.rendered,
+        stats.replaced,
         last.pixels()[0][0]
     );
 }
@@ -359,15 +366,21 @@ fn gfx_003_the_worker_keeps_no_interval_of_its_own() {
     let worker = GraphicsWorker::spawn(reference_options(true)).expect("a worker");
     let scene = Arc::new(canvas_support::shapes());
     let started = Instant::now();
+    // Scenes are submitted by the clock, 16 ms apart, so that a sleep that
+    // takes longer than asked, as on macOS, costs no scene.
+    let mut submitted = 0;
     while started.elapsed() < Duration::from_secs(1) {
         worker.submit(scene.clone(), SIZE);
-        std::thread::sleep(Duration::from_millis(16));
+        submitted += 1;
+        let next = started + Duration::from_millis(16) * submitted;
+        std::thread::sleep(next.saturating_duration_since(Instant::now()));
         let _ = worker.take_latest();
     }
     let rendered = worker.stats().rendered;
+    println!("GFX-003 frames: {rendered} rendered of {submitted} submitted in one second");
     assert!(
         rendered >= 50,
-        "GFX-003: scenes submitted every 16 ms for one second at 40 by 12 cells rendered {rendered} frames"
+        "GFX-003: of {submitted} scenes submitted every 16 ms for one second at 40 by 12 cells {rendered} were rendered"
     );
 }
 
