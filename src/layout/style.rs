@@ -1,6 +1,6 @@
 use taffy::geometry::{Line, Point, Rect, Size};
 mod inline;
-use taffy::prelude::{FromFr as _, TaffyGridLine, TaffyGridSpan};
+use taffy::prelude::{TaffyGridLine, TaffyGridSpan};
 use taffy::style::{
     AlignContent as TAlignContent, AlignItems as TAlign, Dimension, Display, FlexDirection,
     GridAutoFlow as TGridAutoFlow, GridPlacement, GridTemplateComponent,
