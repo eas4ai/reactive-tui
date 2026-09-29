@@ -184,13 +184,9 @@ impl Canvas {
         // Until a painter has reported what the host takes, only an
         // override says how to show the picture; a canvas no painter
         // reports to after a frame shows block glyphs.
-        let output = CanvasOutput::choose(
-            host,
-            self.props.options.output,
-            CanvasOutput::from_environment(),
-        );
-        let named =
-            self.props.options.output.is_some() || CanvasOutput::from_environment().is_some();
+        let environment = CanvasOutput::from_environment();
+        let output = CanvasOutput::choose(host, self.props.options.output, environment);
+        let named = self.props.options.output.is_some() || environment.is_some();
         if host.is_none() && !named && !waited {
             return None;
         }

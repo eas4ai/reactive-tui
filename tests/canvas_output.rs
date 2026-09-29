@@ -120,6 +120,76 @@ fn gfx_005_an_override_replaces_the_choice() {
     );
 }
 
+/// The variable that tells [`environment_child`] which output to expect.
+const EXPECTED: &str = "CANVAS_TEST_EXPECTS";
+
+#[test]
+fn gfx_005_the_environment_replaces_the_choice() {
+    // Every canvas of a process reads the variable, so each App runs in a
+    // process of its own: this test binary, asked for the one test below.
+    let run = |value: &str, expected: &str| {
+        let child = std::process::Command::new(std::env::current_exe().expect("the test binary"))
+            .args(["--exact", "environment_child", "--ignored", "--nocapture"])
+            .env(CanvasOutput::ENV, value)
+            .env(EXPECTED, expected)
+            .output()
+            .expect("the test binary runs");
+        let said = String::from_utf8_lossy(&child.stdout).into_owned()
+            + &String::from_utf8_lossy(&child.stderr);
+        if child.status.success() && said.contains("1 passed") {
+            None
+        } else {
+            let from = said.find("GFX-005").unwrap_or(0);
+            Some(format!("{value:?}: {}", &said[from..]))
+        }
+    };
+    // A name wins over the application's choice, in any case and with
+    // space around it. A value that names no output changes nothing.
+    let failures: Vec<String> = [
+        (" Blocks ", "blocks"),
+        ("sixel", "sixel"),
+        ("pixels", "kitty"),
+    ]
+    .into_iter()
+    .filter_map(|(value, expected)| run(value, expected))
+    .collect();
+    assert!(
+        failures.is_empty(),
+        "GFX-005: the environment's override was not followed: {failures:?}"
+    );
+}
+
+/// One App on a host that takes Kitty graphics and Sixel, whose application
+/// asks for Kitty graphics, under the environment its parent test set.
+#[test]
+#[ignore = "run by gfx_005_the_environment_replaces_the_choice, which sets the variable"]
+fn environment_child() {
+    let expected = std::env::var(EXPECTED).expect("the parent test names the output");
+    let host = ImageOutputOptions {
+        kitty_graphics: true,
+        sixel: true,
+        ..Default::default()
+    };
+    let application = GraphicsOptions {
+        output: Some(CanvasOutput::Kitty),
+        ..reference_options(true)
+    };
+    let needle = if expected == "blocks" { BLOCK } else { PICTURE };
+    let shown = output_until(application, host, needle);
+    let wanted = match expected.as_str() {
+        "kitty" => (true, false),
+        "sixel" => (false, true),
+        _ => (false, false),
+    };
+    assert_eq!(
+        (shown.contains(KITTY), shown.contains(SIXEL)),
+        wanted,
+        "GFX-005: (Kitty, Sixel) sent with {} set to {:?}",
+        CanvasOutput::ENV,
+        std::env::var(CanvasOutput::ENV)
+    );
+}
+
 #[test]
 fn gfx_005_kitty_frames_travel_through_shared_memory_when_accepted() {
     let shared = ImageOutputOptions {
