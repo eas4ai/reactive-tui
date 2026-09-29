@@ -82,7 +82,7 @@ zvariant = { version = "5.4", default-features = false }
 libc = "0.2"
 signal-hook = "0.3.18"
 libghostty-vt = { package = "reactive-tui-libghostty-vt", path = "crates/libghostty-vt", version = "=1.0.0", optional = true }
-rustix = { version = "1", features = ["fs", "shm"] }
+rustix = { version = "1", features = ["fs", "mm", "shm"] }
 
 [target.'cfg(windows)'.dependencies]
 libloading = "0.8.9"
