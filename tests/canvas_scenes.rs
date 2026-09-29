@@ -366,15 +366,21 @@ fn gfx_003_the_worker_keeps_no_interval_of_its_own() {
     let worker = GraphicsWorker::spawn(reference_options(true)).expect("a worker");
     let scene = Arc::new(canvas_support::shapes());
     let started = Instant::now();
+    // Scenes are submitted by the clock, 16 ms apart, so that a sleep that
+    // takes longer than asked, as on macOS, costs no scene.
+    let mut submitted = 0;
     while started.elapsed() < Duration::from_secs(1) {
         worker.submit(scene.clone(), SIZE);
-        std::thread::sleep(Duration::from_millis(16));
+        submitted += 1;
+        let next = started + Duration::from_millis(16) * submitted;
+        std::thread::sleep(next.saturating_duration_since(Instant::now()));
         let _ = worker.take_latest();
     }
     let rendered = worker.stats().rendered;
+    println!("GFX-003 frames: {rendered} rendered of {submitted} submitted in one second");
     assert!(
         rendered >= 50,
-        "GFX-003: scenes submitted every 16 ms for one second at 40 by 12 cells rendered {rendered} frames"
+        "GFX-003: of {submitted} scenes submitted every 16 ms for one second at 40 by 12 cells {rendered} were rendered"
     );
 }
 
