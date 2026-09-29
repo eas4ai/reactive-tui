@@ -54,7 +54,7 @@ from _common import ROOT, mask, tracked_files
 
 # Dated reports and recorded inventories cite paths as they were (the ABI
 # baselines list retired modules on purpose); none of these is a live link.
-DATED = ("docs/recon.md", "docs/decisions.jsonl")
+DATED = ("docs/recon.md", "docs/widget-study.md", "docs/decisions.jsonl")
 # The Sudus ledger's outputs and briefs record what a run printed, including
 # the missing paths a violating example names on purpose; .cairn/ is the
 # layout's former name.
