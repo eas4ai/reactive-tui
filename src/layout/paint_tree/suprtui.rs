@@ -44,6 +44,8 @@ struct PaintNode {
     mask: Option<Arc<ClipMask>>,
     transform: Affine,
     local: Rect,
+    /// Where the box starts in the layout, before rounding.
+    origin: (f32, f32),
     parent_opacity: f32,
     element_index: usize,
     id: NodeId,
@@ -447,14 +449,27 @@ fn presented_layout(
     tree: &TaffyTree<()>,
     node: &PaintNode,
 ) -> Result<crate::backend::PresentedLayout> {
-    let layout = tree
-        .layout(node.id)
+    tree.layout(node.id)
         .map_err(|error| ReactiveError::layout(error.to_string()))?;
+    // The insets and the content's extent are rounded between the same
+    // edges as the box itself (collect), so what a component is told adds
+    // up to what is painted also where the box starts at a fraction of a
+    // cell.
+    let layout = tree.unrounded_layout(node.id);
+    let (x, y) = node.origin;
+    let (left, top) = (cell_edge(x), cell_edge(y));
+    let (right, bottom) = (
+        cell_edge(x + layout.size.width),
+        cell_edge(y + layout.size.height),
+    );
     Ok(crate::backend::PresentedLayout {
         element_index: node.element_index,
         layout: crate::component::LayoutInfo {
             size: (node.local.right as f32, node.local.bottom as f32),
-            content_extent: (layout.content_size.width, layout.content_size.height),
+            content_extent: (
+                cell_edge(x + layout.content_size.width) - left,
+                cell_edge(y + layout.content_size.height) - top,
+            ),
             clip: crate::event::hit::Bounds::new(
                 node.clip.left as f32,
                 node.clip.top as f32,
@@ -463,10 +478,14 @@ fn presented_layout(
             ),
             transform: node.transform.coefficients(),
             insets: [
-                layout.padding.left + layout.border.left,
-                layout.padding.top + layout.border.top,
-                layout.padding.right + layout.border.right,
-                layout.padding.bottom + layout.border.bottom,
+                cell_edge(x + layout.padding.left + layout.border.left) - left,
+                cell_edge(y + layout.padding.top + layout.border.top) - top,
+                right
+                    - cell_edge(x + layout.size.width - layout.padding.right - layout.border.right),
+                bottom
+                    - cell_edge(
+                        y + layout.size.height - layout.padding.bottom - layout.border.bottom,
+                    ),
             ],
         },
     })
@@ -717,6 +736,7 @@ fn collect(
         mask: parent.mask.clone(),
         transform,
         local,
+        origin,
         parent_opacity: parent.opacity,
         element_index: nodes.len(),
         id,
