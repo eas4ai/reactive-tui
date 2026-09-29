@@ -835,9 +835,13 @@ fn run_worker<W: Write>(
                     renderer.set_cursor(cursor.x, cursor.y, cursor.visible);
                     renderer.set_cursor_style(cursor.style, cursor.blinking);
                     renderer.set_cursor_color(cursor.color);
-                    // A canvas's picture replaced where it is changes no
-                    // cell, so the cells are not written again (GFX-005).
+                    // A change of canvas pictures alone changes no cell,
+                    // so the cells are not written again, but those under a
+                    // Sixel picture that is to go (GFX-005).
                     let graphics_changed = commands.is_some() && !graphics.in_place();
+                    for &(x, y, width, height) in graphics.stale() {
+                        renderer.forget_cells(x, y, width, height);
+                    }
                     let (before, after) = commands.unwrap_or_default();
                     renderer.backend_mut().set_graphics(before, after);
                     let status = renderer.render(redraw || graphics_changed);

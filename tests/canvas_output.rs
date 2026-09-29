@@ -416,6 +416,146 @@ fn gfx_005_pixel_frames_replace_each_other_in_place() {
     );
 }
 
+/// A root that draws the spinning cube beside a fixed label and, from
+/// frame `covered` to frame `gone`, a note over part of the canvas; from
+/// frame `gone` on it draws no canvas.
+struct Covered {
+    frame: usize,
+    frames: usize,
+    covered: usize,
+    gone: usize,
+}
+impl RootComponent for Covered {
+    fn render(&self) -> Element {
+        use reactive_tui::builder::core::div;
+        let mut right = Vec::new();
+        if self.frame < self.gone {
+            right.push(canvas(spinning_cube(self.frame), reference_options(true)));
+        }
+        if self.frame >= self.covered {
+            right.push(
+                div()
+                    .class("absolute left-4 top-2 w-12 h-3 bg-blue-900")
+                    .text("a note")
+                    .build(),
+            );
+        }
+        div()
+            .class("flex flex-row w-full h-full")
+            .children(vec![
+                Element::text("left side").with_class("w-20 h-full"),
+                div().class("relative w-40 h-full").children(right).build(),
+            ])
+            .build()
+    }
+    fn update(&mut self) -> Result<RootUpdate> {
+        self.frame += 1;
+        Ok(if self.frame >= self.frames {
+            RootUpdate::Exit
+        } else {
+            RootUpdate::Redraw
+        })
+    }
+    /// The backend writes to memory and has no terminal to read keys from.
+    fn accepts_input(&self) -> bool {
+        false
+    }
+}
+
+/// What a terminal that takes `images` is sent, flush by flush, while a
+/// note comes over the canvas at frame 12 and the canvas goes at frame 28.
+fn run_covered(images: ImageOutputOptions) -> Vec<String> {
+    let terminal = SlowTerminal {
+        flushes: Arc::default(),
+        pending: Arc::default(),
+        delay: Duration::ZERO,
+    };
+    let backend = SuprTuiBackend::with_writer_and_images(60, 20, terminal.clone(), images).unwrap();
+    App::builder()
+        .backend(backend)
+        .root(Covered {
+            frame: 0,
+            frames: 40,
+            covered: 12,
+            gone: 28,
+        })
+        .build()
+        .unwrap()
+        .run()
+        .unwrap();
+    let flushes = terminal.flushes.lock().unwrap();
+    flushes
+        .iter()
+        .map(|chunk| String::from_utf8_lossy(chunk).into_owned())
+        .collect()
+}
+
+/// Where in `flushes` the first picture, the note and the last picture are,
+/// when they come in that order.
+fn covered_order(flushes: &[String], picture: &str) -> Option<(usize, usize, usize)> {
+    let first = flushes.iter().position(|chunk| chunk.contains(picture))?;
+    let noted = flushes.iter().position(|chunk| chunk.contains("a note"))?;
+    let last = flushes.iter().rposition(|chunk| chunk.contains(picture))?;
+    (first < noted && noted < last).then_some((first, noted, last))
+}
+
+#[test]
+fn gfx_005_cells_over_a_canvas_change_without_clearing_the_screen() {
+    let flushes = run_covered(ImageOutputOptions {
+        sixel: true,
+        ..Default::default()
+    });
+    let (first, _, last) =
+        covered_order(&flushes, SIXEL).expect("a picture, the note, and a picture after it");
+    let later = &flushes[first + 1..];
+    let cleared = later
+        .iter()
+        .filter(|chunk| chunk.contains("\x1b[2J"))
+        .count();
+    let outside: Vec<(u16, u16)> = later
+        .iter()
+        .flat_map(|chunk| cursor_moves(chunk))
+        .filter(|&(_, column)| column <= 20)
+        .collect();
+    // Once the canvas is gone, the cells it covered are written again, so
+    // nothing of its last picture stays: the rows of its area are set.
+    let rows_after: std::collections::BTreeSet<u16> = flushes[last + 1..]
+        .iter()
+        .flat_map(|chunk| cursor_moves(chunk))
+        .map(|(row, _)| row)
+        .collect();
+    assert!(
+        cleared == 0 && outside.is_empty() && (1..=20).all(|row| rows_after.contains(&row)),
+        "GFX-005: with a note drawn over the canvas from frame 12 and the canvas gone from frame 28, {cleared} later flushes cleared the screen, cells outside the canvas were set at {:?}, and after the last picture the rows written were {rows_after:?}",
+        &outside[..outside.len().min(5)]
+    );
+}
+
+#[test]
+fn gfx_005_cells_over_a_kitty_canvas_change_without_sending_it_away() {
+    let flushes = run_covered(ImageOutputOptions {
+        kitty_graphics: true,
+        ..Default::default()
+    });
+    let (first, _, last) =
+        covered_order(&flushes, "a=T").expect("a picture, the note, and a picture after it");
+    let deleted = |chunks: &[String]| chunks.iter().filter(|chunk| chunk.contains("a=d")).count();
+    let outside: Vec<(u16, u16)> = flushes[first + 1..]
+        .iter()
+        .flat_map(|chunk| cursor_moves(chunk))
+        .filter(|&(_, column)| column <= 20)
+        .collect();
+    assert!(
+        deleted(&flushes[first + 1..=last]) == 0
+            && deleted(&flushes[last + 1..]) == 1
+            && outside.is_empty(),
+        "GFX-005: with a note drawn over the canvas from frame 12 and the canvas gone from frame 28, a Kitty host was sent {} deletions while the canvas showed and {} after it, and cells outside the canvas were set at {:?}",
+        deleted(&flushes[first + 1..=last]),
+        deleted(&flushes[last + 1..]),
+        &outside[..outside.len().min(5)]
+    );
+}
+
 /// The size a Sixel picture states for itself and how many of its pixels
 /// its data leaves unset, which a terminal shows as they were before.
 /// `picture` is what follows [`SIXEL`].

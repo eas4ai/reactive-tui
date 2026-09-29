@@ -18,9 +18,14 @@ pub(crate) struct Graphics<P = Plane> {
     possible_legacy: bool,
     coverage: Vec<coverage::Coverage>,
     candidate_coverage: Option<Vec<coverage::Coverage>>,
-    /// Whether the last `prepare` only replaced canvas pictures where they
-    /// are, so no cell needs writing for it (GFX-005).
+    /// Whether the last `prepare` changed canvas pictures only and cleared
+    /// nothing, so no cell needs writing for it but the `stale` ones
+    /// (GFX-005).
     in_place: bool,
+    /// Cells, as (column, row, columns, rows), that show a Sixel picture
+    /// the last `prepare` retired. Sixel has no way to remove a picture but
+    /// to write the cells under it.
+    stale: Vec<(u32, u32, u32, u32)>,
     shared: shared::Pictures,
 }
 impl<P> Default for Graphics<P> {
@@ -32,7 +37,30 @@ impl<P> Default for Graphics<P> {
             coverage: Vec::new(),
             candidate_coverage: None,
             in_place: false,
+            stale: Vec::new(),
             shared: shared::Pictures::default(),
+        }
+    }
+}
+
+/// How a plane of the next frame continues one of the last, which it names
+/// by its place in the last frame's planes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Step {
+    New,
+    /// The same plane.
+    Kept(usize),
+    /// A canvas's next picture, in the same place with the same cells
+    /// showing.
+    InPlace(usize),
+    Changed(usize),
+}
+
+impl Step {
+    fn previous(self) -> Option<usize> {
+        match self {
+            Self::New => None,
+            Self::Kept(index) | Self::InPlace(index) | Self::Changed(index) => Some(index),
         }
     }
 }
@@ -48,6 +76,10 @@ pub(crate) trait RasterPlane: PartialEq {
     /// element above it covers the cell.
     fn shows(&self, _x: u32, _y: u32, _cell: (u16, u16)) -> bool {
         true
+    }
+    /// The plane's columns and rows.
+    fn cells(&self) -> (u32, u32) {
+        (0, 0)
     }
     fn z_index(&self, order: usize) -> i32 {
         order as i32
@@ -91,6 +123,9 @@ impl RasterPlane for Plane {
     fn shows(&self, x: u32, y: u32, cell: (u16, u16)) -> bool {
         self.shows(x, y, cell)
     }
+    fn cells(&self) -> (u32, u32) {
+        self.cells()
+    }
 }
 
 impl<P: RasterPlane> Graphics<P> {
@@ -102,19 +137,21 @@ impl<P: RasterPlane> Graphics<P> {
     ) -> Result<Option<(Vec<u8>, Vec<u8>)>> {
         self.candidate_coverage = None;
         self.in_place = false;
+        self.stale.clear();
         if !force && next == self.last {
             return Ok(None);
         }
-        // Planes that differ from the last frame's only by a canvas's next
-        // picture are replaced where they are: nothing is deleted, the
-        // screen is not cleared and no cell is written (GFX-005).
-        let in_place = !force
-            && next.len() == self.last.len()
-            && next
-                .iter()
-                .zip(&self.last)
-                .all(|(plane, last)| plane == last || plane.replaces(last));
-        let before = if in_place { Vec::new() } else { self.cleanup() };
+        // When only canvases differ from the last frame, nothing is
+        // cleared: a canvas's next picture replaces the last where it is,
+        // and a canvas that moved, went, or has other cells over it is
+        // retired alone (GFX-005).
+        let steps = self.steps(next);
+        let in_place = !force && self.only_canvases_differ(next, &steps);
+        let before = if in_place {
+            self.retire(next, &steps, cell)
+        } else {
+            self.cleanup()
+        };
         let mut after = Vec::new();
         let blend_legacy = next.iter().any(|p| p.protocol() != ImageProtocol::Kitty);
         let mut below = PixelLayers::new(cell);
@@ -126,11 +163,18 @@ impl<P: RasterPlane> Graphics<P> {
         for (z, plane) in next.iter().enumerate() {
             // A plane that stays as it is needs its pixels again only
             // where a plane above it is blended with them.
-            let kept = in_place && *plane == self.last[z];
-            if let Some(known) = self.coverage.get(z).filter(|_| kept && !blend_legacy) {
+            let kept = match steps[z] {
+                Step::Kept(index) if in_place => Some(index),
+                _ => None,
+            };
+            if let Some(known) = kept
+                .and_then(|index| self.coverage.get(index))
+                .filter(|_| !blend_legacy)
+            {
                 coverage.push(known.clone());
                 continue;
             }
+            let kept = kept.is_some();
             let pixels = plane.raster(cell)?;
             raster_bytes = raster_bytes.saturating_add(pixels.as_raw().len());
             if raster_bytes > 64 * 1024 * 1024 {
@@ -234,10 +278,96 @@ impl<P: RasterPlane> Graphics<P> {
         self.candidate_coverage = Some(coverage);
         Ok(Some((before, after)))
     }
-    /// Whether the last `prepare` only replaced canvas pictures where they
-    /// are: the cells stay as they are written.
+    /// Whether the last `prepare` changed canvas pictures only and cleared
+    /// nothing: the cells stay as they are written, but the `stale` ones.
     pub fn in_place(&self) -> bool {
         self.in_place
+    }
+    /// The cells, as (column, row, columns, rows), that the renderer must
+    /// write again because a Sixel picture the last `prepare` retired is
+    /// drawn over them.
+    pub fn stale(&self) -> &[(u32, u32, u32, u32)] {
+        &self.stale
+    }
+    /// How each plane of `next` continues a plane of the last frame, which
+    /// it is matched with by its id.
+    fn steps(&self, next: &[P]) -> Vec<Step> {
+        next.iter()
+            .map(
+                |plane| match self.last.iter().position(|last| last.id() == plane.id()) {
+                    None => Step::New,
+                    Some(index) if *plane == self.last[index] => Step::Kept(index),
+                    Some(index) if plane.replaces(&self.last[index]) => Step::InPlace(index),
+                    Some(index) => Step::Changed(index),
+                },
+            )
+            .collect()
+    }
+    /// Whether every plane that comes, goes or changes is a canvas's, the
+    /// planes that stay keep their order, and every picture drawn over
+    /// cells (Sixel or inline) is a canvas's: then the frame needs no
+    /// clearing.
+    fn only_canvases_differ(&self, next: &[P], steps: &[Step]) -> bool {
+        let canvas = |plane: &P| plane.canvas().is_some();
+        let over_cells = |plane: &P| plane.protocol() != ImageProtocol::Kitty;
+        let continued: Vec<usize> = steps.iter().filter_map(|step| step.previous()).collect();
+        continued.windows(2).all(|pair| pair[0] < pair[1])
+            && next.iter().zip(steps).all(|(plane, step)| {
+                (canvas(plane) || !over_cells(plane))
+                    && (matches!(step, Step::Kept(_))
+                        || canvas(plane)
+                            && step
+                                .previous()
+                                .is_none_or(|index| canvas(&self.last[index])))
+            })
+            && self.last.iter().enumerate().all(|(index, last)| {
+                (canvas(last) || !over_cells(last)) && (continued.contains(&index) || canvas(last))
+            })
+    }
+    /// Take the canvas pictures off the screen that the next frame does not
+    /// replace where they are: the ones that are gone, and the ones that
+    /// moved or have other cells over them. A Kitty picture is deleted,
+    /// unless the next picture of its canvas replaces it by its id; the
+    /// cells under a Sixel picture are listed in `stale`.
+    fn retire(&mut self, next: &[P], steps: &[Step], cell: (u16, u16)) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for (index, old) in self.last.iter().enumerate() {
+            let follows = steps
+                .iter()
+                .position(|step| step.previous() == Some(index))
+                .map(|z| (&next[z], steps[z]));
+            if matches!(follows, Some((_, Step::Kept(_) | Step::InPlace(_)))) {
+                continue;
+            }
+            if old.protocol() == ImageProtocol::Kitty {
+                if follows.is_none_or(|(plane, _)| plane.protocol() != ImageProtocol::Kitty) {
+                    bytes.extend_from_slice(
+                        format!("\x1b_Ga=d,d=I,i={},q=2;\x1b\\", old.id()).as_bytes(),
+                    );
+                }
+                continue;
+            }
+            let (left, top) = old.position();
+            let (columns, rows) = old.cells();
+            let (across, down) = (u32::from(cell.0), u32::from(cell.1));
+            for row in 0..rows {
+                let mut column = 0;
+                while column < columns {
+                    let shown = |column: u32| old.shows(column * across, row * down, cell);
+                    if !shown(column) {
+                        column += 1;
+                        continue;
+                    }
+                    let first = column;
+                    while column < columns && shown(column) {
+                        column += 1;
+                    }
+                    self.stale
+                        .push((left + first, top + row, column - first, 1));
+                }
+            }
+        }
+        bytes
     }
     pub fn covers_cell(&self, x: u32, y: u32) -> bool {
         self.candidate_coverage
