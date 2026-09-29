@@ -889,6 +889,30 @@ fn lay_003_a_full_span_adds_no_track() {
     }
 }
 
+/// With fewer items than the container holds tracks, auto-fill keeps the
+/// empty tracks and auto-fit gives their room to the items.
+#[test]
+fn lay_003_auto_fit_and_auto_fill_differ_with_fewer_items_than_tracks() {
+    for painter in PAINTERS {
+        for (class, widths) in [
+            ("grid-cols-auto-fill-20", [22..=23, 22..=23]),
+            ("grid-cols-auto-fit-20", [45..=45, 45..=45]),
+        ] {
+            let items = (0..2).map(|_| leaf("min-w-0 h-1")).collect();
+            let root = Element::layout(LayoutType::Grid)
+                .with_class(format!("w-full grid {class}"))
+                .with_children(items);
+            let what = format!("{painter:?}, {class}");
+            let cells = rectangles(&paint(painter, &root, (90, 6)), &root, &what);
+            assert_eq!(cells[0].left, 0, "{what}: {cells:?}");
+            assert_eq!(cells[1].left, cells[0].right(), "{what}: {cells:?}");
+            for (item, width) in cells.iter().zip(&widths) {
+                assert!(width.contains(&item.width), "{what}: {cells:?}");
+            }
+        }
+    }
+}
+
 /// A full span counts the tracks the grid's class names. The rows a grid
 /// adds for items beyond its columns are not among them, so in a grid with
 /// no `grid-rows-N` a full span down is one row, and it adds none.
