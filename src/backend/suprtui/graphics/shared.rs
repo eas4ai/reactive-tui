@@ -29,7 +29,6 @@ impl Pictures {
         use base64::Engine;
         use rustix::fs::Mode;
         use rustix::shm;
-        use std::io::Write;
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let names = self.names.entry(id).or_default();
         while names.len() >= WAITING {
@@ -45,9 +44,8 @@ impl Pictures {
         // A leftover from an earlier process with this id is not ours to keep.
         let _ = shm::unlink(name.as_str());
         let flags = shm::OFlags::CREATE | shm::OFlags::EXCL | shm::OFlags::RDWR;
-        let fd = shm::open(name.as_str(), flags, Mode::RUSR | Mode::WUSR).ok()?;
-        let mut file = std::fs::File::from(fd);
-        if file.write_all(pixels.as_raw()).is_err() {
+        let object = shm::open(name.as_str(), flags, Mode::RUSR | Mode::WUSR).ok()?;
+        if fill(object, pixels.as_raw()).is_none() {
             let _ = shm::unlink(name.as_str());
             return None;
         }
@@ -78,6 +76,43 @@ impl Pictures {
             }
             kept
         });
+    }
+}
+
+/// Put `bytes` into the new shared-memory object. Linux keeps the object
+/// in a file system that takes `write` and answers a full one with an
+/// error; a mapping of it would end the process with SIGBUS instead.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn fill(object: rustix::fd::OwnedFd, bytes: &[u8]) -> Option<()> {
+    use std::io::Write;
+    std::fs::File::from(object).write_all(bytes).ok()
+}
+
+/// Put `bytes` into the new shared-memory object. macOS takes no `write`
+/// on shared memory, so the object is given its size and mapped.
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
+fn fill(object: rustix::fd::OwnedFd, bytes: &[u8]) -> Option<()> {
+    use rustix::mm::{mmap, munmap, MapFlags, ProtFlags};
+    if bytes.is_empty() {
+        return None;
+    }
+    rustix::fs::ftruncate(&object, bytes.len() as u64).ok()?;
+    // SAFETY: the mapping is new, of as many bytes as the object was just
+    // given, and nothing else knows its address. `bytes` is another
+    // allocation of that length, so the two do not overlap. The mapping is
+    // removed before returning.
+    unsafe {
+        let start = mmap(
+            std::ptr::null_mut(),
+            bytes.len(),
+            ProtFlags::READ | ProtFlags::WRITE,
+            MapFlags::SHARED,
+            &object,
+            0,
+        )
+        .ok()?;
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), start.cast::<u8>(), bytes.len());
+        munmap(start, bytes.len()).ok()
     }
 }
 
