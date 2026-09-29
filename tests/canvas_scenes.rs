@@ -12,13 +12,15 @@ mod common;
 
 use canvas_support::{check_reference, reference_options, references, SIZE};
 use common::app_input;
-use reactive_tui::app::RootComponent;
+use reactive_tui::app::{RootComponent, RootUpdate};
 use reactive_tui::component::Element;
+use reactive_tui::event::router::EventResult;
+use reactive_tui::event::types::{Event, KeyCode, KeyEvent};
 use reactive_tui::graphics::{
     Canvas, CanvasProps, Color, GraphicsFault, GraphicsMode, GraphicsOptions, GraphicsWorker,
     HybridRenderer, Paint, Path, Scene,
 };
-use reactive_tui::theme::Theme;
+use reactive_tui::theme::{Theme, ThemeVariables};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -47,21 +49,121 @@ fn gfx_001_reference_scenes_are_their_checked_in_images() {
     );
 }
 
+/// `base` with another `primary`. Only `primary` differs, so a test that
+/// runs meanwhile and reads another color of the theme sees no change.
+fn with_primary(base: &Theme, hex: &str) -> Theme {
+    Theme::new("canvas-test")
+        .with_variables(ThemeVariables::new().set("--color-primary", hex))
+        .extend(base.clone())
+}
+
+/// The two colors the theme tests give `primary`, one after the other.
+const PRIMARIES: [(&str, [i32; 3]); 2] = [("#c81e28", [200, 30, 40]), ("#1e3cc8", [30, 60, 200])];
+
+fn near(got: [i32; 3], expected: [i32; 3]) -> bool {
+    got.iter().zip(expected).all(|(g, e)| (g - e).abs() <= 1)
+}
+
 #[test]
+// Tests that change the active theme take turns.
+#[serial_test::serial(theme)]
 fn gfx_001_a_theme_token_paints_the_active_theme_color() {
-    let expected = Theme::active()
-        .resolve_color("blue-500")
-        .expect("blue-500 resolves");
-    let expected = [expected.0, expected.1, expected.2].map(|c| (c * 255.0).round() as i32);
+    let before = Theme::active();
     let mut renderer = HybridRenderer::new(reference_options(true));
-    let frame = renderer
-        .render(&solid(Color::token("blue-500")), 16, 16)
-        .expect("a 16 by 16 picture");
-    let pixel = frame.pixels()[8 * 16 + 8];
-    let got = [pixel[0] as i32, pixel[1] as i32, pixel[2] as i32];
+    let mut painted = Vec::new();
+    for (hex, _) in PRIMARIES {
+        Theme::set_active(with_primary(&before, hex));
+        let frame = renderer
+            .render(&solid(Color::token("primary")), 16, 16)
+            .expect("a 16 by 16 picture");
+        let pixel = frame.pixels()[8 * 16 + 8];
+        painted.push([pixel[0] as i32, pixel[1] as i32, pixel[2] as i32]);
+    }
+    Theme::set_active((*before).clone());
     assert!(
-        got.iter().zip(expected).all(|(g, e)| (g - e).abs() <= 1),
-        "GFX-001: blue-500 painted {got:?}, the active theme resolves it to {expected:?}"
+        near(painted[0], PRIMARIES[0].1) && near(painted[1], PRIMARIES[1].1),
+        "GFX-001: `primary` painted {painted:?} under themes that give it {:?} and {:?}",
+        PRIMARIES[0].1,
+        PRIMARIES[1].1
+    );
+}
+
+/// A root that shows one canvas of a scene that never changes, and gives
+/// the theme another `primary` when a key arrives.
+struct Themed {
+    scene: Arc<Scene>,
+    base: Arc<Theme>,
+}
+impl RootComponent for Themed {
+    fn render(&self) -> Element {
+        Element::typed::<Canvas>(
+            CanvasProps::new(self.scene.clone()).options(reference_options(true)),
+        )
+    }
+    fn try_handle_event(&mut self, event: &Event) -> reactive_tui::error::Result<EventResult> {
+        if matches!(event, Event::Key(_)) {
+            Theme::set_active(with_primary(&self.base, PRIMARIES[1].0));
+            return Ok(EventResult::Handled);
+        }
+        Ok(EventResult::Ignored)
+    }
+    fn update(&mut self) -> reactive_tui::error::Result<RootUpdate> {
+        Ok(RootUpdate::Unchanged)
+    }
+    fn wake_driven(&self) -> bool {
+        true
+    }
+}
+
+/// The colors of the cell in the middle of `frame`: its glyph's and its
+/// background's.
+fn middle_colors(frame: &app_input::Snapshot) -> Vec<[i32; 3]> {
+    let (rows, columns) = frame.screen.size();
+    let cell = frame.screen.cell(rows / 2, columns / 2).expect("a cell");
+    [cell.fgcolor(), cell.bgcolor()]
+        .into_iter()
+        .filter_map(|color| match color {
+            vt100::Color::Rgb(r, g, b) => Some([r as i32, g as i32, b as i32]),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+// Tests that change the active theme take turns.
+#[serial_test::serial(theme)]
+fn gfx_001_a_canvas_follows_a_change_of_theme() {
+    let before = Theme::active();
+    Theme::set_active(with_primary(&before, PRIMARIES[0].0));
+    let frames = app_input::run(
+        Themed {
+            scene: Arc::new(solid(Color::token("primary"))),
+            base: before.clone(),
+        },
+        (40, 12),
+        // Frames that are not busy: the first, before the canvas knows its
+        // size; the first that shows the picture, after which the key
+        // changes the theme; and the first that shows the picture in the
+        // new theme's color.
+        vec![
+            (2, Some(Event::Key(KeyEvent::new(KeyCode::Char('t'))))),
+            (3, None),
+        ],
+    );
+    Theme::set_active((*before).clone());
+    let settled: Vec<&app_input::Snapshot> = frames.iter().filter(|f| !f.busy).collect();
+    let first = settled.get(1).map(|frame| middle_colors(frame));
+    let last = settled.last().map(|frame| middle_colors(frame));
+    assert!(
+        first
+            .as_ref()
+            .is_some_and(|colors| colors.iter().any(|c| near(*c, PRIMARIES[0].1)))
+            && last
+                .as_ref()
+                .is_some_and(|colors| colors.iter().any(|c| near(*c, PRIMARIES[1].1))),
+        "GFX-001: a canvas of `primary` showed {first:?} under the first theme ({:?}) and {last:?} after the theme changed ({:?})",
+        PRIMARIES[0].1,
+        PRIMARIES[1].1
     );
 }
 

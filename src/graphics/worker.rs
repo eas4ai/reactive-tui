@@ -45,6 +45,9 @@ pub(crate) struct Finished {
     pub cells: Option<Arc<CellGrid>>,
     /// Why there is no picture: both renderers failed (GFX-007).
     pub error: Option<String>,
+    /// [`crate::theme::Theme::generation`] when the worker began to draw:
+    /// the theme whose colors the picture's tokens took (GFX-001).
+    pub theme: u64,
 }
 
 /// What the worker has done so far.
@@ -232,6 +235,9 @@ fn run(shared: Arc<Shared>, options: GraphicsOptions) {
                 slots = shared.ready.wait(slots).unwrap_or_else(|e| e.into_inner());
             }
         };
+        // Read before the scene's tokens are: a theme that changes while
+        // the worker draws leaves a picture that names the older one.
+        let theme = crate::theme::Theme::generation();
         let (frame, cells, error) = match job.want {
             Want::Pixels => match renderer.render_under(&job.scene, job.size, &job.base) {
                 Ok(frame) => (Some(Arc::new(frame)), None, None),
@@ -258,6 +264,7 @@ fn run(shared: Arc<Shared>, options: GraphicsOptions) {
             frame,
             cells,
             error,
+            theme,
         });
         slots.taken = false;
         drop(slots);
