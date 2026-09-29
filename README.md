@@ -282,7 +282,41 @@ Reactive TUI was created and is maintained by
 
 ## License
 
-Reactive TUI is available under the [MIT License](LICENSE).
+Reactive TUI is licensed under **The Reactive TUI License, Version 1.0**
+([`LICENSE`](LICENSE), SPDX `LicenseRef-ReactiveTUI-1.0`): the
+[MIT License](LICENSE-MIT) with two riders.
+
+**For most users it is the MIT License.** A person, or an organization with
+revenue of USD 1,000,000 a year or less, may build applications with
+Reactive TUI, ship them and sell them, with no fee and no permission.
+
+### Rider one: frameworks
+
+You need written permission, a Framework License, to take Reactive TUI, or
+a copy of it that was changed or renamed, and offer it to other developers
+as a framework for building terminal applications, free or paid.
+Applications, copies used inside one organization, copies published to send
+changes to this project, and add-on libraries that depend on Reactive TUI
+are not affected.
+
+### Rider two: sponsorship
+
+An organization that earns money from software built with Reactive TUI, and
+whose revenue, together with its affiliates, was above USD 1,000,000 in its
+last fiscal year, must sponsor the project for as long as it offers that
+software: <https://github.com/sponsors/eas4ai>. An organization that uses
+such software only inside its own business, or gives it away, owes nothing.
+Schools, universities and registered non-profit organizations are exempt.
+
+### What the license does not change
+
+Versions that were published under the MIT License alone stay under it.
+Code of other projects inside this repository keeps its own license; see
+Section 4 of [`LICENSE`](LICENSE).
+
+[`LICENSE`](LICENSE) holds the terms. Requests for a Framework License, and
+questions about the license, go to
+[shawn@eas4ai.com](mailto:shawn@eas4ai.com); see also <https://eas4ai.com>.
 
 The project builds on Taffy for layout, Crossterm for terminal control, Comrak for
 Markdown, Syntect for syntax highlighting, AccessKit for accessibility semantics,

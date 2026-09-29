@@ -1,21 +1,246 @@
-MIT License
+The Reactive TUI License
+Version 1.0
 
-Copyright (c) 2024 Reactive-TUI Contributors
+Copyright (c) 2024-2026 Shawn McAllister
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This is the license for Reactive TUI. It is the MIT License with two
+restrictions. The first applies only if you offer Reactive TUI itself,
+or a copy of it, to other developers as a framework (Section 2). The
+second applies only to organizations that earn money with Reactive TUI
+and have revenue above USD 1,000,000 a year (Section 3).
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+PLAIN-LANGUAGE SUMMARY (informative; the numbered terms below control)
+
+  If you are a person, or an organization with revenue of USD 1,000,000
+  a year or less, and you build applications with Reactive TUI, this
+  license is the MIT License. Build them, ship them, sell them. No fee
+  and no permission are needed. The same holds for a larger
+  organization that earns no money from what it builds with it.
+
+  Restriction one: nobody may take Reactive TUI, or a copy of it that
+  was changed or renamed, and offer it to developers as a framework for
+  building terminal applications, unless the Licensor gave written
+  permission. See Section 2.
+
+  Restriction two: an organization that earns money from software
+  built with Reactive TUI, and has revenue above USD 1,000,000 a year,
+  must sponsor the project. See Section 3.
+
+
+1.  PERMISSIVE GRANT
+
+  Reactive TUI is licensed under the MIT License (full text in
+  LICENSE-MIT, also at <https://opensource.org/licenses/MIT>), EXCEPT
+  as narrowed by the Framework Rider in Section 2 and the Sponsorship
+  Rider in Section 3. For every use that neither rider covers, the MIT
+  License applies with no further condition and no fee.
+
+
+2.  THE FRAMEWORK RIDER
+
+2.1  What is covered
+
+  A "Copy" is Reactive TUI or any substantial part of it, in source or
+  compiled form, changed or not, under its own name or another.
+
+  A "Framework Offering" is any library, crate, package, software
+  development kit, product or service that both:
+
+    (i)  contains a Copy; and
+
+    (ii) is published, distributed or otherwise offered to developers
+         outside your own organization as a means of building terminal
+         user interfaces or terminal applications.
+
+  It does not matter whether a Framework Offering is free or paid, or
+  under which license it is offered.
+
+  You need a Framework License, granted in writing by the Licensor, to
+  publish, distribute or operate a Framework Offering.
+
+2.2  What is not covered
+
+  The following are not Framework Offerings, and Section 1 covers them:
+
+    - any application built with Reactive TUI, sold or free, with
+      Reactive TUI inside it in source or compiled form;
+
+    - a changed Copy that is used inside one organization only;
+
+    - a changed Copy that is published only to propose its changes to
+      the Reactive TUI project, and is not presented as a framework of
+      its own;
+
+    - a library of widgets, themes, language bindings or integrations
+      that uses Reactive TUI as a dependency, holds no Copy, and names
+      Reactive TUI as what it is built on;
+
+    - redistribution of Reactive TUI, unchanged and under its own name
+      and this license, by a package registry, a mirror or an operating
+      system distribution.
+
+2.3  Framework License grants
+
+  The Licensor is under no obligation to grant a Framework License and
+  may set any terms for one. Requests go to the address in Section 9.
+
+  If you are not sure whether what you build is a Framework Offering,
+  ask the Licensor before you publish it. Where this rider is unclear,
+  it is read in favor of the permissive grant, unless the use is
+  plainly a Framework Offering.
+
+
+3.  THE SPONSORSHIP RIDER
+
+3.1  Who is covered
+
+  An "Organization" is a company or other legal entity together with
+  its Affiliates. An "Affiliate" is any entity that controls it, is
+  controlled by it, or is under common control with it, where control
+  means more than half of the ownership or of the voting rights.
+
+  "Revenue" is the gross revenue of the Organization from all sources
+  in its last completed fiscal year, in US dollars at the exchange rate
+  of the last day of that year.
+
+  A "Commercial Product" is software built with Reactive TUI that the
+  Organization earns money from: software that it sells, licenses for
+  a fee or offers as a paid service, or that is part of a product or a
+  service it is paid for.
+
+  A "Covered Organization" is an Organization whose Revenue is above
+  USD 1,000,000 and that offers a Commercial Product.
+
+3.2  The rule
+
+  A Covered Organization must sponsor the Reactive TUI project for as
+  long as it offers a Commercial Product.
+
+  To sponsor the project is to pay it a recurring sponsorship through
+  the sponsorship page named in Section 9. The level is the sponsor's
+  choice among the levels the project offers there, unless the
+  Organization and the Licensor agree on another in writing.
+
+  A Commercial Product that a person or another organization builds
+  for a Covered Organization, under contract or as an employee, is the
+  Covered Organization's.
+
+3.3  What stays free
+
+  No sponsorship is owed by:
+
+    - a person who acts for themselves and not for a Covered
+      Organization;
+
+    - an Organization whose Revenue is USD 1,000,000 or less;
+
+    - an Organization that earns no money from software built with
+      Reactive TUI, for example one that uses such software only
+      inside its own business or gives it away;
+
+    - a school, a university, or a registered non-profit organization,
+      whatever its revenue;
+
+    - anybody who only runs an application that another party built
+      with Reactive TUI;
+
+    - anybody who works on Reactive TUI itself in order to contribute
+      to the project.
+
+3.4  When the sponsorship begins
+
+  A Covered Organization begins to sponsor the project within 90 days
+  after it first offered a Commercial Product or, if that is later,
+  after the end of the fiscal year in which its Revenue passed the
+  limit.
+
+3.5  Other terms
+
+  A Covered Organization that cannot sponsor the project in this way
+  may ask the Licensor for a written license on other terms.
+
+
+4.  EARLIER VERSIONS AND THIRD-PARTY PARTS
+
+  Every version of Reactive TUI that the project published under the
+  MIT License alone stays under the MIT License alone. This license
+  governs the versions that carry it.
+
+  Reactive TUI holds code and data of other projects, each under its
+  own license, which this license does not change. The file of each
+  license is beside the part it covers:
+
+    - crates/reactive-tui-crossterm (crossterm, MIT License);
+
+    - crates/libghostty-vt and crates/libghostty-vt-sys (MIT License);
+
+    - the parts of crates/reactive-tui-suprtui that come from OpenTUI
+      (MIT License, LICENSE-OpenTUI);
+
+    - src/accessibility/platform (Apache-2.0 or MIT, and the Chromium
+      license);
+
+    - src/terminal/pty/windows/runtime (MIT License, Microsoft);
+
+    - src/graphics/fonts (the DejaVu fonts license).
+
+
+5.  TRADEMARKS
+
+  The names "Reactive TUI" and "reactive-tui" and the project's logos
+  are unregistered trademarks of the Licensor. This license grants no
+  right to them.
+
+  You may say that your software is built with Reactive TUI, and you
+  may keep the name in source code that you copy, as the MIT License
+  asks of its notice. You may not use the name for a changed or
+  competing product, or in a way that suggests the Licensor supports
+  your product.
+
+
+6.  CONTRIBUTIONS
+
+  Unless you say otherwise in writing, anything you submit to the
+  project for inclusion is submitted under this license, and you also
+  give the Licensor the right to license it to others under Framework
+  Licenses and under the other terms of Section 3.5.
+
+
+7.  ENDING
+
+  Your rights under this license end when you break Section 2 or
+  Section 3 and do not put it right within 30 days after the Licensor
+  told you in writing. Rights that you passed on to others before that
+  day stay with them, as long as they keep to this license.
+
+
+8.  NO WARRANTY
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+
+9.  DEFINITIONS AND CONTACT
+
+  "Licensor" means Shawn McAllister.
+
+  The project's sponsorship page is
+  <https://github.com/sponsors/eas4ai>, or the page that the README of
+  the project names in its place.
+
+  Requests for a Framework License or for other terms, and questions
+  about this license, go to <shawn@eas4ai.com>. The Licensor's site is
+  <https://eas4ai.com>.
+
+  "Reactive TUI" means the software in the repository
+  <https://github.com/eas4ai/reactive-tui>, in the versions that carry
+  this license.
+
+  The SPDX identifier for this license is
+  `LicenseRef-ReactiveTUI-1.0`.

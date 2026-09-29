@@ -5,10 +5,10 @@ edition = "2021"
 rust-version = "1.91"
 description = "Procedural macros for reactive-tui"
 repository = "https://github.com/eas4ai/reactive-tui"
-license = "MIT"
+license = "LicenseRef-ReactiveTUI-1.0"
 publish = false
 readme = "README.md"
-include = ["/src/**", "/README.md", "/LICENSE"]
+include = ["/src/**", "/README.md", "/LICENSE", "/LICENSE-MIT"]
 
 [lib]
 proc-macro = true

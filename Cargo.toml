@@ -6,7 +6,7 @@ rust-version = "1.91"
 description = "Reactive terminal UI framework with retained components, CSS-like layout, widgets, native rendering, and an optional C ABI"
 documentation = "https://docs.rs/reactive-tui"
 repository = "https://github.com/eas4ai/reactive-tui"
-license = "MIT"
+license = "LicenseRef-ReactiveTUI-1.0"
 keywords = ["tui", "terminal", "ui", "reactive", "css"]
 categories = ["command-line-interface", "gui", "graphics"]
 readme = "README.md"
@@ -20,6 +20,7 @@ include = [
     "/README.md",
     "/CHANGELOG.md",
     "/LICENSE",
+    "/LICENSE-MIT",
     "/build.rs",
 ]
 
