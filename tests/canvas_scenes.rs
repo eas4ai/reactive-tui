@@ -19,7 +19,7 @@ use reactive_tui::event::router::EventResult;
 use reactive_tui::event::types::{Event, KeyCode, KeyEvent};
 use reactive_tui::graphics::{
     Canvas, CanvasProps, Color, GraphicsFault, GraphicsMode, GraphicsOptions, GraphicsWorker,
-    HybridRenderer, Paint, Path, Scene,
+    HybridRenderer, Paint, Path, PathBuilder, Scene, Stroke,
 };
 use reactive_tui::theme::{Theme, ThemeVariables};
 use std::sync::Arc;
@@ -48,6 +48,50 @@ fn gfx_001_reference_scenes_are_their_checked_in_images() {
         failures.is_empty(),
         "GFX-001: on the software renderer these reference scenes are not their images: {failures:?}"
     );
+}
+
+/// A white line 4 pixels wide across a picture of 320 by 16 pixels.
+fn line(dash: &[f32]) -> Scene {
+    let path = PathBuilder::new()
+        .move_to(10.0, 8.0)
+        .line_to(310.0, 8.0)
+        .build();
+    let mut scene = Scene::new();
+    scene.stroke(
+        &path,
+        &Stroke::new(4.0).dash(dash),
+        &Paint::solid(Color::rgba(255, 255, 255, 255)),
+    );
+    scene
+}
+
+#[test]
+fn gfx_001_a_dash_pattern_near_zero_draws_a_solid_line() {
+    let mut renderer = HybridRenderer::new(reference_options(true));
+    let mut draw = |dash: &[f32]| {
+        renderer
+            .render(&line(dash), 320, 16)
+            .expect("a 320 by 16 picture")
+            .pixels()
+            .to_vec()
+    };
+    let solid = draw(&[]);
+    // f32 cannot take a dash of 0.00001 from a line of 300 pixels.
+    let near_zero = draw(&[0.000_01, 0.000_01]);
+    let dashed = draw(&[8.0, 8.0]);
+    let middle = solid[8 * 320 + 160];
+    assert!(
+        near_zero == solid && dashed != solid && middle == [255; 4],
+        "GFX-001: a dash pattern of 0.00001 and 0.00001 drew {} pixels unlike the solid line's, \
+         a pattern of 8 and 8 drew {}, and the solid line's middle is {middle:?}",
+        unlike(&near_zero, &solid),
+        unlike(&dashed, &solid)
+    );
+}
+
+/// How many pixels of `a` differ from `b`'s.
+fn unlike(a: &[[u8; 4]], b: &[[u8; 4]]) -> usize {
+    a.iter().zip(b).filter(|(a, b)| a != b).count()
 }
 
 /// `base` with another `primary`. Only `primary` differs, so a test that

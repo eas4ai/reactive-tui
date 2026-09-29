@@ -15,6 +15,11 @@ pub(crate) type Polygon = Vec<Point>;
 /// How far a flattened curve may stray from the true one, in pixels.
 const TOLERANCE: f32 = 0.25;
 
+/// The most runs a dash pattern draws on one line: a line four times as
+/// long as the largest picture is wide, at the shortest pattern that is
+/// drawn as dashes.
+const MAX_RUNS: usize = 65_536;
+
 /// One subpath flattened to a polyline, and whether it was closed.
 pub(crate) struct Polyline {
     pub points: Vec<Point>,
@@ -263,11 +268,16 @@ fn dedupe(points: &[Point]) -> Vec<Point> {
 }
 
 /// The runs of a polyline that a dash pattern draws, in picture pixels,
-/// and whether a run is the whole closed line.
+/// and whether a run is the whole closed line. The line is drawn solid
+/// when the pattern's lengths add up to less than [`TOLERANCE`] pixels, as
+/// a pattern of zeros is, and when the pattern would draw more than
+/// [`MAX_RUNS`] runs.
 fn dash(points: &[Point], closed: bool, pattern: &[f32], scale: f32) -> Vec<(Vec<Point>, bool)> {
+    let solid = || vec![(points.to_vec(), closed)];
     let pattern: Vec<f32> = pattern.iter().map(|length| length * scale).collect();
-    if pattern.iter().sum::<f32>() <= 0.0 {
-        return vec![(points.to_vec(), closed)];
+    let period: f32 = pattern.iter().sum();
+    if period.is_nan() || period < TOLERANCE {
+        return solid();
     }
     let mut path: Vec<Point> = points.to_vec();
     if closed {
@@ -287,6 +297,11 @@ fn dash(points: &[Point], closed: bool, pattern: &[f32], scale: f32) -> Vec<(Vec
             if on {
                 run.push(cut);
                 runs.push((std::mem::take(&mut run), false));
+                // Every second pass ends a run, so this also ends a walk
+                // whose length is too large for f32 to take a dash from.
+                if runs.len() > MAX_RUNS {
+                    return solid();
+                }
             } else {
                 run = vec![cut];
             }
@@ -520,5 +535,36 @@ mod tests {
         let starts: Vec<f32> = runs.iter().map(|(run, _)| run[0].0).collect();
         assert_eq!(starts, vec![0.0, 5.0]);
         assert!((runs[0].0[1].0 - 3.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn a_dash_pattern_the_picture_cannot_show_draws_a_solid_line() {
+        let line = [(0.0, 0.0), (300.0, 0.0)];
+        // f32 cannot take 0.00001 from a length of 300.
+        for pattern in [[0.000_01, 0.000_01], [0.1, 0.1]] {
+            assert_eq!(
+                dash(&line, false, &pattern, 1.0),
+                vec![(line.to_vec(), false)]
+            );
+        }
+        // Under a scale of 0.01 a pattern of 4 and 4 has a period of 0.08 pixels.
+        assert_eq!(
+            dash(&line, true, &[4.0, 4.0], 0.01),
+            vec![(line.to_vec(), true)]
+        );
+    }
+
+    #[test]
+    fn a_dash_pattern_draws_at_most_the_largest_number_of_runs() {
+        // f32 cannot take 0.5 from a length of 100 000 000.
+        for length in [100_000.0, 100_000_000.0] {
+            let line = [(0.0, 0.0), (length, 0.0)];
+            assert_eq!(
+                dash(&line, false, &[0.5, 0.5], 1.0),
+                vec![(line.to_vec(), false)]
+            );
+        }
+        let runs = dash(&[(0.0, 0.0), (1000.0, 0.0)], false, &[0.5, 0.5], 1.0);
+        assert_eq!(runs.len(), 1000);
     }
 }
