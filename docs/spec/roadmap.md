@@ -20,7 +20,14 @@ confirmed the graphics canvas next and kept the charts in characters until
 the commitment after it. On 2026-09-29, after the graphics canvas, the developer
 opened the widget work, which includes the charts ("charts are widgets are
 they not?"), asked for it to be measured against gpui-kit 0.7.0, and put
-the layout first, because every widget and every chart sits in it.
+the layout first, because every widget and every chart sits in it. The
+order after it, which the developer confirmed the same day: the theme's
+colors with the menus and dialogs, the input widgets, the layout and data
+widgets, canvas pictures made ready off the App's thread, the charts with
+two axes, the radial and flow charts, behavior shared by the widgets
+(change callbacks, screen-reader actions, copying over SSH), and new
+widgets. A widget family is brought to the widget bar in a commitment of
+its own, because BAR-003 asks a reworked widget to meet all of it at once.
 
 ## charts-plot-layer
 
