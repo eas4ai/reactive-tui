@@ -84,6 +84,8 @@ pub(crate) struct HostReport {
 /// The line between a canvas and the painter that paints it.
 pub(crate) struct CanvasLink {
     host: Mutex<Option<HostReport>>,
+    /// The pixels of a picture a frame could not show, and why.
+    refused: Mutex<Option<((u32, u32), String)>>,
     /// Counts the reports that differed from the one before.
     reports: std::sync::atomic::AtomicU64,
     changed: ThreadSafeSignal<u64>,
@@ -93,6 +95,7 @@ impl Default for CanvasLink {
     fn default() -> Self {
         Self {
             host: Mutex::default(),
+            refused: Mutex::default(),
             reports: std::sync::atomic::AtomicU64::new(0),
             changed: ThreadSafeSignal::new(0),
         }
@@ -108,10 +111,37 @@ impl CanvasLink {
         }
         *host = Some(report);
         drop(host);
+        self.tell();
+    }
+
+    /// Have the canvas's App redraw.
+    fn tell(&self) {
         let reports = self
             .reports
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.changed.set(reports + 1);
+    }
+
+    /// A frame could not show the canvas's picture of `size` pixels: the
+    /// canvas shows `reason` instead, until its picture has another size.
+    pub fn refuse(&self, size: (u32, u32), reason: &str) {
+        let mut refused = self.refused.lock().unwrap_or_else(|e| e.into_inner());
+        if refused.as_ref().is_some_and(|(last, _)| *last == size) {
+            return;
+        }
+        *refused = Some((size, reason.to_owned()));
+        drop(refused);
+        self.tell();
+    }
+
+    /// Why no frame shows a picture of `size` pixels, when one refused it.
+    pub fn refused(&self, size: (u32, u32)) -> Option<String> {
+        self.refused
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .filter(|(refused, _)| *refused == size)
+            .map(|(_, reason)| reason.clone())
     }
 
     /// What the host takes; `None` until a painter has painted the canvas.

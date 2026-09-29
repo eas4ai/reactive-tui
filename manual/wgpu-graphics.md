@@ -194,7 +194,14 @@ One worker serves one canvas. Both demos start theirs this way.
 ## Limits
 
 - A picture is at most 4096 by 4096 pixels. A larger area is drawn up to
-  that size in whole cells.
+  that size in whole cells, from its top left corner.
+- A Kitty picture that is sent in the command itself, because the terminal
+  does not take shared memory, is at most 12 million pixels, so that a
+  frame's output holds it.
+- A frame holds 64 MiB of new pictures and 64 MiB of output. When a
+  canvas's picture does not fit, the frame is shown without it and the
+  canvas shows the reason in its own area, until its picture has another
+  size.
 - An image is at most 4096 by 4096 pixels.
 - A gradient keeps its first 16 stops.
 - Text up to 96 pixels tall under a transform that only moves it is drawn
