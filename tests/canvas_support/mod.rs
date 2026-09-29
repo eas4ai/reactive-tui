@@ -324,8 +324,33 @@ pub fn transforms_and_clips() -> Scene {
 }
 
 /// The demo cube at two angles, as filled faces with flat shading, far
-/// faces first.
+/// faces first, over a background the size of the picture.
 pub fn cube(angle_x: f32, angle_y: f32) -> Scene {
+    cube_over(angle_x, angle_y, (0.0, 0.0, 320.0, 192.0))
+}
+
+/// [`cube`] fitted to a picture of `size` pixels, over a background that
+/// covers all of it: what a canvas draws when the scene fills its area, as
+/// the demos' scenes do. A speed measured on it is the speed of a picture
+/// with every pixel drawn.
+#[allow(dead_code)]
+pub fn cube_filling(angle_x: f32, angle_y: f32, size: (u32, u32)) -> Scene {
+    cube_in_view(angle_x, angle_y).transformed(reactive_tui::graphics::Transform::fit(
+        (SIZE.0 as f32, SIZE.1 as f32),
+        (size.0 as f32, size.1 as f32),
+    ))
+}
+
+/// [`cube`] over a background that reaches two pictures past each side, for
+/// a canvas that fits the picture to its area with `CanvasProps::view`:
+/// whatever the area's shape, the scene covers it.
+#[allow(dead_code)]
+pub fn cube_in_view(angle_x: f32, angle_y: f32) -> Scene {
+    cube_over(angle_x, angle_y, (-640.0, -384.0, 1600.0, 960.0))
+}
+
+/// The cube over a background rectangle of `(x, y, width, height)`.
+fn cube_over(angle_x: f32, angle_y: f32, background: (f32, f32, f32, f32)) -> Scene {
     let corners: Vec<[f32; 3]> = (0..8)
         .map(|i| {
             [
@@ -368,8 +393,9 @@ pub fn cube(angle_x: f32, angle_y: f32) -> Scene {
         .collect();
     ordered.sort_by(|a, b| b.1.total_cmp(&a.1));
     let mut scene = Scene::new();
+    let (x, y, width, height) = background;
     scene.fill(
-        &Path::rect(0.0, 0.0, 320.0, 192.0),
+        &Path::rect(x, y, width, height),
         &Paint::radial(
             (160.0, 96.0),
             180.0,

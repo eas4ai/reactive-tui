@@ -96,11 +96,52 @@ pub struct HybridRenderer {
     fault: Option<GraphicsFault>,
 }
 
+/// Ask the system not to slow the calling thread down to save power.
+///
+/// Windows moves a thread that waits for the GPU for much of its time to
+/// the processor's efficiency cores, where the work around each picture,
+/// handing it to the GPU and copying it out, takes four to five times as
+/// long: on the test tablet a picture of 1920 by 960 pixels took 29 ms
+/// there and 12 ms on the performance cores (GFX-004). Other systems take
+/// no such request.
+#[cfg(windows)]
+fn keep_full_speed() {
+    use windows_sys::Win32::System::Threading::{
+        GetCurrentThread, SetThreadInformation, ThreadPowerThrottling,
+        THREAD_POWER_THROTTLING_CURRENT_VERSION, THREAD_POWER_THROTTLING_EXECUTION_SPEED,
+        THREAD_POWER_THROTTLING_STATE,
+    };
+    // Execution speed is under this thread's control and is not throttled.
+    let state = THREAD_POWER_THROTTLING_STATE {
+        Version: THREAD_POWER_THROTTLING_CURRENT_VERSION,
+        ControlMask: THREAD_POWER_THROTTLING_EXECUTION_SPEED,
+        StateMask: 0,
+    };
+    // SAFETY: the handle is the calling thread's own, and the pointer and
+    // the size are those of `state`, which outlives the call. A system
+    // that does not know the request refuses it, and the thread runs as
+    // before.
+    unsafe {
+        SetThreadInformation(
+            GetCurrentThread(),
+            ThreadPowerThrottling,
+            std::ptr::from_ref(&state).cast(),
+            std::mem::size_of::<THREAD_POWER_THROTTLING_STATE>() as u32,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn keep_full_speed() {}
+
 impl HybridRenderer {
     /// A renderer on the hardware adapter when the host has one that
     /// works, else on the software renderer. It waits for the adapter, so
     /// an App makes its renderers on a worker ([`super::GraphicsWorker`]).
+    /// The thread that makes the renderer is the one that draws with it:
+    /// on Windows it asks the system not to slow it down to save power.
     pub fn new(options: GraphicsOptions) -> Self {
+        keep_full_speed();
         let chosen = if options.force_cpu {
             Err("explicit CPU selection".to_owned())
         } else if options.fault == Some(GraphicsFault::Adapter) {
