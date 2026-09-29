@@ -60,5 +60,3 @@ applies the final state without keeping animation clocks alive.
 - [Events, focus, and input](events-focus-and-input.md)
 
 [Back to the manual](README.md)
-
-See [a page that is not there](no-such-page.md).
