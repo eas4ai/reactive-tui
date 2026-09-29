@@ -235,6 +235,10 @@ pub struct StyleBuilder {
     grid_cols_repeated: Option<(RepetitionCount, u16)>,
     /// As many rows of at least this many cells as the container holds.
     grid_rows_repeated: Option<(RepetitionCount, u16)>,
+    /// The item spans the grid's columns from the first line to the last.
+    col_full: bool,
+    /// The item spans the grid's rows from the first line to the last.
+    row_full: bool,
     grid_auto_flow: Option<GridAutoFlow>,
     col_span: Option<u16>,
     row_span: Option<u16>,
@@ -1111,12 +1115,14 @@ impl StyleBuilder {
     /// Set number of grid columns
     pub fn grid_cols(mut self, n: u16) -> Self {
         self.grid_cols = Some(n);
+        self.grid_cols_repeated = None;
         self
     }
 
     /// Set number of grid rows
     pub fn grid_rows(mut self, n: u16) -> Self {
         self.grid_rows = Some(n);
+        self.grid_rows_repeated = None;
         self
     }
 
@@ -1129,12 +1135,14 @@ impl StyleBuilder {
     /// Set column span for grid items
     pub fn col_span(mut self, n: u16) -> Self {
         self.col_span = Some(n);
+        self.col_full = false;
         self
     }
 
     /// Set row span for grid items
     pub fn row_span(mut self, n: u16) -> Self {
         self.row_span = Some(n);
+        self.row_full = false;
         self
     }
 
@@ -1185,16 +1193,20 @@ impl StyleBuilder {
 
     /// Span every column the grid has, from its first line to its last, and
     /// add none.
+    /// A span set later replaces it, as it replaces a span set before.
     pub fn col_span_full(mut self) -> Self {
         self.col_span = None;
-        self.col_start(1).col_end(-1)
+        self.col_full = true;
+        self
     }
 
     /// Span every row the grid has, from its first line to its last, and
-    /// add none.
+    /// add none. A span set later replaces it, as it replaces a span set
+    /// before.
     pub fn row_span_full(mut self) -> Self {
         self.row_span = None;
-        self.row_start(1).row_end(-1)
+        self.row_full = true;
+        self
     }
 
     // Grid auto methods
@@ -1601,6 +1613,18 @@ impl StyleBuilder {
             self.style.grid_row = Line {
                 start: GridPlacement::from_span(span),
                 end: GridPlacement::Auto,
+            };
+        }
+        if self.col_full {
+            self.style.grid_column = Line {
+                start: GridPlacement::from_line_index(1),
+                end: GridPlacement::from_line_index(-1),
+            };
+        }
+        if self.row_full {
+            self.style.grid_row = Line {
+                start: GridPlacement::from_line_index(1),
+                end: GridPlacement::from_line_index(-1),
             };
         }
         if let Some(s) = self.col_start {

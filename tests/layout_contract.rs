@@ -882,6 +882,43 @@ fn lay_003_a_full_span_adds_no_track() {
     }
 }
 
+/// Classes are applied in the order they are written, so of two that set
+/// the same thing the later one decides.
+#[test]
+fn lay_003_the_later_of_two_classes_decides() {
+    for painter in PAINTERS {
+        for (span, wide) in [
+            ("col-span-full col-span-2", 2),
+            ("col-span-2 col-span-full", 4),
+        ] {
+            let mut items = vec![leaf(&format!("min-w-0 h-1 {span}"))];
+            items.extend((0..4).map(|_| leaf("min-w-0 h-1")));
+            let root = spaced(LayoutType::Grid, "w-full grid grid-cols-4", 1, items);
+            let what = format!("{painter:?}, {span}");
+            let cells = rectangles(&paint(painter, &root, (83, 6)), &root, &what);
+            // Four tracks of 20 cells with gaps of one.
+            assert_eq!(
+                (cells[0].left, cells[0].right()),
+                (0, wide * 21 - 1),
+                "{what}: {cells:?}"
+            );
+        }
+        for (tracks, columns) in [
+            ("grid-cols-auto-fit-20 grid-cols-3", 3),
+            ("grid-cols-3 grid-cols-auto-fit-20", 4),
+        ] {
+            let items = (0..8).map(|_| leaf("min-w-0 h-1")).collect();
+            let root = Element::layout(LayoutType::Grid)
+                .with_class(format!("w-full grid {tracks}"))
+                .with_children(items);
+            let what = format!("{painter:?}, {tracks}");
+            let cells = rectangles(&paint(painter, &root, (90, 6)), &root, &what);
+            let first_row = cells.iter().filter(|item| item.top == cells[0].top).count();
+            assert_eq!(first_row, columns, "{what}: {cells:?}");
+        }
+    }
+}
+
 #[test]
 fn lay_003_auto_fit_and_auto_fill_make_columns_of_a_least_width() {
     for painter in PAINTERS {
