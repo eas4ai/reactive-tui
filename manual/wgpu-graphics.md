@@ -174,6 +174,12 @@ A scene submitted while the worker draws replaces the scene that still
 waits. The worker waits for nothing between pictures: it draws as fast as
 scenes arrive. When a picture is finished, the worker wakes the App.
 
+On Windows the thread that makes a renderer asks the system not to slow it
+down to save power. Windows otherwise moves a thread that waits for the GPU
+to the processor's efficiency cores, where a picture takes more than twice
+as long. A canvas that animates therefore keeps one thread on the
+performance cores; a canvas that does not animate draws nothing.
+
 A graphics driver may print to the terminal while it starts. To keep that
 off the App's screen, start the worker before the terminal is set up and
 hand it to the canvas:
