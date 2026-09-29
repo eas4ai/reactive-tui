@@ -2,20 +2,23 @@
 //! (GFX-005): the pixels go into a shared-memory object and the terminal is
 //! sent its name, so a picture costs the terminal link a hundred bytes. The
 //! terminal removes an object when it has read it. Those it has not read
-//! when newer pictures follow are removed here: a picture the terminal is
-//! too slow for is dropped, never queued.
+//! when newer pictures of the same canvas follow are removed here: a
+//! picture the terminal is too slow for is dropped, never queued. Each
+//! canvas has its own list, so a frame of many canvases never removes a
+//! picture it has just made for another of them.
 
 /// The shared-memory objects this process made and may still have to
-/// remove.
+/// remove, by the canvas they show, oldest first.
 #[derive(Default)]
 pub(super) struct Pictures {
     #[cfg(unix)]
-    names: std::collections::VecDeque<String>,
+    names: std::collections::HashMap<u32, std::collections::VecDeque<String>>,
 }
 
-/// How many pictures may wait for the terminal to read them.
+/// How many pictures of one canvas may wait for the terminal to read them:
+/// the one of the frame being written and the one before it.
 #[cfg(unix)]
-const WAITING: usize = 4;
+const WAITING: usize = 2;
 
 #[cfg(unix)]
 impl Pictures {
@@ -28,8 +31,9 @@ impl Pictures {
         use rustix::shm;
         use std::io::Write;
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        while self.names.len() >= WAITING {
-            if let Some(name) = self.names.pop_front() {
+        let names = self.names.entry(id).or_default();
+        while names.len() >= WAITING {
+            if let Some(name) = names.pop_front() {
                 let _ = shm::unlink(name.as_str());
             }
         }
@@ -42,13 +46,12 @@ impl Pictures {
         let _ = shm::unlink(name.as_str());
         let flags = shm::OFlags::CREATE | shm::OFlags::EXCL | shm::OFlags::RDWR;
         let fd = shm::open(name.as_str(), flags, Mode::RUSR | Mode::WUSR).ok()?;
-        self.names.push_back(name.clone());
         let mut file = std::fs::File::from(fd);
         if file.write_all(pixels.as_raw()).is_err() {
-            self.names.pop_back();
             let _ = shm::unlink(name.as_str());
             return None;
         }
+        names.push_back(name.clone());
         let (width, height) = pixels.dimensions();
         let name = base64::engine::general_purpose::STANDARD.encode(name.as_bytes());
         Some(format!(
@@ -58,9 +61,23 @@ impl Pictures {
 
     /// Remove every object the terminal has not read.
     pub fn forget(&self) {
-        for name in &self.names {
+        for name in self.names.values().flatten() {
             let _ = rustix::shm::unlink(name.as_str());
         }
+    }
+
+    /// Remove the objects of every canvas but those `shown`: a canvas that
+    /// is gone gets no newer picture to remove its last ones.
+    pub fn keep(&mut self, shown: &[u32]) {
+        self.names.retain(|id, names| {
+            let kept = shown.contains(id);
+            if !kept {
+                for name in names.iter() {
+                    let _ = rustix::shm::unlink(name.as_str());
+                }
+            }
+            kept
+        });
     }
 }
 
@@ -80,4 +97,6 @@ impl Pictures {
     }
 
     pub fn forget(&self) {}
+
+    pub fn keep(&mut self, _: &[u32]) {}
 }
