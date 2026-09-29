@@ -62,6 +62,9 @@ COLOR_LITERALS = {
     "channel array": (re.compile(rf"(?<![\w\])])\[\s*{CHANNEL}\s*,\s*{CHANNEL}\s*,\s*{CHANNEL}\s*(?:,\s*{CHANNEL}\s*)?,?\s*\]"), False),
     "unit tuple": (re.compile(rf"(?<![\w\]])\(\s*{UNIT}\s*,\s*{UNIT}\s*,\s*{UNIT}\s*(?:,\s*{UNIT}\s*)?\)"), False),
     "unit array": (re.compile(rf"(?<![\w\])])\[\s*{UNIT}\s*,\s*{UNIT}\s*,\s*{UNIT}\s*(?:,\s*{UNIT}\s*)?,?\s*\]"), False),
+    # One value for every channel, as in [1.0; 4] or vec![255; 3]. A value
+    # of zero is no color: it is transparent, or a buffer still to be filled.
+    "repeat array": (re.compile(rf"(?<![\w\])])\[\s*(?!0(?:\.0*)?(?:_?[a-z]\w*)?\s*;)(?:{UNIT}|{CHANNEL})\s*;\s*[34]\s*\]"), False),
     "hex integer": (re.compile(r"\b0x(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b"), False),
     "color built from numbers": (re.compile(rf"\b{COLOR_TYPE}\s*(?:::\s*\w+\s*)?(?:\(\s*\[?|\{{\s*(?:r|g|b|a|red|green|blue|alpha)\s*:)\s*{NUM}(?!\s*;)"), False),
     "rgb setter": (re.compile(rf"\b(?:\w+_)?rgba?\s*\(\s*{NUM}"), False),

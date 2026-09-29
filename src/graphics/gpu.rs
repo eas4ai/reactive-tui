@@ -415,8 +415,9 @@ impl Frame {
         let at = self.accumulate(polygons, window);
         // A mask holds how much of each pixel shows, not a color: the path
         // is painted at full value.
+        let shows = 1.0;
         let (full, _) = self.paint(&Shader {
-            kind: ShaderKind::Solid([1.0; 4]),
+            kind: ShaderKind::Solid([shows; 4]),
             inverse: Transform::identity(),
             opacity: 1.0,
         });
@@ -783,8 +784,10 @@ impl GpuRenderer {
             ..Default::default()
         });
         let renderer = Self {
-            blank_color: blank(&device, &queue, TARGET_FORMAT, &[255; 4]),
-            blank_mask: blank(&device, &queue, MASK_FORMAT, &[255]),
+            // What a draw with no image, or under no clip, is given to
+            // read: every channel at its largest value.
+            blank_color: blank(&device, &queue, TARGET_FORMAT, &[u8::MAX; 4]),
+            blank_mask: blank(&device, &queue, MASK_FORMAT, &[u8::MAX]),
             atlas: GlyphAtlas::new(&device, GlyphAtlas::START, 0),
             device,
             queue,
