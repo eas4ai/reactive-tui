@@ -20,6 +20,19 @@ use reactive_tui::{
 use std::sync::Arc;
 use std::time::Instant;
 
+/// What the showcase's command line asks of the canvas.
+#[cfg(feature = "wgpu-graphics")]
+pub fn graphics_from(args: impl IntoIterator<Item = String>) -> Result<GraphicsOptions, String> {
+    let mut options = GraphicsOptions::default();
+    for arg in args {
+        match arg.as_str() {
+            "--cpu" => options.force_cpu = true,
+            _ => return Err(format!("unknown showcase option: {arg}")),
+        }
+    }
+    Ok(options)
+}
+
 /// The Shader page's canvas: how it draws, the worker that draws it and
 /// when the torus began to turn.
 #[cfg(feature = "wgpu-graphics")]

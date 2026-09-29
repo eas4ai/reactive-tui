@@ -157,13 +157,16 @@ fn graphics_showcase_reaches_the_shader_page() {
 // Tests that use the GPU take turns: one adapter serves them all.
 #[serial_test::serial(gpu)]
 fn gfx_008_the_shader_page_draws_the_torus_on_each_renderer() {
-    use reactive_tui::graphics::GraphicsOptions;
     use showcase::Showcase;
-    for (force_cpu, label) in [(true, "CPU fallback"), (false, "GPU")] {
-        let showcase = Showcase::with_graphics(GraphicsOptions {
-            force_cpu,
-            ..Default::default()
-        });
+    // A renderer's name begins its label; the reason of a fallback can
+    // hold the other's.
+    for (words, label, other) in [
+        (vec!["--cpu"], "CPU fallback · ", "GPU · "),
+        (vec![], "GPU · ", "CPU fallback"),
+    ] {
+        let options = showcase::graphics_from(words.iter().map(|word: &&str| word.to_string()))
+            .expect("options the manual names");
+        let showcase = Showcase::with_graphics(options);
         let frames = common::app_input::run_when(
             showcase,
             (120, 40),
@@ -180,9 +183,10 @@ fn gfx_008_the_shader_page_draws_the_torus_on_each_renderer() {
             .filter(|c| "▀▄█▌▐".contains(*c) || ('\u{1FB00}'..='\u{1FB3B}').contains(c))
             .count();
         assert!(
-            blocks > 100,
-            "GFX-008: the Shader page on the {label} renderer drew {blocks} block cells:\n{}",
+            blocks > 100 && !last.text.contains(other),
+            "GFX-008: the Shader page started with {words:?} drew {blocks} block cells, under a line that names the renderer:\n{}",
             last.text
         );
     }
+    assert!(showcase::graphics_from(["--fast".to_owned()]).is_err());
 }

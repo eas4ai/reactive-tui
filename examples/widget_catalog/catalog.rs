@@ -39,9 +39,41 @@ use motion::CubeAnimation;
 #[path = "scene.rs"]
 pub mod scene;
 #[cfg(feature = "wgpu-graphics")]
-use reactive_tui::graphics::{Canvas, CanvasProps, GraphicsOptions, GraphicsWorker};
+use reactive_tui::graphics::{Canvas, CanvasProps, GraphicsFault, GraphicsOptions, GraphicsWorker};
 #[cfg(feature = "wgpu-graphics")]
 use std::sync::Arc;
+
+/// What the catalog's command line asks of the canvas, and whether the
+/// catalog opens on the Motion page.
+#[cfg(feature = "wgpu-graphics")]
+pub fn graphics_from(
+    args: impl IntoIterator<Item = String>,
+) -> Result<(GraphicsOptions, bool), String> {
+    let mut options = GraphicsOptions::default();
+    let mut start_motion = false;
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--motion" => start_motion = true,
+            "--cpu" => options.force_cpu = true,
+            "--graphics-fault" => {
+                options.fault =
+                    Some(match args.next().as_deref() {
+                        Some("adapter") => GraphicsFault::Adapter,
+                        Some("device-loss") => GraphicsFault::DeviceLoss,
+                        Some("readback") => GraphicsFault::Readback,
+                        Some("software") => GraphicsFault::Software,
+                        _ => return Err(
+                            "--graphics-fault requires adapter, device-loss, readback or software"
+                                .into(),
+                        ),
+                    });
+            }
+            _ => return Err(format!("unknown catalog option: {arg}")),
+        }
+    }
+    Ok((options, start_motion))
+}
 
 /// The Motion page's canvas: how it draws, the worker that draws it and
 /// when the cube began to turn.
