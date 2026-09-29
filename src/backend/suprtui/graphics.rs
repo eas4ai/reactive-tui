@@ -200,6 +200,12 @@ impl<P: RasterPlane> Graphics<P> {
         if !next.is_empty() {
             after.extend_from_slice(b"\x1b8");
         }
+        let canvases: Vec<u32> = next
+            .iter()
+            .filter(|plane| plane.canvas().is_some())
+            .map(RasterPlane::id)
+            .collect();
+        self.shared.keep(&canvases);
         self.in_place = in_place;
         self.possible_ids.extend(
             next.iter()

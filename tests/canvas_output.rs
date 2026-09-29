@@ -227,6 +227,130 @@ fn run_spinner(images: ImageOutputOptions, delay: Duration, frames: usize) -> Ve
         .collect()
 }
 
+/// A root that draws `canvases` canvases side by side, each a new cube
+/// angle every frame, and stops after `frames`.
+#[cfg(target_os = "linux")]
+struct Row {
+    frame: usize,
+    frames: usize,
+    canvases: usize,
+}
+#[cfg(target_os = "linux")]
+impl RootComponent for Row {
+    fn render(&self) -> Element {
+        use reactive_tui::builder::core::div;
+        div()
+            .class("flex flex-row w-full h-full")
+            .children(
+                (0..self.canvases)
+                    .map(|n| {
+                        let angle = (self.frame + n) as f32 * 0.1;
+                        div()
+                            .class("w-10 h-full")
+                            .children(vec![canvas(
+                                canvas_support::cube(angle, angle),
+                                reference_options(true),
+                            )])
+                            .build()
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .build()
+    }
+    fn update(&mut self) -> Result<RootUpdate> {
+        self.frame += 1;
+        Ok(if self.frame >= self.frames {
+            RootUpdate::Exit
+        } else {
+            RootUpdate::Redraw
+        })
+    }
+    /// The backend writes to memory and has no terminal to read keys from.
+    fn accepts_input(&self) -> bool {
+        false
+    }
+}
+
+/// A terminal that notes, when output reaches it, whether the shared-memory
+/// object each Kitty picture names is there to be read.
+#[cfg(target_os = "linux")]
+#[derive(Clone, Default)]
+struct SharedReader {
+    pending: Arc<Mutex<Vec<u8>>>,
+    /// For each flush that held pictures, whether each picture's object was there.
+    found: Arc<Mutex<Vec<Vec<bool>>>>,
+}
+#[cfg(target_os = "linux")]
+impl Write for SharedReader {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.pending.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        use base64::Engine;
+        let chunk = std::mem::take(&mut *self.pending.lock().unwrap());
+        let chunk = String::from_utf8_lossy(&chunk);
+        let found: Vec<bool> = chunk
+            .split(KITTY)
+            .skip(1)
+            .filter(|command| command.contains("a=T") && command.contains("t=s"))
+            .filter_map(|command| {
+                let name = command.split_once(';')?.1.split_once('\x1b')?.0;
+                let name = base64::engine::general_purpose::STANDARD
+                    .decode(name)
+                    .ok()?;
+                let name = String::from_utf8(name).ok()?;
+                Some(
+                    std::path::Path::new("/dev/shm")
+                        .join(name.trim_start_matches('/'))
+                        .exists(),
+                )
+            })
+            .collect();
+        if !found.is_empty() {
+            self.found.lock().unwrap().push(found);
+        }
+        Ok(())
+    }
+}
+
+// The objects are looked for where Linux keeps them, in /dev/shm.
+#[cfg(target_os = "linux")]
+#[test]
+fn gfx_005_every_canvas_of_a_frame_keeps_its_shared_picture() {
+    const CANVASES: usize = 6;
+    let shared = ImageOutputOptions {
+        kitty_graphics: true,
+        kitty_shared_memory: true,
+        ..Default::default()
+    };
+    let terminal = SharedReader::default();
+    let backend = SuprTuiBackend::with_writer_and_images(60, 20, terminal.clone(), shared).unwrap();
+    App::builder()
+        .backend(backend)
+        .root(Row {
+            frame: 0,
+            frames: 12,
+            canvases: CANVASES,
+        })
+        .build()
+        .unwrap()
+        .run()
+        .unwrap();
+    let found = terminal.found.lock().unwrap();
+    let full: Vec<&Vec<bool>> = found
+        .iter()
+        .filter(|frame| frame.len() == CANVASES)
+        .collect();
+    assert!(
+        !full.is_empty() && found.iter().all(|frame| frame.iter().all(|there| *there)),
+        "GFX-005: of {} frames with pictures, {} held all {CANVASES} canvases; whether each picture's shared memory was there when its frame was written: {:?}",
+        found.len(),
+        full.len(),
+        &found[..found.len().min(6)]
+    );
+}
+
 /// The (row, column) of every cursor position a chunk of output sets, 1-based.
 fn cursor_moves(chunk: &str) -> Vec<(u16, u16)> {
     let mut moves = Vec::new();
