@@ -244,6 +244,13 @@ impl Plane {
                 .background,
         )
     }
+    /// Whether the cell of the pixel at `x`, `y` shows the picture: no
+    /// element above the plane covers it.
+    pub fn shows(&self, x: u32, y: u32, cell: (u16, u16)) -> bool {
+        let width = (self.bounds.right - self.bounds.left) as usize;
+        self.cover[(y / u32::from(cell.1)) as usize * width + (x / u32::from(cell.0)) as usize]
+            .visible
+    }
     pub fn position(&self) -> (u32, u32) {
         (self.bounds.left as u32, self.bounds.top as u32)
     }

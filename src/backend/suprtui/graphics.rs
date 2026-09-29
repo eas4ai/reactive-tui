@@ -44,6 +44,11 @@ pub(crate) trait RasterPlane: PartialEq {
     fn position(&self) -> (u32, u32);
     fn raster(&self, cell: (u16, u16)) -> Result<image::RgbaImage>;
     fn background(&self, x: u32, y: u32, cell: (u16, u16)) -> image::Rgba<u8>;
+    /// Whether the cell of the pixel at `x`, `y` shows the picture: no
+    /// element above it covers the cell.
+    fn shows(&self, _x: u32, _y: u32, _cell: (u16, u16)) -> bool {
+        true
+    }
     fn z_index(&self, order: usize) -> i32 {
         order as i32
     }
@@ -82,6 +87,9 @@ impl RasterPlane for Plane {
     }
     fn background(&self, x: u32, y: u32, cell: (u16, u16)) -> image::Rgba<u8> {
         self.background(x, y, cell)
+    }
+    fn shows(&self, x: u32, y: u32, cell: (u16, u16)) -> bool {
+        self.shows(x, y, cell)
     }
 }
 
@@ -151,7 +159,17 @@ impl<P: RasterPlane> Graphics<P> {
                     // A canvas's picture is drawn from the cursor, so it
                     // touches no cell outside the canvas, and only in whole
                     // bands of six rows, so none reaches below it.
-                    let pixels = below.flatten(plane, &pixels, true);
+                    let mut pixels = below.flatten(plane, &pixels, true);
+                    // Sixel leaves a pixel it is not given as the screen
+                    // shows it, which after the first picture is the last
+                    // picture. So every pixel of a cell that shows the
+                    // canvas is drawn: where the picture is transparent,
+                    // in the cell's background.
+                    for (x, y, pixel) in pixels.enumerate_pixels_mut() {
+                        if pixel[3] == 0 && plane.shows(x, y, cell) {
+                            *pixel = plane.background(x, y, cell);
+                        }
+                    }
                     let height = pixels.height() - pixels.height() % 6;
                     if height == 0 {
                         String::new()
