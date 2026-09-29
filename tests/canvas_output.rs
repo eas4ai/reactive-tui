@@ -14,7 +14,9 @@ use reactive_tui::app::{App, RootComponent, RootUpdate};
 use reactive_tui::backend::{ImageOutputOptions, SuprTuiBackend};
 use reactive_tui::component::Element;
 use reactive_tui::error::Result;
-use reactive_tui::graphics::{Canvas, CanvasOutput, CanvasProps, GraphicsOptions, Scene};
+use reactive_tui::graphics::{
+    Canvas, CanvasOutput, CanvasProps, Color, GraphicsOptions, Paint, Path, Scene,
+};
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -141,27 +143,41 @@ fn gfx_005_kitty_frames_travel_through_shared_memory_when_accepted() {
     );
 }
 
-/// A root that draws a new cube angle each frame beside a fixed label, and
+/// The cube at the angle of `frame`, over its background.
+fn spinning_cube(frame: usize) -> Scene {
+    let angle = frame as f32 * 0.1;
+    canvas_support::cube(angle, angle)
+}
+
+/// A square that moves to the right with `frame`, in a picture that is
+/// transparent everywhere else.
+fn moving_square(frame: usize) -> Scene {
+    let mut scene = Scene::new();
+    scene.fill(
+        &Path::rect(8.0 * frame as f32, 40.0, 48.0, 48.0),
+        &Paint::solid(Color::rgba(200, 40, 40, 255)),
+    );
+    scene
+}
+
+/// A root that draws the scene of each frame beside a fixed label, and
 /// stops after `frames`.
 struct Spinner {
     frame: usize,
     frames: usize,
     options: GraphicsOptions,
+    scene: fn(usize) -> Scene,
 }
 impl RootComponent for Spinner {
     fn render(&self) -> Element {
         use reactive_tui::builder::core::div;
-        let angle = self.frame as f32 * 0.1;
         div()
             .class("flex flex-row w-full h-full")
             .children(vec![
                 Element::text("left side").with_class("w-20 h-full"),
                 div()
                     .class("w-40 h-full")
-                    .children(vec![canvas(
-                        canvas_support::cube(angle, angle),
-                        self.options.clone(),
-                    )])
+                    .children(vec![canvas((self.scene)(self.frame), self.options.clone())])
                     .build(),
             ])
             .build()
@@ -202,7 +218,12 @@ impl Write for SlowTerminal {
     }
 }
 
-fn run_spinner(images: ImageOutputOptions, delay: Duration, frames: usize) -> Vec<String> {
+fn run_spinner(
+    images: ImageOutputOptions,
+    delay: Duration,
+    frames: usize,
+    scene: fn(usize) -> Scene,
+) -> Vec<String> {
     let terminal = SlowTerminal {
         flushes: Arc::default(),
         pending: Arc::default(),
@@ -215,6 +236,7 @@ fn run_spinner(images: ImageOutputOptions, delay: Duration, frames: usize) -> Ve
             frame: 0,
             frames,
             options: reference_options(true),
+            scene,
         })
         .build()
         .unwrap()
@@ -373,7 +395,7 @@ fn gfx_005_pixel_frames_replace_each_other_in_place() {
         sixel: true,
         ..Default::default()
     };
-    let flushes = run_spinner(sixel, Duration::ZERO, 12);
+    let flushes = run_spinner(sixel, Duration::ZERO, 12, spinning_cube);
     let pictures: Vec<&String> = flushes
         .iter()
         .filter(|chunk| chunk.contains(SIXEL))
@@ -394,13 +416,107 @@ fn gfx_005_pixel_frames_replace_each_other_in_place() {
     );
 }
 
+/// The size a Sixel picture states for itself and how many of its pixels
+/// its data leaves unset, which a terminal shows as they were before.
+/// `picture` is what follows [`SIXEL`].
+fn sixel_unset(picture: &str) -> ((usize, usize), usize) {
+    let body = picture.split('\x1b').next().unwrap_or("");
+    let mut size = (0, 0);
+    let mut data = body;
+    if let Some(rest) = body.strip_prefix('"') {
+        let end = rest
+            .find(|c: char| !(c.is_ascii_digit() || c == ';'))
+            .unwrap_or(rest.len());
+        let numbers: Vec<usize> = rest[..end]
+            .split(';')
+            .filter_map(|n| n.parse().ok())
+            .collect();
+        size = (
+            numbers.get(2).copied().unwrap_or(0),
+            numbers.get(3).copied().unwrap_or(0),
+        );
+        data = &rest[end..];
+    }
+    let mut set = vec![false; size.0 * size.1];
+    let (mut x, mut row, mut repeat) = (0usize, 0usize, 1usize);
+    let mut bytes = data.bytes().peekable();
+    while let Some(byte) = bytes.next() {
+        match byte {
+            // A color: its number, and its definition when one follows.
+            b'#' => {
+                while bytes
+                    .peek()
+                    .is_some_and(|b| b.is_ascii_digit() || *b == b';')
+                {
+                    bytes.next();
+                }
+            }
+            b'!' => {
+                let mut count = 0;
+                while let Some(digit) = bytes.peek().filter(|b| b.is_ascii_digit()) {
+                    count = count * 10 + usize::from(digit - b'0');
+                    bytes.next();
+                }
+                repeat = count.max(1);
+            }
+            b'$' => x = 0,
+            b'-' => {
+                x = 0;
+                row += 6;
+            }
+            b'?'..=b'~' => {
+                let bits = byte - b'?';
+                for column in x..x + repeat {
+                    for bit in 0..6 {
+                        let y = row + bit;
+                        if bits & (1 << bit) != 0 && column < size.0 && y < size.1 {
+                            set[y * size.0 + column] = true;
+                        }
+                    }
+                }
+                x += repeat;
+                repeat = 1;
+            }
+            _ => {}
+        }
+    }
+    (size, set.iter().filter(|pixel| !**pixel).count())
+}
+
+#[test]
+fn gfx_005_a_sixel_frame_leaves_nothing_of_the_last() {
+    let sixel = ImageOutputOptions {
+        sixel: true,
+        ..Default::default()
+    };
+    let flushes = run_spinner(sixel, Duration::ZERO, 12, moving_square);
+    let pictures: Vec<((usize, usize), usize)> = flushes
+        .iter()
+        .flat_map(|chunk| {
+            chunk
+                .split(SIXEL)
+                .skip(1)
+                .map(sixel_unset)
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    assert!(
+        pictures.len() >= 2
+            && pictures
+                .iter()
+                .all(|(size, unset)| size.0 > 0 && size.1 > 0 && *unset == 0),
+        "GFX-005: a square that moves over a transparent picture was sent as Sixel pictures of (size, pixels left as the screen had them): {:?}",
+        &pictures[..pictures.len().min(6)]
+    );
+}
+
 #[test]
 fn gfx_005_a_slow_terminal_gets_no_backlog() {
     let kitty = ImageOutputOptions {
         kitty_graphics: true,
         ..Default::default()
     };
-    let flushes = run_spinner(kitty, Duration::from_millis(60), 20);
+    let flushes = run_spinner(kitty, Duration::from_millis(60), 20, spinning_cube);
     let per_flush: Vec<usize> = flushes
         .iter()
         .map(|chunk| {
