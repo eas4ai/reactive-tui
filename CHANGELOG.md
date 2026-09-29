@@ -11,6 +11,11 @@ This file records user-visible changes to Reactive TUI. The project follows
   four cells and `gap-4` sixteen. To keep the size of an existing class,
   multiply its number by four. Whole numbers from 0 to 512 are accepted,
   and a number with a fraction counts as the next whole number.
+  The gap argument of `builder::flex_row`, `flex_col` and `grid_layout` is
+  the number of such a class and counts in cells too. So do the declarative
+  grid's `gap`, `column_gap` and `row_gap`, which its documentation already
+  gave in cells: `gap(1)` was four cells, and the default gaps were none
+  across and four down where they are now one and one.
 - **Breaking:** `grid-cols-auto-fit-N`, `grid-cols-auto-fill-N` and their
   row forms make as many tracks of at least N cells as the container holds.
   They made N tracks before. `col-span-full` and `row-span-full` span the
