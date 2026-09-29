@@ -1514,16 +1514,19 @@ fn inp_011_replies_are_not_keys_and_typed_keys_keep_their_order() {
         "startup query",
         Duration::from_secs(5),
     );
-    // Alt+] is how the background color reply starts; the key after it is kept.
-    session.send(b"a\x1b]xb");
+    // Alt+] is how the background color reply starts and Alt+_ how a
+    // graphics reply starts; the key after each is kept.
+    session.send(b"a\x1b]x\x1b_yb");
     session.until(|session| session.text().contains("PROBE"), "first frame");
-    session.wait_for(|line| line.starts_with("root Key "), 4);
+    session.wait_for(|line| line.starts_with("root Key "), 6);
     let keys = root_keys(&session);
     assert!(
         keys == [
             "root Key Char('a') ----",
             "root Key Char(']') --A-",
             "root Key Char('x') ----",
+            "root Key Char('_') --A-",
+            "root Key Char('y') ----",
             "root Key Char('b') ----"
         ],
         "INP-011: keys typed while the replies were pending, and the replies, reached the App as {keys:?}"

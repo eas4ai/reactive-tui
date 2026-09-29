@@ -50,8 +50,9 @@ pub(crate) fn parse_held(
 /// [`parse_event`], with how many bytes the event used. While the startup
 /// replies are due, a key read in the same chunk as another sequence ends
 /// where that sequence starts, so neither the next key nor a reply is lost:
-/// Alt+] followed by anything but a background color reply, and Escape
-/// followed by a CSI or OSC sequence.
+/// Alt+] followed by anything but a background color reply, Alt+_ followed
+/// by anything but a Kitty graphics reply, and Escape followed by a CSI,
+/// OSC or APC sequence.
 fn parse_event_prefix(
     buffer: &[u8],
     input_available: bool,
@@ -63,6 +64,12 @@ fn parse_event_prefix(
         match buffer[1..] {
             [b']', ref tail @ ..] if !tail.is_empty() && !is_background_reply_start(tail) => {
                 let alt = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::ALT);
+                return Ok(Some((key(alt), 2)));
+            }
+            // `ESC _ G` starts a graphics reply; before any other byte,
+            // `ESC _` was Alt+_, and that byte starts what comes next.
+            [b'_', next, ..] if next != b'G' => {
+                let alt = KeyEvent::new(KeyCode::Char('_'), KeyModifiers::ALT);
                 return Ok(Some((key(alt), 2)));
             }
             [b'\x1B'] if input_available => return Ok(None),
@@ -148,12 +155,11 @@ pub(crate) fn parse_event(
                     }
                     b'[' => parse_csi(buffer),
                     // While the startup replies are due, `ESC _ G` starts a Kitty
-                    // graphics reply; `ESC _` alone waits for the byte after it.
+                    // graphics reply; `ESC _` alone waits for the byte after it,
+                    // also when a read ends there, as `ESC ]` does;
+                    // parse_event_prefix splits Alt+_ from anything else.
                     b'_' if STARTUP_REPLIES_PENDING.load(std::sync::atomic::Ordering::Acquire)
-                        && match buffer.get(2) {
-                            Some(byte) => *byte == b'G',
-                            None => input_available,
-                        } =>
+                        && buffer.get(2).is_none_or(|byte| *byte == b'G') =>
                     {
                         if buffer.len() == 2 {
                             Ok(None)
@@ -1804,6 +1810,7 @@ mod tests {
         // A read may end inside the reply, or right after ESC _.
         assert_eq!(parse_event(b"\x1B_Gi=31;O", true).unwrap(), None);
         assert_eq!(parse_event(b"\x1B_", true).unwrap(), None);
+        assert_eq!(parse_event(b"\x1B_", false).unwrap(), None);
         // Sixel is attribute 4 of the device attributes; 42 is not 4.
         assert_eq!(
             parse_event(b"\x1B[?62;42;22c", false).unwrap(),
@@ -1849,6 +1856,8 @@ mod tests {
         let key =
             |code, modifiers| InternalEvent::Event(Event::Key(KeyEvent::new(code, modifiers)));
         let alt_bracket = key(KeyCode::Char(']'), KeyModifiers::ALT);
+        let alt_underscore = key(KeyCode::Char('_'), KeyModifiers::ALT);
+        let graphics = InternalEvent::KittyGraphicsReply { id: 31, ok: true };
         let x = key(KeyCode::Char('x'), KeyModifiers::NONE);
         let esc = key(KeyCode::Esc, KeyModifiers::NONE);
         STARTUP_REPLIES_PENDING.store(true, Ordering::Release);
@@ -1877,9 +1886,30 @@ mod tests {
             held_events(&[b"\x1B]", b"11;rgb:ffff/ffff/ffff\x07"]),
             [InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF)],
         );
+        // Alt+_ and the key typed after it, in one read.
+        assert_eq!(
+            held_events(&[b"\x1B_x"]),
+            [alt_underscore.clone(), x.clone()]
+        );
+        // Alt+_ read with a graphics reply, and with the keyboard flags reply.
+        assert_eq!(
+            held_events(&[b"\x1B_\x1B_Gi=31;OK\x1B\\"]),
+            [alt_underscore.clone(), graphics.clone()],
+        );
+        assert_eq!(
+            held_events(&[b"\x1B_\x1B[?0u"]),
+            [
+                alt_underscore.clone(),
+                InternalEvent::KeyboardEnhancementFlags(KeyboardEnhancementFlags::empty())
+            ],
+        );
+        // A graphics reply split right after ESC _.
+        assert_eq!(held_events(&[b"\x1B_", b"Gi=31;OK\x1B\\"]), [graphics]);
         STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
         // Not due: Alt+] and the key after it, as before.
-        assert_eq!(held_events(&[b"\x1B]x"]), [alt_bracket, x]);
+        assert_eq!(held_events(&[b"\x1B]x"]), [alt_bracket, x.clone()]);
+        // Not due: Alt+_ and the key after it, as before.
+        assert_eq!(held_events(&[b"\x1B_x"]), [alt_underscore, x]);
         // Not due: Escape Escape is one Escape, as before.
         assert_eq!(held_events(&[b"\x1B\x1B"]), [esc]);
     }
