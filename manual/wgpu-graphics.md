@@ -239,6 +239,10 @@ One worker serves one canvas. Both demos start theirs this way.
   cannot be interrupted safely.
 - Sixel has no partial transparency. The canvas blends its picture with the
   background color of the cells below it.
+- A terminal can show less of a Sixel picture than it is sent. xterm cuts a
+  picture at its `maxGraphicSize`, which is 1000 by 1000 pixels unless the
+  resource is set, for example with
+  `xterm -xrm "XTerm*maxGraphicSize: 2400x1400"`.
 
 ## Measure the renderers
 
