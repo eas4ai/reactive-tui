@@ -832,6 +832,28 @@ impl<'a, B: Backend> Renderer<'a, B> {
         (&mut self.next, &mut self.next_hit)
     }
 
+    /// Forget what the screen shows in the cells of a rectangle, so the next
+    /// render writes them whether or not they changed. For cells that
+    /// something other than this renderer drew over, such as a Sixel
+    /// picture that is to go: writing a cell is what removes its pixels.
+    /// Call it after the next frame is painted and before it is rendered.
+    pub fn forget_cells(&mut self, x: u32, y: u32, width: u32, height: u32) {
+        // Two colors no cell needs to hold: the shown cell takes the one
+        // the next cell does not have, so the two differ.
+        let unknown = [ansi::rgb_color(1, 2, 3, 255), ansi::rgb_color(3, 2, 1, 255)];
+        for row in y..y.saturating_add(height).min(self.height) {
+            for column in x..x.saturating_add(width).min(self.width) {
+                let (Some(mut shown), Some(next)) =
+                    (self.current.get(column, row), self.next.get(column, row))
+                else {
+                    continue;
+                };
+                shown.fg = unknown[usize::from(next.fg == unknown[0])];
+                self.current.sync_cell(column, row, shown);
+            }
+        }
+    }
+
     /// The committed hit grid, row-major at the renderer's width; empty when
     /// no frame wrote one.
     pub fn committed_hit_grid(&self) -> &[u32] {
@@ -1543,6 +1565,36 @@ fn unchanged_skips() {
     assert_eq!(before, renderer.current_buffer().get(0, 0).unwrap());
 }
 
+/// Cells the renderer was told to forget are written again although they
+/// did not change, and no other cell is.
+#[cfg(test)]
+#[test]
+fn forgotten_cells_are_written_again() {
+    let mut renderer = test_renderer(6, 2);
+    white_on_black(&mut renderer, "ABCDEF", 0, 0);
+    white_on_black(&mut renderer, "abcdef", 0, 1);
+    assert_eq!(RenderStatus::Rendered, renderer.render(false));
+    white_on_black(&mut renderer, "ABCDEF", 0, 0);
+    white_on_black(&mut renderer, "abcdef", 0, 1);
+    renderer.forget_cells(2, 1, 3, 1);
+    assert_eq!(RenderStatus::Rendered, renderer.render(false));
+    let frame = String::from_utf8_lossy(&renderer.backend().frames()[1]).into_owned();
+    assert!(
+        frame.contains("cde")
+            && !frame.contains('b')
+            && !frame.contains('f')
+            && !frame.contains('A'),
+        "forgetting three cells of the second row wrote {frame:?}"
+    );
+    // What the screen shows is known again: the same frame skips.
+    white_on_black(&mut renderer, "ABCDEF", 0, 0);
+    white_on_black(&mut renderer, "abcdef", 0, 1);
+    assert_eq!(RenderStatus::Skipped, renderer.render(false));
+    // Cells outside the buffer are none to forget.
+    renderer.forget_cells(4, 1, 100, 100);
+    renderer.forget_cells(100, 100, 1, 1);
+}
+
 /// REN-003 falsifier: an unchanged cursor is re-emitted, or a moved
 /// cursor keeps its old position in the output.
 #[cfg(test)]
@@ -1733,13 +1785,11 @@ fn thread_parity() {
 fn lifecycle_sequences() {
     let mut renderer = test_renderer(8, 3);
     renderer.setup_terminal(true);
-    assert!(
-        renderer
-            .backend()
-            .direct_output()
-            .windows(8)
-            .any(|w| w == b"\x1b[?1049h")
-    );
+    assert!(renderer
+        .backend()
+        .direct_output()
+        .windows(8)
+        .any(|w| w == b"\x1b[?1049h"));
     renderer.shutdown();
     let out = renderer.backend().direct_output().to_vec();
     assert!(out.windows(8).any(|w| w == b"\x1b[?1049l"));
@@ -1748,13 +1798,11 @@ fn lifecycle_sequences() {
     // the clear flag on homes and clears.
     let mut plain = test_renderer(8, 3);
     plain.setup_terminal(false);
-    assert!(
-        !plain
-            .backend()
-            .direct_output()
-            .windows(8)
-            .any(|w| w == b"\x1b[?1049h")
-    );
+    assert!(!plain
+        .backend()
+        .direct_output()
+        .windows(8)
+        .any(|w| w == b"\x1b[?1049h"));
     plain.shutdown();
     let plain_out = plain.backend().direct_output().to_vec();
     assert!(plain_out.windows(6).any(|w| w == b"\x1b[H\x1b[J"));
@@ -1764,33 +1812,28 @@ fn lifecycle_sequences() {
     noclear.set_clear_on_shutdown(false);
     noclear.setup_terminal(false);
     noclear.shutdown();
-    assert!(
-        !noclear
-            .backend()
-            .direct_output()
-            .windows(6)
-            .any(|w| w == b"\x1b[H\x1b[J")
-    );
+    assert!(!noclear
+        .backend()
+        .direct_output()
+        .windows(6)
+        .any(|w| w == b"\x1b[H\x1b[J"));
 
     // Suspend restores like shutdown; resume re-runs setup.
     let mut susp = test_renderer(8, 3);
     susp.setup_terminal(true);
     susp.suspend();
     assert!(susp.suspended());
-    assert!(
-        susp.backend()
-            .direct_output()
-            .windows(8)
-            .any(|w| w == b"\x1b[?1049l")
-    );
+    assert!(susp
+        .backend()
+        .direct_output()
+        .windows(8)
+        .any(|w| w == b"\x1b[?1049l"));
     let before = susp.backend().direct_output().len();
     susp.resume();
     assert!(!susp.suspended());
-    assert!(
-        susp.backend().direct_output()[before..]
-            .windows(8)
-            .any(|w| w == b"\x1b[?1049h")
-    );
+    assert!(susp.backend().direct_output()[before..]
+        .windows(8)
+        .any(|w| w == b"\x1b[?1049h"));
 }
 
 /// REN-008 falsifier: a hit answer comes from a failed frame, or an id
@@ -1927,7 +1970,7 @@ fn split_offset() {
 #[cfg(test)]
 #[test]
 fn image_fallback() {
-    use crate::buffer::{ImagePlacement, ImageProtocol, make_cell};
+    use crate::buffer::{make_cell, ImagePlacement, ImageProtocol};
     use crate::uni::segments::pack_image_cell;
     let mut renderer = test_renderer(8, 4);
     renderer.next_buffer().push_placement(ImagePlacement {
@@ -1961,11 +2004,9 @@ fn image_fallback() {
     let quadrant = char::from_u32(crate::buffer::draw::QUADRANT_CHARS[5])
         .unwrap()
         .to_string();
-    assert!(
-        frame
-            .windows(quadrant.len())
-            .any(|w| w == quadrant.as_bytes())
-    );
+    assert!(frame
+        .windows(quadrant.len())
+        .any(|w| w == quadrant.as_bytes()));
     assert!(!frame.windows(4).any(|w| w == b"\x1b_G"));
     assert_eq!(&[1], renderer.committed_images());
 
@@ -1974,11 +2015,9 @@ fn image_fallback() {
     renderer.set_kitty_supported(true);
     assert_eq!(RenderStatus::Rendered, renderer.render(true));
     let held = renderer.backend().frames()[1].clone();
-    assert!(
-        !held
-            .windows(quadrant.len())
-            .any(|w| w == quadrant.as_bytes())
-    );
+    assert!(!held
+        .windows(quadrant.len())
+        .any(|w| w == quadrant.as_bytes()));
 }
 
 /// REN-012: committed bytes arrive in order through a writer.

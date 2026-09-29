@@ -254,6 +254,13 @@ impl Plane {
     pub fn position(&self) -> (u32, u32) {
         (self.bounds.left as u32, self.bounds.top as u32)
     }
+    /// The plane's columns and rows.
+    pub fn cells(&self) -> (u32, u32) {
+        (
+            (self.bounds.right - self.bounds.left) as u32,
+            (self.bounds.bottom - self.bounds.top) as u32,
+        )
+    }
     pub(super) fn cover(&mut self, x: i32, y: i32, source: ansi::Rgba) {
         if x < self.bounds.left
             || x >= self.bounds.right
