@@ -122,7 +122,9 @@ character is one glyph, placed by its advance.
 | Neither | Block glyphs, drawn with the blitter image fallback uses. |
 
 On Unix the backend asks the terminal at startup what it takes. See
-[Events, focus and input](events-focus-and-input.md).
+[Events, focus and input](events-focus-and-input.md). On Windows the
+backend asks no terminal, and a Kitty picture is always sent in the command
+itself: Windows has no POSIX shared memory.
 
 A new picture replaces the one before it where it is. The canvas does not
 clear the screen and writes no cell outside its area. The App writes one
