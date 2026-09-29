@@ -80,37 +80,43 @@ struct Painted {
     nodes: Vec<PaintedNode>,
 }
 impl Painted {
+    /// The rectangle the backend reports for `element`, whatever other
+    /// elements painted over it. It fails when the rectangle holds no cell.
+    fn bounds(&self, element: usize, what: &str) -> Cells {
+        let node = self
+            .nodes
+            .iter()
+            .find(|node| node.element_index == element)
+            .unwrap_or_else(|| panic!("{what}: element {element} painted no cell"));
+        let bounds = [
+            node.bounds.x,
+            node.bounds.y,
+            node.bounds.width,
+            node.bounds.height,
+        ];
+        assert!(
+            bounds
+                .iter()
+                .all(|edge| edge.fract() == 0.0 && *edge >= 0.0),
+            "{what}: element {element} has bounds that are no whole cells: {bounds:?}"
+        );
+        assert!(
+            bounds[2] > 0.0 && bounds[3] > 0.0,
+            "{what}: element {element} painted no cell: {bounds:?}"
+        );
+        Cells {
+            left: bounds[0] as usize,
+            top: bounds[1] as usize,
+            width: bounds[2] as usize,
+            height: bounds[3] as usize,
+        }
+    }
+
     /// The rectangle `element` painted. It fails when the element painted
     /// nothing or painted cells that do not form one full rectangle.
     fn cells(&self, element: usize, what: &str) -> Cells {
         let Some(hits) = &self.hits else {
-            let node = self
-                .nodes
-                .iter()
-                .find(|node| node.element_index == element)
-                .unwrap_or_else(|| panic!("{what}: element {element} painted no cell"));
-            let bounds = [
-                node.bounds.x,
-                node.bounds.y,
-                node.bounds.width,
-                node.bounds.height,
-            ];
-            assert!(
-                bounds
-                    .iter()
-                    .all(|edge| edge.fract() == 0.0 && *edge >= 0.0),
-                "{what}: element {element} has bounds that are no whole cells: {bounds:?}"
-            );
-            assert!(
-                bounds[2] > 0.0 && bounds[3] > 0.0,
-                "{what}: element {element} painted no cell: {bounds:?}"
-            );
-            return Cells {
-                left: bounds[0] as usize,
-                top: bounds[1] as usize,
-                width: bounds[2] as usize,
-                height: bounds[3] as usize,
-            };
+            return self.bounds(element, what);
         };
         let mine = u32::try_from(element).unwrap() + 1;
         let own: Vec<(usize, usize)> = (0..self.height)
@@ -408,6 +414,62 @@ fn lay_001_a_grid_keeps_its_gap_at_every_height() {
                             "{what}: the gap between two columns"
                         );
                     }
+                }
+            }
+        }
+    }
+}
+
+/// Where the tracks of a grid start, read from the bounds the backend
+/// reports for its items: an item larger than its track is painted over by
+/// the items after it, so its painted cells are no full rectangle.
+fn assert_equal_steps(starts: &[usize], first: usize, what: &str) {
+    assert_eq!(starts[0], first, "{what}: tracks start at {starts:?}");
+    let steps: Vec<usize> = starts.windows(2).map(|pair| pair[1] - pair[0]).collect();
+    let longest = steps.iter().max().unwrap();
+    let shortest = steps.iter().min().unwrap();
+    assert!(
+        longest - shortest <= 1,
+        "{what}: tracks start at {starts:?}"
+    );
+}
+
+/// An item that is larger than its share does not widen its track: the
+/// tracks stay equal.
+#[test]
+fn lay_001_tracks_stay_equal_under_an_item_larger_than_its_share() {
+    for painter in PAINTERS {
+        for place in PLACES {
+            for tracks in 2..=6usize {
+                for width in [40u16, 41, 66, 100, 161, 240] {
+                    let items = (0..tracks)
+                        .map(|item| leaf(if item == 1 { "w-100 h-1" } else { "h-1" }))
+                        .collect();
+                    let class = format!("w-full grid grid-cols-{tracks}");
+                    let root = placed(place, spaced(LayoutType::Grid, &class, 1, items));
+                    let frame = paint(painter, &root, (width, 6));
+                    let what = format!("{painter:?}, {place:?}, {tracks} columns, width {width}");
+                    let starts: Vec<usize> = measured(&root)
+                        .into_iter()
+                        .map(|index| frame.bounds(index, &what).left)
+                        .collect();
+                    let first = content(place, width.into(), &frame).0;
+                    assert_equal_steps(&starts, first, &what);
+                }
+                for height in [24u16, 25, 33, 60] {
+                    let items = (0..tracks)
+                        .map(|item| leaf(if item == 1 { "h-40" } else { "" }))
+                        .collect();
+                    let class = format!("w-full h-full grid grid-rows-{tracks}");
+                    let root = placed_down(place, spaced(LayoutType::Grid, &class, 1, items));
+                    let frame = paint(painter, &root, (24, height));
+                    let what = format!("{painter:?}, {place:?}, {tracks} rows, height {height}");
+                    let starts: Vec<usize> = measured(&root)
+                        .into_iter()
+                        .map(|index| frame.bounds(index, &what).top)
+                        .collect();
+                    let first = content_down(place, height.into(), &frame).0;
+                    assert_equal_steps(&starts, first, &what);
                 }
             }
         }

@@ -7,7 +7,7 @@ use taffy::style::{
     JustifyContent as TJustify, LengthPercentage, LengthPercentageAuto, Overflow, RepetitionCount,
     Style, TrackSizingFunction,
 };
-use taffy::style_helpers::{fr, length, minmax, repeat};
+use taffy::style_helpers::{flex, fr, length, minmax, repeat};
 
 /// RGBA color using the standard Surface Rgba type
 pub type RgbaColor = crate::core::surface::Rgba;
@@ -1561,17 +1561,20 @@ impl StyleBuilder {
             self.style.size.width = Dimension::length(0.0);
             self.style.size.height = Dimension::length(0.0);
         }
-        // Wire grid templates to equal-fr tracks when counts are set
+        // Wire grid templates to equal tracks when counts are set. A track
+        // is `minmax(0, 1fr)`: it takes its share of the container whatever
+        // its items hold, so the tracks stay equal (LAY-001). A plain `1fr`
+        // is `minmax(auto, 1fr)`, which an item wider than its share widens.
         if let Some(cols) = self.grid_cols {
             self.style.display = Display::Grid;
             self.style.grid_template_columns = (0..cols)
-                .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0_f32)))
+                .map(|_| GridTemplateComponent::from(flex::<f32, TrackSizingFunction>(1.0)))
                 .collect();
         }
         if let Some(rows) = self.grid_rows {
             self.style.display = Display::Grid;
             self.style.grid_template_rows = (0..rows)
-                .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0_f32)))
+                .map(|_| GridTemplateComponent::from(flex::<f32, TrackSizingFunction>(1.0)))
                 .collect();
         }
         if let Some((count, least)) = self.grid_cols_repeated {
