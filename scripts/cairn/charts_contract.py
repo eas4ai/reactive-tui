@@ -14,8 +14,9 @@ answer to escalation 5c777a6a).
 widget-bar covers the widgets this work delivered or reworked: the chart
 family (tests/charts_contract.rs), the image widget, whose block fallback
 now draws through the renderer's blitters (tests/api_widget_behavior/image.rs
-and its screen-reader unit test in src/widgets/display/image/live.rs), and
-the graphics canvas (tests/canvas_widget.rs, built with wgpu-graphics).
+and its screen-reader unit test in src/widgets/display/image/live.rs), the
+graphics canvas (tests/canvas_widget.rs, built with wgpu-graphics) and the
+menu family (tests/menus_contract.rs).
 frame-budget also measures an animating canvas (tests/canvas_widget.rs).
 
 Its color check reads the production code of both widgets and of their
@@ -25,7 +26,9 @@ literal: a hex string with or without `#` (so `u32::from_str_radix("ff0000",
 four channel values (a literal pixel such as `[255, 255, 255, 255]`), a six-
 or eight-digit hex integer, a color type built from numbers (Color::Rgb(..),
 Rgba { a: .., r: .. } in any field order, ColorDefinition::rgb(..),
-fg_rgba(..)) and a named constructor (Color::Red, Rgba::white()). The
+fg_rgba(..)), a named constructor (Color::Red, Rgba::white()) and a color
+of the layout's palette, in a class (`bg-gray-800`, `text-white`) or as a
+string of its own (`"blue-500"`). The
 builder code is found by type, wherever it is under src/builder: every
 struct, impl and function whose header names ChartBuilder or ImageBuilder,
 and the consts, statics and free functions of the same file those items
@@ -53,11 +56,18 @@ CHANNEL = r"(?:0x[0-9a-fA-F]{1,2}|25[0-5]|2[0-4]\d|1?\d?\d)(?:_?u8)?"
 UNIT = r"(?:0?\.\d+|1\.0*|0\.0*)(?:_?f32|_?f64)?"
 NUM = r"-?\d+(?:\.\d+)?(?:_?(?:f32|f64|u8|u16|u32))?"
 COLOR_TYPE = r"(?:Rgba?|Colou?r|ColorDefinition|Rgba8|Hsla?)"
+# The families of the layout's palette (src/layout/colors.rs): `blue-500`.
+PALETTE = "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose"
+SHADE = rf"(?:white|black|(?:{PALETTE})-\d{{2,3}})"
 # (pattern, whether it reads string contents)
 COLOR_LITERALS = {
     "hex string": (re.compile(r'"(?:#[0-9a-fA-F]{3,8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})"'), True),
     "rgb() string": (re.compile(r'"\s*(?:rgba?|hsla?)\s*\('), True),
     "named color string": (re.compile(rf'"(?i:{NAMED})"'), True),
+    # A palette color in a class or as a token: `bg-gray-800`, `text-white`,
+    # `border-blue-500`, or the whole string `blue-500`.
+    "palette class": (re.compile(rf"(?<![\w-])(?:bg|text|fg|border|ring|accent|caret|placeholder|from|via|to)-{SHADE}(?![\w-])"), True),
+    "palette color string": (re.compile(rf'"(?:{PALETTE})-\d{{2,3}}"'), True),
     "channel tuple": (re.compile(rf"(?<![\w\]])\(\s*{CHANNEL}\s*,\s*{CHANNEL}\s*,\s*{CHANNEL}\s*(?:,\s*{CHANNEL}\s*)?\)"), False),
     "channel array": (re.compile(rf"(?<![\w\])])\[\s*{CHANNEL}\s*,\s*{CHANNEL}\s*,\s*{CHANNEL}\s*(?:,\s*{CHANNEL}\s*)?,?\s*\]"), False),
     "unit tuple": (re.compile(rf"(?<![\w\]])\(\s*{UNIT}\s*,\s*{UNIT}\s*,\s*{UNIT}\s*(?:,\s*{UNIT}\s*)?\)"), False),
@@ -77,6 +87,7 @@ WIDGET_CODE = {
               r"\w*ChartBuilder"),
     "image": (("src/widgets/display/image", "src/builder/widgets/display.rs"), r"ImageBuilder"),
     "canvas": (("src/graphics",), r"CanvasBuilder"),
+    "menu": (("src/widgets/menu", "src/builder/widgets/menu.rs"), r"(?:MenuBar|ContextMenu|PopupMenu|MenuItem)Builder"),
 }
 BUILDERS = "src/builder"
 # The kernel's list of performance cores on a hybrid CPU.
@@ -201,6 +212,7 @@ def main() -> int:
             ("image", cargo_test_filtered("api_widget_behavior", "bar_003_")),
             ("image screen reader", cargo_test_filtered(None, "bar_003_", package="reactive-tui")),
             ("canvas", cargo_test_filtered("canvas_widget", "bar_003_", features=["wgpu-graphics"])),
+            ("menus", cargo_test_filtered("menus_contract", "bar_003_")),
         ):
             if not passed:
                 problems.append(f"{name}: {reason}")
@@ -208,7 +220,7 @@ def main() -> int:
             literals = color_literals(code)
             if literals:
                 problems.append(f"{len(literals)} hard-coded colors in {family} code: {', '.join(literals[:4])}")
-        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image and canvas: {why}")
+        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas and menus: {why}")
     return finish(results)
 
 

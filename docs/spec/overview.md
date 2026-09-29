@@ -56,6 +56,8 @@ component library as closely as a cell grid allows.
 | input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging, the Kitty keyboard protocol, lock and media keys, terminal focus reports, suspend and resume, startup queries |
 | blitters.md | BLT | image fallback to block glyphs: half, quadrant, sextant, octant and braille blitters and their tier choice |
 | layout.md | LAY | gaps, grid tracks and spans in whole cells, the spacing classes' unit, the gap and grid classes, layout that settles |
+| theme.md | THM | the theme's color roles, their contrast, what a theme that lacks a role gets, and a change of theme |
+| menus.md | MNU | the menu bar, context menu, popup menu and dialog menu: their colors by role, their size, where a panel opens, what it is painted over |
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults and the demos |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
@@ -71,9 +73,10 @@ is contract.
   docs/recon.md section 8.
 - Components, elements, hooks, signals, scheduler, wake (src/component,
   src/reactive).
-- Layout and utility classes other than layout.md's, and themes
-  (src/layout, src/theme).
-- Widgets other than charts (src/widgets).
+- Layout and utility classes other than layout.md's (src/layout), and the
+  parts of a theme other than its color roles: spacing variables, loading
+  a theme from a file, the syntax colors (src/theme, src/syntax).
+- Widgets other than the charts, the canvas and the menus (src/widgets).
 - Image protocols and terminal capability detection (src/widgets/display/image
   other than fallback, src/core/capabilities).
 - Embedded terminal and PTY, Windows ConPTY (src/embedded, src/terminal).

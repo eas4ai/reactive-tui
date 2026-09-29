@@ -67,7 +67,17 @@ Terms as the code uses them. Each names where it is defined.
 - **Spacing class.** A padding, margin, gap or space class (`p-1`, `mx-2`,
   `gap-1`, `space-y-1`); its number is a count of cells (layout.md).
 - **Theme.** Named color variables with presets that utility classes resolve
-  against (src/theme/mod.rs:10-80).
+  against (src/theme/mod.rs); the active theme is the one the application
+  set last, and the dark preset until it sets one (theme.md).
+- **Color role.** A named color of the theme with one purpose, such as
+  `surface`, `selection` or `primary-foreground`; a class names it as
+  `bg-surface` or `text-primary-foreground` (theme.md).
+- **Color literal.** A color written into a widget's code or its default
+  style instead of taken from the theme: a hex or `rgb()` value, a color
+  built from numbers, a color name, or a palette class such as
+  `bg-gray-800` or `text-white`.
+- **Panel.** The box of rows a menu opens: the list under a menu bar's
+  title, a submenu, a context menu or a popup menu (menus.md).
 - **Kitty keyboard protocol.** Progressive keyboard enhancement flags a
   terminal accepts with `CSI > flags u` and drops with `CSI < u`; with them
   it reports keys as `CSI code ; modifiers ; text u`, so keys that legacy

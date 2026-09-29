@@ -1,0 +1,30 @@
+{
+ "command": "python3 -B scripts/cairn/menus.py",
+ "inputs": [
+  "Cargo.lock",
+  "Cargo.toml",
+  "build.rs",
+  "crates",
+  "scripts/cairn",
+  "src",
+  "tests/common",
+  "tests/menus_contract.rs"
+ ],
+ "requirements": [
+  "MNU-001",
+  "MNU-002",
+  "MNU-003",
+  "MNU-004"
+ ],
+ "results": "per-requirement",
+ "identity": {
+  "tools": {
+   "rustc": "rustc --version",
+   "cargo": "cargo --version"
+  },
+  "env": [
+   "TERM"
+  ],
+  "image": null
+ }
+}
