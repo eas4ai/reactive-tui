@@ -32,16 +32,29 @@ pub fn spacing_cells(number: &str) -> Option<f32> {
     if number == "px" {
         return Some(1.0);
     }
-    // Digits and a point only: no sign, no exponent, no `inf` and no `nan`.
-    if number.is_empty()
-        || number.len() > 16
-        || !number
+    if number.len() > 16 {
+        return None;
+    }
+    // Digits, and at most one point among them: no sign, no exponent, no
+    // `inf` and no `nan`.
+    let (whole, fraction) = number.split_once('.').unwrap_or((number, ""));
+    if (whole.is_empty() && fraction.is_empty())
+        || !whole
             .bytes()
-            .all(|byte| byte.is_ascii_digit() || byte == b'.')
+            .chain(fraction.bytes())
+            .all(|byte| byte.is_ascii_digit())
     {
         return None;
     }
-    let cells = number.parse::<f32>().ok()?.ceil();
+    // The fraction is read from its digits. A float would lose one smaller
+    // than it can hold, and `2.00000001` would be two cells, not three.
+    let whole: u32 = if whole.is_empty() {
+        0
+    } else {
+        whole.parse().ok()?
+    };
+    let cells = whole.checked_add(u32::from(fraction.bytes().any(|digit| digit != b'0')))?;
+    let cells = cells as f32;
     (cells <= MAX_SPACING).then_some(cells)
 }
 
@@ -187,6 +200,12 @@ mod tests {
         assert_eq!(parse_spacing("gap-0.25", "gap-"), Some(1.0));
         assert_eq!(parse_spacing("p-1.5", "p-"), Some(2.0));
         assert_eq!(parse_spacing("m-2.0", "m-"), Some(2.0));
+        assert_eq!(parse_spacing("m-2.", "m-"), Some(2.0));
+        assert_eq!(parse_spacing("m-.5", "m-"), Some(1.0));
+        // Fractions smaller than an f32 holds beside the whole number.
+        assert_eq!(parse_spacing("p-2.00000001", "p-"), Some(3.0));
+        assert_eq!(parse_spacing("p-511.0000001", "p-"), Some(512.0));
+        assert_eq!(parse_spacing("p-512.0000001", "p-"), None);
     }
 
     #[test]
