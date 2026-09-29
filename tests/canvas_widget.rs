@@ -47,8 +47,9 @@ fn filled() -> Scene {
     scene
 }
 
-/// A root that shows one canvas filling the screen, a new cube angle each
-/// frame when `animate`.
+/// A root that shows one canvas filling the screen: when `animate`, a new
+/// cube angle each frame, fitted to the canvas's area over a background
+/// that covers all of it, so every cell of the area is painted.
 struct Root {
     animate: bool,
     frame: usize,
@@ -56,13 +57,14 @@ struct Root {
 impl RootComponent for Root {
     fn render(&self) -> Element {
         note_canvas_worker();
-        let scene = if self.animate {
+        let props = if self.animate {
             let angle = self.frame as f32 * 0.05;
-            canvas_support::cube(angle, angle * 0.6)
+            CanvasProps::new(Arc::new(canvas_support::cube_in_view(angle, angle * 0.6)))
+                .view(canvas_support::SIZE.0 as f32, canvas_support::SIZE.1 as f32)
         } else {
-            filled()
+            CanvasProps::new(Arc::new(filled()))
         };
-        Element::typed::<Canvas>(CanvasProps::new(Arc::new(scene)).options(reference_options(true)))
+        Element::typed::<Canvas>(props.options(reference_options(true)))
     }
     fn update(&mut self) -> Result<RootUpdate> {
         self.frame += 1;
@@ -184,9 +186,16 @@ fn bar_005_an_animating_canvas_stays_under_the_frame_budget_at_700_by_200() {
         CANVAS_WORKER_SEEN.load(Ordering::SeqCst),
         "BAR-005: no rtui-canvas worker thread was seen while the canvas animated"
     );
+    // The scene covers the canvas's area, so the frames that are measured
+    // paint all of it.
+    let painted = frames.last().map_or((0, 0), painted_extent);
+    println!(
+        "BAR-005 canvas at 700 by 200: {} frames, at most {worst:.2} ms of App work each",
+        frames.len()
+    );
     assert!(
-        frames.len() >= 12 && worst < 16.6,
-        "BAR-005: an animating canvas at 700 by 200 took up to {worst:.2} ms of App work per frame over {} frames",
+        frames.len() >= 12 && worst < 16.6 && painted == (700, 200),
+        "BAR-005: an animating canvas at 700 by 200 painted {painted:?} and took up to {worst:.2} ms of App work per frame over {} frames",
         frames.len()
     );
 }
