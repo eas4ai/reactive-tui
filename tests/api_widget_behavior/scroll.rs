@@ -223,7 +223,7 @@ fn padded_scrollbars_and_wheel_hits_stay_inside_the_viewport() {
             .scroll_x(false)
             .scroll_speed(3)
             .render()
-            .with_class("w-12 h-6 p-0.5");
+            .with_class("w-12 h-6 p-2");
         let frames = run(
             Control(scroll),
             size,

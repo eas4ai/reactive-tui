@@ -674,8 +674,8 @@ impl Component for Tabs {
             }
             let padding = match props.size {
                 TabSize::Small => "px-0",
-                TabSize::Medium => "px-0.5",
-                TabSize::Large => "px-1",
+                TabSize::Medium => "px-2",
+                TabSize::Large => "px-4",
             };
             let mut children = vec![label];
             if (props.closable || tab.closable) && !props.disabled && !tab.disabled {

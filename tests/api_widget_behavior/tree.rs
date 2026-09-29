@@ -97,7 +97,7 @@ fn tree_both_builders_render_real_hierarchy_and_keep_classes() {
                 .root(root())
                 .show_icons(false)
                 .show_lines(false)
-                .class("ml-2 mt-1")
+                .class("ml-8 mt-4")
                 .build(),
         ] {
             let frames = run(
@@ -595,7 +595,7 @@ fn tree_lines_icons_styles_and_padded_targets_follow_resize() {
         let frames = run(
             Control(
                 Element::layout(reactive_tui::component::LayoutType::Flex)
-                    .with_class("flex flex-col pl-2 pt-1")
+                    .with_class("flex flex-col pl-8 pt-4")
                     .with_child(Tree::with_props(config).auto_focus()),
             ),
             size,

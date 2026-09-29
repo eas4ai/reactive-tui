@@ -239,13 +239,13 @@ impl Catalog {
     /// viewports fill instead of stretching two narrow columns.
     fn card_grid_class(width: u16) -> &'static str {
         if width < 80 {
-            "w-full grid grid-cols-1 gap-0.25"
+            "w-full grid grid-cols-1 gap-1"
         } else if width < 150 {
-            "w-full grid grid-cols-2 gap-0.25"
+            "w-full grid grid-cols-2 gap-1"
         } else if width < 200 {
-            "w-full grid grid-cols-3 gap-0.25"
+            "w-full grid grid-cols-3 gap-1"
         } else {
-            "w-full grid grid-cols-4 gap-0.25"
+            "w-full grid grid-cols-4 gap-1"
         }
     }
 
@@ -299,11 +299,11 @@ impl Catalog {
 
         match self.navigation_layout() {
             NavigationLayout::Sidebar => div()
-                .class("w-24 shrink-0 h-full flex-col border-r border-gray-700 bg-gray-950 p-0.25")
+                .class("w-24 shrink-0 h-full flex-col border-r border-gray-700 bg-gray-950 p-0")
                 .children(entries)
                 .build(),
             NavigationLayout::Compact => div()
-                .class("w-full shrink-0 h-3 flex-row border-b border-gray-700 bg-gray-950 px-0.25")
+                .class("w-full shrink-0 h-3 flex-row border-b border-gray-700 bg-gray-950 px-0")
                 .children(entries)
                 .build(),
         }
@@ -315,7 +315,7 @@ impl Catalog {
             body.class.as_deref().unwrap_or_default()
         );
         div()
-            .class("flex-col min-w-0 shrink-0 border border-gray-700 bg-gray-900 p-0.25 gap-0.25")
+            .class("flex-col min-w-0 shrink-0 border border-gray-700 bg-gray-900 p-0 gap-1")
             .child(
                 div()
                     .class("h-1 shrink-0 text-cyan-300 font-bold")
@@ -328,7 +328,7 @@ impl Catalog {
 
     fn overview_page(&self) -> Element {
         div()
-            .class("w-full flex-col gap-0.25")
+            .class("w-full flex-col gap-1")
             .child(
                 div()
                     .class("w-full shrink-0 whitespace-normal text-white font-bold")
@@ -453,17 +453,17 @@ impl Catalog {
         let span_cell = |label: &str, classes: &str| {
             div()
                 .class(if self.width < 80 { "h-2" } else { "h-3" })
-                .class("min-w-0 px-0.25 text-white")
+                .class("min-w-0 px-0 text-white")
                 .class(classes)
                 .text(label)
                 .build()
         };
         div()
-            .class("w-full flex-col gap-0.25")
+            .class("w-full flex-col gap-1")
             .child(Self::card(
                 "Column spans · four-column grid",
                 div()
-                    .class("w-full grid grid-cols-4 gap-0.25")
+                    .class("w-full grid grid-cols-4 gap-1")
                     .child(span_cell("span 4", "col-span-4 bg-cyan-700"))
                     .child(span_cell("span 2", "col-span-2 bg-violet-700"))
                     .child(span_cell("span 1", "bg-amber-700"))
@@ -506,7 +506,7 @@ impl Catalog {
             (SizeClass::Large, 60, 14),
         ];
         let stack = |charts: Vec<Element>| {
-            let mut column = div().class("flex-col gap-0.25");
+            let mut column = div().class("flex-col gap-1");
             for chart in charts {
                 column = column.child(chart);
             }
@@ -844,7 +844,7 @@ impl Catalog {
         }
         .with_key(format!("overlay-{}", self.demo));
         div()
-            .class("flex-col gap-0.25")
+            .class("flex-col gap-1")
             .child(Element::text(format!(
                 "F1/F2 previous/next demo · {}/{} · {}",
                 index + 1,
@@ -858,7 +858,7 @@ impl Catalog {
     fn media_page(&self) -> Element {
         let logo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("manual/assets/logo.jpg");
         div()
-            .class("w-full flex-col gap-0.25")
+            .class("w-full flex-col gap-1")
             .child(Self::card(
                 "Image · project logo",
                 image()
@@ -951,7 +951,7 @@ impl Catalog {
             ..Default::default()
         };
         div()
-            .class("w-full flex-col gap-0.25")
+            .class("w-full flex-col gap-1")
             .child(Self::card(
                 "TerminalWidget",
                 Element::typed::<TerminalWidget>(terminal),
@@ -992,7 +992,7 @@ impl Catalog {
             page.class.as_deref().unwrap_or_default()
         );
         div()
-            .class("flex-col flex-1 min-w-0 min-h-0 h-full p-0.25 gap-0.25 bg-black")
+            .class("flex-col flex-1 min-w-0 min-h-0 h-full p-0 gap-1 bg-black")
             .child(
                 div()
                     .class("h-1 shrink-0 text-white font-bold")
@@ -1041,9 +1041,7 @@ impl RootComponent for Catalog {
             .class("w-screen h-screen flex-col bg-black text-gray-200")
             .child(
                 div()
-                    .class(
-                        "w-full shrink-0 h-3 flex-row px-0.25 bg-gray-950 border-b border-gray-700",
-                    )
+                    .class("w-full shrink-0 h-3 flex-row px-0 bg-gray-950 border-b border-gray-700")
                     .child(
                         div()
                             .class("flex-1 text-cyan-300 font-bold")
@@ -1061,7 +1059,7 @@ impl RootComponent for Catalog {
             .child(content)
             .child(
                 div()
-                    .class("w-full shrink-0 h-1 px-0.25 bg-gray-950 text-gray-500")
+                    .class("w-full shrink-0 h-1 px-0 bg-gray-950 text-gray-500")
                     .text(self.footer_text())
                     .build(),
             )

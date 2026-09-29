@@ -573,7 +573,7 @@ fn table_contributes_intrinsic_width_inside_an_auto_sized_padded_parent() {
         let frames = run(
             Control(
                 Element::layout(reactive_tui::component::LayoutType::Flex)
-                    .with_class("flex flex-col p-1")
+                    .with_class("flex flex-col p-4")
                     .with_child(Table::with_props(props())),
             ),
             size,

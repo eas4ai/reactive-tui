@@ -1,6 +1,6 @@
 //! Common parsing functions for CSS utilities
 
-/// Parse pixel values from tokens like "w-4px" or "p-2"
+/// Parse pixel values from tokens like "w-4px" or "p-8"
 /// Protected against DoS attacks with input length limits
 pub fn parse_px(token: &str, prefix: &str) -> Option<f32> {
     // Protect against DoS attacks - limit input length
@@ -21,8 +21,33 @@ pub fn parse_px(token: &str, prefix: &str) -> Option<f32> {
     })
 }
 
-/// Parse utility spacing scale values
-/// Maps utility spacing to pixel values: 0, 0.25, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96
+/// The largest number a spacing class takes, in cells.
+pub const MAX_SPACING: f32 = 512.0;
+
+/// The cells the number of a spacing class asks for: the number itself, and
+/// for a number with a fraction the next whole number, so that `0.25` is one
+/// cell; `px` is one cell. `None` for anything else than a number from 0 to
+/// [`MAX_SPACING`] written in digits.
+pub fn spacing_cells(number: &str) -> Option<f32> {
+    if number == "px" {
+        return Some(1.0);
+    }
+    // Digits and a point only: no sign, no exponent, no `inf` and no `nan`.
+    if number.is_empty()
+        || number.len() > 16
+        || !number
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'.')
+    {
+        return None;
+    }
+    let cells = number.parse::<f32>().ok()?.ceil();
+    (cells <= MAX_SPACING).then_some(cells)
+}
+
+/// Parse the number of a padding, margin, gap or space class as a count of
+/// cells, as the width and height classes count: `p-1` is one cell and
+/// `gap-2` two (see [`spacing_cells`]).
 /// Protected against DoS attacks with input length limits
 pub fn parse_spacing(token: &str, prefix: &str) -> Option<f32> {
     // Protect against DoS attacks - limit input length
@@ -33,50 +58,7 @@ pub fn parse_spacing(token: &str, prefix: &str) -> Option<f32> {
         return None;
     }
 
-    token.strip_prefix(prefix).and_then(|n| {
-        // Additional length check on the remaining part
-        if n.len() > 16 {
-            return None;
-        }
-        match n {
-            "0" => Some(0.0),
-            "0.25" => Some(1.0),
-            "0.5" => Some(2.0),
-            "1" => Some(4.0),
-            "1.5" => Some(6.0),
-            "2" => Some(8.0),
-            "2.5" => Some(10.0),
-            "3" => Some(12.0),
-            "3.5" => Some(14.0),
-            "4" => Some(16.0),
-            "5" => Some(20.0),
-            "6" => Some(24.0),
-            "7" => Some(28.0),
-            "8" => Some(32.0),
-            "9" => Some(36.0),
-            "10" => Some(40.0),
-            "11" => Some(44.0),
-            "12" => Some(48.0),
-            "14" => Some(56.0),
-            "16" => Some(64.0),
-            "20" => Some(80.0),
-            "24" => Some(96.0),
-            "28" => Some(112.0),
-            "32" => Some(128.0),
-            "36" => Some(144.0),
-            "40" => Some(160.0),
-            "44" => Some(176.0),
-            "48" => Some(192.0),
-            "52" => Some(208.0),
-            "56" => Some(224.0),
-            "60" => Some(240.0),
-            "64" => Some(256.0),
-            "72" => Some(288.0),
-            "80" => Some(320.0),
-            "96" => Some(384.0),
-            _ => None, // No fallback for standard spacing - must match utility scale
-        }
-    })
+    token.strip_prefix(prefix).and_then(spacing_cells)
 }
 
 /// Parse spacing values for terminal dimensions (width/height)
@@ -235,12 +217,43 @@ mod tests {
 
     #[test]
     fn test_parse_spacing() {
-        // Standard utility scale for padding/margin
+        // The number is a count of cells
         assert_eq!(parse_spacing("p-0", "p-"), Some(0.0));
-        assert_eq!(parse_spacing("p-4", "p-"), Some(16.0));
-        assert_eq!(parse_spacing("m-8", "m-"), Some(32.0));
-        assert_eq!(parse_spacing("gap-12", "gap-"), Some(48.0));
+        assert_eq!(parse_spacing("p-16", "p-"), Some(16.0));
+        assert_eq!(parse_spacing("m-32", "m-"), Some(32.0));
+        assert_eq!(parse_spacing("gap-48", "gap-"), Some(48.0));
+        assert_eq!(parse_spacing("gap-13", "gap-"), Some(13.0));
+        assert_eq!(parse_spacing("p-512", "p-"), Some(512.0));
+        assert_eq!(parse_spacing("p-px", "p-"), Some(1.0));
         assert_eq!(parse_spacing("p-invalid", "p-"), None);
+    }
+
+    #[test]
+    fn a_fraction_is_the_next_whole_cell() {
+        assert_eq!(parse_spacing("gap-0.25", "gap-"), Some(1.0));
+        assert_eq!(parse_spacing("p-1.5", "p-"), Some(2.0));
+        assert_eq!(parse_spacing("m-2.0", "m-"), Some(2.0));
+    }
+
+    #[test]
+    fn a_spacing_number_is_digits_from_0_to_512() {
+        for number in [
+            "513",
+            "512.5",
+            "-1",
+            "+1",
+            "1e2",
+            "inf",
+            "nan",
+            "NaN",
+            "",
+            ".",
+            "1.2.3",
+            "0x10",
+            "99999999999999999",
+        ] {
+            assert_eq!(spacing_cells(number), None, "{number:?}");
+        }
     }
 
     #[test]

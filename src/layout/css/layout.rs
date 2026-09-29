@@ -122,7 +122,7 @@ pub fn apply_grid(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     // Grid column utilities
     match token {
         "col-auto" => return Some(sb.grid_column_auto()),
-        "col-span-full" => return Some(sb.grid_column_span(12)), // Full width
+        "col-span-full" => return Some(sb.col_span_full()),
         _ => {}
     }
 
@@ -141,7 +141,7 @@ pub fn apply_grid(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     // Grid row utilities
     match token {
         "row-auto" => return Some(sb.grid_row_auto()),
-        "row-span-full" => return Some(sb.grid_row_span(12)), // Full height
+        "row-span-full" => return Some(sb.row_span_full()),
         _ => {}
     }
 
@@ -218,10 +218,10 @@ pub fn apply_grid(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
                 return Some(sb.display_grid().gap_px(gap as f32, gap as f32));
             }
             if let Some(gap_x) = parse_grid_value(token, "grid-gap-x-") {
-                return Some(sb.display_grid().gap_px(gap_x as f32, 0.0));
+                return Some(sb.display_grid().gap_x_px(gap_x as f32));
             }
             if let Some(gap_y) = parse_grid_value(token, "grid-gap-y-") {
-                return Some(sb.display_grid().gap_px(0.0, gap_y as f32));
+                return Some(sb.display_grid().gap_y_px(gap_y as f32));
             }
 
             // Grid area utilities

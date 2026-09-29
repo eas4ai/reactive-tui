@@ -196,20 +196,20 @@ impl DialogThemes {
             backdrop_color: "bg-black bg-opacity-50".to_string(),
             dialog_bg: "bg-white".to_string(),
             border_style: "border border-gray-300 rounded-lg shadow-lg".to_string(),
-            title_style: "font-bold text-lg border-b border-gray-200 p-4".to_string(),
+            title_style: "font-bold text-lg border-b border-gray-200 p-16".to_string(),
             button_styles: {
                 let mut styles = HashMap::new();
                 styles.insert(
                     "primary".to_string(),
-                    "bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600".to_string(),
+                    "bg-blue-500 text-white px-16 py-8 rounded hover:bg-blue-600".to_string(),
                 );
                 styles.insert(
                     "secondary".to_string(),
-                    "bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300".to_string(),
+                    "bg-gray-200 text-gray-800 px-16 py-8 rounded hover:bg-gray-300".to_string(),
                 );
                 styles.insert(
                     "danger".to_string(),
-                    "bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600".to_string(),
+                    "bg-red-500 text-white px-16 py-8 rounded hover:bg-red-600".to_string(),
                 );
                 styles
             },
@@ -223,20 +223,20 @@ impl DialogThemes {
             backdrop_color: "bg-black bg-opacity-70".to_string(),
             dialog_bg: "bg-gray-800 text-white".to_string(),
             border_style: "border border-gray-600 rounded-lg shadow-xl".to_string(),
-            title_style: "font-bold text-lg border-b border-gray-600 p-4".to_string(),
+            title_style: "font-bold text-lg border-b border-gray-600 p-16".to_string(),
             button_styles: {
                 let mut styles = HashMap::new();
                 styles.insert(
                     "primary".to_string(),
-                    "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700".to_string(),
+                    "bg-blue-600 text-white px-16 py-8 rounded hover:bg-blue-700".to_string(),
                 );
                 styles.insert(
                     "secondary".to_string(),
-                    "bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700".to_string(),
+                    "bg-gray-600 text-white px-16 py-8 rounded hover:bg-gray-700".to_string(),
                 );
                 styles.insert(
                     "danger".to_string(),
-                    "bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700".to_string(),
+                    "bg-red-600 text-white px-16 py-8 rounded hover:bg-red-700".to_string(),
                 );
                 styles
             },
@@ -250,20 +250,20 @@ impl DialogThemes {
             backdrop_color: "bg-gray-900 bg-opacity-30".to_string(),
             dialog_bg: "bg-white".to_string(),
             border_style: "border-0 rounded-none shadow-none".to_string(),
-            title_style: "font-medium text-base p-3".to_string(),
+            title_style: "font-medium text-base p-12".to_string(),
             button_styles: {
                 let mut styles = HashMap::new();
                 styles.insert(
                     "primary".to_string(),
-                    "text-blue-600 px-3 py-1 hover:bg-blue-50".to_string(),
+                    "text-blue-600 px-12 py-4 hover:bg-blue-50".to_string(),
                 );
                 styles.insert(
                     "secondary".to_string(),
-                    "text-gray-600 px-3 py-1 hover:bg-gray-50".to_string(),
+                    "text-gray-600 px-12 py-4 hover:bg-gray-50".to_string(),
                 );
                 styles.insert(
                     "danger".to_string(),
-                    "text-red-600 px-3 py-1 hover:bg-red-50".to_string(),
+                    "text-red-600 px-12 py-4 hover:bg-red-50".to_string(),
                 );
                 styles
             },
@@ -277,20 +277,20 @@ impl DialogThemes {
             backdrop_color: "bg-black".to_string(),
             dialog_bg: "bg-white text-black".to_string(),
             border_style: "border-4 border-black rounded-none".to_string(),
-            title_style: "font-bold text-xl border-b-4 border-black p-4".to_string(),
+            title_style: "font-bold text-xl border-b-4 border-black p-16".to_string(),
             button_styles: {
                 let mut styles = HashMap::new();
                 styles.insert(
                     "primary".to_string(),
-                    "bg-black text-white px-6 py-3 border-2 border-black".to_string(),
+                    "bg-black text-white px-24 py-12 border-2 border-black".to_string(),
                 );
                 styles.insert(
                     "secondary".to_string(),
-                    "bg-white text-black px-6 py-3 border-2 border-black".to_string(),
+                    "bg-white text-black px-24 py-12 border-2 border-black".to_string(),
                 );
                 styles.insert(
                     "danger".to_string(),
-                    "bg-red-700 text-white px-6 py-3 border-2 border-black".to_string(),
+                    "bg-red-700 text-white px-24 py-12 border-2 border-black".to_string(),
                 );
                 styles
             },

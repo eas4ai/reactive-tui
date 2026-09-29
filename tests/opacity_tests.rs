@@ -131,7 +131,7 @@ fn test_border_with_existing_bg() {
 fn test_comprehensive_opacity_styling() {
     // Test a realistic combination with opacity
     let mut sb = apply_utility_classes(
-        "text-white bg-blue-600 opacity-75 font-bold p-4",
+        "text-white bg-blue-600 opacity-75 font-bold p-16",
         StyleBuilder::new(),
     );
 

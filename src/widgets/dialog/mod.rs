@@ -259,20 +259,20 @@ impl Default for DialogTheme {
             backdrop_color: "bg-black bg-opacity-50".to_string(),
             dialog_bg: "bg-white".to_string(),
             border_style: "border border-gray-300 rounded-lg shadow-lg".to_string(),
-            title_style: "font-bold border-b border-gray-200 px-1".to_string(),
+            title_style: "font-bold border-b border-gray-200 px-4".to_string(),
             button_styles: {
                 let mut styles = HashMap::new();
                 styles.insert(
                     "primary".to_string(),
-                    "bg-blue-500 text-white px-1 py-0 rounded hover:bg-blue-600".to_string(),
+                    "bg-blue-500 text-white px-4 py-0 rounded hover:bg-blue-600".to_string(),
                 );
                 styles.insert(
                     "secondary".to_string(),
-                    "bg-gray-200 text-gray-800 px-1 py-0 rounded hover:bg-gray-300".to_string(),
+                    "bg-gray-200 text-gray-800 px-4 py-0 rounded hover:bg-gray-300".to_string(),
                 );
                 styles.insert(
                     "danger".to_string(),
-                    "bg-red-500 text-white px-1 py-0 rounded hover:bg-red-600".to_string(),
+                    "bg-red-500 text-white px-4 py-0 rounded hover:bg-red-600".to_string(),
                 );
                 styles
             },

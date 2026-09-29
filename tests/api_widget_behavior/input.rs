@@ -565,7 +565,7 @@ fn select_mouse_respects_padding_and_open_close_callbacks_after_resize() {
                     .with_on_close(move || closed.lock().unwrap().push("close"))
             },
         )
-        .class("p-0.5 w-16");
+        .class("p-2 w-16");
         let frames = run(
             Control(control),
             size,

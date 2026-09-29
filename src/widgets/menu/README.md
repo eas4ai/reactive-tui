@@ -191,7 +191,7 @@ use reactive_tui::widgets::MenuStyle;
 
 // Create custom styling using CSS utility classes
 let custom_style = MenuStyle::new()
-    .base_classes("bg-gray-900 text-white p-2")
+    .base_classes("bg-gray-900 text-white p-8")
     .selected_classes("bg-blue-600 text-white font-bold")
     .focused_classes("bg-cyan-500 text-black font-bold")
     .disabled_classes("text-gray-500")
@@ -202,7 +202,7 @@ let custom_style = MenuStyle::new()
 
 // Or use theme variables for consistent styling
 let themed_style = MenuStyle::new()
-    .base_classes("bg-primary text-on-primary p-2")
+    .base_classes("bg-primary text-on-primary p-8")
     .selected_classes("bg-accent text-on-accent font-bold")
     .focused_classes("bg-secondary text-on-secondary font-bold");
 ```

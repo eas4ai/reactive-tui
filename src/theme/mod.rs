@@ -41,7 +41,7 @@ fn active_slot() -> &'static RwLock<Arc<Theme>> {
 /// use reactive_tui::theme::dark_theme;
 ///
 /// let theme = dark_theme();
-/// let style = theme.apply_classes("bg-primary text-secondary p-4");
+/// let style = theme.apply_classes("bg-primary text-secondary p-16");
 /// ```
 #[derive(Debug, Clone)]
 pub struct Theme {

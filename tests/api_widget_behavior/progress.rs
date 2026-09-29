@@ -170,7 +170,7 @@ fn progress_resize_and_own_padding_keep_content_inside_measured_bounds() {
             ProgressBarBuilder::new()
                 .value(50.0)
                 .height(2)
-                .style("p-0.5")
+                .style("p-2")
                 .label("Padded")
                 .render(),
         ),

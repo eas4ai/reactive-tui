@@ -267,10 +267,10 @@ mod tests {
         let sb = StyleBuilder::new();
 
         // Test first/last variants
-        let result = apply_variant_utilities("first:p-2", sb.clone());
+        let result = apply_variant_utilities("first:p-8", sb.clone());
         assert!(result.is_some());
 
-        let result = apply_variant_utilities("last:p-2", sb.clone());
+        let result = apply_variant_utilities("last:p-8", sb.clone());
         assert!(result.is_some());
 
         // Test odd/even variants

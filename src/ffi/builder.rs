@@ -120,7 +120,8 @@ pub extern "C" fn rtui_element_builder_button(
     catch_panic(AssertUnwindSafe(|| unsafe {
         let mut ffi_builder = FFIElementBuilder::new(ElementType::Layout(LayoutType::Flex));
         ffi_builder.classes =
-            "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer".to_string();
+            "px-16 py-8 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer"
+                .to_string();
         *out_builder = Box::into_raw(Box::new(ffi_builder)) as *mut RTuiElementBuilder;
         Ok(())
     }))

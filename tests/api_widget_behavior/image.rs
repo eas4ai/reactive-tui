@@ -11,12 +11,12 @@ fn image_builder_paints_decoded_pixels_with_authored_bounds() {
             .source_raw_bytes(vec![0; 12], 2, 2, ImageFormat::RGB888)
             .display_mode(ImageDisplayMode::AsciiArt)
             .quality(ImageQuality::Fast)
-            .class("w-4 h-2 ml-2 mt-1")
+            .class("w-4 h-2 ml-8 mt-4")
             .build();
         let root = builder::div().class("w-full h-full").child(image).build();
         let frames = app_input::run_when(Control(root), size, vec![("@@@@", None)]);
         let frame = frames.last().unwrap();
-        // Margin utilities use the existing four-cell spacing scale.
+        // Margin utilities count in cells.
         for x in 8..12 {
             assert_eq!(
                 frame.screen.cell(4, x).unwrap().contents(),

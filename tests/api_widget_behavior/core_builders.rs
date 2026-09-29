@@ -153,8 +153,8 @@ fn row_column_and_grid_helpers_place_real_children() {
     for size in [(40, 16), (80, 24)] {
         let children = || vec![builder::text("A"), builder::text("B")];
         let cases = [
-            (builder::flex_row("0.5", children()), (3, 0)),
-            (builder::flex_col("0.5", children()), (0, 3)),
+            (builder::flex_row("2", children()), (3, 0)),
+            (builder::flex_col("2", children()), (0, 3)),
             (builder::grid_layout(2, "0", children()), (1, 0)),
         ];
         for (element, (x, y)) in cases {

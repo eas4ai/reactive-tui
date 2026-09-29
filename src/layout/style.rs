@@ -4,9 +4,10 @@ use taffy::prelude::{FromFr as _, TaffyGridLine, TaffyGridSpan};
 use taffy::style::{
     AlignContent as TAlignContent, AlignItems as TAlign, Dimension, Display, FlexDirection,
     GridAutoFlow as TGridAutoFlow, GridPlacement, GridTemplateComponent,
-    JustifyContent as TJustify, LengthPercentage, LengthPercentageAuto, Overflow, Style,
-    TrackSizingFunction,
+    JustifyContent as TJustify, LengthPercentage, LengthPercentageAuto, Overflow, RepetitionCount,
+    Style, TrackSizingFunction,
 };
+use taffy::style_helpers::{fr, length, minmax, repeat};
 
 /// RGBA color using the standard Surface Rgba type
 pub type RgbaColor = crate::core::surface::Rgba;
@@ -230,6 +231,10 @@ pub struct StyleBuilder {
     // Grid extras
     grid_cols: Option<u16>,
     grid_rows: Option<u16>,
+    /// As many columns of at least this many cells as the container holds.
+    grid_cols_repeated: Option<(RepetitionCount, u16)>,
+    /// As many rows of at least this many cells as the container holds.
+    grid_rows_repeated: Option<(RepetitionCount, u16)>,
     grid_auto_flow: Option<GridAutoFlow>,
     col_span: Option<u16>,
     row_span: Option<u16>,
@@ -913,6 +918,18 @@ impl StyleBuilder {
         self
     }
 
+    /// Set the gap between items across, in cells, and keep the gap down.
+    pub fn gap_x_px(mut self, x: f32) -> Self {
+        self.style.gap.width = LengthPercentage::length(x);
+        self
+    }
+
+    /// Set the gap between items down, in cells, and keep the gap across.
+    pub fn gap_y_px(mut self, y: f32) -> Self {
+        self.style.gap.height = LengthPercentage::length(y);
+        self
+    }
+
     /// Set text color with RGBA values
     pub fn text_rgba(mut self, r: f32, g: f32, b: f32, a: f32) -> Self {
         self.fg_rgba = Some((r, g, b, a));
@@ -1166,6 +1183,20 @@ impl StyleBuilder {
         self.row_span(span)
     }
 
+    /// Span every column the grid has, from its first line to its last, and
+    /// add none.
+    pub fn col_span_full(mut self) -> Self {
+        self.col_span = None;
+        self.col_start(1).col_end(-1)
+    }
+
+    /// Span every row the grid has, from its first line to its last, and
+    /// add none.
+    pub fn row_span_full(mut self) -> Self {
+        self.row_span = None;
+        self.row_start(1).row_end(-1)
+    }
+
     // Grid auto methods
     /// Set grid column to auto placement
     pub fn grid_column_auto(mut self) -> Self {
@@ -1201,30 +1232,35 @@ impl StyleBuilder {
     }
 
     // Advanced grid utilities
-    /// Set grid columns to auto-fit with minimum size
+    /// As many columns of at least `min_size` cells as the container
+    /// holds, sharing its width; tracks that hold no item take no room.
     pub fn grid_auto_fit_columns(mut self, min_size: u16) -> Self {
-        // In TUI, we simulate auto-fit by setting a flexible grid
-        // This would need special handling in the layout system
-        self.grid_cols = Some(min_size.max(1));
+        self.grid_cols = None;
+        self.grid_cols_repeated = Some((RepetitionCount::AutoFit, min_size.max(1)));
         self
     }
 
-    /// Set grid columns to auto-fill with minimum size
+    /// As many columns of at least `min_size` cells as the container
+    /// holds, sharing its width; tracks that hold no item keep their room.
     pub fn grid_auto_fill_columns(mut self, min_size: u16) -> Self {
-        // Similar to auto-fit but fills available space
-        self.grid_cols = Some(min_size.max(1));
+        self.grid_cols = None;
+        self.grid_cols_repeated = Some((RepetitionCount::AutoFill, min_size.max(1)));
         self
     }
 
-    /// Set grid rows to auto-fit with minimum size
+    /// As many rows of at least `min_size` cells as the container holds,
+    /// sharing its height; tracks that hold no item take no room.
     pub fn grid_auto_fit_rows(mut self, min_size: u16) -> Self {
-        self.grid_rows = Some(min_size.max(1));
+        self.grid_rows = None;
+        self.grid_rows_repeated = Some((RepetitionCount::AutoFit, min_size.max(1)));
         self
     }
 
-    /// Set grid rows to auto-fill with minimum size
+    /// As many rows of at least `min_size` cells as the container holds,
+    /// sharing its height; tracks that hold no item keep their room.
     pub fn grid_auto_fill_rows(mut self, min_size: u16) -> Self {
-        self.grid_rows = Some(min_size.max(1));
+        self.grid_rows = None;
+        self.grid_rows_repeated = Some((RepetitionCount::AutoFill, min_size.max(1)));
         self
     }
 
@@ -1537,6 +1573,16 @@ impl StyleBuilder {
             self.style.grid_template_rows = (0..rows)
                 .map(|_| GridTemplateComponent::from(TrackSizingFunction::from_fr(1.0_f32)))
                 .collect();
+        }
+        if let Some((count, least)) = self.grid_cols_repeated {
+            self.style.display = Display::Grid;
+            self.style.grid_template_columns =
+                vec![repeat(count, vec![minmax(length(least), fr(1.0_f32))])];
+        }
+        if let Some((count, least)) = self.grid_rows_repeated {
+            self.style.display = Display::Grid;
+            self.style.grid_template_rows =
+                vec![repeat(count, vec![minmax(length(least), fr(1.0_f32))])];
         }
         if let Some(flow) = self.grid_auto_flow {
             self.style.grid_auto_flow = flow.to_taffy();

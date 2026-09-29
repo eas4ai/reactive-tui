@@ -47,7 +47,7 @@ impl Write for Sink {
 fn recorded_frames() -> Vec<(&'static str, (u16, u16), Element)> {
     let styled = |text: &str| {
         Element::layout(LayoutType::Flex)
-            .with_class("flex flex-col w-full h-full p-0.5 bg-blue-500")
+            .with_class("flex flex-col w-full h-full p-2 bg-blue-500")
             .with_children(vec![
                 Element::text(text).with_class("w-full h-1 text-red-500 font-bold")
             ])
@@ -58,7 +58,7 @@ fn recorded_frames() -> Vec<(&'static str, (u16, u16), Element)> {
             "nested_background",
             (20, 10),
             Element::layout(LayoutType::Flex)
-                .with_class("flex flex-col w-full h-full p-0.5")
+                .with_class("flex flex-col w-full h-full p-2")
                 .with_children(vec![Element::layout(LayoutType::Flex)
                     .with_class("relative flex flex-col w-8 h-3 bg-green-500")
                     .with_children(vec![Element::text("child").with_class("w-full h-1")])]),
@@ -377,7 +377,7 @@ fn pnt_004_unchanged_spec_reuses_the_layout() {
     let mut backend = SuprTuiBackend::with_writer(16, 4, Sink::default()).unwrap();
     let frame = |text: &str| {
         Element::layout(LayoutType::Flex)
-            .with_class("flex flex-col w-full h-full p-0.5")
+            .with_class("flex flex-col w-full h-full p-2")
             .with_children(vec![Element::text(text).with_class("w-full h-1")])
     };
     // Each present reports whether it reused the layout and how many

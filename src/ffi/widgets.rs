@@ -23,7 +23,7 @@ pub extern "C" fn rtui_text_input_create(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        builder = builder.class("input border px-2 py-1 bg-white");
+        builder = builder.class("input border px-8 py-4 bg-white");
 
         if !placeholder.is_null() {
             let placeholder_str = CStr::from_ptr(placeholder)
@@ -143,7 +143,7 @@ pub extern "C" fn rtui_button_create(
 
         let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
         builder = builder.class(
-            "button px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer",
+            "button px-16 py-8 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer",
         );
         builder = builder.text(text_str);
 

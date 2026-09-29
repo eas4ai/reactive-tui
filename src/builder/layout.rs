@@ -30,12 +30,12 @@ pub fn sidebar() -> ElementBuilder {
 
 /// Create a content area
 pub fn content() -> ElementBuilder {
-    main().class("flex-1 p-0.5")
+    main().class("flex-1 p-2")
 }
 
 /// Create a responsive grid
 pub fn responsive_grid(cols: u8) -> ElementBuilder {
-    grid_builder().class(&format!("grid-cols-1 md:grid-cols-{} gap-4", cols))
+    grid_builder().class(&format!("grid-cols-1 md:grid-cols-{} gap-16", cols))
 }
 
 /// Text utility functions
@@ -84,7 +84,7 @@ pub fn label(content: &str) -> Element {
 ///
 pub fn card(children: Vec<Element>) -> Element {
     div()
-        .class("bg-white rounded-lg shadow-md border border-gray-200 p-0.5")
+        .class("bg-white rounded-lg shadow-md border border-gray-200 p-2")
         .children(children)
         .build()
 }
@@ -102,7 +102,7 @@ where
     F: Fn() + Send + Sync + 'static,
 {
     button()
-        .class("px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500")
+        .class("px-16 py-8 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500")
         .text(text)
         .on_click(Box::new(onclick))
         .build()
@@ -111,7 +111,7 @@ where
 /// Create a horizontal flex container with specified gap
 ///
 /// # Arguments
-/// * `gap` - Gap size between children (e.g., "2", "4", "8")
+/// * `gap` - Gap between children in cells (e.g., "1", "2", "4")
 /// * `children` - Child elements to arrange horizontally
 ///
 /// # Returns
@@ -126,7 +126,7 @@ pub fn flex_row(gap: &str, children: Vec<Element>) -> Element {
 /// Create a vertical flex container with specified gap
 ///
 /// # Arguments
-/// * `gap` - Gap size between children (e.g., "2", "4", "8")
+/// * `gap` - Gap between children in cells (e.g., "1", "2", "4")
 /// * `children` - Child elements to arrange vertically
 ///
 /// # Returns
@@ -142,7 +142,7 @@ pub fn flex_col(gap: &str, children: Vec<Element>) -> Element {
 ///
 /// # Arguments
 /// * `cols` - Number of columns in the grid
-/// * `gap` - Gap size between grid items (e.g., "2", "4", "8")
+/// * `gap` - Gap between grid items in cells (e.g., "1", "2", "4")
 /// * `children` - Child elements to arrange in the grid
 ///
 /// # Returns
@@ -163,7 +163,7 @@ pub fn grid_layout(cols: u8, gap: &str, children: Vec<Element>) -> Element {
 /// An `ElementBuilder` for a styled text input
 pub fn styled_input(placeholder: &str) -> ElementBuilder {
     input()
-        .class("px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500")
+        .class("px-12 py-8 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500")
         .placeholder(placeholder)
 }
 
@@ -179,7 +179,7 @@ pub fn search_input(placeholder: &str) -> Element {
         .class("relative")
         .children(vec![
             input()
-                .class("pl-1 pr-0.5 py-0.25 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500")
+                .class("pl-4 pr-2 py-0 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500")
                 .placeholder(placeholder)
                 .build(),
             div()

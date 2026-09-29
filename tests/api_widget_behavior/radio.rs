@@ -13,7 +13,7 @@ fn radio_generic_builder_selects_by_keyboard_and_horizontal_mouse() {
             .selected(1)
             .orientation(RadioOrientation::Horizontal)
             .render()
-            .with_class("w-28 h-5 p-0.5")
+            .with_class("w-28 h-5 p-2")
             .auto_focus();
         let frames = run(Control(control), size, vec![(1, click(14, 2)), (2, None)]);
         assert!(

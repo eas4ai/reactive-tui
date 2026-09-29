@@ -187,7 +187,7 @@ fn tabs_positions_use_measured_unicode_header_and_close_targets() {
                                 .with_on_close(move |i| closes.lock().unwrap().push(i))
                         },
                     )
-                    .with_class("w-full h-10 p-0.5")
+                    .with_class("w-full h-10 p-2")
                     .auto_focus()
                 };
                 let baseline = run(Control(make()), size, vec![(1, None)]);

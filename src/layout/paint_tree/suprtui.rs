@@ -4,7 +4,11 @@ mod cursor;
 pub(crate) mod images;
 
 use super::NodeSpec;
-use super::{node_parts, transform::Affine, NodePaint};
+use super::{
+    node_parts,
+    transform::{cell_edge, Affine},
+    NodePaint,
+};
 use crate::core::surface::{Attr, Rgba};
 use crate::error::{ReactiveError, Result};
 use crate::layout::css::apply_utility_classes;
@@ -414,6 +418,7 @@ fn lay_out(
                 clip: screen,
                 layer: i32::MIN,
                 opacity: 1.0,
+                origin: (0.0, 0.0),
             },
             &mut nodes,
         )?;
@@ -656,6 +661,9 @@ struct Placement {
     clip: Rect,
     layer: i32,
     opacity: f32,
+    /// Where the parent's box starts in the layout, before rounding: the
+    /// sum of the unrounded locations from the root down to it.
+    origin: (f32, f32),
 }
 
 fn collect(
@@ -665,19 +673,36 @@ fn collect(
     parent: Placement,
     nodes: &mut Vec<PaintNode>,
 ) -> Result<()> {
-    let layout = tree
-        .layout(id)
-        .map_err(|error| ReactiveError::layout(error.to_string()))?;
     let paint = &paints[&id];
+    // The layout's own rounding takes a node's location from its parent
+    // alone and its size from its two edges on the screen, so a node placed
+    // by the rounded locations of its ancestors can stand a cell beside the
+    // edge its size was rounded from, and a gap of one cell be painted as
+    // none or as two. Every edge is rounded here from its unrounded position
+    // on the screen instead, so a box and its neighbour agree on each edge
+    // they share and a gap keeps its cells (LAY-001).
+    let unrounded = tree.unrounded_layout(id);
+    let origin = (
+        parent.origin.0 + unrounded.location.x,
+        parent.origin.1 + unrounded.location.y,
+    );
+    let (left, top) = (cell_edge(origin.0), cell_edge(origin.1));
+    let size = (
+        cell_edge(origin.0 + unrounded.size.width) - left,
+        cell_edge(origin.1 + unrounded.size.height) - top,
+    );
     let local = Rect {
         left: 0,
         top: 0,
-        right: layout.size.width as i32,
-        bottom: layout.size.height as i32,
+        right: size.0 as i32,
+        bottom: size.1 as i32,
     };
     let transform = parent.transform.placed(
-        (layout.location.x, layout.location.y),
-        (layout.size.width, layout.size.height),
+        (
+            left - cell_edge(parent.origin.0),
+            top - cell_edge(parent.origin.1),
+        ),
+        size,
         paint.transform,
     );
     let (left, top, right, bottom) = transform.bounds(local.right, local.bottom);
@@ -747,6 +772,7 @@ fn collect(
                 clip: child_clip,
                 layer,
                 opacity: parent.opacity * paint.opacity,
+                origin,
             },
             nodes,
         )?;

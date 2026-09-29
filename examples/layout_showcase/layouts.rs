@@ -87,7 +87,7 @@ fn panel(title: &str, bg: &str, body: Vec<Element>) -> Element {
         .build()];
     children.extend(body);
     div()
-        .class("flex-col flex-1 min-w-0 min-h-0 p-0.25")
+        .class("flex-col flex-1 min-w-0 min-h-0 p-0")
         .class(bg)
         .children(children)
         .build()
@@ -96,7 +96,7 @@ fn panel(title: &str, bg: &str, body: Vec<Element>) -> Element {
 /// A single-height colored bar for menus, status lines, and toolbars.
 fn bar(text: &str, bg: &str) -> Element {
     div()
-        .class("w-full h-1 shrink-0 px-0.25 text-white")
+        .class("w-full h-1 shrink-0 px-0 text-white")
         .class(bg)
         .text(text)
         .build()
@@ -147,12 +147,12 @@ impl Showcase {
         );
         if self.compact() {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(bar("▤ File Edit View Run", "bg-indigo-800"))
                 .child(editor)
                 .child(
                     div()
-                        .class("w-full h-4 shrink-0 p-0.25 bg-cyan-900")
+                        .class("w-full h-4 shrink-0 p-0 bg-cyan-900")
                         .child(
                             div()
                                 .class("h-1 text-white font-bold")
@@ -164,7 +164,7 @@ impl Showcase {
                 )
                 .child(
                     div()
-                        .class("w-full h-5 shrink-0 flex-col p-0.25 bg-emerald-900")
+                        .class("w-full h-5 shrink-0 flex-col p-0 bg-emerald-900")
                         .children(vec![
                             div()
                                 .class("h-1 text-white font-bold")
@@ -177,11 +177,11 @@ impl Showcase {
                 .build()
         } else {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(bar("▤ File  Edit  View  Run  Help", "bg-indigo-800"))
                 .child(
                     div()
-                        .class("flex-row flex-1 min-h-0 min-w-0 gap-0.25")
+                        .class("flex-row flex-1 min-h-0 min-w-0 gap-1")
                         .child(div().class("w-24 shrink-0 min-h-0").child(files).build())
                         .child(editor)
                         .child(div().class("w-24 shrink-0 min-h-0").child(outline).build())
@@ -201,7 +201,7 @@ impl Showcase {
     fn dashboard_page(&self) -> Element {
         let kpi = |title: &str, value: &str, bg: &str| {
             div()
-                .class("flex-col min-w-0 p-0.25")
+                .class("flex-col min-w-0 p-0")
                 .class(bg)
                 .child(
                     div()
@@ -219,9 +219,9 @@ impl Showcase {
         };
         let kpis = div()
             .class(if self.compact() {
-                "w-full grid grid-cols-2 gap-0.25"
+                "w-full grid grid-cols-2 gap-1"
             } else {
-                "w-full grid grid-cols-4 gap-0.25"
+                "w-full grid grid-cols-4 gap-1"
             })
             .child(kpi("Revenue", "$48.2k ▲", "bg-blue-800"))
             .child(kpi("Users", "12,409 ▲", "bg-emerald-800"))
@@ -249,7 +249,7 @@ impl Showcase {
         );
         if self.compact() {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(kpis)
                 .child(chart)
                 .child(
@@ -261,11 +261,11 @@ impl Showcase {
                 .build()
         } else {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(kpis)
                 .child(
                     div()
-                        .class("flex-row flex-1 min-h-0 min-w-0 gap-0.25")
+                        .class("flex-row flex-1 min-h-0 min-w-0 gap-1")
                         .child(chart)
                         .child(div().class("w-28 shrink-0 min-h-0").child(feed).build())
                         .build(),
@@ -296,7 +296,7 @@ impl Showcase {
             ],
         );
         let reader = div()
-            .class("flex-col flex-1 min-w-0 min-h-0 gap-0.25")
+            .class("flex-col flex-1 min-w-0 min-h-0 gap-1")
             .child(panel(
                 "Reading · flex-1 bg-gray-800",
                 "bg-gray-800",
@@ -306,13 +306,13 @@ impl Showcase {
             .build();
         if self.compact() {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(bar("Inbox Sent Drafts", "bg-indigo-900"))
                 .child(reader)
                 .build()
         } else {
             div()
-                .class("flex-row flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-row flex-1 min-h-0 min-w-0 gap-1")
                 .child(div().class("w-16 shrink-0 min-h-0").child(folders).build())
                 .child(list)
                 .child(reader)
@@ -325,14 +325,14 @@ impl Showcase {
     /// fill instead of stretching a fixed column tier.
     fn product_grid_class(width: u16) -> &'static str {
         match (width / 28).clamp(1, 8) {
-            1 => "w-full grid grid-cols-1 gap-0.25",
-            2 => "w-full grid grid-cols-2 gap-0.25",
-            3 => "w-full grid grid-cols-3 gap-0.25",
-            4 => "w-full grid grid-cols-4 gap-0.25",
-            5 => "w-full grid grid-cols-5 gap-0.25",
-            6 => "w-full grid grid-cols-6 gap-0.25",
-            7 => "w-full grid grid-cols-7 gap-0.25",
-            _ => "w-full grid grid-cols-8 gap-0.25",
+            1 => "w-full grid grid-cols-1 gap-1",
+            2 => "w-full grid grid-cols-2 gap-1",
+            3 => "w-full grid grid-cols-3 gap-1",
+            4 => "w-full grid grid-cols-4 gap-1",
+            5 => "w-full grid grid-cols-5 gap-1",
+            6 => "w-full grid grid-cols-6 gap-1",
+            7 => "w-full grid grid-cols-7 gap-1",
+            _ => "w-full grid grid-cols-8 gap-1",
         }
     }
 
@@ -344,7 +344,7 @@ impl Showcase {
             } else {
                 name.to_string()
             };
-            let mut card = div().class("flex-col min-w-0 p-0.25").class(bg).child(
+            let mut card = div().class("flex-col min-w-0 p-0").class(bg).child(
                 div()
                     .class("h-1 shrink-0 text-white font-bold")
                     .text(&title)
@@ -378,7 +378,7 @@ impl Showcase {
         );
         if self.compact() {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(bar("⌕ Search products…", "bg-slate-900"))
                 .child(bar("Office Audio Desks", "bg-amber-900"))
                 .child(grid)
@@ -391,11 +391,11 @@ impl Showcase {
                 .build()
         } else {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(bar("⌕ Search products…   [_input_]   [Go]", "bg-slate-900"))
                 .child(
                     div()
-                        .class("flex-row flex-1 min-h-0 min-w-0 gap-0.25")
+                        .class("flex-row flex-1 min-h-0 min-w-0 gap-1")
                         .child(div().class("w-20 shrink-0 min-h-0").child(cats).build())
                         .child(grid)
                         .child(div().class("w-24 shrink-0 min-h-0").child(cart).build())
@@ -408,7 +408,7 @@ impl Showcase {
     fn monitor_page(&self) -> Element {
         let stat = |title: &str, value: &str, bg: &str| {
             div()
-                .class("flex-col flex-1 min-w-0 p-0.25")
+                .class("flex-col flex-1 min-w-0 p-0")
                 .class(bg)
                 .child(
                     div()
@@ -425,7 +425,7 @@ impl Showcase {
                 .build()
         };
         let stats = div()
-            .class("w-full flex-row gap-0.25")
+            .class("w-full flex-row gap-1")
             .child(stat("CPU", "███░░░ 34%", "bg-blue-800"))
             .child(stat("MEM", "█████░ 71%", "bg-violet-800"))
             .child(stat("DISK", "██░░░░ 22%", "bg-amber-800"))
@@ -447,7 +447,7 @@ impl Showcase {
         );
         if self.compact() {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(stats)
                 .child(table)
                 .child(
@@ -459,11 +459,11 @@ impl Showcase {
                 .build()
         } else {
             div()
-                .class("flex-col flex-1 min-h-0 min-w-0 gap-0.25")
+                .class("flex-col flex-1 min-h-0 min-w-0 gap-1")
                 .child(stats)
                 .child(
                     div()
-                        .class("flex-row flex-1 min-h-0 min-w-0 gap-0.25")
+                        .class("flex-row flex-1 min-h-0 min-w-0 gap-1")
                         .child(table)
                         .child(div().class("w-28 shrink-0 min-h-0").child(log).build())
                         .build(),
@@ -497,9 +497,7 @@ impl RootComponent for Showcase {
             .class("w-screen h-screen flex-col bg-black text-gray-200")
             .child(
                 div()
-                    .class(
-                        "w-full shrink-0 h-1 flex-row px-0.25 bg-gray-950 border-b border-gray-700",
-                    )
+                    .class("w-full shrink-0 h-1 flex-row px-0 bg-gray-950 border-b border-gray-700")
                     .child(
                         div()
                             .class("flex-1 text-cyan-300 font-bold")
@@ -522,13 +520,13 @@ impl RootComponent for Showcase {
             )
             .child(
                 div()
-                    .class("w-full flex-1 min-h-0 min-w-0 p-0.25")
+                    .class("w-full flex-1 min-h-0 min-w-0 p-0")
                     .child(self.selected_page())
                     .build(),
             )
             .child(
                 div()
-                    .class("w-full shrink-0 h-1 px-0.25 bg-gray-950 text-gray-500")
+                    .class("w-full shrink-0 h-1 px-0 bg-gray-950 text-gray-500")
                     .text(self.footer_text())
                     .build(),
             )

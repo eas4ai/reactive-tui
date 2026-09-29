@@ -422,7 +422,7 @@ fn charts_update_props_and_resize_inside_a_padded_parent() {
     impl RootComponent for Updating {
         fn render(&self) -> Element {
             builder::div()
-                .class("w-full h-full p-0.5")
+                .class("w-full h-full p-2")
                 .child(Element::typed::<Chart>(self.config.lock().unwrap().clone()).auto_focus())
                 .build()
         }
@@ -696,7 +696,7 @@ fn chart_own_padding_positions_plot_and_tooltips_in_the_content_box() {
     // A 44 by 12 chart is the medium class, which draws the tooltip box.
     for size in [(48, 14), (60, 18)] {
         let mut config = props(ChartType::Scatter, (44, 12));
-        config.class = Some("p-0.5".into());
+        config.class = Some("p-2".into());
         let plain = last(Element::typed::<Chart>(config.clone()), size);
         let marks = cells_with(&plain, "•");
         assert_eq!(marks.len(), 2, "{}", plain.text);
