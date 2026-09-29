@@ -70,7 +70,11 @@ height of 3 is 3 rows.
   `grid-cols-2` and no `grid-rows-N`, `row-span-full` spans one row.
 - `grid-cols-auto-fit-N` and `grid-cols-auto-fill-N` make as many columns of
   at least N cells as the container holds. `grid-rows-auto-fit-N` and
-  `grid-rows-auto-fill-N` do the same for rows.
+  `grid-rows-auto-fill-N` do the same for rows. The two differ when there
+  are fewer items than tracks. `auto-fill` keeps the tracks that hold no
+  item: two items in a container that holds four columns take two of the
+  four. `auto-fit` gives the room of the empty tracks to the items: the two
+  share the container.
 
 The spacing classes counted in fours before: `p-1` was four cells and
 `gap-4` sixteen. To keep the size of a class written for that scale, multiply
