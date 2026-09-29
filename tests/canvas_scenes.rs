@@ -216,18 +216,26 @@ fn gfx_001_a_canvas_follows_a_change_of_theme() {
 #[test]
 fn gfx_001_linux_text_takes_fontconfigs_first_loadable_monospace() {
     use reactive_tui::graphics::fonts::{self, FontSource};
+    // Each line is the number of the face in the file, then the file.
     let listed = std::process::Command::new("fc-match")
-        .args(["-s", "-f", "%{file}\\n", "monospace"])
+        .args(["-s", "-f", "%{index} %{file}\\n", "monospace"])
         .output()
         .expect("fc-match on the Linux host");
-    let candidates: Vec<std::path::PathBuf> = String::from_utf8_lossy(&listed.stdout)
+    let candidates: Vec<(std::path::PathBuf, u32)> = String::from_utf8_lossy(&listed.stdout)
         .lines()
-        .filter(|line| !line.is_empty())
-        .map(Into::into)
+        .filter_map(|line| {
+            let (index, file) = line.split_once(' ')?;
+            Some((file.into(), index.parse::<u32>().ok()? & 0xFFFF))
+        })
         .collect();
-    let first = candidates.iter().find(|path| fonts::loads(path)).cloned();
+    let first = candidates
+        .iter()
+        .find(|(file, face)| fonts::loads_face(file, *face))
+        .cloned();
     let chosen = fonts::choose(None, &candidates);
-    let expected = first.map_or(FontSource::Bundled, FontSource::System);
+    let expected = first.map_or(FontSource::Bundled, |(file, face)| {
+        FontSource::System(file, face)
+    });
     assert!(
         chosen == expected && fonts::choose(None, &[]) == FontSource::Bundled,
         "GFX-001: fontconfig lists {:?}; the canvas chose {chosen:?}, not {expected:?}, or with no candidate it chose {:?}",
