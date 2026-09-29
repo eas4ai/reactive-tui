@@ -45,12 +45,14 @@ PACKAGES = {
 }
 
 REQUIRED_FILES = {
-    "root": {"README.md", "CHANGELOG.md", "LICENSE", "build.rs", "src/lib.rs", "manual/README.md"},
+    "root": {
+        "README.md", "CHANGELOG.md", "LICENSE", "LICENSE-MIT", "build.rs", "src/lib.rs", "manual/README.md",
+    },
     "ghostty-sys": {"README.md", "LICENSE", "UPSTREAM.md", "build.rs", "src/lib.rs"},
     "ghostty": {"README.md", "LICENSE", "UPSTREAM.md", "src/lib.rs"},
-    "macros": {"README.md", "LICENSE", "src/lib.rs"},
+    "macros": {"README.md", "LICENSE", "LICENSE-MIT", "src/lib.rs"},
     "crossterm": {"README.md", "LICENSE", "REACTIVE_TUI_PATCH.md", "src/lib.rs"},
-    "engine": {"README.md", "LICENSE", "LICENSE-OpenTUI", "UPSTREAM.md", "src/lib.rs"},
+    "engine": {"README.md", "LICENSE", "LICENSE-MIT", "LICENSE-OpenTUI", "UPSTREAM.md", "src/lib.rs"},
 }
 
 LIBRARY_NAMES = {
