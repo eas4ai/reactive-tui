@@ -271,6 +271,63 @@ fn content(place: Place, width: usize, frame: &Painted) -> (usize, usize) {
     }
 }
 
+/// `container` at `place` counted down the screen: at its first row, inside
+/// a padding of one cell, or below a box that takes a third of the screen's
+/// height. The container must take the height it is given.
+fn placed_down(place: Place, container: Element) -> Element {
+    match place {
+        Place::Whole | Place::Padded => placed(place, container),
+        Place::AfterAThird => Element::layout(LayoutType::Flex)
+            .with_class("flex-col w-full h-full")
+            .with_children(vec![
+                Element::text("t").with_class("h-1/3 w-1 shrink-0"),
+                Element::layout(LayoutType::Flex)
+                    .with_class("flex-col flex-1 min-h-0 w-full")
+                    .with_children(vec![container]),
+            ]),
+    }
+}
+
+/// The rows a container at `place` has for its content on a screen of
+/// `height` cells: its first row and the row after its last.
+fn content_down(place: Place, height: usize, frame: &Painted) -> (usize, usize) {
+    match place {
+        Place::Whole => (0, height),
+        Place::Padded => (1, height - 1),
+        Place::AfterAThird => {
+            let third = frame.cells(1, "the box of a third");
+            assert_eq!(third.top, 0, "the box of a third starts at row 0");
+            assert!(
+                third.height.abs_diff(height / 3) <= 1,
+                "the box of a third is {} of {height} cells tall",
+                third.height
+            );
+            (third.bottom(), height)
+        }
+    }
+}
+
+/// The screen heights at which a container of `tracks` tracks with `gap`
+/// holds its gaps and one row for each track at every place.
+fn heights(tracks: usize, gap: usize) -> std::ops::RangeInclusive<u16> {
+    let least = tracks + (tracks - 1) * gap;
+    (least * 3 / 2 + 3) as u16..=96
+}
+
+/// `cells` with across and down changed for each other, so a column is read
+/// as a row.
+fn turned(cells: &[Cells]) -> Vec<Cells> {
+    cells
+        .iter()
+        .map(|cells| Cells {
+            left: cells.top,
+            top: cells.left,
+            width: cells.height,
+            height: cells.width,
+        })
+        .collect()
+}
+
 /// LAY-001 for one row of items: the gap between neighbours, widths at most
 /// one cell apart, and the row filling its container.
 fn assert_row(row: &[Cells], gap: usize, span: (usize, usize), what: &str) {
@@ -327,38 +384,112 @@ fn lay_001_a_grid_keeps_its_gap_at_every_width() {
 }
 
 #[test]
+fn lay_001_a_grid_keeps_its_gap_at_every_height() {
+    for painter in PAINTERS {
+        for place in PLACES {
+            for rows in 2..=6usize {
+                for gap in 1..=2usize {
+                    for height in heights(rows, gap) {
+                        let items = (0..rows * 2).map(|_| leaf("min-w-0 min-h-0")).collect();
+                        let class = format!("w-full h-full grid grid-flow-col grid-rows-{rows}");
+                        let root = placed_down(place, spaced(LayoutType::Grid, &class, gap, items));
+                        let frame = paint(painter, &root, (24, height));
+                        let what = format!(
+                            "{painter:?}, {place:?}, {rows} rows, gap {gap}, height {height}"
+                        );
+                        let cells = rectangles(&frame, &root, &what);
+                        let span = content_down(place, height.into(), &frame);
+                        let (first, second) = cells.split_at(rows);
+                        assert_row(&turned(first), gap, span, &what);
+                        assert_row(&turned(second), gap, span, &what);
+                        assert_eq!(
+                            second[0].left as i64 - first[0].right() as i64,
+                            gap as i64,
+                            "{what}: the gap between two columns"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The rows of spans a grid of `tracks` tracks is filled with: one item
+/// over all of them, one over all but the last beside one, and one for
+/// each track.
+fn spans_of(tracks: usize) -> Vec<Vec<usize>> {
+    vec![vec![tracks], vec![tracks - 1, 1], vec![1; tracks]]
+}
+
+/// Each item of `painted` starts where its first track starts and ends
+/// where its last track ends; the tracks are the last row of `painted`.
+fn assert_spans(spans: &[Vec<usize>], painted: &[Vec<Cells>], what: &str) {
+    let tracks = painted.last().unwrap();
+    for (row, painted) in spans.iter().zip(painted) {
+        let mut track = 0;
+        for (span, item) in row.iter().zip(painted) {
+            assert_eq!(
+                (item.left, item.right()),
+                (tracks[track].left, tracks[track + span - 1].right()),
+                "{what}: an item that spans {span} tracks from track {track}"
+            );
+            track += span;
+        }
+    }
+}
+
+#[test]
 fn lay_001_an_item_that_spans_tracks_ends_where_its_last_track_ends() {
     for painter in PAINTERS {
         for place in PLACES {
-            for width in 40..=512u16 {
-                let spans: [&[usize]; 4] = [&[4], &[2, 1, 1], &[3, 1], &[1, 1, 1, 1]];
-                let items = spans
-                    .iter()
-                    .flat_map(|row| row.iter())
-                    .map(|span| leaf(&format!("min-w-0 h-1 col-span-{span}")))
-                    .collect();
-                let root = placed(
-                    place,
-                    spaced(LayoutType::Grid, "w-full grid grid-cols-4", 1, items),
-                );
-                let frame = paint(painter, &root, (width, 10));
-                let what = format!("{painter:?}, {place:?}, width {width}");
-                let mut cells = rectangles(&frame, &root, &what).into_iter();
-                let rows: Vec<Vec<Cells>> = spans
-                    .iter()
-                    .map(|row| row.iter().map(|_| cells.next().unwrap()).collect())
-                    .collect();
-                let tracks = &rows[3];
-                assert_row(tracks, 1, content(place, width.into(), &frame), &what);
-                for (row, painted) in spans.iter().zip(&rows) {
-                    let mut track = 0;
-                    for (span, item) in row.iter().zip(painted) {
-                        assert_eq!(
-                            (item.left, item.right()),
-                            (tracks[track].left, tracks[track + span - 1].right()),
-                            "{what}: an item that spans {span} tracks from track {track}"
+            for tracks in 2..=6usize {
+                for gap in 1..=2usize {
+                    let spans = spans_of(tracks);
+                    for width in 40..=512u16 {
+                        let items = spans
+                            .iter()
+                            .flatten()
+                            .map(|span| leaf(&format!("min-w-0 h-1 col-span-{span}")))
+                            .collect();
+                        let class = format!("w-full grid grid-cols-{tracks}");
+                        let root = placed(place, spaced(LayoutType::Grid, &class, gap, items));
+                        let frame = paint(painter, &root, (width, 10));
+                        let what = format!(
+                            "{painter:?}, {place:?}, {tracks} columns, gap {gap}, width {width}"
                         );
-                        track += span;
+                        let mut cells = rectangles(&frame, &root, &what).into_iter();
+                        let rows: Vec<Vec<Cells>> = spans
+                            .iter()
+                            .map(|row| row.iter().map(|_| cells.next().unwrap()).collect())
+                            .collect();
+                        let span = content(place, width.into(), &frame);
+                        assert_row(rows.last().unwrap(), gap, span, &what);
+                        assert_spans(&spans, &rows, &what);
+                    }
+                    for height in heights(tracks, gap) {
+                        let items = spans
+                            .iter()
+                            .flatten()
+                            .map(|span| leaf(&format!("min-w-0 min-h-0 row-span-{span}")))
+                            .collect();
+                        let class = format!("w-full h-full grid grid-flow-col grid-rows-{tracks}");
+                        let root = placed_down(place, spaced(LayoutType::Grid, &class, gap, items));
+                        let frame = paint(painter, &root, (24, height));
+                        let what = format!(
+                            "{painter:?}, {place:?}, {tracks} rows, gap {gap}, height {height}"
+                        );
+                        let mut cells = rectangles(&frame, &root, &what).into_iter();
+                        let columns: Vec<Vec<Cells>> = spans
+                            .iter()
+                            .map(|column| {
+                                let column: Vec<Cells> =
+                                    column.iter().map(|_| cells.next().unwrap()).collect();
+                                turned(&column)
+                            })
+                            .collect();
+                        let span = content_down(place, height.into(), &frame);
+                        assert_row(columns.last().unwrap(), gap, span, &what);
+                        assert_spans(&spans, &columns, &what);
                     }
                 }
             }
@@ -386,30 +517,21 @@ fn lay_001_a_flex_row_and_a_flex_column_keep_their_gap() {
                         assert_row(&cells, gap, content(place, width.into(), &frame), &what);
                     }
                 }
-                // The shortest column that holds the gaps and one row for
-                // each item.
-                let least = (items + (items - 1) * gap) as u16;
-                for height in least..=60 {
-                    let children = (0..items).map(|_| leaf("flex-1 min-h-0 w-full")).collect();
-                    let root = spaced(LayoutType::Flex, "flex-col w-full h-full", gap, children);
-                    let frame = paint(painter, &root, (20, height));
-                    let what = format!("{painter:?}, {items} items, gap {gap}, height {height}");
-                    let cells = rectangles(&frame, &root, &what);
-                    for pair in cells.windows(2) {
-                        assert_eq!(
-                            pair[1].top as i64 - pair[0].bottom() as i64,
-                            gap as i64,
-                            "{what}: the gap between two neighbours: {cells:?}"
+                for place in PLACES {
+                    for height in heights(items, gap) {
+                        let children = (0..items).map(|_| leaf("flex-1 min-h-0 w-full")).collect();
+                        let root = placed_down(
+                            place,
+                            spaced(LayoutType::Flex, "flex-col w-full h-full", gap, children),
                         );
+                        let frame = paint(painter, &root, (20, height));
+                        let what = format!(
+                            "{painter:?}, {place:?}, {items} items, gap {gap}, height {height}"
+                        );
+                        let cells = rectangles(&frame, &root, &what);
+                        let span = content_down(place, height.into(), &frame);
+                        assert_row(&turned(&cells), gap, span, &what);
                     }
-                    let tallest = cells.iter().map(|cells| cells.height).max().unwrap();
-                    let shortest = cells.iter().map(|cells| cells.height).min().unwrap();
-                    assert!(tallest - shortest <= 1, "{what}: {cells:?}");
-                    assert_eq!(
-                        (cells[0].top, cells[items - 1].bottom()),
-                        (0, usize::from(height)),
-                        "{what}: the column does not fill its container: {cells:?}"
-                    );
                 }
             }
         }
