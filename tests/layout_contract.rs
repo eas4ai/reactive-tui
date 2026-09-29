@@ -892,6 +892,39 @@ fn lay_002_a_fraction_counts_as_the_next_whole_cell() {
     }
 }
 
+/// The declarative grid gives its gaps in cells and writes them into gap
+/// classes, so they mean what the classes mean.
+#[test]
+fn lay_002_the_declarative_grid_counts_its_gaps_in_cells() {
+    use reactive_tui::layout::grid::DeclarativeGrid;
+    use reactive_tui::layout::renderer::grid_to_node_spec;
+    let gaps = |grid: DeclarativeGrid| {
+        let class = grid_to_node_spec(&grid).class.to_string();
+        let gap = style(&class).gap;
+        assert_eq!(
+            (gap.width, gap.height),
+            (
+                LengthPercentage::length(gap.width.into_raw().value()),
+                LengthPercentage::length(gap.height.into_raw().value())
+            ),
+            "{class}: not a length"
+        );
+        (gap.width.into_raw().value(), gap.height.into_raw().value())
+    };
+    // A grid as it is made: one cell across and one down.
+    assert_eq!(gaps(DeclarativeGrid::new(2, 2)), (1.0, 1.0));
+    assert_eq!(gaps(DeclarativeGrid::new(2, 2).gap(2)), (2.0, 2.0));
+    assert_eq!(gaps(DeclarativeGrid::new(2, 2).gap(13)), (13.0, 13.0));
+    assert_eq!(
+        gaps(DeclarativeGrid::new(2, 2).column_gap(3).row_gap(0)),
+        (3.0, 0.0)
+    );
+    assert_eq!(
+        gaps(DeclarativeGrid::new(2, 2).column_gap(0).row_gap(2)),
+        (0.0, 2.0)
+    );
+}
+
 #[test]
 fn lay_002_padding_and_gap_are_painted_in_cells() {
     for painter in PAINTERS {
