@@ -190,26 +190,43 @@ fn environment_child() {
     );
 }
 
-#[test]
-fn gfx_005_kitty_frames_travel_through_shared_memory_when_accepted() {
+/// The Kitty commands that start a picture, on a host that takes Kitty
+/// graphics through shared memory, each cut to its first 40 characters.
+fn pictures_with_shared_memory_accepted() -> Vec<String> {
     let shared = ImageOutputOptions {
         kitty_graphics: true,
         kitty_shared_memory: true,
         ..Default::default()
     };
     let output = output_until(reference_options(true), shared, KITTY);
-    let commands: Vec<&str> = output.split(KITTY).skip(1).collect();
+    output
+        .split(KITTY)
+        .skip(1)
+        .filter(|command| command.contains("a=T"))
+        .map(|command| command.chars().take(40).collect())
+        .collect()
+}
+
+// The crate's shared memory is POSIX shared memory.
+#[cfg(unix)]
+#[test]
+fn gfx_005_kitty_frames_travel_through_shared_memory_when_accepted() {
+    let pictures = pictures_with_shared_memory_accepted();
     assert!(
-        !commands.is_empty()
-            && commands
-                .iter()
-                .filter(|command| command.contains("a=T"))
-                .all(|command| command.contains("t=s")),
-        "GFX-005: with shared memory accepted the Kitty frames were sent as {:?}",
-        commands
-            .iter()
-            .map(|c| &c[..c.len().min(40)])
-            .collect::<Vec<_>>()
+        !pictures.is_empty() && pictures.iter().all(|picture| picture.contains("t=s")),
+        "GFX-005: with shared memory accepted the Kitty frames were sent as {pictures:?}"
+    );
+}
+
+// Windows has no POSIX shared memory, and its startup asks no terminal for
+// it (GFX-006), so an application that names it still gets its pictures.
+#[cfg(not(unix))]
+#[test]
+fn gfx_005_kitty_frames_are_sent_in_the_command_without_posix_shared_memory() {
+    let pictures = pictures_with_shared_memory_accepted();
+    assert!(
+        !pictures.is_empty() && pictures.iter().all(|picture| !picture.contains("t=s")),
+        "GFX-005: on a system without POSIX shared memory the Kitty frames were sent as {pictures:?}"
     );
 }
 
