@@ -70,7 +70,8 @@ and size each time they change.
 (`.trigger()`, `.content()`, `.class()`) or with `PopoverProps`. The box is
 `bg-surface text-foreground` with a border in `border` and one cell of
 padding inside it; the arrow, one row deep and pointing at the trigger, is
-painted in `surface`; the veil of `backdrop_filter` is `overlay`. The box
+a piece of the box, filled in `surface` with its outline in `border`; the
+veil of `backdrop_filter` is `overlay`. The box
 opens one row from its trigger (one cell when beside it) at the side
 `position` names, and at the opposite side when only that side holds it
 (`BoundaryBehavior::Flip`, the default). It stacks over a modal or a dialog
