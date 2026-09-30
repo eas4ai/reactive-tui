@@ -1269,6 +1269,62 @@ impl TextInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// CTL-004: a text input's error line is an alert to the screen
+    /// reader, and the field is named by its placeholder when it has no
+    /// label.
+    #[test]
+    fn ctl_004_an_error_line_is_an_alert_and_a_placeholder_names_the_field() {
+        let props = TextInputBuilder::new()
+            .value("ab")
+            .placeholder("Capture name")
+            .validator_pattern("alpha")
+            .error_message("Letters only")
+            .build();
+        let input = TextInput::new(props.clone());
+        let state = TextInputState {
+            is_valid: false,
+            ..Default::default()
+        };
+        let element = input.render(&props, &state);
+        fn find<'a>(element: &'a Element, text: &str) -> Option<&'a Element> {
+            if matches!(&element.element_type, crate::component::ElementType::Text(t) if t == text)
+            {
+                return Some(element);
+            }
+            element.children.iter().find_map(|child| find(child, text))
+        }
+        let error = find(&element, "Letters only").expect("the error line is painted");
+        assert_eq!(
+            error
+                .metadata
+                .accessibility
+                .as_ref()
+                .map(|node| node.inner.role()),
+            Some(accesskit::Role::Alert),
+            "the error line is an alert"
+        );
+        fn labelled(element: &Element) -> Option<&Element> {
+            if element
+                .metadata
+                .accessibility
+                .as_ref()
+                .is_some_and(|node| node.inner.label().is_some())
+            {
+                return Some(element);
+            }
+            element.children.iter().find_map(labelled)
+        }
+        let field = labelled(&element).expect("a node names the field");
+        assert_eq!(
+            field
+                .metadata
+                .accessibility
+                .as_ref()
+                .and_then(|node| node.inner.label()),
+            Some("Capture name")
+        );
+    }
     use crate::event::types::KeyModifiers;
 
     #[test]
