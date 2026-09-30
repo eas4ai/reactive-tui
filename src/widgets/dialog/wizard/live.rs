@@ -226,13 +226,20 @@ impl Component for LiveWizard {
                     )),
             );
         }
-        let button = |id: &str, label: &str| ModalButton {
-            id: id.into(),
-            label: label.into(),
-            action: ModalButtonAction::Custom(id.into()),
-            disabled: false,
-            autofocus: id == "next",
-            style: None,
+        // Next or Finish is the primary button; the rest are secondary.
+        let button = |id: &str, label: &str| {
+            super::super::frame::styled(
+                ModalButton {
+                    id: id.into(),
+                    label: label.into(),
+                    action: ModalButtonAction::Custom(id.into()),
+                    disabled: false,
+                    autofocus: id == "next",
+                    style: None,
+                },
+                &props.theme,
+                if id == "next" { "primary" } else { "secondary" },
+            )
         };
         let mut buttons = Vec::new();
         if props.cancelable {

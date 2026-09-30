@@ -206,9 +206,10 @@ impl Runtime {
             let mut class = content.class.take().unwrap_or_default();
             class.push_str(" self-start");
             content.class = Some(class);
-            // The content's lines wrap at the box's width; a scroll view
-            // keeps its lines on one line (`whitespace-pre`), so the wrap
-            // is asked for again inside it.
+            // The content's lines wrap at the box's width, with their
+            // spaces kept as written (`pre-wrap`: a row of spans keeps the
+            // space at a span's end); a scroll view keeps its lines whole
+            // (`whitespace-pre`), so the wrap is asked for again inside it.
             let mut content = node(
                 StyleBuilder::new()
                     .direction(Direction::Column)
@@ -216,7 +217,7 @@ impl Runtime {
                     .flex_shrink(0.0),
                 vec![content],
             )
-            .class("whitespace-normal px-1")
+            .class("whitespace-pre-wrap px-1")
             .with_key("modal-lines");
             self.measure(&mut content, Part::Content);
             let content = if props.scrollable {
@@ -311,10 +312,6 @@ impl Runtime {
             let mut semantic = Node::new(role);
             if let Some(title) = &props.title {
                 semantic.set_label(title);
-            }
-            // While the box fades or slides in, what it shows is on its way.
-            if progress < 1.0 {
-                semantic.set_busy();
             }
             let mut body = node(style, body_children)
                 .class(props.modal_style.clone().unwrap_or_default())

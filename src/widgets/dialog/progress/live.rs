@@ -87,6 +87,7 @@ impl Component for LiveProgress {
         }
         let mut cancel = ModalButton::cancel();
         cancel.autofocus = true;
+        let cancel = super::super::frame::styled(cancel, &props.theme, "secondary");
         let visible = self.visible.clone();
         let options = props.options.clone();
         let mut modal = ModalProps {

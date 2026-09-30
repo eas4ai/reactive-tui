@@ -1,3 +1,5 @@
+// A dialog is at most half the viewport wide (OVL-002): the small viewport
+// is 48 columns, which gives a box of 24 cells.
 use super::{app_input, Control};
 use reactive_tui::{
     component::Element,
@@ -143,7 +145,7 @@ impl Drop for Server {
 #[test]
 fn dialog_engine_http_validation_delivers_an_awaitable_result() {
     use reactive_tui::widgets::dialog::{DialogEngine, DialogEvent, InputFieldConfig};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let server = Server::new(vec![Reply::json(r#"{"valid":true}"#)]);
         let mut engine = DialogEngine::new();
         engine.enable_async();
@@ -346,9 +348,9 @@ fn autocomplete_http_sends_query_headers_and_renders_suggestion_objects() {
         AutocompleteConfig, AutocompleteDialog, AutocompleteDialogOptions,
     };
     for (size, descriptions) in [
-        ((32, 12), true),
+        ((48, 14), true),
         ((60, 20), true),
-        ((32, 12), false),
+        ((48, 14), false),
         ((60, 20), false),
     ] {
         let server = Server::new(vec![Reply::json(
@@ -387,9 +389,13 @@ fn autocomplete_http_sends_query_headers_and_renders_suggestion_objects() {
             )],
             "SUGGESTIONS",
         );
-        assert!(frames
-            .iter()
-            .any(|frame| frame.text.contains("* Remote choice")));
+        assert!(
+            frames
+                .iter()
+                .any(|frame| frame.text.contains("* Remote choice")),
+            "{:?}",
+            frames.iter().map(|frame| &frame.text).collect::<Vec<_>>()
+        );
         assert_eq!(
             frames
                 .iter()
@@ -411,7 +417,7 @@ fn autocomplete_http_rejects_malformed_suggestions_and_can_cancel() {
     use reactive_tui::widgets::dialog::{
         AutocompleteConfig, AutocompleteDialog, AutocompleteDialogOptions,
     };
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let server = Server::new(vec![Reply::json(
             r#"[{"display":"missing required value"}]"#,
         )]);
@@ -500,7 +506,7 @@ fn xis_001_disabled_dialog_configuration_never_spawns_curl() {
         .render(Rect::default(), &DialogTheme::default());
         app_input::run_until_hidden(
             Control(input),
-            (32, 12),
+            (48, 14),
             vec![("VALUE", super::key(KeyCode::Enter))],
             "LOCAL INPUT",
         );
@@ -524,7 +530,7 @@ fn xis_001_disabled_dialog_configuration_never_spawns_curl() {
         .render(Rect::default(), &DialogTheme::default());
         app_input::run_until_hidden(
             Control(autocomplete),
-            (32, 12),
+            (48, 14),
             vec![("LOCAL SEARCH", super::key(KeyCode::Escape))],
             "LOCAL SEARCH",
         );
@@ -574,7 +580,7 @@ fn xis_001_disabled_dialog_configuration_never_spawns_curl() {
 
 #[test]
 fn input_dialog_remote_validation_posts_json_and_completes_pending_submission() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let server = Server::new(vec![Reply::json(r#"{"valid":true}"#)]);
         let result = Arc::new(Mutex::new(None));
         app_input::run_until_hidden(
@@ -608,7 +614,7 @@ fn input_dialog_remote_validation_posts_json_and_completes_pending_submission() 
 
 #[test]
 fn input_dialog_remote_rejection_can_be_corrected_and_resubmitted() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let server = Server::new(vec![
             Reply::json(r#"{"valid":false,"message":"Name already taken"}"#),
             Reply::json(r#"{"valid":true}"#),
@@ -654,7 +660,7 @@ fn input_dialog_remote_http_and_json_failures_remain_open() {
         (Reply::json(r#"{"valid":false,"message":""}"#), "rejected"),
         (Reply::json(r#"{"message":"missing decision"}"#), "JSON"),
     ] {
-        for size in [(32, 12), (60, 20)] {
+        for size in [(48, 14), (60, 20)] {
             let server = Server::new(vec![reply.clone()]);
             let result = Arc::new(Mutex::new(None));
             let frames = app_input::run_until_hidden(
@@ -709,7 +715,7 @@ fn autocomplete_remote(
 
 #[test]
 fn autocomplete_http_debounces_edits_into_one_current_query() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let server = Server::new(vec![Reply::json(r#"["Fresh result"]"#)]);
         let results = Arc::new(Mutex::new(Vec::new()));
         let element = autocomplete_remote(
@@ -740,7 +746,7 @@ fn autocomplete_http_debounces_edits_into_one_current_query() {
 
 #[test]
 fn autocomplete_http_replacement_discards_the_previous_query() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let server = Server::new(vec![
             Reply {
                 // Still pending when the second key replaces the query.
@@ -781,7 +787,7 @@ fn autocomplete_http_replacement_discards_the_previous_query() {
 
 #[test]
 fn autocomplete_removal_cancels_a_live_http_request() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         // The reply waits 30 s; finishing well inside that shows removal did
         // not wait for it, with room for a busy machine. Dropping the server
         // ends the wait at once.
@@ -1048,7 +1054,7 @@ fn input_dialog_remote_completion_rechecks_current_local_validation() {
 
 #[test]
 fn input_dialog_remote_change_validation_keeps_warnings_and_reuses_the_matching_result() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let server = Server::new(vec![Reply::json(
             r#"{"valid":true,"warnings":["Review name"]}"#,
         )]);

@@ -1,3 +1,5 @@
+// A dialog is at most half the viewport wide (OVL-002): the small viewport
+// is 48 columns, which gives a box of 24 cells.
 use super::{app_input, Control};
 use reactive_tui::{builder, event::types::KeyCode};
 
@@ -11,7 +13,7 @@ fn input_dialogs_keep_cancel_keyboard_access_when_escape_dismissal_is_disabled()
         },
     };
     use std::sync::{Arc, Mutex};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         for autocomplete in [false, true] {
             let results = Arc::new(Mutex::new(Vec::new()));
             let closed = results.clone();
@@ -84,7 +86,7 @@ fn input_dialog_pointer_edits_and_submits_at_the_resized_painted_coordinates() {
         },
     };
     use std::sync::{Arc, Mutex};
-    for (initial, resized) in [((32, 12), (60, 20)), ((60, 20), (32, 12))] {
+    for (initial, resized) in [((48, 14), (60, 20)), ((60, 20), (48, 14))] {
         let result = Arc::new(Mutex::new(None));
         let closed = result.clone();
         let element = InputDialog::new(
@@ -196,7 +198,7 @@ fn input_dialog_prop_updates_preserve_edits_replace_callbacks_and_apply_new_seed
             }
         }
     }
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let changes = Arc::new(Mutex::new(Vec::new()));
         let submitted = Arc::new(Mutex::new(Vec::new()));
         let closed = Arc::new(Mutex::new(Vec::new()));
@@ -287,7 +289,7 @@ fn input_dialog_mask_rejects_invalid_format_then_submits_corrected_unicode() {
         },
     };
     use std::sync::{Arc, Mutex};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let result = Arc::new(Mutex::new(None));
         let closed = result.clone();
         let dialog = InputDialog::new(
@@ -345,7 +347,7 @@ fn input_dialog_validates_edits_graphemes_and_delivers_submission_through_app() 
         },
     };
     use std::sync::{Arc, Mutex};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let changes = Arc::new(Mutex::new(Vec::new()));
         let output = changes.clone();
         let result = Arc::new(Mutex::new(None));
@@ -405,7 +407,7 @@ fn input_dialog_readonly_keeps_value_while_allowing_submission_through_app() {
         },
     };
     use std::sync::{Arc, Mutex};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let result = Arc::new(Mutex::new(None));
         let closed = result.clone();
         let dialog = InputDialog::new(
@@ -581,7 +583,8 @@ fn input_dialog_blur_validation_runs_before_cancel_closes_it() {
         atomic::{AtomicUsize, Ordering},
         Arc,
     };
-    for size in [(32, 12), (60, 20)] {
+    // "This field is required" stays on one line in a box of 28 cells.
+    for size in [(56, 14), (60, 20)] {
         let cancelled = Arc::new(AtomicUsize::new(0));
         let closed = cancelled.clone();
         let dialog = InputDialog::new(
@@ -637,7 +640,7 @@ fn input_dialog_change_validation_shows_warnings_without_blocking_submit() {
         sync::{Arc, Mutex},
         time::Duration,
     };
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let result = Arc::new(Mutex::new(None));
         let closed = result.clone();
         let dialog = InputDialog::new(
@@ -745,7 +748,7 @@ fn input_dialog_password_masks_frames_and_returns_the_original_value() {
         },
     };
     use std::sync::{Arc, Mutex};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let result = Arc::new(Mutex::new(None));
         let closed = result.clone();
         let dialog = InputDialog::new(
@@ -799,7 +802,7 @@ fn input_dialog_app_length_limit_accepts_combining_marks_and_rejects_oversized_p
         },
     };
     use std::sync::{Arc, Mutex};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let result = Arc::new(Mutex::new(None));
         let closed = result.clone();
         let dialog = InputDialog::new(
@@ -907,7 +910,7 @@ fn progress_dialog_public_and_builder_routes_show_progress_and_cancel_once() {
         atomic::{AtomicUsize, Ordering},
         Arc,
     };
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let calls = Arc::new(AtomicUsize::new(0));
         let output = calls.clone();
         let mut public = ProgressDialog::new(
@@ -994,7 +997,7 @@ fn progress_dialog_updates_value_cancellation_policy_and_callback_through_app() 
             }
         }
     }
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let calls = Arc::new(Mutex::new(Vec::new()));
         let frames = app_input::run_until_hidden(
             Changed {
@@ -1016,7 +1019,7 @@ fn progress_dialog_updates_value_cancellation_policy_and_callback_through_app() 
 
 #[test]
 fn confirmation_dialog_builder_paints_buttons_and_closes_after_activation() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let dialog = builder::confirmation_dialog()
             .title("CONFIRM")
             .message("Continue?")
@@ -1051,7 +1054,7 @@ fn toast_public_and_builder_routes_paint_then_expire_without_input() {
         },
         time::Duration,
     };
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let calls = Arc::new(AtomicUsize::new(0));
         let output = calls.clone();
         let toast = Toast::new(
@@ -1085,14 +1088,16 @@ fn toast_public_and_builder_routes_paint_then_expire_without_input() {
 
 #[test]
 fn toast_positions_use_measured_message_size_without_stealing_background_input() {
-    for size in [(32, 12), (60, 20)] {
+    // The box is 9 cells wide (SAVED, its padding and its border) and keeps
+    // one cell from the edge; S is two cells inside the box.
+    for size in [(48, 14), (60, 20)] {
         for (position, x, y) in [
-            ("top-left", 1, 1),
-            ("top-center", (size.0 - 7) / 2 + 1, 1),
-            ("top-right", size.0 - 6, 1),
-            ("bottom-left", 1, size.1 - 2),
-            ("bottom-center", (size.0 - 7) / 2 + 1, size.1 - 2),
-            ("bottom-right", size.0 - 6, size.1 - 2),
+            ("top-left", 3, 2),
+            ("top-center", (size.0 - 9) / 2 + 2, 2),
+            ("top-right", size.0 - 8, 2),
+            ("bottom-left", 3, size.1 - 3),
+            ("bottom-center", (size.0 - 9) / 2 + 2, size.1 - 3),
+            ("bottom-right", size.0 - 8, size.1 - 3),
         ] {
             let toast = builder::toast()
                 .message("SAVED")
@@ -1135,7 +1140,7 @@ fn toast_positions_use_measured_message_size_without_stealing_background_input()
 
 #[test]
 fn dialog_builder_retains_editable_children_and_closes_through_app() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let dialog = builder::dialog()
             .title("DIALOG")
             .width(24)
@@ -1164,7 +1169,7 @@ fn dialog_builder_modal_flag_controls_background_input_and_closable_false_keeps_
         atomic::{AtomicUsize, Ordering},
         Arc,
     };
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         for modal in [false, true] {
             let calls = Arc::new(AtomicUsize::new(0));
             let output = calls.clone();
@@ -1215,7 +1220,7 @@ fn confirmation_dialog_buttons_skip_disabled_preserve_veto_and_deliver_close_res
         },
     };
     use std::sync::{Arc, Mutex};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let calls = Arc::new(Mutex::new(Vec::new()));
         let output = calls.clone();
         let closed = calls.clone();

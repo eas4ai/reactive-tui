@@ -292,5 +292,14 @@ mod tests {
                 "now.".to_string()
             ]
         );
+        let kept = TextStyle {
+            whitespace: Some(WhiteSpace::PreWrap),
+            ..TextStyle::default()
+        };
+        assert_eq!(
+            kept.lines("? Are you sure?", 14),
+            vec!["? Are you ".to_string(), "sure?".to_string()],
+            "pre-wrap keeps the space a line ends with"
+        );
     }
 }

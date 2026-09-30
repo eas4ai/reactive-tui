@@ -225,29 +225,31 @@ impl Popover {
                 // The box: the theme's `surface` and `foreground`, a border
                 // in `border` around the content (OVL-001).
                 let mut body_children = vec![props.content.clone()];
-                body_children.extend(border::elements(
-                    &Border {
-                        color: Some("border".into()),
-                        ..Border::default()
-                    },
-                    usize::from(content_size.0),
-                    usize::from(content_size.1),
-                ));
+                // An empty content leaves an empty box, without a frame.
+                if content_size.0 > 2 && content_size.1 > 2 {
+                    body_children.extend(border::elements(
+                        &Border {
+                            color: Some("border".into()),
+                            ..Border::default()
+                        },
+                        usize::from(content_size.0),
+                        usize::from(content_size.1),
+                    ));
+                }
                 let mut body = node(style.padding_all_px(1.0), body_children)
                     .class("bg-surface text-foreground")
                     .with_key("popover-body");
                 body.metadata.inert = !visible || hidden;
-                let mut semantic = crate::accessibility::Node::new(if props.focus_trap {
-                    crate::accessibility::Role::Dialog
-                } else {
-                    crate::accessibility::Role::Group
-                });
-                // While the box fades or slides in, what it shows is on its
-                // way.
-                if progress < 1.0 {
-                    semantic.set_busy();
-                }
-                body.metadata.accessibility = Some(semantic);
+                body.metadata.accessibility =
+                    Some(crate::accessibility::Node::new(if props.focus_trap {
+                        crate::accessibility::Role::Dialog
+                    } else {
+                        crate::accessibility::Role::Group
+                    }));
+                // Opened by a key, the popover takes the focus into its
+                // content when the content holds a focusable element and
+                // gives it back when it closes (OVL-004); `auto_focus`
+                // takes it in any case.
                 let opened_by_key = self.state.lock().unwrap().opened_by_key;
                 if visible && !hidden && props.focus_trap {
                     body.focus = Some(FocusProps::modal());
@@ -255,6 +257,7 @@ impl Popover {
                     body.metadata.focus_scope = true;
                     body.focus = Some(FocusProps {
                         tab_index: -1,
+                        focusable: props.auto_focus,
                         ..Default::default()
                     });
                 }

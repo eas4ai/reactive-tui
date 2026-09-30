@@ -1,3 +1,5 @@
+// A dialog is at most half the viewport wide (OVL-002): the small viewport
+// is 48 columns, which gives a box of 24 cells.
 use super::{app_input, Control};
 use reactive_tui::{
     core::geometry::Rect,
@@ -18,7 +20,7 @@ fn dialog(options: AutocompleteDialogOptions) -> reactive_tui::component::Elemen
 fn autocomplete_highlight_and_region_styles_reach_rendered_cells() {
     use std::collections::HashMap;
     use unicode_width::UnicodeWidthStr;
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         for highlight in [false, true] {
             let frames = app_input::run_when(
                 Control(dialog(AutocompleteDialogOptions {
@@ -71,7 +73,7 @@ fn autocomplete_highlight_and_region_styles_reach_rendered_cells() {
 #[test]
 fn autocomplete_minimum_counts_graphemes_and_shows_the_empty_placeholder() {
     use reactive_tui::event::types::PasteEvent;
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let results = Arc::new(Mutex::new(Vec::new()));
         let closed = results.clone();
         let frames = app_input::run_visibility(
@@ -118,7 +120,7 @@ fn autocomplete_minimum_counts_graphemes_and_shows_the_empty_placeholder() {
 
 #[test]
 fn autocomplete_filters_navigates_and_delivers_selection_once() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let results = Arc::new(Mutex::new(Vec::new()));
         let closed = results.clone();
         let changes = Arc::new(Mutex::new(Vec::new()));
@@ -157,7 +159,7 @@ fn autocomplete_filters_navigates_and_delivers_selection_once() {
 #[test]
 fn autocomplete_click_uses_suggestion_bounds_after_resize_and_honors_veto() {
     use app_input::Action;
-    for (initial, resized) in [((32, 12), (60, 20)), ((60, 20), (32, 12))] {
+    for (initial, resized) in [((48, 14), (60, 20)), ((60, 20), (48, 14))] {
         let selections = Arc::new(Mutex::new(Vec::new()));
         let selected = selections.clone();
         let results = Arc::new(Mutex::new(Vec::new()));
@@ -200,7 +202,7 @@ fn autocomplete_click_uses_suggestion_bounds_after_resize_and_honors_veto() {
 
 #[test]
 fn autocomplete_unicode_empty_results_submit_typed_value() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let results = Arc::new(Mutex::new(Vec::new()));
         let closed = results.clone();
         let element = dialog(AutocompleteDialogOptions {
@@ -232,7 +234,7 @@ fn autocomplete_unicode_empty_results_submit_typed_value() {
 
 #[test]
 fn autocomplete_escape_dismisses_suggestions_before_canceling() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let results = Arc::new(Mutex::new(Vec::new()));
         let closed = results.clone();
         let element = dialog(AutocompleteDialogOptions {
@@ -267,7 +269,7 @@ fn autocomplete_escape_dismisses_suggestions_before_canceling() {
 
 #[test]
 fn autocomplete_custom_filter_renderer_and_limit_are_applied() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let results = Arc::new(Mutex::new(Vec::new()));
         let closed = results.clone();
         let element = dialog(AutocompleteDialogOptions {
@@ -308,7 +310,7 @@ fn autocomplete_custom_filter_renderer_and_limit_are_applied() {
 
 #[test]
 fn autocomplete_reveals_the_keyboard_selection_in_a_long_list() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let results = Arc::new(Mutex::new(Vec::new()));
         let closed = results.clone();
         let element = dialog(AutocompleteDialogOptions {
@@ -340,7 +342,7 @@ fn autocomplete_reveals_the_keyboard_selection_in_a_long_list() {
 #[test]
 fn autocomplete_builder_wheel_and_click_use_current_rows() {
     use app_input::Action;
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let results = Arc::new(Mutex::new(Vec::new()));
         let closed = results.clone();
         let mut options = reactive_tui::widgets::dialog::DialogBuilder::autocomplete(
@@ -416,9 +418,9 @@ fn autocomplete_prop_updates_keep_edits_and_selection_with_fresh_callbacks() {
         }
     }
     for (size, reset) in [
-        ((32, 12), false),
+        ((48, 14), false),
         ((60, 20), false),
-        ((32, 12), true),
+        ((48, 14), true),
         ((60, 20), true),
     ] {
         let selections = Arc::new(Mutex::new(Vec::new()));

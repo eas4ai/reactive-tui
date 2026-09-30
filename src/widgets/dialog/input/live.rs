@@ -45,7 +45,6 @@ struct Runtime {
     remote: Mutex<remote::State>,
     remote_timer: Mutex<Option<TimerId>>,
     remote_pending: ThreadSafeSignal<bool>,
-    content_width: ThreadSafeSignal<Option<usize>>,
 }
 impl Runtime {
     fn options(&self) -> Arc<InputDialogOptions> {
@@ -188,7 +187,6 @@ impl Component for LiveInput {
                 remote: Mutex::new(remote::State::default()),
                 remote_timer: Mutex::new(None),
                 remote_pending: ThreadSafeSignal::new(false),
-                content_width: ThreadSafeSignal::new(None),
             }),
             seed: props.value,
             revision: props.revision,
@@ -358,37 +356,31 @@ impl Component for LiveInput {
             Ok(position) => position,
             Err(error) => return Element::text(error),
         };
-        let mut content = crate::builder::div().class("flex-col").children(content);
-        if let Some(width) = self.runtime.content_width.get() {
-            content =
-                content.styles(crate::layout::style::StyleBuilder::new().width_px(width as f32));
-        }
-        let mut content = content.build();
-        let measured = self.runtime.clone();
-        content.metadata.layout.push(Arc::new(move |layout| {
-            let width = Some(layout.clip.width.max(1.0).floor() as usize);
-            let changed = measured.content_width.get() != width;
-            if changed {
-                measured.content_width.set(width);
-            }
-            changed
-        }));
+        // The modal lays the content out at the box's width, so `w-full`
+        // children wrap there.
+        let content = crate::builder::div()
+            .class("flex-col w-full")
+            .children(content)
+            .build();
         let submitted = self.runtime.clone();
         let closed = self.runtime.clone();
         let mut ok = ModalButton::ok();
         ok.autofocus = false;
         ok.action = ModalButtonAction::Custom("ok".to_string());
+        let ok = super::super::frame::styled(ok, &props.theme, "primary");
         let mut cancel = ModalButton::cancel();
         cancel.action = ModalButtonAction::Custom("cancel".to_string());
+        let cancel = super::super::frame::styled(cancel, &props.theme, "secondary");
         let mut modal = ModalProps {
             visible: self.runtime.visible.get(),
             title: Some(options.title.clone()),
             content: Some(content),
             buttons: vec![cancel, ok],
             position,
-            width: options.size.map_or(ModalSize::Fixed(40), |size| {
-                ModalSize::Fixed(size.width.min(u16::MAX as usize) as u16)
-            }),
+            width: options.size.map_or(
+                super::super::frame::field_dialog_width(self.layout),
+                |size| ModalSize::Fixed(size.width.min(u16::MAX as usize) as u16),
+            ),
             height: options.size.map_or(ModalSize::Auto, |size| {
                 ModalSize::Fixed(size.height.min(u16::MAX as usize) as u16)
             }),

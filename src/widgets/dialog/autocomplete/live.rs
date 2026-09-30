@@ -523,8 +523,10 @@ impl Component for LiveAutocomplete {
         let mut ok = ModalButton::ok();
         ok.autofocus = false;
         ok.action = ModalButtonAction::Custom("ok".into());
+        let ok = super::super::frame::styled(ok, &props.theme, "primary");
         let mut cancel = ModalButton::cancel();
         cancel.action = ModalButtonAction::Custom("cancel".into());
+        let cancel = super::super::frame::styled(cancel, &props.theme, "secondary");
         let submitted = self.runtime.clone();
         let closed = self.runtime.clone();
         let mut modal = ModalProps {
@@ -533,9 +535,10 @@ impl Component for LiveAutocomplete {
             content: Some(content),
             buttons: vec![cancel, ok],
             position,
-            width: options.size.map_or(ModalSize::Fixed(40), |size| {
-                ModalSize::Fixed(size.width.min(u16::MAX as usize) as u16)
-            }),
+            width: options.size.map_or(
+                super::super::frame::field_dialog_width(self.layout),
+                |size| ModalSize::Fixed(size.width.min(u16::MAX as usize) as u16),
+            ),
             height: options.size.map_or(ModalSize::Auto, |size| {
                 ModalSize::Fixed(size.height.min(u16::MAX as usize) as u16)
             }),

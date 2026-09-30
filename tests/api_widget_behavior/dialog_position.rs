@@ -14,12 +14,13 @@ fn confirmation_positions_follow_viewport_resize_and_explicit_bounds() {
     use reactive_tui::event::types::{Event, ResizeEvent};
     use std::sync::Arc;
     for (initial, resized) in [((32, 12), (60, 20)), ((60, 20), (32, 12))] {
+        // A box at an edge keeps one cell from it.
         let origin = |mode, (width, height): (u16, u16)| match mode {
             0 => ((width - 14) / 2, (height - 6) / 2),
-            1 => ((width - 14) / 2, 0),
-            2 => ((width - 14) / 2, height - 6),
-            3 => (0, (height - 6) / 2),
-            4 => (width - 14, (height - 6) / 2),
+            1 => ((width - 14) / 2, 1),
+            2 => ((width - 14) / 2, height - 7),
+            3 => (1, (height - 6) / 2),
+            4 => (width - 15, (height - 6) / 2),
             5 => (2, 1),
             6 => (width / 4, height / 4),
             _ => (3, 2),
