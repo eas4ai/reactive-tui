@@ -29,15 +29,15 @@ charts.md (CHT-017).
 Falsifier: A built-in preset lacks one of the roles; or, by the contrast ratio of WCAG 2.1, a text role contrasts with its fill by less than 4.5 to 1, `foreground` with `background`, `surface`, `input` or `hover` by less than 4.5 to 1, `text-muted` with `background` or `surface` by less than 4.5 to 1, or `ring` with `background` or `surface` by less than 3 to 1.
 Mechanism: theme
 Rationale: Black or white reaches 4.5 to 1 on every fill, so no preset has to change a fill it has today.
-Status: Draft
+Status: Agreed 2026-09-29
 
 [THM-002] A role that neither the active theme nor a theme it extends defines MUST still resolve to a color: a text role to black or white, whichever contrasts more with its fill; `selection` and `ring` to the theme's `primary`; `input` to its `surface`; `hover` to seven parts of its `surface` mixed with one part of its `foreground`; and every other role to the built-in light preset's color when black contrasts with the theme's `background` more than white does, and to the dark preset's color otherwise. A class that names a role MUST never leave its element without the color it asks for.
 Falsifier: Under a theme that defines only `background`, `foreground` and `primary`, the class `bg-R` or `text-R` for a role R of THM-001 leaves the color of its style unset; a text role resolves to a color that contrasts with its fill by less than 4.5 to 1; `selection` or `ring` resolves to a color other than that theme's `primary`; `input` resolves to a color other than `surface` does; `hover` resolves to a color other than seven parts of what `surface` resolves to and one part of that theme's `foreground`; or `surface` resolves to a color other than the dark preset's when the theme's `background` is black and other than the light preset's when it is white.
 Mechanism: theme
 Rationale: An application's theme written before these roles existed names none of the new ones, and every reworked widget depends on them.
-Status: Draft
+Status: Agreed 2026-09-29
 
 [THM-003] After the application sets another theme, the next frame presented MUST paint every element whose classes name a role, and every widget a commitment has brought to the widget bar, in the new theme's colors.
 Falsifier: After `Theme::set_active` or `App::set_theme` with a theme whose roles all differ from the old theme's, the next presented frame holds a cell of such an element or widget in a color of the old theme.
 Mechanism: theme
-Status: Draft
+Status: Agreed 2026-09-29
