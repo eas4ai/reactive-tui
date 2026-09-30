@@ -1,18 +1,23 @@
 {
   "command": "python3 -B scripts/cairn/catalog_manual.py",
+  "cwd": null,
+  "documents": [],
+  "identity": {
+    "env": [],
+    "image": null,
+    "tools": {}
+  },
   "inputs": [
     "examples/widget_catalog",
     "manual/display-widgets.md",
     "manual/images-and-clipboard.md",
+    "manual/menus.md",
+    "manual/wgpu-graphics.md",
     "scripts/cairn",
     "src"
   ],
   "requirements": [
     "BAR-006"
   ],
-  "identity": {
-    "tools": {},
-    "env": [],
-    "image": null
-  }
+  "results": null
 }

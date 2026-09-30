@@ -23,10 +23,15 @@
     "src",
     "tests/api_widget_behavior",
     "tests/api_widget_behavior.rs",
+    "tests/canvas_goldens.rs",
+    "tests/canvas_support",
     "tests/charts_goldens.rs",
     "tests/common",
+    "tests/menus_goldens.rs",
+    "tests/snapshots/canvas",
     "tests/snapshots/charts",
-    "tests/snapshots/image"
+    "tests/snapshots/image",
+    "tests/snapshots/menus"
   ],
   "requirements": [
     "BAR-004",

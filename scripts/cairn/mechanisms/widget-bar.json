@@ -1,5 +1,17 @@
 {
   "command": "python3 -B scripts/cairn/charts_contract.py widget-bar",
+  "cwd": null,
+  "documents": [],
+  "identity": {
+    "env": [
+      "TERM"
+    ],
+    "image": null,
+    "tools": {
+      "cargo": "cargo --version",
+      "rustc": "rustc --version"
+    }
+  },
   "inputs": [
     "Cargo.lock",
     "Cargo.toml",
@@ -9,21 +21,14 @@
     "src",
     "tests/api_widget_behavior",
     "tests/api_widget_behavior.rs",
+    "tests/canvas_support",
+    "tests/canvas_widget.rs",
     "tests/charts_contract.rs",
-    "tests/common"
+    "tests/common",
+    "tests/menus_contract.rs"
   ],
   "requirements": [
     "BAR-003"
   ],
-  "results": "per-requirement",
-  "identity": {
-    "tools": {
-      "rustc": "rustc --version",
-      "cargo": "cargo --version"
-    },
-    "env": [
-      "TERM"
-    ],
-    "image": null
-  }
+  "results": "per-requirement"
 }
