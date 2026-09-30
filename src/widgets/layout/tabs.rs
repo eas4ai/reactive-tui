@@ -1,5 +1,6 @@
+use super::look;
 use crate::accessibility::{Node, Role};
-use crate::component::{Component, Element, LayoutInfo, LayoutType, Props};
+use crate::component::{Component, Element, ElementType, LayoutInfo, LayoutType, Props};
 use crate::event::router::EventResult;
 use crate::event::types::{FocusEventKind, KeyCode, MouseEventKind};
 use crate::event::{Event, MouseEvent};
@@ -181,6 +182,7 @@ pub struct TabsBuilder {
     disabled: bool,
     lazy_loading: bool,
     keyboard_activation: TabKeyboardActivation,
+    aria_label: Option<String>,
 }
 
 impl TabsBuilder {
@@ -261,6 +263,12 @@ impl TabsBuilder {
         self
     }
 
+    /// The name the screen reader gives the tab list (NAV-004).
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
     /// Build the TabsProps
     pub fn build(self) -> TabsProps {
         TabsProps {
@@ -274,6 +282,7 @@ impl TabsBuilder {
             disabled: self.disabled,
             lazy_loading: self.lazy_loading,
             keyboard_activation: self.keyboard_activation,
+            aria_label: self.aria_label,
         }
     }
 
@@ -296,6 +305,7 @@ impl Default for TabsBuilder {
             disabled: false,
             lazy_loading: true,
             keyboard_activation: TabKeyboardActivation::Automatic,
+            aria_label: None,
         }
     }
 }
@@ -323,6 +333,8 @@ pub struct TabsProps {
     pub lazy_loading: bool,
     /// Keyboard activation behavior
     pub keyboard_activation: TabKeyboardActivation,
+    /// The name the screen reader gives the tab list; none when unset.
+    pub aria_label: Option<String>,
 }
 
 impl Default for TabsProps {
@@ -338,6 +350,7 @@ impl Default for TabsProps {
             disabled: false,
             lazy_loading: true,
             keyboard_activation: TabKeyboardActivation::Automatic,
+            aria_label: None,
         }
     }
 }
@@ -374,6 +387,7 @@ pub struct Tabs {
     received_event: bool,
     viewport: Option<LayoutInfo>,
     targets: Arc<Mutex<Vec<TabTarget>>>,
+    bar: Arc<Mutex<Bar>>,
     on_change: Option<Arc<dyn Fn(usize) + Send + Sync>>,
     on_close: Option<Arc<dyn Fn(usize) + Send + Sync>>,
 }
@@ -531,44 +545,52 @@ impl Tabs {
         }
     }
 
-    fn render_tab_header(
-        &self,
-        tab: &Tab,
+    /// The classes of a tab's text: the focused or filled row's own text
+    /// role, else `text-muted`, `foreground` for the selected tab (underlined
+    /// in the `Line` variant) and `text-muted` when disabled (NAV-001).
+    fn text_classes(tab: &Tab, selected: bool, filled: bool, props: &TabsProps) -> &'static str {
+        if filled {
+            ""
+        } else if props.disabled || tab.disabled {
+            look::DISABLED
+        } else if selected {
+            match props.variant {
+                TabVariant::Line => look::TAB_LINE,
+                _ => look::TEXT,
+            }
+        } else {
+            look::MUTED
+        }
+    }
+
+    /// The fill of a tab's row: `selection` while it holds the focus and the
+    /// tabs the focus, `hover` under the pointer, the variant's fill for the
+    /// selected tab, else none.
+    fn row_fill(
         index: usize,
+        selected: bool,
         props: &TabsProps,
         state: &TabsState,
-    ) -> String {
-        let focus = if state.is_focused && state.focused_tab == Some(index) {
-            "▶"
+    ) -> &'static str {
+        if state.is_focused && state.focused_tab == Some(index) {
+            look::FOCUSED
         } else if state.hover_tab == Some(index) {
-            "→"
+            look::HOVER
+        } else if selected {
+            match props.variant {
+                TabVariant::Enclosed => look::TAB_ENCLOSED,
+                TabVariant::Soft => look::TAB_SOFT,
+                TabVariant::Solid => look::TAB_SOLID,
+                TabVariant::Line | TabVariant::Unstyled => "",
+            }
         } else {
-            " "
-        };
-        let mut label = String::from(focus);
-        if let Some(icon) = &tab.icon {
-            label.push_str(icon);
-            label.push(' ');
+            ""
         }
-        label.push_str(&tab.label);
-        if let Some(badge) = &tab.badge {
-            let mark = match badge.variant {
-                TabBadgeVariant::Default => "●",
-                TabBadgeVariant::Success => "✓",
-                TabBadgeVariant::Warning => "⚠",
-                TabBadgeVariant::Error => "✗",
-                TabBadgeVariant::Info => "ⓘ",
-            };
-            label.push_str(&format!(" {mark}{}", badge.text));
-        }
-        if props.disabled || tab.disabled {
-            label = format!("~{label}~");
-        }
-        label
     }
 
     fn measured(&self, mut element: Element, index: usize, close: bool) -> Element {
         let targets = self.targets.clone();
+        let bar = self.bar.clone();
         element.metadata.layout.push(Arc::new(move |layout| {
             if let Some(target) = targets.lock().unwrap().get_mut(index) {
                 if close {
@@ -577,7 +599,7 @@ impl Tabs {
                     target.header = Some(layout);
                 }
             }
-            false
+            !close && Bar::settle(&bar, &targets)
         }));
         element
     }
@@ -612,6 +634,64 @@ impl Tabs {
     }
 }
 
+/// The tab bar's scroll (NAV-003): the bar's box, its row of headers and
+/// the offset that keeps one tab whole in view.
+#[derive(Default)]
+struct Bar {
+    /// The box the row of headers is shown through.
+    viewport: Option<LayoutInfo>,
+    /// The row of headers, as long as every header together.
+    row: Option<LayoutInfo>,
+    /// The cells (or rows, for a vertical bar) the row is shifted by.
+    offset: f32,
+    /// The tab to keep in view: the one with the focus, else the selected.
+    keep: Option<usize>,
+    vertical: bool,
+}
+
+impl Bar {
+    /// Brings the kept tab whole into view and never leaves the row's end
+    /// short of the box when the row is longer than the box. `true` when
+    /// the offset changed, so the tabs are laid out again with it.
+    fn settle(bar: &Mutex<Self>, targets: &Mutex<Vec<TabTarget>>) -> bool {
+        let mut bar = bar.lock().unwrap();
+        let (Some(view), Some(row)) = (bar.viewport, bar.row) else {
+            return false;
+        };
+        let axis = usize::from(bar.vertical);
+        let length = |layout: LayoutInfo| {
+            if axis == 0 {
+                layout.size.0
+            } else {
+                layout.size.1
+            }
+        };
+        let view_start = view.transform[4 + axis] + view.insets[axis];
+        let view_length = length(view);
+        let mut offset = bar.offset;
+        let keep = bar
+            .keep
+            .and_then(|index| targets.lock().unwrap().get(index).and_then(|t| t.header));
+        if let Some(head) = keep {
+            // Where the header stands in the row before the shift.
+            let head_start = head.transform[4 + axis] - view_start + bar.offset;
+            let head_length = length(head);
+            if head_start + head_length > offset + view_length {
+                offset = head_start + head_length - view_length;
+            }
+            if head_start < offset {
+                offset = head_start;
+            }
+        }
+        offset = offset.min((length(row) - view_length).max(0.0)).max(0.0);
+        if (offset - bar.offset).abs() < 0.5 {
+            return false;
+        }
+        bar.offset = offset;
+        true
+    }
+}
+
 impl Component for Tabs {
     type Props = TabsProps;
     type State = TabsState;
@@ -625,6 +705,7 @@ impl Component for Tabs {
             received_event: false,
             viewport: None,
             targets: Arc::new(Mutex::new(Vec::new())),
+            bar: Arc::default(),
             on_change: None,
             on_close: None,
         }
@@ -659,32 +740,55 @@ impl Component for Tabs {
         let active = Self::active(props);
         let vertical = props.orientation == TabOrientation::Vertical
             || matches!(props.position, TabPosition::Left | TabPosition::Right);
+        let offset = {
+            let mut bar = self.bar.lock().unwrap();
+            bar.keep = state.focused_tab.filter(|_| state.is_focused).or(active);
+            bar.vertical = vertical;
+            bar.offset
+        };
+        let padding = match props.size {
+            TabSize::Small => "px-0",
+            TabSize::Medium => "px-1",
+            TabSize::Large => "px-2",
+        };
         let mut headers = Vec::new();
         for (index, tab) in props.tabs.iter().enumerate() {
-            let mut label = Element::text(self.render_tab_header(tab, index, props, state))
-                .with_class("whitespace-pre shrink-0");
-            if active == Some(index) {
-                label = label.with_class(match props.variant {
-                    TabVariant::Line => "underline",
-                    TabVariant::Enclosed => "border",
-                    TabVariant::Soft => "bg-gray-700",
-                    TabVariant::Solid => "bg-blue-600 text-white",
-                    TabVariant::Unstyled => "",
-                });
-            }
-            let padding = match props.size {
-                TabSize::Small => "px-0",
-                TabSize::Medium => "px-2",
-                TabSize::Large => "px-4",
+            let selected = active == Some(index);
+            let fill = Self::row_fill(index, selected, props, state);
+            let text = Self::text_classes(
+                tab,
+                selected,
+                !fill.is_empty() && fill != look::HOVER,
+                props,
+            );
+            let piece = |content: String, classes: &str| {
+                Element::text(content).with_class(format!("shrink-0 whitespace-pre {classes}"))
             };
-            let mut children = vec![label];
+            let mut label = String::new();
+            if let Some(icon) = &tab.icon {
+                label.push_str(icon);
+                label.push(' ');
+            }
+            label.push_str(&tab.label);
+            let mut children = vec![piece(label, text)];
+            if let Some(badge) = &tab.badge {
+                let mark = match badge.variant {
+                    TabBadgeVariant::Default => "●",
+                    TabBadgeVariant::Success => "✓",
+                    TabBadgeVariant::Warning => "⚠",
+                    TabBadgeVariant::Error => "✗",
+                    TabBadgeVariant::Info => "ⓘ",
+                };
+                children.push(piece(
+                    format!(" {mark}{}", badge.text),
+                    look::badge(&badge.variant),
+                ));
+            }
             if (props.closable || tab.closable) && !props.disabled && !tab.disabled {
                 let mut semantic = Node::new(Role::Button);
-                semantic.set_label(format!("Close {} tab", tab.label));
+                semantic.set_label(format!("Close {}", tab.label));
                 semantic.set_clickable();
-                let mut close = Element::text(" ✕")
-                    .with_class("whitespace-pre shrink-0")
-                    .with_accessibility(semantic);
+                let mut close = piece(" ✕".to_owned(), text).with_accessibility(semantic);
                 close
                     .metadata
                     .accessibility_options
@@ -698,7 +802,9 @@ impl Component for Tabs {
             let enabled = !props.disabled && !tab.disabled;
             let mut semantic = Node::new(Role::Tab);
             semantic.set_label(&tab.label);
-            semantic.set_selected(active == Some(index));
+            semantic.set_selected(selected);
+            semantic.inner.set_position_in_set(index + 1);
+            semantic.inner.set_size_of_set(props.tabs.len());
             if enabled {
                 semantic.set_clickable();
             } else {
@@ -706,7 +812,9 @@ impl Component for Tabs {
             }
             let mut header = Element::layout(LayoutType::Flex)
                 .with_key(format!("header-{:?}", self.identities[index]))
-                .with_class(format!("flex flex-row items-center shrink-0 {padding}"))
+                .with_class(format!(
+                    "flex flex-row items-center h-1 shrink-0 whitespace-pre {padding} {fill}"
+                ))
                 .with_children(children)
                 .with_accessibility(semantic);
             if enabled {
@@ -726,16 +834,49 @@ impl Component for Tabs {
             }
             headers.push(self.measured(header, index, false));
         }
-        let header = Element::layout(LayoutType::Flex)
-            .with_key("headers")
-            .with_class(if vertical {
+        // The row of headers, shifted by the bar's offset inside a box that
+        // clips it, so the kept tab stays whole in view (NAV-003).
+        let mut row_style = crate::layout::style::StyleBuilder::new().flex_shrink(0.0);
+        row_style = if vertical {
+            row_style.margin_t_px(-offset)
+        } else {
+            row_style.margin_l_px(-offset)
+        };
+        let mut row = crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+            .styles(row_style)
+            .class(if vertical {
                 "flex flex-col shrink-0"
             } else {
                 "flex flex-row shrink-0"
             })
-            .with_children(headers)
-            .with_accessibility(Node::new(Role::TabList))
-            .with_accessibility_label("Tabs");
+            .children(headers)
+            .build()
+            .with_key("headers");
+        let measured_row = self.bar.clone();
+        let targets = self.targets.clone();
+        row.metadata.layout.push(Arc::new(move |layout| {
+            measured_row.lock().unwrap().row = Some(layout);
+            Bar::settle(&measured_row, &targets)
+        }));
+        let mut semantic = Node::new(Role::TabList);
+        if let Some(label) = &props.aria_label {
+            semantic.set_label(label.clone());
+        }
+        let mut header = Element::layout(LayoutType::Flex)
+            .with_key("bar")
+            .with_class(if vertical {
+                "flex flex-col shrink-0 min-h-0 overflow-hidden"
+            } else {
+                "flex flex-row shrink-0 min-w-0 w-full overflow-hidden"
+            })
+            .with_child(row)
+            .with_accessibility(semantic);
+        let measured_bar = self.bar.clone();
+        let targets = self.targets.clone();
+        header.metadata.layout.push(Arc::new(move |layout| {
+            measured_bar.lock().unwrap().viewport = Some(layout);
+            Bar::settle(&measured_bar, &targets)
+        }));
         let panels = props
             .tabs
             .iter()
@@ -754,7 +895,7 @@ impl Component for Tabs {
                         })
                         .with_child(tab.content.clone())
                         .with_accessibility(Node::new(Role::TabPanel))
-                        .with_accessibility_label(format!("{} panel", tab.label)),
+                        .with_accessibility_label(tab.label.clone()),
                 )
             })
             .collect();
@@ -772,15 +913,21 @@ impl Component for Tabs {
             .and_then(|index| props.tabs.get(index))
             .and_then(|tab| tab.tooltip.as_ref())
         {
-            children.push(Element::text(tooltip).with_key("tooltip")
-                .with_class("absolute bottom-0 left-0 z-10 bg-gray-800 text-white whitespace-pre overflow-hidden"));
+            children.push(
+                Element::text(tooltip)
+                    .with_key("tooltip")
+                    .with_class(format!(
+                        "absolute bottom-0 left-0 z-10 whitespace-pre overflow-hidden {}",
+                        look::TOOLTIP
+                    )),
+            );
         }
         let mut root = Element::layout(LayoutType::Flex)
             .with_class(
                 if matches!(props.position, TabPosition::Left | TabPosition::Right) {
-                    "flex flex-row min-w-0 overflow-hidden"
+                    "flex flex-row w-full min-w-0 overflow-hidden"
                 } else {
-                    "flex flex-col min-w-0 overflow-hidden"
+                    "flex flex-col w-full min-w-0 overflow-hidden"
                 },
             )
             .with_children(children)
@@ -942,7 +1089,7 @@ mod tests {
             .build();
         let element = Tabs::new(props.clone()).render(&props, &TabsState::default());
         let bar = &element.children[0];
-        let nodes: Vec<_> = bar
+        let nodes: Vec<_> = bar.children[0]
             .children
             .iter()
             .map(|header| {
@@ -1072,7 +1219,6 @@ mod tests {
 
     #[test]
     fn test_tabs_with_badges() {
-        let tabs = Tabs::new(TabsProps::default());
         let tab = Tab::new("Test", Element::text("Content"))
             .with_badge(TabBadge::new("5").with_variant(TabBadgeVariant::Error));
 
@@ -1080,15 +1226,31 @@ mod tests {
             tabs: vec![tab],
             ..Default::default()
         };
+        let tabs = Tabs::new(props.clone());
         let state = TabsState {
             is_focused: true,
             focused_tab: Some(0),
             ..Default::default()
         };
 
-        let header = tabs.render_tab_header(&props.tabs[0], 0, &props, &state);
-        assert!(header.contains("Test"));
-        assert!(header.contains("✗5")); // Error badge
+        let element = tabs.render(&props, &state);
+        let header = &element.children[0].children[0].children[0];
+        let texts: Vec<String> = header
+            .children
+            .iter()
+            .filter_map(|piece| match &piece.element_type {
+                ElementType::Text(text) => Some(text.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts, vec!["Test".to_string(), " ✗5".to_string()]); // Error badge
+        assert!(
+            header.children[1]
+                .class
+                .as_deref()
+                .is_some_and(|class| class.contains("text-error")),
+            "the badge takes its kind's text role"
+        );
     }
 
     #[test]

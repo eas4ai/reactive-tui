@@ -60,6 +60,7 @@ pub struct TabsBuilder {
     active_tab: usize,
     closable: bool,
     class: Option<String>,
+    aria_label: Option<String>,
 }
 
 impl TabsBuilder {
@@ -70,6 +71,7 @@ impl TabsBuilder {
             active_tab: 0,
             closable: false,
             class: None,
+            aria_label: None,
         }
     }
 
@@ -110,6 +112,12 @@ impl TabsBuilder {
         self
     }
 
+    /// The name the screen reader gives the tab list (NAV-004).
+    pub fn aria_label(mut self, label: &str) -> Self {
+        self.aria_label = Some(label.to_string());
+        self
+    }
+
     /// Build the Tabs element
     ///
     /// Creates a tabs container element with the configured tabs and properties.
@@ -125,6 +133,7 @@ impl TabsBuilder {
                 .collect(),
             active_tab: self.active_tab,
             closable: self.closable,
+            aria_label: self.aria_label,
             ..Default::default()
         };
         let mut element = Element::typed::<crate::widgets::layout::Tabs>(props);

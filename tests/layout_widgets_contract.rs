@@ -303,6 +303,45 @@ fn nav_001_a_tab_bar_paints_its_labels_by_role_and_shows_focus_by_color_alone() 
     }
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn nav_001_an_accordion_paints_its_title_glyph_and_focused_header_by_role() {
+    let _theme = Active::set(probe());
+    let frame = shown(
+        builder::simple_accordion(vec![
+            ("one", "Focused demo", "One primary state per page"),
+            ("two", "Variants", "Useful alternatives stay nearby"),
+        ])
+        .auto_focus(),
+        (80, 12),
+        "Variants",
+    );
+    assert_eq!(
+        colors(&frame, "Focused demo"),
+        (Some(role("selection-foreground")), Some(role("selection"))),
+        "the header with the focus is selection while the accordion holds the focus:\n{}",
+        frame.text
+    );
+    assert_eq!(
+        colors(&frame, "Variants").0,
+        Some(role("foreground")),
+        "a title is foreground:\n{}",
+        frame.text
+    );
+    let (column, row) = at(&frame, "Variants");
+    assert_eq!(
+        cell_colors(&frame, column + 9, row).0,
+        Some(role("text-muted")),
+        "the glyph after the title is text-muted:\n{}",
+        frame.text
+    );
+    assert!(
+        find(&frame, "▶").is_none(),
+        "focus adds no glyph:\n{}",
+        frame.text
+    );
+}
+
 // ---------------------------------------------------------------- NAV-002
 
 #[test]
@@ -420,4 +459,60 @@ fn nav_004_delete_closes_a_tab_as_a_click_on_its_mark_does() {
         "Delete closed the focused tab:\n{}",
         end.text
     );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn nav_002_tabs_an_accordion_and_a_stack_fill_a_box_of_100_cells() {
+    let _theme = Active::set(probe());
+    let wide = |text: &str| {
+        builder::div()
+            .class("w-full h-1 bg-primary")
+            .text(text)
+            .build()
+    };
+    let frame = shown(
+        builder::div()
+            .class("flex-col gap-1")
+            .child(boxed(
+                100,
+                3,
+                builder::tabs()
+                    .tab("Preview", wide("Live preview"))
+                    .tab("Source", wide("Public builder API"))
+                    .build(),
+            ))
+            .child(boxed(
+                100,
+                3,
+                builder::accordion()
+                    .section(
+                        reactive_tui::widgets::layout::AccordionSection::new("one", "Totals")
+                            .content(wide("Every row"))
+                            .expanded(true),
+                    )
+                    .build(),
+            ))
+            .child(boxed(
+                100,
+                3,
+                builder::stack()
+                    .spacing(1.0)
+                    .child(wide("Layer one"))
+                    .child(wide("Layer two"))
+                    .build(),
+            ))
+            .build(),
+        (240, 60),
+        "Layer two",
+    );
+    for needle in ["Live preview", "Every row", "Layer one", "Layer two"] {
+        let (_, row) = at(&frame, needle);
+        assert_eq!(
+            cell_colors(&frame, 99, row).1,
+            Some(role("primary")),
+            "{needle}'s row fills the box's 100 cells:\n{}",
+            frame.text
+        );
+    }
 }

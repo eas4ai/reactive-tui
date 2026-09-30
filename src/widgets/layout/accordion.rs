@@ -157,6 +157,8 @@ pub struct AccordionProps {
     /// CustomEvent name delivered to the App root when expansion changes.
     /// JSON data contains section_id, expanded, and ordered expanded_sections.
     pub on_change: Option<String>, // Event handler ID
+    /// The name the screen reader gives the accordion; none when unset.
+    pub aria_label: Option<String>,
     /// Whether to use reduced motion (accessibility)
     pub reduced_motion: bool,
 }
@@ -174,6 +176,7 @@ impl Default for AccordionProps {
             class: None,
             persist_state: true,
             on_change: None,
+            aria_label: None,
             reduced_motion: false,
         }
     }
@@ -421,6 +424,12 @@ impl AccordionBuilder {
     /// Enable/disable keyboard navigation
     pub fn keyboard_navigation(mut self, enabled: bool) -> Self {
         self.props.keyboard_navigation = enabled;
+        self
+    }
+
+    /// The name the screen reader gives the accordion (NAV-004).
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.props.aria_label = Some(label.into());
         self
     }
 
