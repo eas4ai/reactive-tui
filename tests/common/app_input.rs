@@ -86,7 +86,17 @@ struct Step {
     output: Option<(String, usize)>,
     /// Wait until the latest frame holds any visible text.
     painted: bool,
+    /// Wait until the App is idle: it has asked for input several times
+    /// and presented no frame between them, so nothing it shows is still
+    /// on its way to its place.
+    idle: bool,
 }
+
+/// How many times in a row the App must ask for input without presenting a
+/// frame before it counts as idle. It presents what changed before it asks
+/// again, so one such time already means nothing is pending; three leave
+/// room for a change that takes a turn of the loop to show.
+const IDLE_POLLS: usize = 3;
 
 /// The backend the App presents to: the terminal backend writing into the
 /// capture, or the debug backend painting into memory.
@@ -169,6 +179,11 @@ struct InputBackend {
     busy: bool,
     /// The live-region texts of the frame being rendered.
     live: Vec<String>,
+    /// How many frames had been presented when the App last asked for
+    /// input, and how many times in a row it has asked since with no frame
+    /// between.
+    frames_at_poll: usize,
+    quiet_polls: usize,
 }
 impl Backend for InputBackend {
     fn painted_nodes(&self) -> Option<&[reactive_tui::backend::PaintedNode]> {
@@ -265,9 +280,18 @@ impl Backend for InputBackend {
                 snapshots.last().map_or("", |frame| frame.text.as_str())
             );
         }
+        let presented = self.snapshots.lock().unwrap().len();
+        if presented == self.frames_at_poll {
+            self.quiet_polls += 1;
+        } else {
+            self.frames_at_poll = presented;
+            self.quiet_polls = 0;
+        }
+        let idle = self.quiet_polls >= IDLE_POLLS;
         if self.events.front().is_some_and(|step| {
             let frames = self.snapshots.lock().unwrap();
             frames.last().is_some_and(|frame| frame.busy)
+                || (step.idle && !idle)
                 || step.output.as_ref().is_some_and(|(needle, count)| {
                     frames.last().is_none_or(|frame| {
                         String::from_utf8_lossy(&frame.output)
@@ -379,6 +403,7 @@ pub fn run(
                 cell: None,
                 output: None,
                 painted: false,
+                idle: false,
             })
             .collect(),
     )
@@ -406,6 +431,7 @@ pub fn run_when_painted(
             cell: None,
             output: None,
             painted: true,
+            idle: false,
         }]),
     )
 }
@@ -442,6 +468,7 @@ pub fn run_when_for(
                 cell: None,
                 output: None,
                 painted: false,
+                idle: false,
             })
             .collect(),
         None,
@@ -470,6 +497,7 @@ pub fn run_when_all(
                 cell: None,
                 output: None,
                 painted: false,
+                idle: false,
             })
             .collect(),
     )
@@ -495,6 +523,7 @@ pub fn run_until_hidden(
             cell: None,
             output: None,
             painted: false,
+            idle: false,
         })
         .collect();
     steps.push_back(Step {
@@ -507,6 +536,7 @@ pub fn run_until_hidden(
         cell: None,
         output: None,
         painted: false,
+        idle: false,
     });
     run_steps(root, size, steps)
 }
@@ -545,6 +575,7 @@ pub fn run_actions_until_hidden(
                 cell: None,
                 output: None,
                 painted: false,
+                idle: false,
             }
         })
         .collect();
@@ -558,6 +589,7 @@ pub fn run_actions_until_hidden(
         cell: None,
         output: None,
         painted: false,
+        idle: false,
     });
     run_steps(root, size, steps)
 }
@@ -584,6 +616,7 @@ pub fn run_visibility(
                 cell: None,
                 output: None,
                 painted: false,
+                idle: false,
             })
             .collect(),
     )
@@ -610,6 +643,7 @@ pub fn run_when_seen(
             cell: None,
             output: None,
             painted: false,
+            idle: false,
         }]),
     )
 }
@@ -643,6 +677,7 @@ pub fn run_when_cell(
                 cell: Some((step.x, step.y, step.content.into())),
                 output: None,
                 painted: false,
+                idle: false,
             })
             .collect(),
     )
@@ -659,10 +694,28 @@ pub struct Until {
     pub event: Option<Event>,
 }
 
-/// Gate each event on text and on one cell of the latest frame, and fail
-/// after `timeout`. For content that takes a few frames to reach its place,
-/// such as a panel that is measured before it is placed: the run ends at
-/// the frame where the cell that is painted last holds its glyph.
+fn until(steps: Vec<Until>) -> VecDeque<Step> {
+    steps
+        .into_iter()
+        .map(|step| Step {
+            frame: 1,
+            text: vec![step.text.into()],
+            absent: Vec::new(),
+            occurrences: 1,
+            event: step.event,
+            pointer_text: None,
+            cell: step.cell.map(|(x, y, glyph)| (x, y, glyph.into())),
+            output: None,
+            painted: false,
+            idle: true,
+        })
+        .collect()
+}
+
+/// Gate each event on text and on one cell of the latest frame, once the
+/// App is idle, and fail after `timeout`. For content that takes a few
+/// frames to reach its place, such as a panel that is measured before it is
+/// placed: each step reads the frame where it has.
 #[allow(dead_code)]
 pub fn run_until(
     root: impl RootComponent + 'static,
@@ -670,26 +723,18 @@ pub fn run_until(
     steps: Vec<Until>,
     timeout: Duration,
 ) -> Vec<Snapshot> {
-    run_steps_with_images(
-        root,
-        size,
-        steps
-            .into_iter()
-            .map(|step| Step {
-                frame: 1,
-                text: vec![step.text.into()],
-                absent: Vec::new(),
-                occurrences: 1,
-                event: step.event,
-                pointer_text: None,
-                cell: step.cell.map(|(x, y, glyph)| (x, y, glyph.into())),
-                output: None,
-                painted: false,
-            })
-            .collect(),
-        None,
-        timeout,
-    )
+    run_steps_with_images(root, size, until(steps), None, timeout)
+}
+
+/// `run_until` on the debug backend.
+#[allow(dead_code)]
+pub fn run_until_on_debug(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<Until>,
+    timeout: Duration,
+) -> Vec<Snapshot> {
+    run_steps_on(root, size, until(steps), Target::Debug, timeout)
 }
 
 fn run_steps(
@@ -723,6 +768,7 @@ pub fn run_on_debug(
                 cell: None,
                 output: None,
                 painted: false,
+                idle: false,
             })
             .collect(),
         Target::Debug,
@@ -750,6 +796,7 @@ pub fn run_when_painted_on_debug(
             cell: None,
             output: None,
             painted: true,
+            idle: false,
         }]),
         Target::Debug,
         HANG_GUARD,
@@ -784,6 +831,7 @@ pub fn run_when_output(
                 cell: None,
                 output: Some((needle, count)),
                 painted: false,
+                idle: false,
             })
             .collect(),
         Some(images),
@@ -830,6 +878,8 @@ fn run_steps_on(
         wait_returned: std::sync::Mutex::new(Some(Instant::now())),
         busy: false,
         live: Vec::new(),
+        frames_at_poll: 0,
+        quiet_polls: 0,
     };
     App::builder()
         .backend(backend)

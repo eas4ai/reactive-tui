@@ -54,8 +54,8 @@ impl Props for LiveProps {
 }
 
 /// The classes of a dialog menu's buttons: the theme's primary fill and
-/// the text drawn on it.
-const BUTTON: &str = "bg-primary text-primary-foreground cursor-pointer";
+/// the text drawn on it, one cell in from each side as the rows are.
+const BUTTON: &str = "px-1 bg-primary text-primary-foreground cursor-pointer";
 
 fn contains_selectable(items: &[MenuItem], id: &str) -> bool {
     items.iter().any(|item| {
@@ -206,10 +206,10 @@ impl DialogRuntime {
     fn chrome(&self, props: &LiveProps) -> (Vec<Element>, Vec<Element>) {
         let mut leading = Vec::new();
         if let Some(title) = &props.config.title {
-            leading.push(Element::text(title).with_class("font-bold"));
+            leading.push(Element::text(title).with_class("font-bold px-1"));
         }
         if let Some(message) = &props.config.message {
-            leading.push(Element::text(message));
+            leading.push(Element::text(message).with_class("px-1"));
         }
         if props.config.dialog_type == DialogMenuType::Input {
             let state = self.input.lock().unwrap();
