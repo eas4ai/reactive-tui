@@ -5,6 +5,46 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- **Breaking:** the tabs, the accordion, the breadcrumb, the scroll view
+  and the stack take every color from the active theme
+  (docs/spec/layout-widgets.md). A tab's label is `text-muted` and the
+  selected tab's `foreground`, underlined in the `Line` variant, on
+  `surface` in `Enclosed`, on `secondary` in `Soft` and on `primary` in
+  `Solid` (they were `bg-gray-700` and `bg-blue-600 text-white`); a badge
+  is `text-success`, `text-warning`, `text-error` or `text-info` by its
+  kind; an accordion's title is `foreground` and its glyph `text-muted`;
+  a breadcrumb's segments and separators are `text-muted`, a clickable
+  segment underlined, the current one `foreground`; a scroll bar's track
+  is `border` and its thumb `text-muted`; tooltips are `surface`. The tab,
+  header or segment with the keyboard focus is `selection` while the
+  widget holds the focus, the one under the pointer `hover`, a disabled
+  one `text-muted`: the `▶` and `→` before a tab, the `▶ ` before an
+  accordion header and the `~label~` of a disabled tab are gone.
+- **Breaking:** a default scroll view fills the width and the height its
+  parent allots: `ScrollViewProps::viewport_width` and `viewport_height`
+  default to 0, which means the parent's size (they were 80 and 24), and
+  `builder::scroll_view()` gained `viewport_size()`, `viewport_width()`
+  and `viewport_height()`. The bar takes a column or a row only while the
+  content overflows in that direction; it took one whenever bars were on.
+  A click on the bar's track scrolls one page toward the click and a drag
+  of the thumb scrolls with it.
+- **Breaking:** a `Medium` tab's label has one cell of padding at each
+  side (it had two; `Small` none, `Large` two, it had four) and a
+  breadcrumb's segment one cell (it had four; none when compact), with the
+  separator's spaces gone, so `/catalog/layout/widgets` with its icons is
+  47 cells. A tab bar wider than its parent scrolls to keep the tab with
+  the focus, or the selected tab, whole in view; it was cut at the edge.
+  A breadcrumb keeps its first and last segment whole before it cuts a
+  label.
+- Screen readers: `aria_label` on `TabsProps`, `AccordionProps`,
+  `BreadcrumbProps` and `ScrollViewProps` and on their builders names the
+  widget; a tab list has no name unless set (it was "Tabs"), a tab panel
+  is named by its tab's label alone. A tab, an accordion header and a
+  breadcrumb segment report their position and the count of their set,
+  and a scroll view its offsets and their ranges.
+- The widget catalog's Layout page, the manual's layout-widgets chapter
+  and goldens at 80 by 24 and 400 by 100 show the five widgets.
+
 - **Breaking:** the text input, the checkbox, the radio button, the select,
   the slider and the button take every color from the active theme. A
   text input's and a select's field is `bg-input text-foreground`, its
