@@ -20,7 +20,8 @@ pub struct ContextMenuProps {
     pub long_press_duration: u64,
     /// Whether to auto-close when clicking outside
     pub close_on_outside_click: bool,
-    /// Maximum number of visible items (for scrolling)
+    /// Maximum number of visible items (for scrolling); without one a panel shows
+    /// every row the viewport holds
     pub max_visible_items: usize,
     /// Fixed width for the context menu
     pub width: Option<u16>,
@@ -42,7 +43,7 @@ impl Default for ContextMenuProps {
             show_on_long_press: false,
             long_press_duration: 500,
             close_on_outside_click: true,
-            max_visible_items: 10,
+            max_visible_items: usize::MAX,
             width: None,
             show_border: true,
             show_shadow: true,

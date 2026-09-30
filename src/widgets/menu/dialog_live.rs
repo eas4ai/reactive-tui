@@ -2,7 +2,7 @@ use super::runtime::{MenuRuntime, WorldEvents};
 pub(super) type LiveDialog = WorldEvents<DialogRuntime>;
 use super::{
     model::{item_mut, list_at, shortcut_path, MenuModel},
-    panels::{bounds, PanelOptions},
+    panels::{shield, PanelOptions, Spot},
     view::{node, MenuView, RowOptions},
     DialogMenuProps, DialogMenuState, DialogMenuType, MenuItem, MenuItemType, TextCallback,
 };
@@ -392,19 +392,9 @@ impl Component for DialogRuntime {
         }
         let mut children = Vec::new();
         if let Some(root) = self.root {
-            let bounds = bounds(root);
+            let bounds = self.view.viewport(root);
             if props.config.modal || props.config.close_on_outside_click {
-                let shield = node(
-                    StyleBuilder::new()
-                        .position_absolute()
-                        .inset_left(bounds.left)
-                        .inset_top(bounds.top)
-                        .width_px(bounds.right - bounds.left)
-                        .height_px(bounds.bottom - bounds.top)
-                        .z_index(998),
-                    vec![],
-                )
-                .with_key("dialog-shield");
+                let shield = shield(bounds, "dialog-shield");
                 children.push(if props.config.modal {
                     shield.with_class(&props.config.style.veil_classes)
                 } else {
@@ -419,7 +409,7 @@ impl Component for DialogRuntime {
             let display = MenuModel::new(display, self.menu.path.clone());
             for depth in 0..self.menu.path.len().max(1) {
                 let parent = &self.menu.path[..depth];
-                let origin = if depth == 0 {
+                let spot = if depth == 0 {
                     if props.config.centered {
                         let size = self
                             .view
@@ -428,16 +418,16 @@ impl Component for DialogRuntime {
                             .unwrap()
                             .get(&0)
                             .map_or((0.0, 0.0), |layout| layout.size);
-                        (
+                        Spot::At(
                             bounds.left + (bounds.right - bounds.left - size.0) / 2.0,
                             bounds.top + (bounds.bottom - bounds.top - size.1) / 2.0,
                         )
                     } else {
                         let (x, y) = props.config.position.unwrap_or((0, 0));
-                        (f32::from(x), f32::from(y))
+                        Spot::At(f32::from(x), f32::from(y))
                     }
                 } else if let Some(anchor) = self.view.anchor(root, parent) {
-                    (anchor.right, anchor.top)
+                    Spot::RightOf(anchor)
                 } else {
                     continue;
                 };
@@ -450,7 +440,7 @@ impl Component for DialogRuntime {
                     &display,
                     parent,
                     root,
-                    origin,
+                    spot,
                     PanelOptions {
                         rows: RowOptions {
                             horizontal: false,

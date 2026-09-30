@@ -433,7 +433,7 @@ impl MenuBarBuilder {
             visible: true,
             title: None,
             show_shortcuts: true,
-            max_dropdown_height: 10,
+            max_dropdown_height: usize::MAX,
             on_item_selected: None,
             on_dropdown_opened: None,
             on_dropdown_closed: None,

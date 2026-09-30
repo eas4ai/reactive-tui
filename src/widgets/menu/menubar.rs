@@ -18,7 +18,8 @@ pub struct MenuBarProps {
     pub title: Option<String>,
     /// Whether to show keyboard shortcuts in submenus
     pub show_shortcuts: bool,
-    /// Maximum number of visible items in dropdown menus
+    /// Maximum number of visible items in dropdown menus; without one a panel shows
+    /// every row the viewport holds
     pub max_dropdown_height: usize,
 }
 
@@ -31,7 +32,7 @@ impl Default for MenuBarProps {
             visible: true,
             title: None,
             show_shortcuts: true,
-            max_dropdown_height: 10,
+            max_dropdown_height: usize::MAX,
         }
     }
 }

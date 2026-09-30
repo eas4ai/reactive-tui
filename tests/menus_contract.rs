@@ -8,7 +8,7 @@
 
 mod common;
 
-use common::app_input::{self, Snapshot};
+use common::app_input::{self, Snapshot, Until};
 use reactive_tui::{
     app::RootComponent,
     builder::{
@@ -726,30 +726,47 @@ fn mnu_003_a_submenu_at_the_right_edge_opens_to_the_left_of_its_parent() {
 
 #[test]
 #[serial_test::serial(theme)]
-fn mnu_003_a_popup_below_an_anchor_on_the_last_row_opens_above_it() {
-    let frames = app_input::run_when(
-        Control(page(popup(
-            rows(2),
+fn mnu_003_a_popup_under_an_anchor_at_the_lower_edge_opens_over_it() {
+    for (placement, anchor) in [
+        (
+            PopupPlacement::Widget {
+                x: 10,
+                y: 19,
+                width: 8,
+                height: 1,
+            },
+            19,
+        ),
+        // `Below` names the row under its anchor: the anchor is the row
+        // over it.
+        (
             PopupPlacement::Below {
                 x: 10,
                 y: 19,
                 width: 8,
             },
-        ))),
-        (60, 20),
-        vec![("ROW02", None)],
-    );
-    let frame = frames.last().unwrap();
-    let on_anchor: String = (10..18)
-        .filter_map(|column| frame.screen.cell(19, column))
-        .map(|cell| cell.contents())
-        .collect();
-    let last = find(frame, "ROW02");
-    assert!(
-        on_anchor.trim().is_empty() && last.is_some_and(|(_, row)| row < 19),
-        "MNU-003: the anchor's cells on the last row hold {on_anchor:?} and the panel's last row is at {last:?}; the panel must stand above the anchor:\n{}",
-        frame.text
-    );
+            18,
+        ),
+    ] {
+        let frames = app_input::run_when(
+            Control(page(popup(rows(2), placement.clone()))),
+            (60, 20),
+            vec![("ROW02", None)],
+        );
+        let frame = frames.last().unwrap();
+        let on_anchor: String = (10..18)
+            .filter_map(|column| frame.screen.cell(anchor, column))
+            .map(|cell| cell.contents().to_owned())
+            .collect();
+        let (first, last) = (find(frame, "┌"), find(frame, "└"));
+        assert!(
+            on_anchor.trim().is_empty()
+                && first.is_some()
+                && last.is_some_and(|(_, row)| row + 1 == anchor),
+            "MNU-003: {placement:?}: the anchor's cells on row {anchor} hold {on_anchor:?} and the panel stands from {first:?} to {last:?}; it must stand over the anchor and touch it:\n{}",
+            frame.text
+        );
+    }
 }
 
 #[test]
@@ -793,28 +810,21 @@ fn mnu_003_a_panel_opened_near_the_corner_of_the_viewport_is_painted_whole() {
     );
 }
 
-/// A page that paints a frame for the key `!`, so a key no menu takes
-/// still ends the run.
-struct Served(Element);
-impl RootComponent for Served {
-    fn render(&self) -> Element {
-        self.0.clone()
-    }
-    fn try_handle_event(
-        &mut self,
-        event: &Event,
-    ) -> reactive_tui::error::Result<reactive_tui::event::router::EventResult> {
-        Ok(match event {
-            Event::Key(key) if key.code == KeyCode::Char('!') => {
-                reactive_tui::event::router::EventResult::Handled
-            }
-            _ => reactive_tui::event::router::EventResult::Ignored,
-        })
-    }
-    fn wake_driven(&self) -> bool {
-        true
+/// The last step of a run that ends when a panel of two rows stands whole
+/// with its first corner at (`column`, `row`): its lower left corner is
+/// painted last, three rows under the first.
+fn whole_panel_at(column: u16, row: u16) -> Until {
+    Until {
+        text: "ROW02",
+        cell: Some((column, row + 3, "└")),
+        event: None,
     }
 }
+
+/// How long a test waits for a panel that may never be painted: the App
+/// paints a frame in milliseconds, so five seconds tell a missing panel
+/// from a slow machine.
+const PANEL_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 
 #[test]
 #[serial_test::serial(theme)]
@@ -831,14 +841,20 @@ fn mnu_003_shift_f10_opens_the_context_menu_at_the_area_it_serves() {
         alt: false,
         meta: false,
     }));
-    let frames = app_input::run(
-        Served(page(menu)),
+    // The run ends at the first frame that shows the panel's last row, and
+    // fails after `PANEL_WAIT` when none does.
+    let frames = app_input::run_until(
+        Control(page(menu)),
         (60, 20),
         vec![
-            (1, Some(shift_f10)),
-            (1, key(KeyCode::Char('!'))),
-            (2, None),
+            Until {
+                text: "",
+                cell: None,
+                event: Some(shift_f10),
+            },
+            whole_panel_at(4, 2),
         ],
+        PANEL_WAIT,
     );
     let frame = frames.last().unwrap();
     assert_eq!(
@@ -900,17 +916,6 @@ fn body_with_menu() -> Element {
         .build()
 }
 
-/// Three more frames after `seen` is painted, so a panel that needs a
-/// frame to be measured has had it.
-fn settle(seen: &'static str) -> Vec<(&'static str, Option<Event>)> {
-    vec![
-        (seen, key(KeyCode::Char('!'))),
-        (seen, key(KeyCode::Char('!'))),
-        (seen, key(KeyCode::Char('!'))),
-        (seen, None),
-    ]
-}
-
 #[test]
 #[serial_test::serial(theme)]
 fn mnu_004_a_menu_opened_inside_a_modal_is_painted_over_it() {
@@ -920,7 +925,12 @@ fn mnu_004_a_menu_opened_inside_a_modal_is_painted_over_it() {
         .size(30, 8)
         .visible(true)
         .build();
-    let frames = app_input::run_when(Served(page(modal)), (60, 20), settle("BODY"));
+    let frames = app_input::run_until(
+        Control(page(modal)),
+        (60, 20),
+        vec![whole_panel_at(40, 10)],
+        PANEL_WAIT,
+    );
     let frame = frames.last().unwrap();
     assert_eq!(
         missing(frame, (40, 10)),
@@ -937,9 +947,19 @@ fn mnu_004_a_menu_opened_inside_a_popover_is_painted_over_it() {
         .trigger(builder::button().text("OPEN").class("w-6 h-1 p-0").build())
         .content(body_with_menu())
         .build();
-    let mut steps = vec![("OPEN", app_input::click(1, 0))];
-    steps.extend(settle("BODY"));
-    let frames = app_input::run_when(Served(page(popover)), (60, 20), steps);
+    let frames = app_input::run_until(
+        Control(page(popover)),
+        (60, 20),
+        vec![
+            Until {
+                text: "OPEN",
+                cell: None,
+                event: app_input::click(1, 0),
+            },
+            whole_panel_at(40, 10),
+        ],
+        PANEL_WAIT,
+    );
     let frame = frames.last().unwrap();
     assert_eq!(
         missing(frame, (40, 10)),
@@ -967,9 +987,19 @@ fn mnu_004_a_box_that_clips_its_content_does_not_clip_a_panel() {
         .child(header)
         .child(Element::text("PAGE"))
         .build();
-    let mut steps = vec![("FILE", key(KeyCode::Down))];
-    steps.extend(settle("FILE"));
-    let frames = app_input::run_when(Served(tree), (60, 20), steps);
+    let frames = app_input::run_until(
+        Control(tree),
+        (60, 20),
+        vec![
+            Until {
+                text: "FILE",
+                cell: None,
+                event: key(KeyCode::Down),
+            },
+            whole_panel_at(1, 2),
+        ],
+        PANEL_WAIT,
+    );
     let frame = frames.last().unwrap();
     let rows: Vec<bool> = ["ROW01", "ROW02"]
         .iter()

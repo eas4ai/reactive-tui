@@ -648,6 +648,50 @@ pub fn run_when_cell(
     )
 }
 
+/// One step of `run_until`: what the latest frame must show before the
+/// step's event is sent.
+#[allow(dead_code)]
+pub struct Until {
+    /// Text the frame holds.
+    pub text: &'static str,
+    /// A cell and the glyph it holds, as (column, row, glyph).
+    pub cell: Option<(u16, u16, &'static str)>,
+    pub event: Option<Event>,
+}
+
+/// Gate each event on text and on one cell of the latest frame, and fail
+/// after `timeout`. For content that takes a few frames to reach its place,
+/// such as a panel that is measured before it is placed: the run ends at
+/// the frame where the cell that is painted last holds its glyph.
+#[allow(dead_code)]
+pub fn run_until(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<Until>,
+    timeout: Duration,
+) -> Vec<Snapshot> {
+    run_steps_with_images(
+        root,
+        size,
+        steps
+            .into_iter()
+            .map(|step| Step {
+                frame: 1,
+                text: vec![step.text.into()],
+                absent: Vec::new(),
+                occurrences: 1,
+                event: step.event,
+                pointer_text: None,
+                cell: step.cell.map(|(x, y, glyph)| (x, y, glyph.into())),
+                output: None,
+                painted: false,
+            })
+            .collect(),
+        None,
+        timeout,
+    )
+}
+
 fn run_steps(
     root: impl RootComponent + 'static,
     size: (u16, u16),

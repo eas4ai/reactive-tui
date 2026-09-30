@@ -7,7 +7,7 @@ use crate::{
     component::{Component, Element, LayoutInfo, Props},
     event::{
         router::EventResult,
-        types::{Event, MouseButton, MouseEventKind},
+        types::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind},
     },
     layout::style::StyleBuilder,
     reactive::{
@@ -159,6 +159,25 @@ impl Component for LiveContext {
     fn handle_event(&mut self, event: &Event, props: &mut Self::Props, _: &mut ()) -> EventResult {
         if !props.config.enabled {
             return EventResult::Ignored;
+        }
+        if let Event::Key(key) = event {
+            // Shift+F10 opens the menu at the first cell of the area it
+            // serves: its first trigger area, or its own box (MNU-003).
+            let opens = key.code == KeyCode::F(10)
+                && key.modifiers.shift
+                && key.kind != KeyEventKind::Release
+                && self.state.get().is_none();
+            let Some(root) = self.root.filter(|_| opens) else {
+                return EventResult::Ignored;
+            };
+            let first = props.config.trigger_areas.first().map_or(
+                (root.transform[4], root.transform[5]),
+                |&(left, top, _, _)| (f32::from(left), f32::from(top)),
+            );
+            self.cancel();
+            self.state
+                .set(Some((first.0.max(0.0) as u16, first.1.max(0.0) as u16)));
+            return EventResult::Consumed;
         }
         let Event::Mouse(mouse) = event else {
             return EventResult::Ignored;
