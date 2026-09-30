@@ -9,7 +9,12 @@
   "signing_key": null,
   "attribution": "forbidden",
   "developer": "present",
-  "harness": {},
+  "harness": {
+    "codex": {
+      "adversary_model": "gpt-6.1-sol",
+      "adversary_transport": "local"
+    }
+  },
   "typesafeai": {
     "enabled": true,
     "model": "jev-1.13.0",
