@@ -219,9 +219,12 @@ impl Component for MenuBarRuntime {
                 ));
             }
         }
+        // The bar fills the width its parent allots, whatever the parent
+        // does with its children (BAR-003).
         let mut root = node(
             StyleBuilder::new()
                 .display_flex()
+                .width_percent(100.0)
                 .padding_all_px(f32::from(props.config.style.padding))
                 .direction(Direction::Column),
             children,

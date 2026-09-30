@@ -253,3 +253,94 @@ impl MenuView {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use accesskit::Toggled;
+
+    /// What the screen reader is told of the row that `item` makes at
+    /// `path`, in a menu whose current path is `selection`.
+    fn spoken(item: &MenuItem, path: &[usize], selection: &[usize]) -> accesskit::Node {
+        let style = MenuStyle::default();
+        let row = MenuView::default().row(
+            &RowOptions {
+                horizontal: false,
+                style: &style,
+                shortcuts: true,
+                enabled: true,
+                focused: true,
+                selection,
+            },
+            item,
+            path.to_vec(),
+        );
+        *row.metadata
+            .accessibility
+            .expect("a row has an accessibility node")
+            .inner
+    }
+
+    #[test]
+    fn bar_003_a_menu_row_tells_the_screen_reader_its_kind_and_its_state() {
+        let action = spoken(&MenuItem::new("new", "New file"), &[0], &[0]);
+        assert_eq!(
+            (action.role(), action.label(), action.is_disabled()),
+            (Role::MenuItem, Some("New file"), false)
+        );
+        assert!(
+            action.supports_action(accesskit::Action::Click),
+            "BAR-003: a row can be activated by the screen reader"
+        );
+
+        let disabled = spoken(&MenuItem::new("off", "Off").enabled(false), &[1], &[0]);
+        assert!(disabled.is_disabled(), "BAR-003: a disabled row says so");
+
+        let described = spoken(
+            &MenuItem::new("save", "Save").description("Writes the file"),
+            &[0],
+            &[0],
+        );
+        assert_eq!(described.description(), Some("Writes the file"));
+
+        for (checked, expected) in [(true, Toggled::True), (false, Toggled::False)] {
+            let checkbox = spoken(
+                &MenuItem::checkbox("wrap", "Wrap", checked, |_| {}),
+                &[0],
+                &[0],
+            );
+            assert_eq!(
+                (checkbox.role(), checkbox.toggled()),
+                (Role::MenuItemCheckBox, Some(expected)),
+                "BAR-003: a checkbox row checked {checked}"
+            );
+        }
+
+        let radio = spoken(
+            &MenuItem::radio("size", "Large", true, "sizes", || {}),
+            &[0],
+            &[0],
+        );
+        assert_eq!(
+            (radio.role(), radio.toggled()),
+            (Role::MenuItemRadio, Some(Toggled::True))
+        );
+
+        let submenu = MenuItem::submenu("more", "More", vec![MenuItem::new("one", "One")]);
+        assert_eq!(
+            (
+                spoken(&submenu, &[0], &[0]).is_expanded(),
+                spoken(&submenu, &[0], &[0, 0]).is_expanded()
+            ),
+            (Some(false), Some(true)),
+            "BAR-003: a row with a submenu says whether it is open"
+        );
+    }
+
+    #[test]
+    fn bar_003_a_separator_is_a_splitter_and_takes_no_action() {
+        let separator = spoken(&MenuItem::separator(), &[0], &[1]);
+        assert_eq!(separator.role(), Role::Splitter);
+        assert!(!separator.supports_action(accesskit::Action::Click));
+    }
+}

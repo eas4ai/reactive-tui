@@ -200,12 +200,19 @@ let custom_style = MenuStyle::new()
     .min_width(15)
     .padding(1);
 
-// Or use theme variables for consistent styling
+// Or name roles of the theme, so the menu follows the application's theme.
+// `selected_classes` color the current row while the menu does not hold
+// the focus, `focused_classes` while it does.
 let themed_style = MenuStyle::new()
-    .base_classes("bg-primary text-on-primary p-8")
-    .selected_classes("bg-accent text-on-accent font-bold")
-    .focused_classes("bg-secondary text-on-secondary font-bold");
+    .base_classes("bg-surface text-foreground")
+    .selected_classes("bg-hover text-foreground")
+    .focused_classes("bg-accent text-accent-foreground font-bold");
 ```
+
+The default style names roles of the active theme for every color, the
+shadow (`shadow_classes`) and the veil behind a dialog menu
+(`veil_classes`) too. `MenuTheme::Dark`, `Light` and `HighContrast` keep
+the colors of the built-in preset of that name under any theme.
 
 ## Event Handling
 

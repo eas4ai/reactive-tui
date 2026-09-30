@@ -53,6 +53,10 @@ impl Props for LiveProps {
     }
 }
 
+/// The classes of a dialog menu's buttons: the theme's primary fill and
+/// the text drawn on it.
+const BUTTON: &str = "bg-primary text-primary-foreground cursor-pointer";
+
 fn contains_selectable(items: &[MenuItem], id: &str) -> bool {
     items.iter().any(|item| {
         item.is_selectable()
@@ -260,10 +264,10 @@ impl DialogRuntime {
             let confirmed = props.confirmed.clone();
             let is_input = props.config.dialog_type == DialogMenuType::Input;
             trailing.push(
-                crate::builder::button()
+                crate::builder::div()
                     .text(if is_input { "Submit" } else { "Confirm" })
                     .disabled(!props.config.enabled)
-                    .class("p-0")
+                    .class(BUTTON)
                     .on_click(move || {
                         if !visible.get() {
                             return;
@@ -288,10 +292,10 @@ impl DialogRuntime {
             let visible = self.visible.clone();
             let config = props.clone();
             trailing.push(
-                crate::builder::button()
+                crate::builder::div()
                     .text("Close")
                     .disabled(!props.config.enabled)
-                    .class("p-0")
+                    .class(BUTTON)
                     .on_click(move || cancel(&visible, &config))
                     .build(),
             );

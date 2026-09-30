@@ -1,6 +1,10 @@
 //! MNU-001 to MNU-004 (docs/spec/menus.md): the colors of the menu bar, the
 //! context menu, the popup menu and the dialog menu by role, the size of a
-//! panel, where a panel opens, and what it is painted over.
+//! panel, where a panel opens, and what it is painted over. And what the
+//! widget bar asks of the four menus (BAR-003): every color from the
+//! active theme, the width the parent allots, a layout that follows a
+//! resize, and a key for what the pointer does. What a row tells the screen
+//! reader is a unit test beside the row (src/widgets/menu/view.rs).
 //!
 //! Every test takes its turn (`serial(theme)`): the color tests set the
 //! active theme, which is one for the process, and the others must not
@@ -18,6 +22,7 @@ use reactive_tui::{
     component::{Component, Element},
     event::types::{
         Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, Position,
+        ResizeEvent,
     },
     layout::style::StyleBuilder,
     theme::{dark_theme, high_contrast_theme, light_theme, Theme, ThemeVariables},
@@ -43,7 +48,7 @@ impl RootComponent for Control {
 }
 
 /// The roles a menu paints with.
-const ROLES: [&str; 9] = [
+const ROLES: [&str; 10] = [
     "background",
     "surface",
     "foreground",
@@ -53,6 +58,7 @@ const ROLES: [&str; 9] = [
     "selection",
     "selection-foreground",
     "primary",
+    "primary-foreground",
 ];
 
 /// The veil and the shadow of the probe theme: a color and how much of it
@@ -232,6 +238,289 @@ fn rows(count: usize) -> Vec<MenuItem> {
     (1..=count)
         .map(|number| MenuItem::new(format!("row{number}"), format!("ROW{number:02}")))
         .collect()
+}
+
+// ---------------------------------------------------------------- BAR-003
+
+/// Whether `color` is a role of the probe theme, or its veil or its shadow
+/// laid over one, or its shadow laid over its veil over one: a dialog
+/// menu's shadow falls on the veil.
+fn of_the_theme(color: Option<Rgb>) -> bool {
+    let roles = || (0..ROLES.len()).map(probe_color);
+    color.is_some_and(|color| roles().any(|role| role == color))
+        || roles().any(|role| {
+            let veiled = laid_over(OVERLAY, role);
+            near(color, veiled)
+                || near(color, laid_over(SHADOW, role))
+                || near(color, laid_over(SHADOW, veiled))
+        })
+}
+
+/// The colors in `frame` that the probe theme does not define, each with
+/// the first cell that has it.
+fn foreign(frame: &Snapshot) -> Vec<String> {
+    let (rows, columns) = frame.screen.size();
+    let mut found: Vec<(vt100::Color, String)> = Vec::new();
+    for (row, column) in (0..rows).flat_map(|row| (0..columns).map(move |column| (row, column))) {
+        let cell = frame.screen.cell(row, column).unwrap();
+        let mut colors = vec![("background", cell.bgcolor())];
+        if !cell.contents().trim().is_empty() {
+            colors.push(("glyph", cell.fgcolor()));
+        }
+        for (part, color) in colors {
+            if !of_the_theme(rgb(color)) && !found.iter().any(|(seen, _)| *seen == color) {
+                found.push((
+                    color,
+                    format!(
+                        "{color:?} as the {part} of {:?} at ({column}, {row})",
+                        cell.contents()
+                    ),
+                ));
+            }
+        }
+    }
+    found.into_iter().map(|(_, place)| place).collect()
+}
+
+fn items() -> Vec<MenuItem> {
+    vec![
+        MenuItem::new("new", "NEW").shortcut(MenuShortcut::new("Ctrl+N", vec!["ctrl+n"])),
+        MenuItem::new("open", "OPEN").icon("*"),
+        MenuItem::separator(),
+        MenuItem::checkbox("wrap", "WRAP", true, |_| {}),
+        MenuItem::new("off", "OFF").enabled(false),
+        MenuItem::submenu("more", "MORE", rows(2)),
+    ]
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_menu_takes_every_color_from_the_active_theme() {
+    let _theme = Active::set(probe());
+    let size = (60, 20);
+    let mut wrong = Vec::new();
+    let mut check = |name: &str, frames: Vec<Snapshot>| {
+        let frame = frames.last().unwrap();
+        let foreign = foreign(frame);
+        if !foreign.is_empty() {
+            wrong.push(format!("{name}: {foreign:#?}\n{}", frame.text));
+        }
+    };
+    check(
+        "menu bar",
+        app_input::run_until(
+            Control(page(
+                Element::typed::<MenuBar>(MenuBarProps {
+                    title: Some("TITLE".into()),
+                    items: vec![
+                        MenuItem::submenu("file", "FILE", items()),
+                        MenuItem::new("edit", "EDIT"),
+                    ],
+                    ..Default::default()
+                })
+                .auto_focus(),
+            )),
+            size,
+            vec![
+                Until {
+                    text: "FILE",
+                    cell: None,
+                    event: key(KeyCode::Down),
+                },
+                Until {
+                    text: "MORE",
+                    cell: None,
+                    event: None,
+                },
+            ],
+            PANEL_WAIT,
+        ),
+    );
+    check(
+        "popup menu",
+        app_input::run_when(
+            Control(page(
+                popup(items(), PopupPlacement::Position { x: 4, y: 2 }).auto_focus(),
+            )),
+            size,
+            vec![
+                ("MORE", key(KeyCode::End)),
+                ("MORE", key(KeyCode::Right)),
+                ("ROW02", None),
+            ],
+        ),
+    );
+    check(
+        "context menu",
+        app_input::run_when(
+            Control(page(Element::typed::<ContextMenu>(ContextMenuProps {
+                items: items(),
+                ..Default::default()
+            }))),
+            size,
+            vec![("", right_click(6, 3)), ("MORE", None)],
+        ),
+    );
+    check(
+        "dialog menu",
+        app_input::run_when(
+            Control(page(Element::typed::<DialogMenu>(DialogMenuProps {
+                visible: true,
+                title: Some("TITLE".into()),
+                message: Some("MESSAGE".into()),
+                items: items(),
+                ..Default::default()
+            }))),
+            size,
+            vec![("MORE", None)],
+        ),
+    );
+    assert!(
+        wrong.is_empty(),
+        "BAR-003: colors that the active theme does not define: {}",
+        wrong.join("\n")
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_menu_bar_fills_the_width_its_parent_allots() {
+    let _theme = Active::set(probe());
+    // A parent that lays its children out in a column, and one that is a
+    // plain box.
+    for (class, width) in [
+        ("flex flex-col w-full", 240),
+        ("flex flex-col w-100", 100),
+        ("w-full", 240),
+        ("w-100", 100),
+    ] {
+        let tree = builder::div()
+            .class("flex flex-col w-full h-full bg-background text-foreground")
+            .child(
+                builder::div()
+                    .class(class)
+                    .child(Element::typed::<MenuBar>(MenuBarProps {
+                        items: vec![MenuItem::new("file", "FILE")],
+                        ..Default::default()
+                    }))
+                    .build(),
+            )
+            .build();
+        let frames = app_input::run_when(Control(tree), (240, 20), vec![("FILE", None)]);
+        let frame = frames.last().unwrap();
+        let (_, row) = find(frame, "FILE").unwrap();
+        // The bar's own colors: its surface, and the current title's.
+        let bar = [role("surface"), role("hover"), role("selection")];
+        let painted = (0..240)
+            .filter(|column| {
+                background(frame, *column, row).is_some_and(|color| bar.contains(&color))
+            })
+            .count();
+        assert_eq!(
+            painted, width,
+            "BAR-003: the cells of the menu bar's row in the bar's colors, in a parent `{class}` of {width} cells"
+        );
+    }
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_menu_bar_and_its_panel_follow_a_resize() {
+    let bar = Element::typed::<MenuBar>(MenuBarProps {
+        items: vec![MenuItem::submenu("file", "FILE", rows(2))],
+        ..Default::default()
+    })
+    .auto_focus();
+    let tree = builder::div()
+        .class("flex flex-col w-full h-full bg-background text-foreground")
+        .child(builder::div().class("grow").build())
+        .child(bar)
+        .build();
+    let (old, new) = ((60u16, 20u16), (100u16, 40u16));
+    let frames = app_input::run_until(
+        Control(tree),
+        old,
+        vec![
+            Until {
+                text: "FILE",
+                cell: None,
+                event: key(KeyCode::Down),
+            },
+            Until {
+                text: "ROW02",
+                cell: None,
+                event: Some(Event::Resize(ResizeEvent::new(new.0, new.1))),
+            },
+            // At the new size the title stands on row 38, between the
+            // bar's two rows of padding, and the panel's four rows end on
+            // the row over it.
+            Until {
+                text: "ROW02",
+                cell: Some((1, 37, "└")),
+                event: None,
+            },
+        ],
+        PANEL_WAIT,
+    );
+    let frame = frames.last().unwrap();
+    assert_eq!(
+        (
+            frame.screen.size(),
+            find(frame, "FILE").map(|(_, row)| row),
+            find(frame, "ROW01").map(|(_, row)| row),
+            find(frame, "ROW02").map(|(_, row)| row),
+        ),
+        ((new.1, new.0), Some(38), Some(35), Some(36)),
+        "BAR-003: the screen's size and the rows of the title and of the panel's two rows after the resize:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_the_keyboard_alone_opens_a_context_menu_and_runs_its_action() {
+    let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (first, second) = (calls.clone(), calls.clone());
+    let menu = Element::typed::<ContextMenu>(ContextMenuProps {
+        items: vec![
+            MenuItem::action("one", "ONE", move || first.lock().unwrap().push("one")),
+            MenuItem::action("two", "TWO", move || second.lock().unwrap().push("two")),
+        ],
+        ..Default::default()
+    })
+    .auto_focus();
+    let shift_f10 = || {
+        Some(Event::Key(KeyEvent::new(KeyCode::F(10)).with_modifiers(
+            KeyModifiers {
+                shift: true,
+                ctrl: false,
+                alt: false,
+                meta: false,
+            },
+        )))
+    };
+    let frames = app_input::run_visibility(
+        Control(page(menu)),
+        (60, 20),
+        vec![
+            ("", Some("TWO"), shift_f10()),
+            ("TWO", None, key(KeyCode::Down)),
+            ("TWO", None, key(KeyCode::Enter)),
+            // The action closed the menu; Shift+F10 opens it again and
+            // Escape closes it without an action.
+            ("", Some("TWO"), shift_f10()),
+            ("TWO", None, key(KeyCode::Escape)),
+            ("", Some("TWO"), None),
+        ],
+    );
+    assert_eq!(
+        (
+            calls.lock().unwrap().clone(),
+            frames.last().unwrap().text.contains("ONE")
+        ),
+        (vec!["two"], false),
+        "BAR-003: the actions that keys alone ran, and whether the menu is still open after Escape"
+    );
 }
 
 // ---------------------------------------------------------------- MNU-001

@@ -741,7 +741,7 @@ impl DialogBuilder {
             backdrop_clickable: self.closable,
             keyboard_navigation: self.closable,
             focus_trap: self.modal,
-            backdrop_style: self.modal.then(|| "bg-black/50".to_string()),
+            backdrop_style: self.modal.then(|| "bg-overlay".to_string()),
             width: self.width.map_or(ModalSize::Auto, ModalSize::Fixed),
             height: self.height.map_or(ModalSize::Auto, ModalSize::Fixed),
             modal_style: self.class.or_else(|| ModalProps::default().modal_style),
