@@ -1687,7 +1687,7 @@ fn ovl_001_a_named_look_takes_its_roles_from_that_preset() {
 
 #[test]
 #[serial_test::serial(theme)]
-fn ovl_003_toasts_stack_and_a_second_dialog_sits_one_row_lower() {
+fn ovl_003_two_toasts_stack_and_a_second_dialog_opens_one_row_lower() {
     use reactive_tui::widgets::dialog::{
         ConfirmationDialogOptions, ToastOptions, ToastPosition, ToastType,
     };
