@@ -1355,6 +1355,3 @@ mod tests {
         assert_eq!(state.focused_tab, Some(2));
     }
 }
-
-/// A violating example for the widget-bar check.
-pub const VIOLATION: &str = "bg-gray-800 text-white";

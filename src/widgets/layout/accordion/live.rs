@@ -114,6 +114,7 @@ impl Component for LiveAccordion {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        std::thread::sleep(std::time::Duration::from_millis(20));
         let config = &props.config;
         self.headers.lock().unwrap().clear();
         let fractions = self.motion.fractions(config, state);
