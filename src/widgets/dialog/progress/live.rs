@@ -69,6 +69,9 @@ impl Component for LiveProgress {
     fn render(&self, props: &Self::Props, _: &()) -> Element {
         let mut content = vec![
             Element::text(&props.options.message),
+            // The bar's fill and track are roles of the theme (OVL-001);
+            // the bar's own defaults are palette colors until its family
+            // is reworked.
             Element::typed::<crate::widgets::display::ProgressBar>(
                 ProgressBarBuilder::new()
                     .value(f64::from(props.progress))
@@ -76,6 +79,8 @@ impl Component for LiveProgress {
                     .show_percentage(props.options.show_percentage && !props.indeterminate)
                     .indeterminate(props.indeterminate)
                     .animated(props.indeterminate)
+                    .color("bg-primary")
+                    .background_color("bg-border")
                     .style("w-full")
                     .build(),
             ),
