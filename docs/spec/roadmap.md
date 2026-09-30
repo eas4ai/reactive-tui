@@ -709,3 +709,50 @@ manual's theme page lists the roles and what a theme that lacks one gets,
 and the changelog names what changed for an application; and the review
 records screenshots from Kitty of the four menus under each of the five
 presets at 100 and 240 columns.
+
+## overlays
+
+Requirements: OVL-001, OVL-002, OVL-003, OVL-004, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010
+
+The second piece of the widget work, second half. In the widget catalog on
+2026-09-29 the five dialogs drew light text on a light grey box under the
+dark preset, a toast was a green box with white text under every preset,
+and the modal was centered in its card and cut by it. `DialogThemes` gave a
+button 16 cells by 8 rows of padding, a popover opened 8 rows below its
+trigger with an arrow 8 rows deep, and two toasts at one corner were
+painted on the same cells (defect 5 of the next-feature item
+widget-study-defects, 6ddc057b, which is fixed here because it breaks
+OVL-003; the item keeps its other six).
+
+The commitment brings the modal, the popover, the toast and the
+confirmation, input, autocomplete, progress and wizard dialogs to the
+widget bar (BAR-003 to BAR-006) on the color roles of theme.md: every
+color from a role and one default look for the props, the builder and the
+dialog engine, with the looks `light`, `dark` and `high_contrast` taken
+from the presets (OVL-001); padding in cells, a box no wider than half the
+viewport with its message wrapped, and a popover one row from its trigger
+(OVL-002); a dialog centered on the screen and a toast in its corner with a
+margin, both painted whole even when their owner stands inside a card or a
+box that clips, toasts that stack instead of overlapping, a popover that
+flips to the side that holds it, and one stacking order under the menu
+panels (OVL-003); the title as the screen reader's label, `AlertDialog`
+for a confirmation dialog, and the focus moving into a popover opened by a
+key and back on close (OVL-004). Goldens at 80 by 24 and 400 by 100 for
+each of the eight; a heading of its own in the manual for each; the
+catalog's eight cards kept. `DialogBounds`, `DialogComponent::get_bounds`,
+`DialogUtils::calculate_size` and `DialogBuffer`, which nothing reads or
+calls, are removed and the changelog names the removal as breaking. The
+widget-bar, goldens, catalog-manual and frame-budget checks learn the
+overlay family: the modal's fade and the progress dialog are measured
+against the frame budget.
+
+The input, layout and data widgets, loading a theme from a file, the
+`border-<color>` classes (which paint a background) and a utility class for
+the unclipped painting are not part of this commitment.
+
+Done when every named requirement passes; the new mechanism (overlays) has
+recorded a fail on a violating example for each of its requirements; every
+golden that changed is regenerated and looked at; the manual has a heading
+for each of the eight and the changelog names what changed for an
+application; and the review records screenshots from Kitty of the eight
+cards under each of the five presets at 100 and 240 columns.

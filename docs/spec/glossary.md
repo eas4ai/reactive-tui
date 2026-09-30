@@ -78,6 +78,12 @@ Terms as the code uses them. Each names where it is defined.
   `bg-gray-800` or `text-white`.
 - **Panel.** The box of rows a menu opens: the list under a menu bar's
   title, a submenu, a context menu or a popup menu (menus.md).
+- **Overlay.** A box painted over the screen's content that closes on a
+  key, a button or after its time: the modal, the popover, the toast and
+  the five dialogs of the dialog engine (overlays.md).
+- **Veil.** The layer an overlay or a dialog menu lays over the whole
+  screen behind its box, in the theme's `overlay` role, so what is under
+  it shows dimmed and takes no click.
 - **Kitty keyboard protocol.** Progressive keyboard enhancement flags a
   terminal accepts with `CSI > flags u` and drops with `CSI < u`; with them
   it reports keys as `CSI code ; modifiers ; text u`, so keys that legacy
