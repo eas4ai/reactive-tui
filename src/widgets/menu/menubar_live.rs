@@ -230,7 +230,14 @@ impl Component for MenuBarRuntime {
             children,
         )
         .with_class(&props.config.style.base_classes)
-        .with_accessibility(Node::new(Role::MenuBar));
+        .with_accessibility({
+            let mut semantic = Node::new(Role::MenuBar);
+            if let Some(title) = &props.config.title {
+                semantic.set_label(title.clone());
+            }
+            semantic.set_expanded(self.menu.path.len() > 1);
+            semantic
+        });
         if props.config.enabled {
             root = root.with_focus(FocusProps::input());
         }

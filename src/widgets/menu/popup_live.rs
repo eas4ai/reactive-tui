@@ -258,8 +258,15 @@ impl Component for PopupRuntime {
                 ));
             }
         }
-        let mut root =
-            node(StyleBuilder::new(), children).with_accessibility(Node::new(Role::Menu));
+        let mut root = node(StyleBuilder::new(), children).with_accessibility({
+            let mut semantic = Node::new(Role::Menu);
+            semantic.set_description(format!(
+                "{} rows",
+                self.menu.items.iter().filter(|item| item.visible).count()
+            ));
+            semantic.set_expanded(self.visible);
+            semantic
+        });
         if props.config.enabled {
             root = root.with_focus(FocusProps {
                 auto_focus: true,
