@@ -7,13 +7,12 @@ Widget catalog · a line of the page under the overlay
                     ┌──────────────────────────────────────┐                    
                     │ AutocompleteDialog                  ✕│                    
                     │ Find a widget                        │                    
-                    │ ▶ [Type to search...             ]   │                    
+                    │ ▶ [Type to search...               ] │                    
                     │                                      │                    
                     │ Accordion                            │                    
                     │ Checkbox                             │                    
                     │ Slider                               │                    
                     │ Tabs                                 │                    
-                    │                                      │                    
                     │                         Cancel   OK  │                    
                     └──────────────────────────────────────┘                    
                                                                                 
@@ -22,4 +21,5 @@ Widget catalog · a line of the page under the overlay
                                                                                 
                                                                                 
                                                                                 
-colors: 3eeadd8593a015c7
+                                                                                
+colors: 157d82c01011aa5e

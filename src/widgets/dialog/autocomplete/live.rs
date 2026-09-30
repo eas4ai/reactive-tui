@@ -48,7 +48,6 @@ struct Runtime {
     scheduler: Option<Arc<Scheduler>>,
     timer: Mutex<Option<TimerId>>,
     job: Mutex<Option<super::super::http::Job>>,
-    width: ThreadSafeSignal<Option<usize>>,
 }
 
 impl Runtime {
@@ -290,7 +289,6 @@ impl Component for LiveAutocomplete {
             scheduler: component_scope::current().map(|scope| scope.scheduler()),
             timer: Mutex::new(None),
             job: Mutex::new(None),
-            width: ThreadSafeSignal::new(None),
         });
         runtime.refresh();
         Self {
@@ -355,7 +353,9 @@ impl Component for LiveAutocomplete {
             TextInputProps {
                 value: owner.value.get(),
                 placeholder: options.autocomplete.placeholder.clone(),
-                width: None,
+                // As wide as its node, which is 36 cells or the box's
+                // width when that is less.
+                width: Some(u16::MAX),
                 ..Default::default()
             },
             move |props| {
@@ -369,12 +369,17 @@ impl Component for LiveAutocomplete {
         .with_key("input")
         .auto_focus()
         .with_accessibility_label(&options.prompt)
-        .class(
-            options
-                .css_classes
-                .get("input")
-                .map_or("w-full", String::as_str),
-        );
+        // The field is 36 cells wide, so the box is as wide as the field
+        // needs (OVL-002), and no wider than the box on a narrow screen;
+        // when the options size the dialog the field fills it.
+        .class(options.css_classes.get("input").map_or(
+            if options.size.is_some() {
+                "w-full"
+            } else {
+                "w-36 max-w-full min-w-0"
+            },
+            String::as_str,
+        ));
         let owner = self.runtime.clone();
         input.metadata.capture_events.push(Arc::new(move |event| {
             if let Event::Key(key) = event {
@@ -405,7 +410,7 @@ impl Component for LiveAutocomplete {
         if let Some(error) = self.runtime.error.get() {
             content.push(
                 Element::text(error)
-                    .class("text-error whitespace-pre-wrap w-full")
+                    .class("text-error whitespace-pre-wrap")
                     .with_accessibility(Node::new(Role::Alert)),
             );
         }
@@ -465,8 +470,13 @@ impl Component for LiveAutocomplete {
                 rows.push(row);
             }
             if !rows.is_empty() {
+                // As wide as the field, so a row's fill spans the box.
                 let mut list = crate::builder::div()
-                    .class("flex-col w-full")
+                    .class(if options.size.is_some() {
+                        "flex-col w-full"
+                    } else {
+                        "flex-col w-36 max-w-full min-w-0"
+                    })
                     .children(rows)
                     .build()
                     .with_accessibility(Node::new(Role::ListBox))
@@ -501,21 +511,12 @@ impl Component for LiveAutocomplete {
                 content.push(list);
             }
         }
-        let mut content = crate::builder::div().class("flex-col").children(content);
-        if let Some(width) = self.runtime.width.get() {
-            content =
-                content.styles(crate::layout::style::StyleBuilder::new().width_px(width as f32));
-        }
-        let mut content = content.build();
-        let measured = self.runtime.clone();
-        content.metadata.layout.push(Arc::new(move |layout| {
-            let width = Some(layout.clip.width.max(1.0).floor() as usize);
-            let changed = measured.width.get() != width;
-            if changed {
-                measured.width.set(width);
-            }
-            changed
-        }));
+        // The modal lays the content out at the box's width, so the lines
+        // wrap there; the box is as wide as the field and the list need.
+        let content = crate::builder::div()
+            .class("flex-col max-w-full min-w-0")
+            .children(content)
+            .build();
         let position = match super::super::frame::position(&options.position, self.layout) {
             Ok(position) => position,
             Err(error) => return Element::text(error),
@@ -535,10 +536,9 @@ impl Component for LiveAutocomplete {
             content: Some(content),
             buttons: vec![cancel, ok],
             position,
-            width: options.size.map_or(
-                super::super::frame::field_dialog_width(self.layout),
-                |size| ModalSize::Fixed(size.width.min(u16::MAX as usize) as u16),
-            ),
+            width: options.size.map_or(ModalSize::Auto, |size| {
+                ModalSize::Fixed(size.width.min(u16::MAX as usize) as u16)
+            }),
             height: options.size.map_or(ModalSize::Auto, |size| {
                 ModalSize::Fixed(size.height.min(u16::MAX as usize) as u16)
             }),

@@ -1,9 +1,9 @@
 use super::*;
 use crate::{
-    component::{Component, LayoutInfo, Props},
+    component::{Component, Props},
     reactive::ThreadSafeSignal,
     widgets::display::{
-        modal::{ModalButton, ModalProps},
+        modal::{ModalButton, ModalProps, ModalSize},
         progress_bar::ProgressBarBuilder,
     },
 };
@@ -40,7 +40,6 @@ pub(super) struct LiveProgress {
     visible: ThreadSafeSignal<bool>,
     id: DialogId,
     started: Instant,
-    layout: Option<LayoutInfo>,
 }
 impl Component for LiveProgress {
     type Props = LiveProps;
@@ -50,13 +49,7 @@ impl Component for LiveProgress {
             visible: ThreadSafeSignal::new(true),
             id: props.id,
             started: Instant::now(),
-            layout: None,
         }
-    }
-    fn layout(&mut self, layout: LayoutInfo, _: &mut Self::Props, _: &mut ()) -> bool {
-        let changed = self.layout != Some(layout);
-        self.layout = Some(layout);
-        changed
     }
     fn update(&mut self, props: &Self::Props, _: &mut ()) -> bool {
         if self.id != props.id {
@@ -81,7 +74,10 @@ impl Component for LiveProgress {
                     .animated(props.indeterminate)
                     .color("bg-primary")
                     .background_color("bg-border")
-                    .style("w-full")
+                    // 36 cells, which the box is as wide as (OVL-002), and
+                    // no wider than the box on a narrow screen.
+                    .width(36)
+                    .style("max-w-full min-w-0")
                     .build(),
             ),
         ];
@@ -107,11 +103,11 @@ impl Component for LiveProgress {
             title: Some(props.options.title.clone()),
             content: Some(
                 crate::builder::div()
-                    .class("flex-col")
+                    .class("flex-col max-w-full min-w-0")
                     .children(content)
                     .build(),
             ),
-            width: super::super::frame::field_dialog_width(self.layout),
+            width: ModalSize::Auto,
             closable: props.options.cancellable,
             keyboard_navigation: props.options.cancellable,
             backdrop_clickable: false,

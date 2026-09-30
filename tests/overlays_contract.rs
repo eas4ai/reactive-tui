@@ -480,6 +480,51 @@ fn ovl_002_a_popover_beside_its_trigger_keeps_one_cell_from_it() {
     }
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_002_a_dialog_with_a_field_is_as_wide_as_its_field_or_its_prompt_needs() {
+    use reactive_tui::{
+        core::geometry::Rect,
+        widgets::dialog::{
+            DialogComponent, DialogId, DialogTheme, InputDialog, InputDialogOptions,
+        },
+    };
+    let _theme = Active::set(probe());
+    // The field is 36 cells: a short prompt makes a box of 40; a prompt of
+    // 64 cells makes a box of 68, wider than the field needs.
+    for (prompt, expected) in [
+        ("Capture name", 40),
+        (
+            "A prompt of sixty cells that is wider than the field it asks for",
+            68,
+        ),
+    ] {
+        let frame = shown(
+            InputDialog::new(
+                DialogId::from_u32(7),
+                InputDialogOptions {
+                    title: "Input".into(),
+                    prompt: prompt.into(),
+                    ..Default::default()
+                },
+            )
+            .render(Rect::default(), &DialogTheme::default()),
+            (240, 60),
+            "Input",
+        );
+        let (left, top) = find(&frame, "┌").unwrap();
+        let right = (left..240)
+            .find(|column| frame.screen.cell(top, *column).unwrap().contents() == "┐")
+            .unwrap();
+        assert_eq!(
+            right - left + 1,
+            expected,
+            "OVL-002: the box of an input dialog with the prompt {prompt:?}:\n{}",
+            frame.text
+        );
+    }
+}
+
 // ---------------------------------------------------------------- OVL-003
 
 /// A box of three rows that clips its content, with `child` inside it.

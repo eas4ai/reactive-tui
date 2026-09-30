@@ -278,7 +278,9 @@ impl Component for LiveInput {
                 value: self.runtime.value.get(),
                 placeholder: options.input.placeholder.clone(),
                 max_length: options.input.max_length,
-                width: None,
+                // As wide as its node, which is 36 cells or the box's
+                // width when that is less.
+                width: Some(u16::MAX),
                 mode,
                 disabled: options.input.attribute_enabled("disabled"),
                 ..Default::default()
@@ -302,12 +304,17 @@ impl Component for LiveInput {
                 .get("aria-label")
                 .unwrap_or(&options.prompt),
         )
-        .class(
-            options
-                .css_classes
-                .get("input")
-                .map_or("w-full", String::as_str),
-        );
+        // The field is 36 cells wide, so the box is as wide as the field
+        // needs (OVL-002), and no wider than the box on a narrow screen;
+        // when the options size the dialog the field fills it.
+        .class(options.css_classes.get("input").map_or(
+            if options.size.is_some() {
+                "w-full"
+            } else {
+                "w-36 max-w-full min-w-0"
+            },
+            String::as_str,
+        ));
         let owner = self.runtime.clone();
         input.metadata.capture_events.push(Arc::new(move |event| {
             if matches!(event, Event::Focus(event) if event.kind == FocusEventKind::Lost)
@@ -324,8 +331,7 @@ impl Component for LiveInput {
         }));
         let mut content = vec![Element::text(&options.prompt), input];
         if let Some(mask) = &options.input.mask {
-            content
-                .push(Element::text(format!("Format: {mask}")).class("whitespace-pre-wrap w-full"));
+            content.push(Element::text(format!("Format: {mask}")).class("whitespace-pre-wrap"));
         }
         if options.input.show_count {
             let count = self.runtime.value.get().graphemes(true).count();
@@ -337,14 +343,14 @@ impl Component for LiveInput {
         if let Some(error) = self.runtime.error.get() {
             content.push(
                 Element::text(error)
-                    .class("text-error whitespace-pre-wrap w-full aria-live-assertive")
+                    .class("text-error whitespace-pre-wrap aria-live-assertive")
                     .with_accessibility(Node::new(Role::Alert)),
             );
         }
         for warning in self.runtime.warnings.get() {
             content.push(
                 Element::text(warning)
-                    .class("text-warning whitespace-pre-wrap w-full aria-live-polite")
+                    .class("text-warning whitespace-pre-wrap aria-live-polite")
                     .with_accessibility(Node::new(Role::Status)),
             );
         }
@@ -356,10 +362,10 @@ impl Component for LiveInput {
             Ok(position) => position,
             Err(error) => return Element::text(error),
         };
-        // The modal lays the content out at the box's width, so `w-full`
-        // children wrap there.
+        // The modal lays the content out at the box's width, so the lines
+        // wrap there; the box is as wide as the field and the lines need.
         let content = crate::builder::div()
-            .class("flex-col w-full")
+            .class("flex-col max-w-full min-w-0")
             .children(content)
             .build();
         let submitted = self.runtime.clone();
@@ -377,10 +383,9 @@ impl Component for LiveInput {
             content: Some(content),
             buttons: vec![cancel, ok],
             position,
-            width: options.size.map_or(
-                super::super::frame::field_dialog_width(self.layout),
-                |size| ModalSize::Fixed(size.width.min(u16::MAX as usize) as u16),
-            ),
+            width: options.size.map_or(ModalSize::Auto, |size| {
+                ModalSize::Fixed(size.width.min(u16::MAX as usize) as u16)
+            }),
             height: options.size.map_or(ModalSize::Auto, |size| {
                 ModalSize::Fixed(size.height.min(u16::MAX as usize) as u16)
             }),
