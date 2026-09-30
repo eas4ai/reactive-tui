@@ -80,7 +80,7 @@ sideways), a click on the track scrolls one page toward the click, and a
 drag of the thumb scrolls with it. The screen reader is told the offsets
 and their ranges.
 
-## Stack
+## Pile
 
 `builder::stack()` arranges its `.child(..)` or `.children(..)` along one
 axis (`.direction(..)`, `.horizontal()` or `.vertical()`) with `.spacing(..)`
