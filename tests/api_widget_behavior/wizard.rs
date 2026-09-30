@@ -1,3 +1,6 @@
+// A dialog is at most half the viewport wide (OVL-002), so the small
+// viewport is 56 columns: a wizard with Cancel, Back and Finish needs a
+// box of 26 cells for its buttons to stay on one row.
 use super::{app_input, Control};
 use reactive_tui::{
     component::Element,
@@ -27,7 +30,7 @@ fn dialog(options: WizardDialogOptions) -> Element {
 #[test]
 fn wizard_navigates_back_and_finishes_once_after_resize() {
     use app_input::Action;
-    for (size, resized) in [((32, 12), (60, 20)), ((60, 20), (32, 12))] {
+    for (size, resized) in [((56, 14), (60, 20)), ((60, 20), (56, 14))] {
         let calls = Arc::new(Mutex::new(0));
         let completed = calls.clone();
         let element = dialog(WizardDialogOptions {
@@ -61,7 +64,7 @@ fn wizard_navigates_back_and_finishes_once_after_resize() {
 #[test]
 fn wizard_validation_blocks_next_but_optional_skip_advances() {
     use app_input::Action;
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let mut first = step("FIRST");
         first.can_skip = true;
         first.validator = Some(Arc::new(|_| ValidationResult {
@@ -95,7 +98,7 @@ fn wizard_validation_blocks_next_but_optional_skip_advances() {
 #[test]
 fn wizard_veto_keeps_final_step_open_and_cancel_delivers_once() {
     use app_input::Action;
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let completed = Arc::new(Mutex::new(0));
         let cancelled = Arc::new(Mutex::new(0));
         let finish = completed.clone();
@@ -131,7 +134,7 @@ fn wizard_veto_keeps_final_step_open_and_cancel_delivers_once() {
 
 #[test]
 fn empty_wizard_displays_error_and_can_cancel() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let element = dialog(WizardDialogOptions {
             title: "WIZARD".into(),
             ..Default::default()
@@ -152,7 +155,7 @@ fn empty_wizard_displays_error_and_can_cancel() {
 
 #[test]
 fn wizard_keyboard_advances_with_back_disabled() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let element = dialog(WizardDialogOptions {
             title: "WIZARD".into(),
             steps: vec![step("FIRST"), step("SECOND")],
@@ -177,7 +180,7 @@ fn wizard_keyboard_advances_with_back_disabled() {
 fn wizard_builder_enforces_can_proceed_and_initial_step() {
     use app_input::Action;
     use reactive_tui::builder::dialog_builders::{WizardBuilder, WizardStep as BuilderStep};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let element = WizardBuilder::new()
             .title("BUILDER")
             .steps(vec![
@@ -207,7 +210,7 @@ fn wizard_builder_hides_progress_and_disables_cancel_without_disabling_finish() 
     use app_input::Action;
     use reactive_tui::builder::dialog_builders::{WizardBuilder, WizardStep as BuilderStep};
     use unicode_width::UnicodeWidthStr;
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let element = WizardBuilder::new()
             .title("BUILDER")
             .step(BuilderStep::new("ONLY"))
@@ -259,7 +262,7 @@ fn wizard_builder_hides_progress_and_disables_cancel_without_disabling_finish() 
 #[test]
 fn noncancelable_wizard_keeps_keyboard_finish_available() {
     use reactive_tui::builder::dialog_builders::{WizardBuilder, WizardStep as BuilderStep};
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let element = WizardBuilder::new()
             .title("KEYBOARD WIZARD")
             .step(BuilderStep::new("ONLY"))
@@ -317,7 +320,7 @@ fn wizard_removed_step_discards_its_edited_child_before_reinsertion() {
             }
         }
     }
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let frames = app_input::run_actions_until_hidden(
             Changing(AtomicUsize::new(0)),
             size,
@@ -354,7 +357,7 @@ fn wizard_removed_step_discards_its_edited_child_before_reinsertion() {
 #[test]
 fn wizard_retains_edited_child_on_back() {
     use app_input::Action;
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let mut first = step("FIRST");
         first.content = reactive_tui::builder::text_input().value("seed").build();
         let element = dialog(WizardDialogOptions {
@@ -390,7 +393,7 @@ fn wizard_retains_edited_child_on_back() {
 fn wizard_app_supplies_authored_data_to_validation_and_completion() {
     use app_input::Action;
     use std::collections::HashMap;
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let completed = Arc::new(Mutex::new(None));
         let called = completed.clone();
         let mut only = step("ONLY");
@@ -472,7 +475,7 @@ fn wizard_reorder_retains_active_id_and_uses_updated_data_and_callback() {
             }
         }
     }
-    for size in [(32, 12), (60, 20)] {
+    for size in [(56, 14), (60, 20)] {
         let results = Arc::new(Mutex::new(Vec::new()));
         let frames = app_input::run_actions_until_hidden(
             Updating {

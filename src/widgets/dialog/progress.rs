@@ -3,7 +3,7 @@
 //! Provides progress dialogs with cancellation support and customizable progress indicators.
 
 use super::{
-    BaseDialogState, DialogBounds, DialogComponent, DialogEventResult, DialogId, DialogTheme,
+    BaseDialogState, DialogComponent, DialogEventResult, DialogId, DialogTheme,
     FocusableElementInfo,
 };
 use crate::component::Element;
@@ -62,7 +62,6 @@ pub struct ProgressDialog {
     state: BaseDialogState,
     options: ProgressDialogOptions,
     progress: f32, // 0.0 to 1.0
-    bounds: DialogBounds,
 }
 
 impl ProgressDialog {
@@ -88,7 +87,6 @@ impl ProgressDialog {
             state: BaseDialogState::new(id),
             options,
             progress: 0.0,
-            bounds: DialogBounds::default(),
         }
     }
 
@@ -121,9 +119,6 @@ impl DialogComponent for ProgressDialog {
     }
     fn update(&mut self, _delta_time: Duration) -> bool {
         false
-    }
-    fn get_bounds(&self) -> DialogBounds {
-        self.bounds.clone()
     }
     fn is_modal(&self) -> bool {
         true

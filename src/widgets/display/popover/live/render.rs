@@ -4,6 +4,7 @@ use crate::{
     builder::ElementBuilder,
     component::{ElementType, FocusProps},
     layout::style::StyleBuilder,
+    widgets::display::{table::border, Border},
 };
 
 fn node(style: StyleBuilder, children: Vec<Element>) -> Element {
@@ -18,7 +19,7 @@ impl Popover {
         if let Some(error) = validation_error(props) {
             self.live.reject(&self.state, props);
             self.state.lock().unwrap().arrow_position = None;
-            return Element::text(error).class("text-red-500");
+            return Element::text(error).class("text-error");
         }
         let (visible, progress) = self.live.sample(&self.state, props);
         self.state.lock().unwrap().arrow_position = None;
@@ -147,7 +148,7 @@ impl Popover {
                     )
                     .with_key("popover-shield");
                     if props.backdrop_filter {
-                        shield.class = Some("bg-black/30".into());
+                        shield.class = Some("bg-overlay".into());
                     }
                     let owner = self.clone();
                     let close = props.close_on_outside_click;
@@ -221,7 +222,25 @@ impl Popover {
                     .height_px(placed.bottom - placed.top)
                     .z_index(i32::from(props.z_index))
                     .overflow_visible();
-                let mut body = node(style, vec![props.content.clone()]).with_key("popover-body");
+                // The box: the theme's `surface` and `foreground`, a border
+                // in `border` around the content (OVL-001).
+                let mut body_children = vec![props.content.clone()];
+                // An empty content leaves an empty box, without a frame.
+                if content_size.0 > 2 && content_size.1 > 2 {
+                    body_children.extend(border::elements(
+                        &Border {
+                            color: Some("border".into()),
+                            ..Border::default()
+                        },
+                        usize::from(content_size.0),
+                        usize::from(content_size.1),
+                    ));
+                }
+                // The border takes one cell all around, and the content has
+                // one more cell of padding at each side, as a dialog's has.
+                let mut body = node(style.padding_all_px(1.0).padding_x_px(2.0), body_children)
+                    .class("bg-surface text-foreground")
+                    .with_key("popover-body");
                 body.metadata.inert = !visible || hidden;
                 body.metadata.accessibility =
                     Some(crate::accessibility::Node::new(if props.focus_trap {
@@ -229,12 +248,18 @@ impl Popover {
                     } else {
                         crate::accessibility::Role::Group
                     }));
+                // Opened by a key, the popover takes the focus into its
+                // content when the content holds a focusable element and
+                // gives it back when it closes (OVL-004); `auto_focus`
+                // takes it in any case.
+                let opened_by_key = self.state.lock().unwrap().opened_by_key;
                 if visible && !hidden && props.focus_trap {
                     body.focus = Some(FocusProps::modal());
-                } else if visible && !hidden && props.auto_focus {
+                } else if visible && !hidden && (props.auto_focus || opened_by_key) {
                     body.metadata.focus_scope = true;
                     body.focus = Some(FocusProps {
                         tab_index: -1,
+                        focusable: props.auto_focus,
                         ..Default::default()
                     });
                 }
@@ -400,7 +425,9 @@ impl Popover {
         let point = global_rect(root, Self::make_rect(x, y, 0.0, 0.0));
         self.state.lock().unwrap().arrow_position = (point.left >= 0.0 && point.top >= 0.0)
             .then_some(Position::cell(point.left as u16, point.top as u16));
-        let mut arrow = node(style, cells).with_key("popover-arrow");
+        let mut arrow = node(style, cells)
+            .class("text-surface")
+            .with_key("popover-arrow");
         arrow.metadata.inert = !visible;
         let owner = self.clone();
         let config = props.clone();

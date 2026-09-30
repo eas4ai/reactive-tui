@@ -15,9 +15,12 @@ widget-bar covers the widgets this work delivered or reworked: the chart
 family (tests/charts_contract.rs), the image widget, whose block fallback
 now draws through the renderer's blitters (tests/api_widget_behavior/image.rs
 and its screen-reader unit test in src/widgets/display/image/live.rs), the
-graphics canvas (tests/canvas_widget.rs, built with wgpu-graphics) and the
-menu family (tests/menus_contract.rs).
-frame-budget also measures an animating canvas (tests/canvas_widget.rs).
+graphics canvas (tests/canvas_widget.rs, built with wgpu-graphics), the
+menu family (tests/menus_contract.rs) and the overlay family: the modal,
+the popover, the toast and the five dialogs (tests/overlays_contract.rs).
+frame-budget also measures an animating canvas (tests/canvas_widget.rs), a
+dialog fading in and a progress dialog whose bar moves
+(tests/overlays_contract.rs).
 
 Its color check reads the production code of both widgets and of their
 builders, with comments and test items removed, and reports every color
@@ -88,6 +91,10 @@ WIDGET_CODE = {
     "image": (("src/widgets/display/image", "src/builder/widgets/display.rs"), r"ImageBuilder"),
     "canvas": (("src/graphics",), r"CanvasBuilder"),
     "menu": (("src/widgets/menu", "src/builder/widgets/menu.rs"), r"(?:MenuBar|ContextMenu|PopupMenu|MenuItem)Builder"),
+    "overlay": (("src/widgets/dialog", "src/widgets/display/modal.rs", "src/widgets/display/modal",
+                 "src/widgets/display/popover.rs", "src/widgets/display/popover",
+                 "src/builder/widgets/dialog.rs", "src/builder/dialog_builders.rs"),
+                r"(?:Modal|Toast|Dialog|ConfirmationDialog|ProgressDialog|Wizard|Popover)Builder"),
 }
 BUILDERS = "src/builder"
 # The kernel's list of performance cores on a hybrid CPU.
@@ -204,7 +211,9 @@ def main() -> int:
     if group == "frame-budget":
         ok, why = results["BAR-005"]
         canvas = cargo_test_filtered("canvas_widget", "bar_005_", features=["wgpu-graphics"], release=True)
-        results["BAR-005"] = (ok and canvas[0], f"charts and image: {why}; canvas: {canvas[1]}")
+        overlays = cargo_test_filtered("overlays_contract", "bar_005_", release=True)
+        results["BAR-005"] = (ok and canvas[0] and overlays[0],
+                              f"charts and image: {why}; canvas: {canvas[1]}; overlays: {overlays[1]}")
     if group == "widget-bar":
         ok, why = results["BAR-003"]
         problems = [] if ok else [f"charts: {why}"]
@@ -213,6 +222,7 @@ def main() -> int:
             ("image screen reader", cargo_test_filtered(None, "bar_003_", package="reactive-tui")),
             ("canvas", cargo_test_filtered("canvas_widget", "bar_003_", features=["wgpu-graphics"])),
             ("menus", cargo_test_filtered("menus_contract", "bar_003_")),
+            ("overlays", cargo_test_filtered("overlays_contract", "bar_003_")),
         ):
             if not passed:
                 problems.append(f"{name}: {reason}")
@@ -220,7 +230,7 @@ def main() -> int:
             literals = color_literals(code)
             if literals:
                 problems.append(f"{len(literals)} hard-coded colors in {family} code: {', '.join(literals[:4])}")
-        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas and menus: {why}")
+        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus and overlays: {why}")
     return finish(results)
 
 

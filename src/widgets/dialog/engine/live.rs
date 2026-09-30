@@ -103,21 +103,59 @@ impl Component for Host {
             (entries, state.config.clone(), custom)
         };
         entries.sort_by_key(|(id, priority, _, _)| (*priority, id.0));
+        // Where each box goes beside the others (OVL-003): a dialog opened
+        // over another one row lower than it; a toast under the earlier
+        // toasts at its position, one row apart, or over them at a bottom
+        // position.
+        let heights = self.engine.core.state.lock().unwrap().heights.clone();
+        let mut dialogs = 0i16;
+        let mut stacked: HashMap<ToastPosition, i16> = HashMap::new();
+        let offsets: Vec<(i16, i16)> = entries
+            .iter()
+            .map(|(id, _, content, _)| match content.toast_position() {
+                Some(position) => {
+                    let rows = stacked.entry(position).or_default();
+                    let offset = *rows;
+                    let height = heights.get(id).copied().unwrap_or(0);
+                    *rows += i16::try_from(height).unwrap_or(i16::MAX).saturating_add(1);
+                    let down = matches!(
+                        position,
+                        ToastPosition::TopLeft | ToastPosition::TopCenter | ToastPosition::TopRight
+                    );
+                    (0, if down { offset } else { -offset })
+                }
+                None => {
+                    let offset = dialogs;
+                    dialogs = dialogs.saturating_add(1);
+                    (0, offset)
+                }
+            })
+            .collect();
         Element::fragment().with_children(
             entries
                 .into_iter()
+                .zip(offsets)
                 .enumerate()
-                .map(|(rank, (id, _, content, activity))| {
+                .map(|(rank, ((id, _, content, activity), offset))| {
+                    let core = self.engine.core.clone();
                     Element::typed::<Layer>(LayerProps {
                         content: content.render(id, &config.default_theme),
                         presentation: Presentation {
-                            z_index: config.base_z_index + (rank * 2) as u16,
+                            // A toast is painted over the dialogs and the
+                            // popovers, under the menu panels (OVL-003).
+                            z_index: if content.toast_position().is_some() {
+                                TOAST_LAYER
+                            } else {
+                                config.base_z_index
+                            } + (rank * 2) as u16,
                             focus_trap: config.focus_trap,
                             escape_to_close: config.escape_to_close,
                             backdrop_blur: config.backdrop_blur,
                             animated: config.default_theme.animation != DialogAnimation::None,
                             motion: motion::motion(&self.engine.core, id, &config, custom.clone()),
                             activity,
+                            offset,
+                            placed: Some(Arc::new(move |_, (_, height)| core.placed(id, height))),
                         },
                     })
                     .with_key(format!("dialog-{}", id.0))
@@ -137,7 +175,11 @@ impl Drop for Host {
     }
 }
 
-#[derive(Clone, PartialEq)]
+/// Where a toast is painted: over a modal or a dialog (1000 and up) and a
+/// popover (2000), under a menu panel (3000).
+pub(in crate::widgets::dialog) const TOAST_LAYER: u16 = 2500;
+
+#[derive(Clone)]
 pub(in crate::widgets::dialog) struct Presentation {
     pub z_index: u16,
     pub focus_trap: bool,
@@ -146,6 +188,23 @@ pub(in crate::widgets::dialog) struct Presentation {
     pub animated: bool,
     pub motion: crate::widgets::display::modal::Motion,
     pub activity: Activity,
+    /// Cells the box is moved from the place its position names.
+    pub offset: (i16, i16),
+    /// Told the box's position and size each time they change.
+    pub placed: Option<Arc<dyn Fn((u16, u16), (u16, u16)) + Send + Sync>>,
+}
+impl PartialEq for Presentation {
+    fn eq(&self, other: &Self) -> bool {
+        self.z_index == other.z_index
+            && self.focus_trap == other.focus_trap
+            && self.escape_to_close == other.escape_to_close
+            && self.backdrop_blur == other.backdrop_blur
+            && self.animated == other.animated
+            && self.motion == other.motion
+            && self.activity == other.activity
+            && self.offset == other.offset
+            && crate::widgets::display::overlay::same_callback(&self.placed, &other.placed)
+    }
 }
 #[derive(Clone, PartialEq)]
 struct LayerProps {

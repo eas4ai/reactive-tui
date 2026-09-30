@@ -86,10 +86,11 @@ fn modal_positions_actual_content_in_the_measured_viewport() {
             vec![("DETAILS", None)],
         );
         let frame = frames.last().unwrap();
+        // The content has one cell of padding at each side.
         assert_eq!(
             frame
                 .screen
-                .cell((height - 6) / 2, (width - 12) / 2)
+                .cell((height - 6) / 2, (width - 12) / 2 + 1)
                 .unwrap()
                 .contents(),
             "D",
@@ -98,7 +99,7 @@ fn modal_positions_actual_content_in_the_measured_viewport() {
         );
         let cell = frame
             .screen
-            .cell((height - 6) / 2, (width - 12) / 2)
+            .cell((height - 6) / 2, (width - 12) / 2 + 1)
             .unwrap();
         assert_ne!(
             cell.fgcolor(),
@@ -112,17 +113,20 @@ fn modal_positions_actual_content_in_the_measured_viewport() {
 fn modal_position_and_size_options_use_cells_and_actual_content() {
     use ModalPosition::*;
     for (width, height) in [(24u16, 12u16), (48, 20)] {
+        // A box at an edge or a corner keeps one cell from it, and the
+        // content has one cell of padding at each side: D is one cell
+        // right of the box's first column.
         for (position, x, y) in [
-            (Center, (width - 12) / 2, (height - 6) / 2),
-            (Top, (width - 12) / 2, 0),
-            (Bottom, (width - 12) / 2, height - 6),
-            (Left, 0, (height - 6) / 2),
+            (Center, (width - 12) / 2 + 1, (height - 6) / 2),
+            (Top, (width - 12) / 2 + 1, 1),
+            (Bottom, (width - 12) / 2 + 1, height - 7),
+            (Left, 2, (height - 6) / 2),
             (Right, width - 12, (height - 6) / 2),
-            (TopLeft, 0, 0),
-            (TopRight, width - 12, 0),
-            (BottomLeft, 0, height - 6),
-            (BottomRight, width - 12, height - 6),
-            (Custom { x: 3, y: 2 }, 3, 2),
+            (TopLeft, 2, 1),
+            (TopRight, width - 12, 1),
+            (BottomLeft, 2, height - 7),
+            (BottomRight, width - 12, height - 7),
+            (Custom { x: 3, y: 2 }, 4, 2),
         ] {
             let config = ModalProps {
                 position: position.clone(),
@@ -153,7 +157,9 @@ fn modal_position_and_size_options_use_cells_and_actual_content() {
                 width / 2,
                 height / 2,
             ),
-            (ModalSize::Auto, ModalSize::Auto, 7, 1),
+            // Sized by its content, the box is DETAILS plus one cell of
+            // padding at each side.
+            (ModalSize::Auto, ModalSize::Auto, 9, 1),
         ] {
             let config = ModalProps {
                 width: modal_width,
@@ -166,12 +172,13 @@ fn modal_position_and_size_options_use_cells_and_actual_content() {
                 (width, height),
                 vec![("DETAILS", None)],
             );
+            // D is one cell inside the box.
             assert_eq!(
                 frames
                     .last()
                     .unwrap()
                     .screen
-                    .cell((height - h) / 2, (width - w) / 2)
+                    .cell((height - h) / 2, (width - w) / 2 + 1)
                     .unwrap()
                     .contents(),
                 "D",
@@ -248,14 +255,16 @@ fn modal_title_drag_follows_pointer_and_stops_on_release() {
             ],
         );
         let frame = frames.last().unwrap();
+        // The box moved from (2, 2) to (6, 4); its title and content sit
+        // one cell in.
         assert_eq!(
-            frame.screen.cell(4, 6).unwrap().contents(),
+            frame.screen.cell(4, 7).unwrap().contents(),
             "T",
             "{}",
             frame.text
         );
         assert_eq!(
-            frame.screen.cell(5, 6).unwrap().contents(),
+            frame.screen.cell(5, 7).unwrap().contents(),
             "D",
             "{}",
             frame.text
@@ -293,12 +302,13 @@ fn modal_resize_handles_change_all_edges() {
                     (6, None),
                 ],
             );
+            // The title sits one cell inside the box.
             assert_eq!(
                 frames
                     .last()
                     .unwrap()
                     .screen
-                    .cell(expected.1, expected.0)
+                    .cell(expected.1, expected.0 + 1)
                     .unwrap()
                     .contents(),
                 "T",
@@ -470,8 +480,10 @@ fn modal_animations_change_presented_frames_without_input() {
             ModalAnimation::Scale,
             ModalAnimation::Bounce,
         ] {
+            // 24 cells of text and the content's padding of one cell at
+            // each side.
             let config = ModalProps {
-                width: ModalSize::Fixed(24),
+                width: ModalSize::Fixed(26),
                 height: ModalSize::Fixed(8),
                 content: Some(
                     Element::text("ABCDEFGHIJKLMNOPQRSTUVWX").class("w-24 h-6 text-red-500"),
@@ -639,9 +651,11 @@ fn modal_border_and_region_styles_reach_actual_cells() {
         vec![("FOOT", None)],
     );
     let frame = frames.last().unwrap();
+    // The content's own padding of one cell comes before the two cells
+    // its style asks for.
     for (y, x, letter, color) in [
         (4, 9, "T", (59, 130, 246)),
-        (7, 11, "D", (239, 68, 68)),
+        (7, 12, "D", (239, 68, 68)),
         (11, 9, "F", (34, 197, 94)),
     ] {
         let cell = frame.screen.cell(y, x).unwrap();
@@ -810,10 +824,11 @@ fn modal_drag_clamps_to_viewport_and_ends_when_the_release_is_lost() {
             ],
         );
         let frame = frames.last().unwrap();
+        // The box stops at the viewport's corner; its title is one cell in.
         assert_eq!(
             frame
                 .screen
-                .cell(size.1 - 6, size.0 - 12)
+                .cell(size.1 - 6, size.0 - 11)
                 .unwrap()
                 .contents(),
             "T",

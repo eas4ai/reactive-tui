@@ -26,6 +26,7 @@ impl Popover {
     ) -> EventResult {
         if trigger && props.trigger == PopoverTrigger::Click && activation(event) {
             if !self.is_visible() {
+                self.state.lock().unwrap().opened_by_key = matches!(event, Event::Key(_));
                 self.show();
             } else if props.close_on_trigger_click {
                 self.hide();

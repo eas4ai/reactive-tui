@@ -308,8 +308,58 @@ def menu_docs_problems() -> list[str]:
     return problems
 
 
+DIALOGS_MANUAL = ROOT / "manual/dialogs.md"
+DISPLAY_MANUAL = ROOT / "manual/display-widgets.md"
+# Each overlay: its card's title on the catalog's Menus & dialogs page, what
+# builds it there, the manual page and the heading of its section.
+OVERLAYS = (
+    ("Modal", r"(?<![\w.])modal\(\)", DISPLAY_MANUAL, "Modal"),
+    ("Popover", r"(?<![\w.])popover\(\)", DISPLAY_MANUAL, "Popover"),
+    ("ConfirmationDialog", r"\bconfirmation_dialog\(\)", DIALOGS_MANUAL, "Confirmation dialog"),
+    ("InputDialog", r"\bInputDialog::new\(", DIALOGS_MANUAL, "Input dialog"),
+    ("AutocompleteDialog", r"\bAutocompleteDialog::new\(", DIALOGS_MANUAL, "Autocomplete dialog"),
+    ("ProgressDialog", r"\bprogress_dialog\(\)", DIALOGS_MANUAL, "Progress dialog"),
+    ("Toast", r"(?<![\w.])toast\(\)", DIALOGS_MANUAL, "Toast"),
+    ("WizardDialog", r"(?<![\w.])wizard\(\)", DIALOGS_MANUAL, "Wizard dialog"),
+)
+OVERLAY_CODE = ("src/widgets/dialog", "src/widgets/display/modal.rs", "src/widgets/display/modal",
+                "src/widgets/display/popover.rs", "src/widgets/display/popover",
+                "src/builder/widgets/dialog.rs", "src/builder/dialog_builders.rs",
+                "src/builder/specialized.rs", "src/builder/widgets/display.rs")
+
+
+def overlay_docs_problems() -> list[str]:
+    """The overlay family: the catalog's Menus & dialogs page builds each of
+    the eight overlays in a card of its name, the manual has a heading for
+    each, and every method the manual's overlay sections cite is a pub fn
+    in the overlay code or its builders."""
+    problems = []
+    code, prose, pages = catalog_pages()
+    page = pages.get("MenusDialogs")
+    if page is None:
+        problems.append("catalog lists no Menus & dialogs page")
+    for card, built, _, _ in OVERLAYS:
+        if page is not None and not (re.search(rf'"{card}"', prose[page[0]:page[1]])
+                                     and re.search(built, code[page[0]:page[1]])):
+            problems.append(f"catalog's Menus & dialogs page has no {card} card built with {built}")
+    methods = set()
+    for f in rust_sources(*OVERLAY_CODE):
+        methods |= set(re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", strip_test_modules(f.read_text(errors="replace"))))
+    for _, _, page_path, heading in OVERLAYS:
+        manual = page_path.read_text(errors="replace") if page_path.exists() else ""
+        if heading not in [title for _, title in headings(manual)]:
+            problems.append(f"{page_path.relative_to(ROOT)} has no {heading} heading")
+            continue
+        for piece in citations(section(manual, heading) or ""):
+            for name in METHOD_CALL.findall(piece):
+                if name not in methods:
+                    problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn in overlay code")
+    return problems
+
+
 def main() -> int:
-    problems = chart_docs_problems() + image_docs_problems() + canvas_docs_problems() + menu_docs_problems()
+    problems = (chart_docs_problems() + image_docs_problems() + canvas_docs_problems() + menu_docs_problems()
+                + overlay_docs_problems())
     if problems:
         print("BAR-006 violated:")
         for p in problems:

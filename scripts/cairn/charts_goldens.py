@@ -3,8 +3,10 @@
 CHT-026, CHT-027, CHT-028, CHT-030 and BAR-004 through the tests/charts_goldens.rs binary plus file
 and doc probes. BAR-004 also covers the image widget's goldens, the graphics canvas's
 (tests/canvas_goldens.rs, built with wgpu-graphics: three scenes at 80 by 24 and 400 by 100)
-and the menus' (tests/menus_goldens.rs: the menu bar, the popup menu, the context menu and
-the dialog menu, each open, at 80 by 24 and 400 by 100).
+the menus' (tests/menus_goldens.rs: the menu bar, the popup menu, the context menu and
+the dialog menu, each open, at 80 by 24 and 400 by 100) and the overlays'
+(tests/overlays_goldens.rs: the modal, the popover, the toast and the five dialogs, each
+shown, at the same two sizes).
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -34,6 +36,12 @@ CANVAS = ["wgpu-graphics"]
 # the width its parent allots, so its wide golden is 400 columns wide.
 MENUS = ("menu_bar", "popup_menu", "context_menu", "dialog_menu")
 MENU_GOLDENS = tuple(f"{menu}_{size}" for menu in MENUS for size in ("80x24", "400x100"))
+# The eight overlays, each shown, at 80 by 24 and 400 by 100: a box sized by
+# its content and placed on the screen, so the wide golden is 400 columns
+# of screen with the box where it sits.
+OVERLAYS = ("modal", "popover", "confirmation_dialog", "input_dialog", "autocomplete_dialog",
+            "progress_dialog", "toast", "wizard_dialog")
+OVERLAY_GOLDENS = tuple(f"{overlay}_{size}" for overlay in OVERLAYS for size in ("80x24", "400x100"))
 
 
 GOLDEN_TESTS = ("tests/charts_goldens.rs", "tests/api_widget_behavior/image.rs")
@@ -85,12 +93,13 @@ SNAPSHOTS_ENV = "REACTIVE_TUI_SNAPSHOTS"
 # (test binary, test name prefix, snapshot family): the test that compares
 # every golden of the family.
 GOLDEN_RUNS = (("charts_goldens", "cht_023_", "charts", None), ("api_widget_behavior", "bar_004_", "image", None),
-               ("canvas_goldens", "bar_004_", "canvas", CANVAS), ("menus_goldens", "bar_004_", "menus", None))
+               ("canvas_goldens", "bar_004_", "canvas", CANVAS), ("menus_goldens", "bar_004_", "menus", None),
+               ("overlays_goldens", "bar_004_", "overlays", None))
 
 
 def checked_in() -> dict[Path, bytes]:
     """Every file of the golden families as it is now."""
-    return {p: p.read_bytes() for family in ("charts", "image", "canvas", "menus")
+    return {p: p.read_bytes() for family in ("charts", "image", "canvas", "menus", "overlays")
             for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
 
 
@@ -201,10 +210,20 @@ def wide_problems() -> list[str]:
             columns = max((display_width(row) for row in grid.split("\n")), default=0)
             if columns < 400:
                 problems.append(f"menu golden {name}.ansi is {columns} columns wide, under 400")
+    for name in OVERLAY_GOLDENS:
+        path = SNAPSHOTS / "overlays" / f"{name}.ansi"
+        if not path.is_file():
+            problems.append(f"missing overlay golden {name}.ansi")
+        elif name.endswith("_400x100"):
+            grid = path.read_text(errors="replace").rsplit("\ncolors: ", 1)[0]
+            columns = max((display_width(row) for row in grid.split("\n")), default=0)
+            if columns < 400:
+                problems.append(f"overlay golden {name}.ansi is {columns} columns wide, under 400")
     for src, test in (("tests/charts_goldens.rs", "cht_023_"),
                       ("tests/api_widget_behavior/image.rs", "bar_004_"),
                       ("tests/canvas_goldens.rs", "bar_004_"),
-                      ("tests/menus_goldens.rs", "bar_004_")):
+                      ("tests/menus_goldens.rs", "bar_004_"),
+                      ("tests/overlays_goldens.rs", "bar_004_")):
         path = ROOT / src
         text = path.read_text(errors="replace") if path.is_file() else ""
         body = re.search(rf"fn {test}\w*\(\)\s*\{{(.*?)\n\}}", text, re.S)
@@ -215,6 +234,7 @@ def wide_problems() -> list[str]:
     problems.extend(regeneration_problems("tests/api_widget_behavior/image.rs"))
     problems.extend(regeneration_problems("tests/canvas_goldens.rs"))
     problems.extend(regeneration_problems("tests/menus_goldens.rs"))
+    problems.extend(regeneration_problems("tests/overlays_goldens.rs"))
     return problems
 
 
@@ -269,11 +289,13 @@ def main() -> int:
     ok_image, why_image = cargo_test_filtered("api_widget_behavior", "bar_004_")
     ok_canvas, why_canvas = cargo_test_filtered("canvas_goldens", "bar_004_", features=CANVAS)
     ok_menus, why_menus = cargo_test_filtered("menus_goldens", "bar_004_")
+    ok_overlays, why_overlays = cargo_test_filtered("overlays_goldens", "bar_004_")
     problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"]) + (
         [] if ok_image else [f"image golden comparison failed: {why_image}"]) + (
         [] if ok_canvas else [f"canvas golden comparison failed: {why_canvas}"]) + (
-        [] if ok_menus else [f"menu golden comparison failed: {why_menus}"])
-    if ok_023 and ok_image and ok_canvas and ok_menus:
+        [] if ok_menus else [f"menu golden comparison failed: {why_menus}"]) + (
+        [] if ok_overlays else [f"overlay golden comparison failed: {why_overlays}"])
+    if ok_023 and ok_image and ok_canvas and ok_menus and ok_overlays:
         problems_004 += altered_golden_problems(before)
     after = checked_in()
     rewritten = sorted(str(p.relative_to(ROOT)) for p in before.keys() | after.keys() if before.get(p) != after.get(p))

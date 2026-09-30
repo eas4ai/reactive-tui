@@ -11,7 +11,7 @@ mod live;
 mod mailbox;
 mod motion;
 use content::Content;
-pub(super) use live::Presentation;
+pub(super) use live::{Presentation, TOAST_LAYER};
 use mailbox::Mailbox;
 pub use motion::DialogAnimationFrame;
 type AnimationCallback = Arc<dyn Fn(f32) -> DialogAnimationFrame + Send + Sync>;
@@ -148,6 +148,9 @@ struct State {
     dialogs: HashMap<DialogId, Entry>,
     retiring: HashMap<DialogId, Retiring>,
     order: Vec<DialogId>,
+    /// The height of each dialog's box as it was last laid out, which
+    /// decides where the next toast at the same position goes (OVL-003).
+    heights: HashMap<DialogId, u16>,
     next_id: Option<u32>,
     config: DialogEngineConfig,
     async_enabled: bool,
@@ -168,6 +171,20 @@ struct Core {
 impl Core {
     fn wake(&self) {
         self.changed.update(|value| *value = value.wrapping_add(1));
+    }
+    /// A dialog's box was laid out `height` rows tall: the host places the
+    /// toasts under it again when that changed.
+    fn placed(&self, id: DialogId, height: u16) {
+        let changed = {
+            let mut state = self.state.lock().unwrap();
+            if !state.dialogs.contains_key(&id) && !state.retiring.contains_key(&id) {
+                return;
+            }
+            state.heights.insert(id, height) != Some(height)
+        };
+        if changed {
+            self.wake();
+        }
     }
     fn close(&self, id: DialogId, result: DialogResult) -> bool {
         self.finish(id, result, None)
@@ -205,6 +222,9 @@ impl Core {
                 }
             }
             state.order.retain(|current| *current != id);
+            if !state.retiring.contains_key(&id) {
+                state.heights.remove(&id);
+            }
             state.focus.dialog_closed(id);
             // Opening reserved one slot for this event, even if no consumer runs.
             self.events.push(DialogEvent::Closed(id, result.clone()));
@@ -213,7 +233,11 @@ impl Core {
         if let (Some((scheduler, duration)), Some(owner)) = (transition, owner) {
             let timer = scheduler.schedule_timeout(duration, move || {
                 if let Some(core) = owner.upgrade() {
-                    let retired = core.state.lock().unwrap().retiring.remove(&id);
+                    let retired = {
+                        let mut state = core.state.lock().unwrap();
+                        state.heights.remove(&id);
+                        state.retiring.remove(&id)
+                    };
                     drop(retired);
                     core.wake();
                 }
@@ -360,6 +384,7 @@ impl DialogEngine {
                     dialogs: HashMap::new(),
                     retiring: HashMap::new(),
                     order: Vec::new(),
+                    heights: HashMap::new(),
                     next_id: Some(1),
                     config,
                     async_enabled: false,

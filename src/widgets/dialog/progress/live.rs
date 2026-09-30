@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    component::{Component, Props},
+    component::{Component, LayoutInfo, Props},
     reactive::ThreadSafeSignal,
     widgets::display::{
         modal::{ModalButton, ModalProps, ModalSize},
@@ -40,6 +40,7 @@ pub(super) struct LiveProgress {
     visible: ThreadSafeSignal<bool>,
     id: DialogId,
     started: Instant,
+    layout: Option<LayoutInfo>,
 }
 impl Component for LiveProgress {
     type Props = LiveProps;
@@ -49,7 +50,13 @@ impl Component for LiveProgress {
             visible: ThreadSafeSignal::new(true),
             id: props.id,
             started: Instant::now(),
+            layout: None,
         }
+    }
+    fn layout(&mut self, layout: LayoutInfo, _: &mut Self::Props, _: &mut ()) -> bool {
+        let changed = self.layout != Some(layout);
+        self.layout = Some(layout);
+        changed
     }
     fn update(&mut self, props: &Self::Props, _: &mut ()) -> bool {
         if self.id != props.id {
@@ -87,6 +94,7 @@ impl Component for LiveProgress {
         }
         let mut cancel = ModalButton::cancel();
         cancel.autofocus = true;
+        let cancel = super::super::frame::styled(cancel, &props.theme, "secondary");
         let visible = self.visible.clone();
         let options = props.options.clone();
         let mut modal = ModalProps {
@@ -98,7 +106,7 @@ impl Component for LiveProgress {
                     .children(content)
                     .build(),
             ),
-            width: ModalSize::Fixed(40),
+            width: super::super::frame::field_dialog_width(self.layout),
             closable: props.options.cancellable,
             keyboard_navigation: props.options.cancellable,
             backdrop_clickable: false,

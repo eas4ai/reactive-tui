@@ -19,6 +19,10 @@ pub struct ModalProps {
     pub height: ModalSize,
     /// Position of the modal
     pub position: ModalPosition,
+    /// Cells the box is moved from the place its position names: to the
+    /// right and down when positive. A toast stacked under another one is
+    /// moved down by the rows the first one takes.
+    pub offset: (i16, i16),
     /// Whether modal can be closed
     pub closable: bool,
     /// Whether clicking backdrop closes modal
@@ -65,6 +69,9 @@ pub struct ModalProps {
     pub on_cancel: Option<Arc<dyn Fn() + Send + Sync>>,
     /// Callback when button is clicked
     pub on_button_click: Option<Arc<dyn Fn(String) + Send + Sync>>,
+    /// Called with the box's position and size, in cells, each time they
+    /// change: what stacks boxes needs to know how tall each one is.
+    pub on_placed: Option<Arc<dyn Fn((u16, u16), (u16, u16)) + Send + Sync>>,
 }
 
 /// Size specification for modal dialogs
@@ -168,6 +175,28 @@ pub enum ModalButtonAction {
     Custom(String),
 }
 
+/// The look of a button whose style the application did not set (OVL-001):
+/// one cell of padding at each side, the fill and the text of its role,
+/// underlined as what a pointer can press, and the `selection` roles while
+/// it holds the focus.
+pub const PRIMARY_BUTTON: &str = "px-1 bg-primary text-primary-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground";
+/// A button that is neither the primary nor a danger one.
+pub const SECONDARY_BUTTON: &str = "px-1 bg-secondary text-secondary-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground";
+/// A button whose action cannot be undone.
+pub const DANGER_BUTTON: &str = "px-1 bg-error text-error-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground";
+
+impl ModalButton {
+    /// The classes the button is painted with: its own style, or the look
+    /// of its action when it has none (confirm is primary, the rest
+    /// secondary).
+    pub fn classes(&self) -> &str {
+        self.style.as_deref().unwrap_or(match self.action {
+            ModalButtonAction::Confirm => PRIMARY_BUTTON,
+            _ => SECONDARY_BUTTON,
+        })
+    }
+}
+
 impl Default for ModalProps {
     fn default() -> Self {
         Self {
@@ -177,16 +206,17 @@ impl Default for ModalProps {
             width: ModalSize::Auto,
             height: ModalSize::Auto,
             position: ModalPosition::Center,
+            offset: (0, 0),
             closable: true,
             backdrop_clickable: true,
             keyboard_navigation: true,
             border: Border::default(),
-            backdrop_style: Some("bg-black/50".to_string()),
-            modal_style: Some("bg-white text-black shadow-lg".to_string()),
-            header_style: Some("border-b font-bold".to_string()),
+            backdrop_style: Some("bg-overlay".to_string()),
+            modal_style: Some("bg-surface text-foreground".to_string()),
+            header_style: Some("border-b font-bold px-1".to_string()),
             content_style: None,
-            footer_style: Some("border-t".to_string()),
-            close_button_style: Some("text-gray-500 hover:text-gray-700".to_string()),
+            footer_style: Some("border-t px-1".to_string()),
+            close_button_style: Some("text-muted hover:text-foreground".to_string()),
             animation: ModalAnimation::Fade,
             z_index: 1000,
             scrollable: true,
@@ -200,6 +230,7 @@ impl Default for ModalProps {
             on_confirm: None,
             on_cancel: None,
             on_button_click: None,
+            on_placed: None,
         }
     }
 }
@@ -213,6 +244,7 @@ impl PartialEq for ModalProps {
             && self.width == other.width
             && self.height == other.height
             && self.position == other.position
+            && self.offset == other.offset
             && self.closable == other.closable
             && self.backdrop_clickable == other.backdrop_clickable
             && self.keyboard_navigation == other.keyboard_navigation
@@ -427,7 +459,9 @@ impl Modal {
         (width.min(viewport_width), height.min(viewport_height))
     }
 
-    /// Calculate modal position
+    /// Where the box goes: centered, or at the edge or corner its position
+    /// names with one cell between it and the viewport's edge (OVL-003),
+    /// moved by the props' offset and kept inside the viewport.
     fn calculate_position(
         &self,
         props: &ModalProps,
@@ -436,30 +470,52 @@ impl Modal {
     ) -> (u16, u16) {
         let (modal_width, modal_height) = modal_size;
         let (viewport_width, viewport_height) = viewport_size;
-
-        match props.position {
-            ModalPosition::Center => (
-                (viewport_width - modal_width) / 2,
-                (viewport_height - modal_height) / 2,
+        let centered = (
+            viewport_width.saturating_sub(modal_width) / 2,
+            viewport_height.saturating_sub(modal_height) / 2,
+        );
+        // The margin, when the viewport has room for it beside the box.
+        let near = |edge: u16, size: u16| u16::from(edge > size);
+        let far = |edge: u16, size: u16| edge.saturating_sub(size + near(edge, size));
+        let (x, y) = match props.position {
+            ModalPosition::Center => centered,
+            ModalPosition::Top => (centered.0, near(viewport_height, modal_height)),
+            ModalPosition::Bottom => (centered.0, far(viewport_height, modal_height)),
+            ModalPosition::Left => (near(viewport_width, modal_width), centered.1),
+            ModalPosition::Right => (far(viewport_width, modal_width), centered.1),
+            ModalPosition::TopLeft => (
+                near(viewport_width, modal_width),
+                near(viewport_height, modal_height),
             ),
-            ModalPosition::Top => ((viewport_width - modal_width) / 2, 0),
-            ModalPosition::Bottom => (
-                (viewport_width - modal_width) / 2,
-                viewport_height - modal_height,
+            ModalPosition::TopRight => (
+                far(viewport_width, modal_width),
+                near(viewport_height, modal_height),
             ),
-            ModalPosition::Left => (0, (viewport_height - modal_height) / 2),
-            ModalPosition::Right => (
-                viewport_width - modal_width,
-                (viewport_height - modal_height) / 2,
+            ModalPosition::BottomLeft => (
+                near(viewport_width, modal_width),
+                far(viewport_height, modal_height),
             ),
-            ModalPosition::TopLeft => (0, 0),
-            ModalPosition::TopRight => (viewport_width - modal_width, 0),
-            ModalPosition::BottomLeft => (0, viewport_height - modal_height),
-            ModalPosition::BottomRight => {
-                (viewport_width - modal_width, viewport_height - modal_height)
-            }
+            ModalPosition::BottomRight => (
+                far(viewport_width, modal_width),
+                far(viewport_height, modal_height),
+            ),
             ModalPosition::Custom { x, y } => (x, y),
-        }
+        };
+        let moved = |place: u16, by: i16, room: u16| {
+            (i32::from(place) + i32::from(by)).clamp(0, i32::from(room)) as u16
+        };
+        (
+            moved(
+                x,
+                props.offset.0,
+                viewport_width.saturating_sub(modal_width),
+            ),
+            moved(
+                y,
+                props.offset.1,
+                viewport_height.saturating_sub(modal_height),
+            ),
+        )
     }
 
     /// Handle close action
@@ -694,6 +750,55 @@ mod tests {
         let (x, y) = modal.calculate_position(&custom_props, (400, 200), (800, 600));
         assert_eq!(x, 100);
         assert_eq!(y, 50);
+    }
+
+    /// OVL-003: a box at an edge or a corner keeps one cell from it, an
+    /// offset moves the box, and the box stays inside the viewport.
+    #[test]
+    fn ovl_003_an_edge_position_keeps_one_cell_from_the_edge_and_an_offset_moves_the_box() {
+        let modal = Modal;
+        let at = |position, offset| {
+            modal.calculate_position(
+                &ModalProps {
+                    position,
+                    offset,
+                    ..Default::default()
+                },
+                (10, 3),
+                (80, 24),
+            )
+        };
+        assert_eq!(at(ModalPosition::TopLeft, (0, 0)), (1, 1));
+        assert_eq!(at(ModalPosition::TopRight, (0, 0)), (69, 1));
+        assert_eq!(at(ModalPosition::BottomLeft, (0, 0)), (1, 20));
+        assert_eq!(at(ModalPosition::BottomRight, (0, 0)), (69, 20));
+        assert_eq!(at(ModalPosition::Top, (0, 0)), (35, 1));
+        assert_eq!(at(ModalPosition::Bottom, (0, 0)), (35, 20));
+        assert_eq!(at(ModalPosition::Left, (0, 0)), (1, 10));
+        assert_eq!(at(ModalPosition::Right, (0, 0)), (69, 10));
+        assert_eq!(
+            at(ModalPosition::TopRight, (0, 4)),
+            (69, 5),
+            "moved down four rows"
+        );
+        assert_eq!(at(ModalPosition::Center, (-2, 1)), (33, 11));
+        assert_eq!(
+            at(ModalPosition::BottomRight, (5, 5)),
+            (70, 21),
+            "an offset never pushes the box out of the viewport"
+        );
+        assert_eq!(
+            modal.calculate_position(
+                &ModalProps {
+                    position: ModalPosition::TopLeft,
+                    ..Default::default()
+                },
+                (80, 24),
+                (80, 24),
+            ),
+            (0, 0),
+            "a box as large as the viewport has no room for the margin"
+        );
     }
 
     #[test]

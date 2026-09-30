@@ -22,6 +22,8 @@ pub(super) fn apply_bounds(modal: &mut ModalProps, bounds: Rect) {
     {
         modal.z_index = presentation.z_index;
         modal.focus_trap &= presentation.focus_trap;
+        modal.offset = presentation.offset;
+        modal.on_placed = presentation.placed.clone();
     }
     if !bounds.size.is_empty() {
         modal.width = ModalSize::Fixed(cell(bounds.size.width));
@@ -31,6 +33,26 @@ pub(super) fn apply_bounds(modal: &mut ModalProps, bounds: Rect) {
             y: cell(bounds.origin.y),
         };
     }
+}
+
+/// `button` in the look the dialog theme gives `variant` (`primary`,
+/// `secondary` or `danger`), or its own look when the theme has none.
+pub(super) fn styled(
+    mut button: crate::widgets::display::modal::ModalButton,
+    theme: &super::DialogTheme,
+    variant: &str,
+) -> crate::widgets::display::modal::ModalButton {
+    if let Some(style) = theme.button_styles.get(variant) {
+        button.style = Some(style.clone());
+    }
+    button
+}
+
+/// The width of a dialog with a field when the options do not size it: 40
+/// cells, and at most half the viewport the dialog is laid out in (OVL-002).
+pub(super) fn field_dialog_width(layout: Option<LayoutInfo>) -> ModalSize {
+    let viewport = layout.map_or(80.0, |layout| layout.clip.width);
+    ModalSize::Fixed(((viewport / 2.0).floor() as u16).clamp(1, 40))
 }
 
 pub(super) fn escape_allowed(allowed: bool) -> bool {

@@ -95,25 +95,27 @@ fn toast_pointer_close_tracks_resize_and_emits_one_callback() {
             },
         )
         .render(Rect::default(), &DialogTheme::default());
+        // The box keeps one cell from the corner: its close button is on
+        // the third column and the fourth row from the screen's end.
         app_input::run_when_cell(
             Control(toast),
             initial,
             vec![
                 CellStep {
-                    x: initial.0 - 2,
-                    y: initial.1 - 3,
+                    x: initial.0 - 3,
+                    y: initial.1 - 4,
                     content: "✕",
                     event: Some(Event::Resize(ResizeEvent::new(resized.0, resized.1))),
                 },
                 CellStep {
-                    x: resized.0 - 2,
-                    y: resized.1 - 3,
+                    x: resized.0 - 3,
+                    y: resized.1 - 4,
                     content: "✕",
-                    event: super::click(resized.0 - 2, resized.1 - 3),
+                    event: super::click(resized.0 - 3, resized.1 - 4),
                 },
                 CellStep {
-                    x: resized.0 - 2,
-                    y: resized.1 - 3,
+                    x: resized.0 - 3,
+                    y: resized.1 - 4,
                     content: " ",
                     event: None,
                 },

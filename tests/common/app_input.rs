@@ -97,6 +97,9 @@ struct Step {
 /// again, so one such time already means nothing is pending; three leave
 /// room for a change that takes a turn of the loop to show.
 const IDLE_POLLS: usize = 3;
+/// How long after its last frame the App counts as idle: an animation at
+/// the default frame rate presents a frame every 16 ms.
+const IDLE_GAP: Duration = Duration::from_millis(60);
 
 /// The backend the App presents to: the terminal backend writing into the
 /// capture, or the debug backend painting into memory.
@@ -184,6 +187,7 @@ struct InputBackend {
     /// between.
     frames_at_poll: usize,
     quiet_polls: usize,
+    last_frame_at: Instant,
 }
 impl Backend for InputBackend {
     fn painted_nodes(&self) -> Option<&[reactive_tui::backend::PaintedNode]> {
@@ -286,8 +290,11 @@ impl Backend for InputBackend {
         } else {
             self.frames_at_poll = presented;
             self.quiet_polls = 0;
+            self.last_frame_at = Instant::now();
         }
-        let idle = self.quiet_polls >= IDLE_POLLS;
+        // An App that presented a frame a moment ago may be animating: its
+        // next frame is on its way although it asked for input in between.
+        let idle = self.quiet_polls >= IDLE_POLLS && self.last_frame_at.elapsed() > IDLE_GAP;
         if self.events.front().is_some_and(|step| {
             let frames = self.snapshots.lock().unwrap();
             frames.last().is_some_and(|frame| frame.busy)
@@ -565,6 +572,10 @@ pub fn run_actions_until_hidden(
                 Action::ClickText(text, offset) => (None, Some((text.into(), offset, None))),
                 Action::WheelText(text, delta) => (None, Some((text.into(), 0, Some(delta)))),
             };
+            // A pointer aimed at text waits for the App to be idle: what it
+            // aims at must be where the settled frame shows it, not where
+            // a box still fading in lets what is under it show through.
+            let idle = pointer_text.is_some();
             Step {
                 frame: 1,
                 text: vec![text.into()],
@@ -575,7 +586,7 @@ pub fn run_actions_until_hidden(
                 cell: None,
                 output: None,
                 painted: false,
-                idle: false,
+                idle,
             }
         })
         .collect();
@@ -880,6 +891,7 @@ fn run_steps_on(
         live: Vec::new(),
         frames_at_poll: 0,
         quiet_polls: 0,
+        last_frame_at: Instant::now(),
     };
     App::builder()
         .backend(backend)

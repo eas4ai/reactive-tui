@@ -28,9 +28,6 @@ pub trait DialogComponent: std::fmt::Debug + Send + Sync {
     /// Update dialog state (called each frame)
     fn update(&mut self, delta_time: Duration) -> bool;
 
-    /// Get dialog bounds and positioning
-    fn get_bounds(&self) -> DialogBounds;
-
     /// Check if dialog should be modal (blocks interaction with background)
     fn is_modal(&self) -> bool;
 
@@ -124,25 +121,6 @@ pub enum AsyncRequestType {
         /// Request data payload
         data: String,
     },
-}
-
-/// Dialog bounds and positioning information
-#[derive(Debug, Clone)]
-pub struct DialogBounds {
-    /// Preferred size (None for auto-sizing)
-    pub size: Option<Size>,
-    /// Minimum size
-    pub min_size: Option<Size>,
-    /// Maximum size
-    pub max_size: Option<Size>,
-    /// Position preference
-    pub position: DialogPosition,
-    /// Whether dialog can be resized
-    pub resizable: bool,
-    /// Whether dialog can be dragged
-    pub draggable: bool,
-    /// Margin from screen edges
-    pub margin: DialogMargin,
 }
 
 /// Dialog positioning options
@@ -246,19 +224,6 @@ pub enum DialogAnchor {
     BottomCenter,
     /// Anchor to the bottom-right corner
     BottomRight,
-}
-
-/// Dialog margin configuration
-#[derive(Debug, Clone)]
-pub struct DialogMargin {
-    /// Top margin in terminal cells
-    pub top: u16,
-    /// Right margin in terminal cells
-    pub right: u16,
-    /// Bottom margin in terminal cells
-    pub bottom: u16,
-    /// Left margin in terminal cells
-    pub left: u16,
 }
 
 /// Animation configuration for dialogs
@@ -434,31 +399,6 @@ pub enum ResizeHandle {
     BottomLeft,
     /// Left edge handle
     Left,
-}
-
-impl Default for DialogBounds {
-    fn default() -> Self {
-        Self {
-            size: None,
-            min_size: Some(Size::new(200, 100)),
-            max_size: None,
-            position: DialogPosition::Center,
-            resizable: false,
-            draggable: false,
-            margin: DialogMargin::default(),
-        }
-    }
-}
-
-impl Default for DialogMargin {
-    fn default() -> Self {
-        Self {
-            top: 20,
-            right: 20,
-            bottom: 20,
-            left: 20,
-        }
-    }
 }
 
 impl Default for ValidationResult {

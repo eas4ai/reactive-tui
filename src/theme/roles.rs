@@ -114,6 +114,25 @@ impl Theme {
             _ => None,
         }
     }
+
+    /// The color `role` resolves to in this theme, written as the hex
+    /// literal a class can name: `bg-#1e293b`. A widget that keeps a
+    /// preset's look across a theme change writes its roles this way.
+    pub fn hex(&self, role: &str) -> String {
+        let (r, g, b, a) = self.resolve_variable(role).unwrap_or_default();
+        let byte = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+        if a < 1.0 {
+            format!(
+                "#{:02x}{:02x}{:02x}{:02x}",
+                byte(r),
+                byte(g),
+                byte(b),
+                byte(a)
+            )
+        } else {
+            format!("#{:02x}{:02x}{:02x}", byte(r), byte(g), byte(b))
+        }
+    }
 }
 
 #[cfg(test)]

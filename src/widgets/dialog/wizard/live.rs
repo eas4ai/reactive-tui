@@ -220,19 +220,26 @@ impl Component for LiveWizard {
             content.push(
                 Element::text(error)
                     .with_key(format!("error-{index}"))
-                    .with_class("text-red-500 aria-live-assertive")
+                    .with_class("text-error aria-live-assertive")
                     .with_accessibility(crate::accessibility::Node::new(
                         crate::accessibility::Role::Alert,
                     )),
             );
         }
-        let button = |id: &str, label: &str| ModalButton {
-            id: id.into(),
-            label: label.into(),
-            action: ModalButtonAction::Custom(id.into()),
-            disabled: false,
-            autofocus: id == "next",
-            style: None,
+        // Next or Finish is the primary button; the rest are secondary.
+        let button = |id: &str, label: &str| {
+            super::super::frame::styled(
+                ModalButton {
+                    id: id.into(),
+                    label: label.into(),
+                    action: ModalButtonAction::Custom(id.into()),
+                    disabled: false,
+                    autofocus: id == "next",
+                    style: None,
+                },
+                &props.theme,
+                if id == "next" { "primary" } else { "secondary" },
+            )
         };
         let mut buttons = Vec::new();
         if props.cancelable {

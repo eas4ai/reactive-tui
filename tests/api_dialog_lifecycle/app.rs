@@ -1,3 +1,5 @@
+// A dialog is at most half the viewport wide (OVL-002): the small viewport
+// is 48 columns, which gives a box of 24 cells.
 use super::*;
 use crate::app_input::{self, key, Action};
 use reactive_tui::event::types::{Event, KeyCode, ResizeEvent};
@@ -5,7 +7,7 @@ use reactive_tui::{app::RootComponent, builder, component::Element, event::route
 
 #[test]
 fn engine_input_paints_edits_and_delivers_the_resized_pointer_result() {
-    for (initial, resized) in [((32, 12), (60, 20)), ((60, 20), (32, 12))] {
+    for (initial, resized) in [((48, 14), (60, 20)), ((60, 20), (48, 14))] {
         let mut engine = DialogEngine::new();
         engine.enable_async();
         let id = engine.show_input(InputDialogOptions {
@@ -46,12 +48,12 @@ fn engine_input_paints_edits_and_delivers_the_resized_pointer_result() {
 
 #[test]
 fn engine_confirmation_callback_and_close_event_fire_once() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let mut engine = DialogEngine::new();
         let calls = Arc::new(Mutex::new(Vec::new()));
         let observed = calls.clone();
         let id = engine.show_confirmation(ConfirmationDialogOptions {
-            title: "CONFIRM ENGINE".into(),
+            title: "CONFIRM".into(),
             on_close: Some(Arc::new(move |result| {
                 observed.lock().unwrap().push(result)
             })),
@@ -60,8 +62,8 @@ fn engine_confirmation_callback_and_close_event_fire_once() {
         app_input::run_actions_until_hidden(
             engine.clone(),
             size,
-            vec![("CONFIRM ENGINE", Action::ClickText("OK", 0))],
-            "CONFIRM ENGINE",
+            vec![("CONFIRM", Action::ClickText("OK", 0))],
+            "CONFIRM",
         );
         assert!(matches!(
             calls.lock().unwrap().as_slice(),
@@ -151,7 +153,7 @@ fn dropping_the_app_cancels_sessions_even_when_a_controller_survives() {
         ..Default::default()
     });
     let completion = engine.completion(id).unwrap();
-    app_input::run(engine.clone(), (32, 12), vec![(1, None)]);
+    app_input::run(engine.clone(), (48, 14), vec![(1, None)]);
     assert_eq!(engine.active_count(), 0);
     assert!(matches!(
         completion.try_result(),
@@ -224,7 +226,7 @@ fn nested_dialogs_restore_the_underlying_control_and_then_the_background() {
             true
         }
     }
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let mut engine = DialogEngine::new();
         let opened = ThreadSafeSignal::new(0);
         app_input::run_visibility(
@@ -362,7 +364,7 @@ fn progress_updates_change_the_presented_control_and_deliver_completion() {
 
 #[test]
 fn engine_escape_configuration_preserves_keyboard_cancel() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let mut engine = DialogEngine::with_config(DialogEngineConfig {
             escape_to_close: false,
             ..Default::default()
@@ -542,7 +544,7 @@ fn explicit_input_reset_replaces_edits_even_when_the_seed_value_is_unchanged() {
 
 #[test]
 fn autocomplete_selection_and_wizard_data_reach_engine_results() {
-    for size in [(32, 12), (60, 20)] {
+    for size in [(48, 14), (60, 20)] {
         let mut engine = DialogEngine::new();
         engine.enable_async();
         let id = engine.show_autocomplete(AutocompleteDialogOptions {

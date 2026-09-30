@@ -1,7 +1,4 @@
-use reactive_tui::{
-    core::geometry::{Point, Rect, Size},
-    widgets::dialog::*,
-};
+use reactive_tui::{core::geometry::Size, widgets::dialog::*};
 use std::{
     future::Future,
     sync::{Arc, Mutex},
@@ -186,27 +183,6 @@ fn updates_reject_wrong_types_unknown_ids_and_nonfinite_progress() {
         Err(DialogEngineError::NotFound)
     );
     assert!(engine.update(id, DialogUpdate::Progress(1.5)).is_ok());
-}
-
-#[test]
-fn dialog_buffer_orders_by_z_and_replaces_existing_ids_without_duplicate_hits() {
-    let mut buffer = DialogBuffer::new(Size::new(20, 10));
-    let low = DialogId::from_u32(1);
-    let high = DialogId::from_u32(2);
-    let middle = DialogId::from_u32(3);
-    let bounds = Rect::new(Point::new(1, 1), Size::new(5, 4));
-    buffer.add_dialog(high, bounds, 30);
-    buffer.add_dialog(low, bounds, 10);
-    buffer.add_dialog(middle, bounds, 20);
-    assert_eq!(buffer.get_z_order(), &[low, middle, high]);
-    assert_eq!(buffer.hit_test(Point::new(2, 2)), Some(high));
-    buffer.add_dialog(low, bounds, 40);
-    assert_eq!(buffer.get_z_order(), &[middle, high, low]);
-    buffer.remove_dialog(low);
-    assert_eq!(buffer.hit_test(Point::new(2, 2)), Some(high));
-    buffer.clear();
-    assert!(buffer.get_z_order().is_empty());
-    assert_eq!(buffer.hit_test(Point::new(2, 2)), None);
 }
 
 #[test]

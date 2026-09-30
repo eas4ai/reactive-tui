@@ -15,7 +15,6 @@
 
 pub mod autocomplete;
 pub mod confirmation;
-pub mod dialog_buffer;
 pub mod dialog_component;
 pub mod dialog_types;
 mod frame;
@@ -28,7 +27,6 @@ pub mod wizard;
 // Re-export main types
 pub use autocomplete::*;
 pub use confirmation::*;
-pub use dialog_buffer::*;
 pub use dialog_component::*;
 pub use dialog_types::*;
 pub use input::*;
@@ -88,7 +86,9 @@ pub struct DialogTheme {
     pub backdrop_color: String,
     /// Dialog background color
     pub dialog_bg: String,
-    /// Border style
+    /// Classes added to the box beside `dialog_bg`. The box's border is the
+    /// modal's own, in the theme's `border` role; a `border-<color>` class
+    /// here paints the box's background instead.
     pub border_style: String,
     /// Title bar style
     pub title_style: String,
@@ -254,29 +254,53 @@ impl Default for DialogEngineConfig {
 }
 
 impl Default for DialogTheme {
+    /// The look of a dialog whose theme the application did not set
+    /// (OVL-001): every color a role of the active theme, one cell of
+    /// padding beside a title and inside a button.
     fn default() -> Self {
+        use crate::widgets::display::modal::{DANGER_BUTTON, PRIMARY_BUTTON, SECONDARY_BUTTON};
         Self {
-            backdrop_color: "bg-black bg-opacity-50".to_string(),
-            dialog_bg: "bg-white".to_string(),
-            border_style: "border border-gray-300 rounded-lg shadow-lg".to_string(),
-            title_style: "font-bold border-b border-gray-200 px-4".to_string(),
-            button_styles: {
-                let mut styles = HashMap::new();
-                styles.insert(
-                    "primary".to_string(),
-                    "bg-blue-500 text-white px-4 py-0 rounded hover:bg-blue-600".to_string(),
-                );
-                styles.insert(
-                    "secondary".to_string(),
-                    "bg-gray-200 text-gray-800 px-4 py-0 rounded hover:bg-gray-300".to_string(),
-                );
-                styles.insert(
-                    "danger".to_string(),
-                    "bg-red-500 text-white px-4 py-0 rounded hover:bg-red-600".to_string(),
-                );
-                styles
-            },
+            backdrop_color: "bg-overlay".to_string(),
+            dialog_bg: "bg-surface text-foreground".to_string(),
+            border_style: String::new(),
+            title_style: "font-bold border-b px-1".to_string(),
+            button_styles: HashMap::from([
+                ("primary".to_string(), PRIMARY_BUTTON.to_string()),
+                ("secondary".to_string(), SECONDARY_BUTTON.to_string()),
+                ("danger".to_string(), DANGER_BUTTON.to_string()),
+            ]),
             animation: DialogAnimation::Fade,
+        }
+    }
+}
+
+impl DialogTheme {
+    /// The default look with every color taken from `theme` instead of the
+    /// active theme: a dialog keeps these colors when the application
+    /// changes its theme.
+    pub fn of(theme: &crate::theme::Theme) -> Self {
+        let button = |fill: &str| {
+            format!(
+                "px-1 bg-{} text-{} cursor-pointer focus:bg-{} focus:text-{}",
+                theme.hex(fill),
+                theme.hex(&format!("{fill}-foreground")),
+                theme.hex("selection"),
+                theme.hex("selection-foreground")
+            )
+        };
+        Self {
+            backdrop_color: format!("bg-{}", theme.hex("overlay")),
+            dialog_bg: format!(
+                "bg-{} text-{}",
+                theme.hex("surface"),
+                theme.hex("foreground")
+            ),
+            button_styles: HashMap::from([
+                ("primary".to_string(), button("primary")),
+                ("secondary".to_string(), button("secondary")),
+                ("danger".to_string(), button("error")),
+            ]),
+            ..Self::default()
         }
     }
 }

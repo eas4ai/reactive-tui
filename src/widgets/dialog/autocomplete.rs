@@ -4,8 +4,8 @@
 //! and customizable suggestion rendering.
 
 use super::{
-    BaseDialogState, DialogBounds, DialogComponent, DialogEventResult, DialogId, DialogPosition,
-    DialogResult, DialogTheme, FocusableElementInfo,
+    BaseDialogState, DialogComponent, DialogEventResult, DialogId, DialogPosition, DialogResult,
+    DialogTheme, FocusableElementInfo,
 };
 use crate::component::Element;
 use crate::core::geometry::{Point, Rect, Size};
@@ -186,8 +186,6 @@ pub struct AutocompleteDialog {
     suggestions_visible: bool,
     /// Whether input is focused
     input_focused: bool,
-    /// Dialog bounds
-    bounds: DialogBounds,
     /// Last input time for debouncing
     last_input_time: Option<Instant>,
     /// Pending request
@@ -206,16 +204,6 @@ impl AutocompleteDialog {
             .unwrap_or_default();
         let cursor_position = input_value.len();
 
-        let bounds = DialogBounds {
-            size: options.size,
-            min_size: Some(Size::new(400, 200)),
-            max_size: Some(Size::new(800, 600)),
-            position: options.position.clone(),
-            resizable: false,
-            draggable: true,
-            ..Default::default()
-        };
-
         Self {
             state: BaseDialogState::new(id),
             options,
@@ -225,7 +213,6 @@ impl AutocompleteDialog {
             selected_suggestion: None,
             suggestions_visible: false,
             input_focused: true,
-            bounds,
             last_input_time: None,
             pending_request: false,
             loading: false,
@@ -575,10 +562,6 @@ impl DialogComponent for AutocompleteDialog {
         }
 
         false
-    }
-
-    fn get_bounds(&self) -> DialogBounds {
-        self.bounds.clone()
     }
 
     fn is_modal(&self) -> bool {
