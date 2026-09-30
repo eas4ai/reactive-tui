@@ -385,6 +385,11 @@ impl Runtime {
         root.metadata.events.push(Arc::new(move |event| {
             owner.escape(event, &config, escape_closable)
         }));
+        let owner = self.clone();
+        let config = props.clone();
+        root.metadata
+            .events
+            .push(Arc::new(move |event| owner.nudge(event, &config)));
         root
     }
     fn header(self: &Arc<Self>, props: &ModalProps) -> Option<Element> {

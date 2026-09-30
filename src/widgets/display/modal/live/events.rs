@@ -32,6 +32,61 @@ impl Runtime {
         }
         EventResult::Consumed
     }
+    /// The keys for what the pointer does to a box that can be dragged or
+    /// resized (BAR-003): Alt with an arrow moves it one cell, Alt and
+    /// Shift with an arrow make it one cell wider, narrower, taller or
+    /// shorter.
+    pub(super) fn nudge(&self, event: &Event, props: &ModalProps) -> EventResult {
+        let Event::Key(key) = event else {
+            return EventResult::Ignored;
+        };
+        if !key.modifiers.alt
+            || key.modifiers.ctrl
+            || key.modifiers.meta
+            || key.kind == KeyEventKind::Release
+            || !props.keyboard_navigation
+        {
+            return EventResult::Ignored;
+        }
+        let (dx, dy) = match key.code {
+            KeyCode::Left => (-1.0, 0.0),
+            KeyCode::Right => (1.0, 0.0),
+            KeyCode::Up => (0.0, -1.0),
+            KeyCode::Down => (0.0, 1.0),
+            _ => return EventResult::Ignored,
+        };
+        let resize = key.modifiers.shift;
+        if (resize && !props.resizable) || (!resize && !props.draggable) {
+            return EventResult::Ignored;
+        }
+        let mut data = self.data.lock().unwrap();
+        if !data.visible || data.measurements.body.is_none() {
+            return EventResult::Ignored;
+        }
+        let bounds = data.bounds;
+        let mut rect = data.rect;
+        if resize {
+            rect.right = (rect.right + dx).clamp((rect.left + 1.0).min(bounds.right), bounds.right);
+            rect.bottom =
+                (rect.bottom + dy).clamp((rect.top + 1.0).min(bounds.bottom), bounds.bottom);
+            data.size = Some((
+                (rect.right - rect.left) as u16,
+                (rect.bottom - rect.top) as u16,
+            ));
+        } else {
+            let (width, height) = (rect.right - rect.left, rect.bottom - rect.top);
+            rect.left =
+                (rect.left + dx).clamp(bounds.left, (bounds.right - width).max(bounds.left));
+            rect.top = (rect.top + dy).clamp(bounds.top, (bounds.bottom - height).max(bounds.top));
+        }
+        data.position = Some((
+            (rect.left - bounds.left).max(0.0) as u16,
+            (rect.top - bounds.top).max(0.0) as u16,
+        ));
+        drop(data);
+        self.wake();
+        EventResult::Consumed
+    }
     pub(super) fn begin_drag(&self, event: &Event, handle: Option<ResizeHandle>) -> EventResult {
         let Event::Mouse(mouse) = event else {
             return EventResult::Ignored;

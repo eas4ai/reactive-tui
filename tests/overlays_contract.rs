@@ -1069,6 +1069,71 @@ fn bar_003_every_pointer_action_of_an_overlay_has_a_key() {
         "BAR-003: Tab moved the focus from OK to Cancel before Enter: {:?}",
         results.lock().unwrap()
     );
+    // Alt with an arrow moves a draggable modal one cell; Alt and Shift
+    // with an arrow resize a resizable one.
+    use reactive_tui::{
+        event::types::KeyModifiers,
+        widgets::display::modal::{Modal, ModalAnimation, ModalPosition, ModalProps, ModalSize},
+    };
+    let modal = || {
+        Element::typed::<Modal>(ModalProps {
+            visible: true,
+            title: Some("BOX".into()),
+            content: Some(Element::text("Nudge")),
+            width: ModalSize::Fixed(12),
+            height: ModalSize::Fixed(5),
+            position: ModalPosition::Custom { x: 10, y: 5 },
+            draggable: true,
+            resizable: true,
+            animation: ModalAnimation::None,
+            ..Default::default()
+        })
+    };
+    let with = |code: KeyCode, modifiers: KeyModifiers| {
+        Some(Event::Key(KeyEvent::new(code).with_modifiers(modifiers)))
+    };
+    let frames = app_input::run_until(
+        Control(page(modal())),
+        (80, 24),
+        vec![
+            Until {
+                text: "Nudge",
+                cell: Some((10, 5, "┌")),
+                event: with(KeyCode::Right, KeyModifiers::alt()),
+            },
+            Until {
+                text: "Nudge",
+                cell: Some((11, 5, "┌")),
+                event: with(KeyCode::Down, KeyModifiers::alt()),
+            },
+            Until {
+                text: "Nudge",
+                cell: Some((11, 6, "┌")),
+                event: with(
+                    KeyCode::Right,
+                    KeyModifiers {
+                        alt: true,
+                        shift: true,
+                        ..KeyModifiers::empty()
+                    },
+                ),
+            },
+            // 12 wide from column 11 ends on column 22; one cell wider, 23.
+            Until {
+                text: "Nudge",
+                cell: Some((23, 6, "┐")),
+                event: None,
+            },
+        ],
+        WAIT,
+    );
+    let frame = frames.last().unwrap();
+    assert_eq!(
+        (find(frame, "┌"), find(frame, "┐")),
+        (Some((11, 6)), Some((23, 6))),
+        "BAR-003: Alt+Right and Alt+Down moved the box a cell each way and Alt+Shift+Right made it a cell wider:\n{}",
+        frame.text
+    );
     // Escape closes a closable toast.
     let frames = app_input::run_until(
         Control(page(
