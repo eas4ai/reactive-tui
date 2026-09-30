@@ -360,6 +360,98 @@ fn ovl_002_a_dialog_with_a_long_message_is_at_most_half_the_viewport_wide() {
 
 // ---------------------------------------------------------------- OVL-003
 
+/// A box of three rows that clips its content, with `child` inside it.
+fn clipping_box(child: Element) -> Element {
+    builder::div()
+        .class("relative w-full h-3 overflow-hidden")
+        .child(child)
+        .build()
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_003_a_modal_inside_a_clipping_box_is_centered_on_the_screen_and_painted_whole() {
+    let _theme = Active::set(probe());
+    let size = (240, 60);
+    let frame = shown(
+        clipping_box(
+            builder::modal()
+                .title("Modal")
+                .content(Element::text("CLIPPED?"))
+                .visible(true)
+                .build(),
+        ),
+        size,
+        "CLIPPED?",
+    );
+    let (left, top) = find(&frame, "┌").unwrap_or_else(|| panic!("no box:\n{}", frame.text));
+    let (right, bottom) = find(&frame, "┘").unwrap();
+    // The box is 12 by 4 (border, title, message, border), centered on the
+    // 240 by 60 screen: not in the three rows of the box that clips.
+    assert_eq!(
+        (left, top, right, bottom),
+        (114, 28, 125, 31),
+        "OVL-003: a modal inside a clipping box is centered on the screen:\n{}",
+        frame.text
+    );
+    let (column, row) = find(&frame, "CLIPPED?").unwrap();
+    assert_eq!(
+        background(&frame, column, row),
+        Some(role("surface")),
+        "OVL-003: every cell of the box is painted, also the rows past the clipping box"
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_003_a_popover_inside_a_clipping_box_is_painted_whole() {
+    let _theme = Active::set(probe());
+    let frame = app_input::run_until(
+        Control(page(clipping_box(
+            builder::popover()
+                .trigger(focusable("OPEN").auto_focus())
+                .content(
+                    builder::div()
+                        .class("flex-col")
+                        .child(Element::text("ROW ONE"))
+                        .child(Element::text("ROW TWO"))
+                        .child(Element::text("ROW THREE"))
+                        .build(),
+                )
+                .build(),
+        ))),
+        (60, 20),
+        vec![
+            Until {
+                text: "OPEN",
+                cell: None,
+                event: key(KeyCode::Enter),
+            },
+            Until {
+                text: "ROW THREE",
+                cell: None,
+                event: None,
+            },
+        ],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    // The trigger is on row 0 of a box of three rows; the popover opens on
+    // row 2 with its arrow and paints its five rows (border, three rows,
+    // border) past the box's edge.
+    let rows: Vec<Option<u16>> = ["ROW ONE", "ROW TWO", "ROW THREE", "└"]
+        .iter()
+        .map(|text| find(&frame, text).map(|(_, row)| row))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![Some(3), Some(4), Some(5), Some(6)],
+        "OVL-003: a popover inside a clipping box is painted whole:\n{}",
+        frame.text
+    );
+}
+
 #[test]
 #[serial_test::serial(theme)]
 fn ovl_003_a_toast_in_a_corner_keeps_one_cell_from_the_edge() {
