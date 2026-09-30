@@ -84,9 +84,18 @@ impl Runtime {
             } else {
                 0.0
             };
+            // The title needs its text, the header's padding and, with a
+            // close button, that button and a cell before it.
+            let header_padding = measured
+                .header
+                .map_or(0.0, |header| header.insets[0] + header.insets[2]);
             let natural_width = content_size(measured.content)
                 .0
-                .max(size(measured.title).0 + if props.closable { 2.0 } else { 0.0 })
+                .max(
+                    size(measured.title).0
+                        + header_padding
+                        + if props.closable { 2.0 } else { 0.0 },
+                )
                 .max(size(measured.footer).0)
                 .max(size(measured.buttons).0)
                 + insets[0]

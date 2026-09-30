@@ -196,7 +196,7 @@ fn explicit_popover_anchors_use_cells_and_invalid_rectangles_restore_measurement
                     right: 9.0,
                     bottom: 4.0,
                 },
-                6,
+                7,
                 5,
             ),
             (
@@ -206,7 +206,7 @@ fn explicit_popover_anchors_use_cells_and_invalid_rectangles_restore_measurement
                     right: 9.0,
                     bottom: 4.0,
                 },
-                1,
+                2,
                 2,
             ),
             (
@@ -216,7 +216,7 @@ fn explicit_popover_anchors_use_cells_and_invalid_rectangles_restore_measurement
                     right: 5.0,
                     bottom: 4.0,
                 },
-                1,
+                2,
                 2,
             ),
         ] {
@@ -246,13 +246,14 @@ fn explicit_popover_anchors_use_cells_and_invalid_rectangles_restore_measurement
 #[test]
 fn popover_size_constraints_clip_content_and_empty_bodies_keep_the_trigger() {
     for size in [(24, 10), (48, 16)] {
-        // The box's border takes a cell at each side, so a maximum width of
-        // 6 leaves 4 cells of content, on the row under the top border.
+        // The box's border and padding take two cells at each side, so a
+        // maximum width of 6 leaves 2 cells of content, on the row under
+        // the top border.
         for (content, max_width, expected) in [
             (
                 Element::text("ABCDEFGHIJKLMNO").class("w-15 h-2"),
                 Some(6),
-                "│ABCD│",
+                "│ AB │",
             ),
             (
                 Element::text("ABCDEFGHIJKLMNO").class("w-15 h-2"),
@@ -640,23 +641,24 @@ fn nested_popovers_close_in_order_and_restore_focus_for_mixed_traps() {
 #[test]
 fn popover_positions_follow_measured_trigger_and_content_at_two_viewports() {
     use PopoverPosition::*;
-    for (width, height) in [(24u16, 12u16), (48, 20)] {
+    // 28 columns hold a box of 10 cells to the right of a trigger at 14.
+    for (width, height) in [(28u16, 12u16), (48, 20)] {
         let (x, y) = (width / 2, height / 2);
-        // The box is the 6 by 3 content plus its border, 8 by 5; B is the
-        // first cell inside the border.
+        // The box is the 6 by 3 content plus its border and padding, 10 by
+        // 5; B is two cells inside the box's edge, under its top border.
         for (position, left, top) in [
             (Top, x - 1, y - 4),
-            (TopStart, x + 1, y - 4),
-            (TopEnd, x - 3, y - 4),
+            (TopStart, x + 2, y - 4),
+            (TopEnd, x - 4, y - 4),
             (Bottom, x - 1, y + 2),
-            (BottomStart, x + 1, y + 2),
-            (BottomEnd, x - 3, y + 2),
-            (Left, x - 7, y - 1),
-            (LeftStart, x - 7, y + 1),
-            (LeftEnd, x - 7, y - 3),
-            (Right, x + 5, y - 1),
-            (RightStart, x + 5, y + 1),
-            (RightEnd, x + 5, y - 3),
+            (BottomStart, x + 2, y + 2),
+            (BottomEnd, x - 4, y + 2),
+            (Left, x - 8, y - 1),
+            (LeftStart, x - 8, y + 1),
+            (LeftEnd, x - 8, y - 3),
+            (Right, x + 6, y - 1),
+            (RightStart, x + 6, y + 1),
+            (RightEnd, x + 6, y - 3),
         ] {
             let config = PopoverProps {
                 visible: true,
@@ -754,10 +756,11 @@ fn popover_boundary_modes_use_the_presented_viewport() {
                 .build();
             let frames = run(Control(tree), (width, height), vec![(3, None)]);
             let frame = frames.last().unwrap();
-            // The box is 8 by 5 with its border; B is one cell inside it.
-            // Flipped, the box ends on the row over the trigger; shifted,
-            // on the last row; ignoring the boundary, its top border is on
-            // the last row and the rest is beyond the screen.
+            // The box is 10 by 5 with its border and padding; B is two
+            // cells inside it. Flipped, the box ends on the row over the
+            // trigger; shifted, on the last row; ignoring the boundary,
+            // its top border is on the last row and the rest is beyond
+            // the screen.
             let (row, glyph) = match behavior {
                 BoundaryBehavior::Flip => (Some(height - 6), "B"),
                 BoundaryBehavior::Shift => (Some(height - 4), "B"),
@@ -766,7 +769,7 @@ fn popover_boundary_modes_use_the_presented_viewport() {
             };
             if let Some(row) = row {
                 assert_eq!(
-                    frame.screen.cell(row, 3).unwrap().contents(),
+                    frame.screen.cell(row, 4).unwrap().contents(),
                     glyph,
                     "{behavior:?}: {}",
                     frame.text
@@ -802,23 +805,23 @@ fn popover_reports_measured_position_and_repositions_after_resize() {
         vec![(3, Some(Event::Resize(ResizeEvent::new(20, 8)))), (5, None)],
     );
     assert_eq!(*positions.lock().unwrap(), [PopoverPosition::LeftStart]);
-    // The box, 8 by 4 with its border, ends where the trigger starts; B is
-    // one cell inside it.
+    // The box, 10 by 4 with its border and padding, ends where the trigger
+    // starts; B is two cells inside it.
     assert_eq!(
-        frames[2].screen.cell(3, 17).unwrap().contents(),
+        frames[2].screen.cell(3, 16).unwrap().contents(),
         "B",
         "{}",
         frames[2].text
     );
     // The first frame after the resize already shows the new position.
     assert_eq!(
-        frames[3].screen.cell(3, 5).unwrap().contents(),
+        frames[3].screen.cell(3, 4).unwrap().contents(),
         "B",
         "{}",
         frames[3].text
     );
     assert_eq!(
-        frames.last().unwrap().screen.cell(3, 5).unwrap().contents(),
+        frames.last().unwrap().screen.cell(3, 4).unwrap().contents(),
         "B",
         "{}",
         frames.last().unwrap().text
@@ -860,14 +863,14 @@ fn ignoring_boundaries_keeps_intrinsic_content_size_before_terminal_clipping() {
         .build();
     let frames = run(Control(tree), (24, 10), vec![(3, None)]);
     // The box ends at the trigger's last column: its right border is on
-    // column 13 and the content's last cell on column 12, under the top
-    // border.
+    // column 13, its padding on 12 and the content's last cell on column
+    // 11, under the top border.
     assert_eq!(
         frames
             .last()
             .unwrap()
             .screen
-            .cell(4, 12)
+            .cell(4, 11)
             .unwrap()
             .contents(),
         "D",
@@ -1015,13 +1018,13 @@ fn popover_keeps_trigger_and_opens_actual_content_then_closes_on_escape() {
             ],
         );
         assert!(!frames[0].text.contains("DETAILS"));
-        // The content is on the row under the box's top border, one cell in.
+        // The content is on the row under the box's top border, two cells in.
         assert!(
             frames.iter().any(|f| f
                 .text
                 .lines()
                 .nth(2)
-                .is_some_and(|line| line.starts_with("│DETAILS"))),
+                .is_some_and(|line| line.starts_with("│ DETAILS"))),
             "{:?}",
             frames.iter().map(|f| &f.text).collect::<Vec<_>>()
         );

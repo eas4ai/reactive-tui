@@ -859,9 +859,18 @@ impl Catalog {
                 .content(Element::text("Focused overlay · Escape closes"))
                 .visible(true)
                 .build(),
+            // The trigger holds the focus, so Enter opens the popover and
+            // Escape closes it; its look is the primary button's.
             5 => popover()
-                .trigger(reactive_tui::builder::button().text("Open popover").build())
-                .content(Element::text("Popover content"))
+                .trigger(
+                    div()
+                        .class(reactive_tui::widgets::display::modal::PRIMARY_BUTTON)
+                        .text("Open popover")
+                        .build()
+                        .with_focus(reactive_tui::component::FocusProps::button())
+                        .auto_focus(),
+                )
+                .content(Element::text("Popover content · Escape closes"))
                 .build(),
             6 => confirmation_dialog()
                 .title("ConfirmationDialog")

@@ -236,7 +236,9 @@ impl Popover {
                         usize::from(content_size.1),
                     ));
                 }
-                let mut body = node(style.padding_all_px(1.0), body_children)
+                // The border takes one cell all around, and the content has
+                // one more cell of padding at each side, as a dialog's has.
+                let mut body = node(style.padding_all_px(1.0).padding_x_px(2.0), body_children)
                     .class("bg-surface text-foreground")
                     .with_key("popover-body");
                 body.metadata.inert = !visible || hidden;
