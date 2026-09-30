@@ -224,21 +224,25 @@ fn padded_scrollbars_and_wheel_hits_stay_inside_the_viewport() {
             .scroll_speed(3)
             .render()
             .with_class("w-12 h-6 p-2");
-        let frames = run(
-            Control(scroll),
+        let frames = settled(
+            scroll,
             size,
             vec![
-                (2, wheel(3, 2, 0.0, 1.0)),
-                (3, wheel(14, 2, 0.0, -1.0)),
-                (3, wheel(3, 2, 0.0, -1.0)),
-                (4, None),
+                Until {
+                    text: "zero",
+                    cell: Some((9, 2, "█")),
+                    event: wheel(3, 2, 0.0, 1.0),
+                },
+                step("three", wheel(14, 2, 0.0, -1.0)),
+                step("three", wheel(3, 2, 0.0, -1.0)),
+                step("zero", None),
             ],
         );
         assert_eq!(
-            frames[1].screen.cell(2, 9).unwrap().contents(),
+            frames.last().unwrap().screen.cell(2, 9).unwrap().contents(),
             "█",
             "{}",
-            frames[1].text
+            frames.last().unwrap().text
         );
         assert!(frames.iter().any(|f| f.text.contains("three")));
         assert!(frames.last().unwrap().text.contains("zero"));
@@ -272,5 +276,273 @@ fn scroll_view_keeps_unicode_content_and_reaches_last_row() {
             frames.last().unwrap().text
         );
         assert!(!frames.last().unwrap().text.contains("α first"));
+    }
+}
+
+use super::app_input::{run_until_on_debug, Snapshot, Until};
+use reactive_tui::{
+    builder,
+    event::types::{Event, MouseButton, MouseEvent, MouseEventKind, Position},
+};
+use std::time::Duration;
+
+fn settled(scroll: Element, size: (u16, u16), steps: Vec<Until>) -> Vec<Snapshot> {
+    run_until_on_debug(Control(scroll), size, steps, Duration::from_secs(5))
+}
+
+fn step(text: &'static str, event: Option<Event>) -> Until {
+    Until {
+        text,
+        cell: None,
+        event,
+    }
+}
+
+fn rows(count: usize, width: usize) -> Element {
+    Element::text(
+        (0..count)
+            .map(|i| format!("row {i:02}{}", "x".repeat(width.saturating_sub(6))))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+}
+
+fn pointer(kind: MouseEventKind, x: u16, y: u16) -> Option<Event> {
+    Some(Event::Mouse(
+        MouseEvent::new(kind, Position::cell(x, y)).with_button(MouseButton::Left),
+    ))
+}
+
+#[test]
+fn nav_002_scroll_default_fills_parent() {
+    let scroll = ScrollViewBuilder::new(rows(60, 100)).render();
+    let root = builder::div().class("w-100 h-20").child(scroll).build();
+    let frames = settled(root, (120, 30), vec![step("row 00", None)]);
+    let frame = frames.last().unwrap();
+    assert_eq!(
+        frame.screen.cell(0, 99).unwrap().contents(),
+        "█",
+        "bar fills parent width"
+    );
+    assert_eq!(
+        frame.screen.cell(19, 98).unwrap().contents(),
+        "x",
+        "content fills parent height"
+    );
+    assert!(
+        frame
+            .screen
+            .cell(20, 0)
+            .unwrap()
+            .contents()
+            .trim()
+            .is_empty(),
+        "view ends at row 20"
+    );
+}
+
+#[test]
+fn nav_002_scroll_fitting_content_keeps_full_width() {
+    let frames = settled(
+        ScrollViewBuilder::new(rows(5, 20))
+            .viewport_size(20, 10)
+            .scroll_x(false)
+            .render(),
+        (30, 12),
+        vec![step("row 00", None)],
+    );
+    let frame = frames.last().unwrap();
+    assert_eq!(
+        frame.screen.cell(0, 19).unwrap().contents(),
+        "x",
+        "fitting content keeps bar column"
+    );
+    assert!(
+        !frame.text.contains(['█', '░']),
+        "fitting content has no bar"
+    );
+}
+
+#[test]
+fn nav_002_scroll_builder_classes_set_size() {
+    let scroll = builder::scroll_view()
+        .content(rows(60, 50))
+        .class("w-40 h-10")
+        .build();
+    let frames = settled(scroll, (100, 20), vec![step("row 00", None)]);
+    let frame = frames.last().unwrap();
+    assert_eq!(frame.screen.cell(0, 39).unwrap().contents(), "█");
+    assert_eq!(frame.screen.cell(9, 38).unwrap().contents(), "x");
+    assert!(frame
+        .screen
+        .cell(10, 0)
+        .unwrap()
+        .contents()
+        .trim()
+        .is_empty());
+}
+
+#[test]
+fn nav_003_scroll_track_click_pages() {
+    let scroll = ScrollViewBuilder::new(rows(60, 6))
+        .viewport_size(12, 20)
+        .scroll_x(false)
+        .render();
+    let frames = settled(
+        scroll,
+        (30, 24),
+        vec![step("row 00", super::click(11, 12)), step("", None)],
+    );
+    assert_eq!(
+        frames.last().unwrap().screen.cell(0, 0).unwrap().contents(),
+        "r"
+    );
+    assert!(
+        frames.last().unwrap().text.starts_with("row 20"),
+        "track click scrolls one page: {}",
+        frames.last().unwrap().text
+    );
+}
+
+#[test]
+fn nav_003_scroll_thumb_drag_uses_travel_and_stops_on_release() {
+    let scroll = ScrollViewBuilder::new(rows(60, 6))
+        .viewport_size(12, 20)
+        .scroll_x(false)
+        .smooth_scroll(true)
+        .render();
+    let frames = settled(
+        scroll,
+        (30, 24),
+        vec![
+            step("row 00", pointer(MouseEventKind::Down, 11, 0)),
+            step("row 00", pointer(MouseEventKind::Drag, 11, 5)),
+            step("", pointer(MouseEventKind::Up, 11, 5)),
+            step("", pointer(MouseEventKind::Drag, 11, 10)),
+            step("", None),
+        ],
+    );
+    // ceil(20 * 20 / 60) = 7 thumb cells; 5 * 40 / 13 rounds to 15.
+    assert!(
+        frames.last().unwrap().text.starts_with("row 15"),
+        "drag follows thumb travel: {}",
+        frames.last().unwrap().text
+    );
+    assert!(
+        frames
+            .iter()
+            .filter(|frame| frame.text.contains("row"))
+            .all(|frame| frame.text.starts_with("row 00") || frame.text.starts_with("row 15")),
+        "drag paints its offset immediately even with smooth scrolling enabled"
+    );
+}
+
+#[test]
+fn nav_003_scroll_horizontal_track_and_thumb_are_symmetric() {
+    let content = Element::text("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx");
+    for drag in [false, true] {
+        let scroll = ScrollViewBuilder::new(content.clone())
+            .viewport_size(20, 3)
+            .scroll_y(false)
+            .render();
+        let steps = if drag {
+            vec![
+                step("012345", pointer(MouseEventKind::Down, 0, 2)),
+                step("012345", pointer(MouseEventKind::Drag, 5, 2)),
+                step("", pointer(MouseEventKind::Up, 5, 2)),
+                step("", None),
+            ]
+        } else {
+            vec![step("012345", super::click(12, 2)), step("", None)]
+        };
+        let frames = settled(scroll, (30, 6), steps);
+        assert!(
+            frames
+                .last()
+                .unwrap()
+                .text
+                .starts_with(if drag { "FGHIJ" } else { "KLMNO" }),
+            "horizontal pointer scroll: {}",
+            frames.last().unwrap().text
+        );
+    }
+}
+
+struct ScrollTheme(std::sync::Arc<reactive_tui::theme::Theme>);
+impl Drop for ScrollTheme {
+    fn drop(&mut self) {
+        reactive_tui::theme::Theme::set_active((*self.0).clone());
+    }
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn nav_001_scroll_thumb_and_track_use_theme_roles() {
+    use reactive_tui::theme::{Theme, ThemeVariables};
+    let _restore = ScrollTheme(Theme::active());
+    let mut variables = ThemeVariables::new();
+    for (name, color) in [
+        ("foreground", [200, 201, 202]),
+        ("text-muted", [31, 41, 51]),
+        ("border", [61, 71, 81]),
+    ] {
+        let [r, g, b] = color;
+        variables = variables.set(
+            Theme::color_variable(name),
+            format!("#{r:02x}{g:02x}{b:02x}"),
+        );
+    }
+    Theme::set_active(Theme::new("scroll-probe").with_variables(variables));
+    for scroll in [
+        ScrollViewBuilder::new(rows(60, 6))
+            .viewport_size(12, 20)
+            .scroll_x(false)
+            .render(),
+        builder::scroll_view()
+            .content(rows(60, 6))
+            .class("w-12 h-20")
+            .build(),
+    ] {
+        let frames = settled(scroll, (30, 24), vec![step("row 00", None)]);
+        let frame = frames.last().unwrap();
+        assert_eq!(frame.screen.cell(0, 11).unwrap().contents(), "█");
+        assert_eq!(
+            frame.screen.cell(0, 11).unwrap().fgcolor(),
+            vt100::Color::Rgb(31, 41, 51),
+            "thumb uses text-muted"
+        );
+        assert_eq!(frame.screen.cell(12, 11).unwrap().contents(), "░");
+        assert_eq!(
+            frame.screen.cell(12, 11).unwrap().fgcolor(),
+            vt100::Color::Rgb(61, 71, 81),
+            "track uses border"
+        );
+    }
+}
+
+#[test]
+fn nav_002_scroll_specialized_viewport_setters() {
+    for scroll in [
+        builder::scroll_view()
+            .content(rows(60, 50))
+            .viewport_size(40, 10)
+            .build(),
+        builder::scroll_view()
+            .content(rows(60, 50))
+            .viewport_width(40)
+            .viewport_height(10)
+            .build(),
+    ] {
+        let frames = settled(scroll, (100, 20), vec![step("row 00", None)]);
+        let frame = frames.last().unwrap();
+        assert_eq!(frame.screen.cell(0, 39).unwrap().contents(), "█");
+        assert_eq!(frame.screen.cell(9, 38).unwrap().contents(), "x");
+        assert!(frame
+            .screen
+            .cell(10, 0)
+            .unwrap()
+            .contents()
+            .trim()
+            .is_empty());
     }
 }
