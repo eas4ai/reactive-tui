@@ -427,3 +427,446 @@ fn ovl_004_a_popover_opened_by_a_key_takes_the_focus_and_gives_it_back() {
         closed.text
     );
 }
+
+// ---------------------------------------------------------------- BAR-003
+
+/// The veil of the probe theme: a color and how much of it is laid over
+/// what is under it.
+const OVERLAY: (Rgb, f32) = ([200, 20, 50], 0.5);
+
+/// `over` laid over `under` with `alpha` of it.
+fn laid_over((over, alpha): (Rgb, f32), under: Rgb) -> Rgb {
+    let mut mixed = [0; 3];
+    for channel in 0..3 {
+        mixed[channel] = (f32::from(over[channel]) * alpha
+            + f32::from(under[channel]) * (1.0 - alpha))
+            .round() as u8;
+    }
+    mixed
+}
+
+fn near(got: Rgb, expected: Rgb) -> bool {
+    got.iter().zip(expected).all(|(g, e)| g.abs_diff(e) <= 2)
+}
+
+/// Whether `color` is a role of the probe theme or its veil laid over one.
+fn of_the_theme(color: Option<Rgb>) -> bool {
+    let roles = || (0..ROLES.len()).map(probe_color);
+    color.is_some_and(|color| {
+        roles().any(|role| role == color || near(color, laid_over(OVERLAY, role)))
+    })
+}
+
+/// The colors in `frame` that the probe theme does not define, each with
+/// the first cell that has it. The rows `skip` names are left out.
+fn foreign(frame: &Snapshot, skip: &[u16]) -> Vec<String> {
+    let (rows, columns) = frame.screen.size();
+    let mut found: Vec<(vt100::Color, String)> = Vec::new();
+    for (row, column) in (0..rows)
+        .filter(|row| !skip.contains(row))
+        .flat_map(|row| (0..columns).map(move |column| (row, column)))
+    {
+        let cell = frame.screen.cell(row, column).unwrap();
+        let mut colors = vec![("background", cell.bgcolor())];
+        if !cell.contents().trim().is_empty() {
+            colors.push(("glyph", cell.fgcolor()));
+        }
+        for (part, color) in colors {
+            if !of_the_theme(rgb(color)) && !found.iter().any(|(seen, _)| *seen == color) {
+                found.push((
+                    color,
+                    format!(
+                        "{color:?} as the {part} of {:?} at ({column}, {row})",
+                        cell.contents()
+                    ),
+                ));
+            }
+        }
+    }
+    found.into_iter().map(|(_, place)| place).collect()
+}
+
+/// Each overlay as the widget catalog builds it, with the text that shows
+/// it is open and the text of the row a widget of another family paints
+/// (a text field, a progress bar), which the color check leaves out.
+fn overlays() -> Vec<(&'static str, Element, &'static str, Option<&'static str>)> {
+    use reactive_tui::{
+        builder::specialized::WizardStep,
+        core::geometry::Rect,
+        widgets::{
+            dialog::{
+                AutocompleteConfig, AutocompleteDialog, AutocompleteDialogOptions, DialogComponent,
+                DialogId, DialogTheme, InputDialog, InputDialogOptions,
+            },
+            display::popover::{Popover, PopoverProps},
+        },
+    };
+    vec![
+        (
+            "modal",
+            builder::modal()
+                .title("Modal")
+                .content(Element::text("Focused overlay"))
+                .visible(true)
+                .build(),
+            "Focused overlay",
+            None,
+        ),
+        (
+            "popover",
+            Element::typed::<Popover>(PopoverProps {
+                visible: true,
+                trigger_element: focusable("OPEN").auto_focus(),
+                content: Element::text("Popover content"),
+                ..Default::default()
+            }),
+            "Popover content",
+            None,
+        ),
+        (
+            "confirmation dialog",
+            builder::confirmation_dialog()
+                .title("Confirm")
+                .message("Ready to record?")
+                .build(),
+            "Ready to record?",
+            None,
+        ),
+        (
+            "input dialog",
+            InputDialog::new(
+                DialogId::from_u32(7),
+                InputDialogOptions {
+                    title: "Input".into(),
+                    prompt: "Capture name".into(),
+                    ..Default::default()
+                },
+            )
+            .render(Rect::default(), &DialogTheme::default()),
+            "Capture name",
+            Some("["),
+        ),
+        (
+            "autocomplete dialog",
+            AutocompleteDialog::new(
+                DialogId::from_u32(8),
+                AutocompleteDialogOptions {
+                    title: "Autocomplete".into(),
+                    prompt: "Find a widget".into(),
+                    autocomplete: AutocompleteConfig {
+                        min_chars: 0,
+                        static_suggestions: vec!["Accordion".into(), "Checkbox".into()],
+                        debounce_delay: std::time::Duration::ZERO,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .render(Rect::default(), &DialogTheme::default()),
+            "Checkbox",
+            Some("["),
+        ),
+        (
+            "progress dialog",
+            builder::progress_dialog()
+                .title("Progress")
+                .message("Rendering")
+                .progress(0.64)
+                .build(),
+            "64.0%",
+            Some("█"),
+        ),
+        (
+            "toast",
+            builder::toast()
+                .success("Capture saved")
+                .persistent()
+                .build(),
+            "Capture saved",
+            None,
+        ),
+        (
+            "wizard dialog",
+            builder::wizard()
+                .title("Wizard")
+                .step(WizardStep::new("Compose").content(Element::text("Choose widgets")))
+                .step(WizardStep::new("Capture").content(Element::text("Record clip")))
+                .build(),
+            "Choose widgets",
+            Some("█"),
+        ),
+    ]
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_an_overlay_takes_every_color_from_the_active_theme() {
+    let _theme = Active::set(probe());
+    let mut wrong = Vec::new();
+    for (name, root, text, other_family) in overlays() {
+        let frame = shown(root, (80, 24), text);
+        // A text field or a progress bar inside a dialog is painted by its
+        // own family, which a later commitment brings to the widget bar.
+        let skip: Vec<u16> = other_family
+            .and_then(|glyph| find(&frame, glyph))
+            .map(|(_, row)| vec![row])
+            .unwrap_or_default();
+        let foreign = foreign(&frame, &skip);
+        if !foreign.is_empty() {
+            wrong.push(format!("{name}: {foreign:#?}\n{}", frame.text));
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "BAR-003: an overlay paints a color the theme does not define:\n{}",
+        wrong.join("\n")
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_dialog_follows_a_resize() {
+    use reactive_tui::event::types::ResizeEvent;
+    let _theme = Active::set(probe());
+    let frames = app_input::run_until(
+        Control(page(
+            builder::confirmation_dialog()
+                .title("Confirm")
+                .message("Ready to record?")
+                .build(),
+        )),
+        (80, 24),
+        vec![
+            Until {
+                text: "Ready to record?",
+                cell: None,
+                event: Some(Event::Resize(ResizeEvent::new(160, 48))),
+            },
+            // Centered in 160 by 48: the box, 20 by 5, starts at (70, 21).
+            Until {
+                text: "Ready to record?",
+                cell: Some((70, 21, "┌")),
+                event: None,
+            },
+        ],
+        WAIT,
+    );
+    let frame = frames.last().unwrap();
+    assert_eq!(
+        frame.screen.size(),
+        (48, 160),
+        "BAR-003: the frame follows the resize"
+    );
+    assert!(
+        find(frame, "┌") == Some((70, 21)),
+        "BAR-003: the box is centered on the resized screen:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_every_pointer_action_of_an_overlay_has_a_key() {
+    let _theme = Active::set(probe());
+    // Escape closes a modal.
+    let closed = app_input::run_until(
+        Control(page(
+            builder::modal()
+                .title("Modal")
+                .content(Element::text("Focused overlay"))
+                .visible(true)
+                .build(),
+        )),
+        (80, 24),
+        vec![
+            Until {
+                text: "Focused overlay",
+                cell: None,
+                event: key(KeyCode::Escape),
+            },
+            Until {
+                text: "",
+                cell: Some((23, 10, " ")),
+                event: None,
+            },
+        ],
+        WAIT,
+    );
+    assert!(
+        find(closed.last().unwrap(), "Focused overlay").is_none(),
+        "BAR-003: Escape closes the modal:\n{}",
+        closed.last().unwrap().text
+    );
+    // Tab moves between a dialog's buttons and Enter presses the focused
+    // one: OK holds the focus first, Tab moves it to Cancel, Enter cancels.
+    use reactive_tui::{
+        core::geometry::Rect,
+        widgets::dialog::{
+            ConfirmationDialog, ConfirmationDialogOptions, DialogComponent, DialogId, DialogResult,
+            DialogTheme,
+        },
+    };
+    let results = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let noted = results.clone();
+    let frames = app_input::run_until(
+        Control(page(
+            ConfirmationDialog::new(
+                DialogId::from_u32(3),
+                ConfirmationDialogOptions {
+                    title: "Confirm".into(),
+                    message: "Ready to record?".into(),
+                    on_close: Some(std::sync::Arc::new(move |result| {
+                        noted.lock().unwrap().push(result)
+                    })),
+                    ..Default::default()
+                },
+            )
+            .render(Rect::default(), &DialogTheme::default()),
+        )),
+        (80, 24),
+        vec![
+            Until {
+                text: "Ready to record?",
+                cell: None,
+                event: key(KeyCode::Tab),
+            },
+            Until {
+                text: "Ready to record?",
+                cell: None,
+                event: key(KeyCode::Enter),
+            },
+            Until {
+                text: "",
+                cell: Some((30, 10, " ")),
+                event: None,
+            },
+        ],
+        WAIT,
+    );
+    assert!(
+        find(frames.last().unwrap(), "Ready to record?").is_none(),
+        "BAR-003: Enter presses the focused button and the dialog closes:\n{}",
+        frames.last().unwrap().text
+    );
+    assert!(
+        matches!(
+            results.lock().unwrap().as_slice(),
+            [DialogResult::Cancelled]
+        ),
+        "BAR-003: Tab moved the focus from OK to Cancel before Enter: {:?}",
+        results.lock().unwrap()
+    );
+    // Escape closes a closable toast.
+    let frames = app_input::run_until(
+        Control(page(
+            builder::toast()
+                .success("Capture saved")
+                .persistent()
+                .closable(true)
+                .build()
+                .auto_focus(),
+        )),
+        (80, 24),
+        vec![
+            Until {
+                text: "Capture saved",
+                cell: None,
+                event: key(KeyCode::Escape),
+            },
+            Until {
+                text: "",
+                cell: Some((60, 2, " ")),
+                event: None,
+            },
+        ],
+        WAIT,
+    );
+    assert!(
+        find(frames.last().unwrap(), "Capture saved").is_none(),
+        "BAR-003: Escape closes a closable toast:\n{}",
+        frames.last().unwrap().text
+    );
+}
+
+// ---------------------------------------------------------------- BAR-005
+
+/// The most work the App did for one of `frames` frames, in ms, and each
+/// frame's work and present time.
+fn max_work_ms(root: Element, size: (u16, u16), frames: usize) -> (f64, String) {
+    let out = app_input::run_on_debug(Control(page(root)), size, vec![(frames, None)]);
+    assert!(
+        out.len() >= frames,
+        "harness painted {} of {frames} frames",
+        out.len()
+    );
+    let split: Vec<String> = out
+        .iter()
+        .map(|f| format!("{:.2}/{:.2}", f.work_ms, f.present_ms))
+        .collect();
+    (
+        out.iter().map(|f| f.work_ms).fold(0.0, f64::max),
+        split.join(" "),
+    )
+}
+
+/// BAR-005: a dialog fading in and a progress dialog whose bar moves keep
+/// the App's work per frame under 16.6 ms at 700 by 200.
+#[test]
+#[serial_test::serial(theme)]
+fn bar_005_an_animating_overlay_stays_under_the_frame_budget_at_700_by_200() {
+    use reactive_tui::widgets::dialog::{
+        ConfirmationDialogOptions, DialogEngine, DialogEngineConfig,
+    };
+    if cfg!(debug_assertions) {
+        // The App's per-element cost is about ten times higher without
+        // optimization, so the budget is only meaningful on the optimized
+        // build, which is what the frame-budget mechanism runs.
+        eprintln!("SKIP: the frame budget is measured on the optimized build");
+        let (_, split) = max_work_ms(
+            builder::progress_dialog()
+                .title("Progress")
+                .message("Rendering")
+                .indeterminate(true)
+                .build(),
+            (80, 24),
+            3,
+        );
+        assert!(!split.is_empty());
+        return;
+    }
+    let size = (700u16, 200u16);
+    let mut over = Vec::new();
+    // A dialog that fades in over two seconds: every measured frame is a
+    // frame of the fade.
+    let mut engine = DialogEngine::with_config(DialogEngineConfig {
+        animation_duration: std::time::Duration::from_secs(2),
+        ..Default::default()
+    });
+    engine.show_confirmation(ConfirmationDialogOptions {
+        title: "Confirm".into(),
+        message: "Ready to record?".into(),
+        ..Default::default()
+    });
+    for (name, root) in [
+        ("a dialog fading in", engine.render()),
+        (
+            "a progress dialog whose bar moves",
+            builder::progress_dialog()
+                .title("Progress")
+                .message("Rendering")
+                .indeterminate(true)
+                .build(),
+        ),
+    ] {
+        let (ms, split) = max_work_ms(root, size, 12);
+        eprintln!("{name}: work/present ms per frame at 700x200: {split}");
+        if ms >= 16.6 {
+            over.push(format!("{name}: {ms:.2} ms ({split})"));
+        }
+    }
+    assert!(
+        over.is_empty(),
+        "BAR-005: per-frame work exceeds 16.6 ms at 700x200: {}",
+        over.join("; ")
+    );
+}
