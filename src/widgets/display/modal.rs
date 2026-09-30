@@ -212,7 +212,7 @@ impl Default for ModalProps {
             keyboard_navigation: true,
             border: Border::default(),
             backdrop_style: Some("bg-overlay".to_string()),
-            modal_style: Some("bg-white text-black".to_string()),
+            modal_style: Some("bg-surface text-foreground".to_string()),
             header_style: Some("border-b font-bold px-1".to_string()),
             content_style: None,
             footer_style: Some("border-t px-1".to_string()),
