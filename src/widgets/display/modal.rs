@@ -342,6 +342,14 @@ impl Modal {
             on_presented,
         })
     }
+    /// The role a modal made by `with_presentation` tells the screen
+    /// reader, for the tests of the dialogs that wrap one (OVL-004).
+    #[cfg(test)]
+    pub(in crate::widgets) fn spoken_role(element: &Element) -> Option<crate::accessibility::Role> {
+        element
+            .props_as::<live::LiveProps>()
+            .map(|props| props.role)
+    }
     /// Create a Modal element with default props
     pub fn element() -> Element {
         Element::component_with_props("Modal", ModalProps::default())

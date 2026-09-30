@@ -226,3 +226,31 @@ impl Component for LiveConfirmation {
         element
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::accessibility::Role;
+
+    /// OVL-004: a confirmation dialog asks a question that needs an
+    /// answer, so it is an alert dialog to the screen reader.
+    #[test]
+    fn ovl_004_a_confirmation_dialog_is_an_alert_dialog() {
+        let props = LiveProps {
+            id: DialogId::from_u32(1),
+            options: ConfirmationDialogOptions {
+                title: "Delete?".into(),
+                message: "The file is gone for good.".into(),
+                ..Default::default()
+            },
+            bounds: Rect::default(),
+            theme: DialogTheme::default(),
+        };
+        let element = LiveConfirmation::new(props.clone()).render(&props, &());
+        assert_eq!(
+            crate::widgets::display::modal::Modal::spoken_role(&element),
+            Some(Role::AlertDialog),
+            "OVL-004: a confirmation dialog is an `AlertDialog`"
+        );
+    }
+}
