@@ -358,6 +358,75 @@ fn ovl_002_a_dialog_with_a_long_message_is_at_most_half_the_viewport_wide() {
     );
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_002_a_popover_beside_its_trigger_keeps_one_cell_from_it() {
+    use reactive_tui::widgets::display::popover::{Popover, PopoverPosition, PopoverProps};
+    let _theme = Active::set(probe());
+    for (position, text) in [
+        (PopoverPosition::Right, "RIGHT"),
+        (PopoverPosition::Left, "LEFT"),
+        (PopoverPosition::Bottom, "BELOW"),
+        (PopoverPosition::Top, "ABOVE"),
+    ] {
+        let frame = shown(
+            builder::div()
+                .class("relative w-full h-full")
+                .child(
+                    Element::typed::<Popover>(PopoverProps {
+                        visible: true,
+                        position,
+                        trigger_element: focusable("OPEN"),
+                        content: Element::text(text),
+                        ..Default::default()
+                    })
+                    .class("absolute left-20 top-8"),
+                )
+                .build(),
+            (60, 20),
+            text,
+        );
+        let (open, row) = find(&frame, "OPEN").unwrap();
+        // The trigger is " OPEN " with its own padding: cells 19 to 24.
+        let (trigger_left, trigger_right) = (open - 1, open + 4);
+        let (left, top) = find(&frame, "┌").unwrap();
+        let (right, bottom) = find(&frame, "┘").unwrap();
+        let (arrow, arrow_row) = find(&frame, "▶")
+            .or_else(|| find(&frame, "◀"))
+            .or_else(|| find(&frame, "▲"))
+            .or_else(|| find(&frame, "▼"))
+            .unwrap_or_else(|| panic!("no arrow:\n{}", frame.text));
+        let (gap, arrow_in_gap, centered) = match position {
+            PopoverPosition::Right => (
+                left - trigger_right - 1,
+                arrow == trigger_right + 1 && arrow_row == row,
+                top <= row && row <= bottom,
+            ),
+            PopoverPosition::Left => (
+                trigger_left - right - 1,
+                arrow == trigger_left - 1 && arrow_row == row,
+                top <= row && row <= bottom,
+            ),
+            PopoverPosition::Bottom => (
+                top - row - 1,
+                arrow_row == row + 1 && left <= arrow && arrow <= right,
+                left <= open && open <= right,
+            ),
+            _ => (
+                row - bottom - 1,
+                arrow_row == row - 1 && left <= arrow && arrow <= right,
+                left <= open && open <= right,
+            ),
+        };
+        assert_eq!(
+            (gap, arrow_in_gap, centered),
+            (1, true, true),
+            "OVL-002: a popover {position:?} its trigger with one cell between, the arrow in it, the box centered on the trigger:\n{}",
+            frame.text
+        );
+    }
+}
+
 // ---------------------------------------------------------------- OVL-003
 
 /// A box of three rows that clips its content, with `child` inside it.
