@@ -283,6 +283,59 @@ fn ovl_001_a_popover_box_is_surface_with_a_border_and_its_arrow_a_piece_of_it() 
     );
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_001_a_retry_button_and_a_button_of_a_look_without_it_take_a_role() {
+    use reactive_tui::{
+        core::geometry::Rect,
+        widgets::dialog::{
+            ConfirmationButtons, ConfirmationDialog, ConfirmationDialogOptions, DialogComponent,
+            DialogId, DialogTheme,
+        },
+    };
+    let _theme = Active::set(probe());
+    // Retry is a warning button, which the default theme's map does not
+    // name; a theme whose map is empty names nothing.
+    for (name, theme) in [
+        ("the default theme", DialogTheme::default()),
+        (
+            "a theme with no button looks",
+            DialogTheme {
+                button_styles: Default::default(),
+                ..DialogTheme::default()
+            },
+        ),
+    ] {
+        let frame = shown(
+            ConfirmationDialog::new(
+                DialogId::from_u32(4),
+                ConfirmationDialogOptions {
+                    title: "T".into(),
+                    message: "Try again?".into(),
+                    buttons: ConfirmationButtons::RetryCancel,
+                    default_button: Some("cancel".into()),
+                    ..Default::default()
+                },
+            )
+            .render(Rect::default(), &theme),
+            (80, 24),
+            "Try again?",
+        );
+        let (text, fill) = colors(&frame, "Retry");
+        let (column, row) = find(&frame, "Retry").unwrap();
+        assert_eq!(
+            (text, fill, background(&frame, column - 1, row)),
+            (
+                Some(role("warning-foreground")),
+                Some(role("warning")),
+                Some(role("warning"))
+            ),
+            "OVL-001: under {name} the Retry button is in `warning` with one cell of padding:\n{}",
+            frame.text
+        );
+    }
+}
+
 // ---------------------------------------------------------------- OVL-002
 
 #[test]
