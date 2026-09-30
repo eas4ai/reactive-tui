@@ -25,6 +25,10 @@ pub(super) struct MenuView {
     pub targets: Arc<Mutex<HashMap<Vec<usize>, LayoutInfo>>>,
     visible_targets: Mutex<HashSet<Vec<usize>>>,
     pub panels: Arc<Mutex<HashMap<usize, LayoutInfo>>>,
+    /// The path of the rows each panel depth was last measured for, so a
+    /// panel for another row at the same depth is not placed by the old
+    /// panel's size.
+    pub opened: Mutex<HashMap<usize, Vec<usize>>>,
     pub row_heights: Arc<Mutex<HashMap<Vec<usize>, f32>>>,
     pub chrome: Arc<Mutex<HashMap<(usize, bool), LayoutInfo>>>,
 }
