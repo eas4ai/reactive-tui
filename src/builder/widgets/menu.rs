@@ -577,7 +577,9 @@ impl ContextMenuBuilder {
             items: Vec::new(),
             style: MenuStyle::default(),
             enabled: true,
-            visible: true,
+            // A context menu opens where the user asks for it; open at
+            // mount, it stood at the screen's first cell.
+            visible: false,
             trigger_on_right_click: true,
             auto_close: true,
             on_item_selected: None,

@@ -2,10 +2,10 @@ use reactive_tui::builder::specialized::WizardStep;
 use reactive_tui::{
     app::{RootComponent, RootUpdate},
     builder::{
-        action_item, checkbox, confirmation_dialog, context_menu, data_table, div, file_explorer,
-        image, menubar, path_breadcrumb, popover, progress_bar, progress_dialog, radio_button,
-        scroll_view, select, simple_accordion, slider, stack, tabs, text_input, toast, tree,
-        wizard,
+        action_item, checkbox, checkbox_item, confirmation_dialog, context_menu, data_table, div,
+        file_explorer, image, menu_item, menubar, path_breadcrumb, popover, progress_bar,
+        progress_dialog, radio_button, radio_item, scroll_view, select, separator,
+        simple_accordion, slider, stack, submenu_item, tabs, text_input, toast, tree, wizard,
     },
     component::Element,
     core::geometry::Rect,
@@ -13,6 +13,7 @@ use reactive_tui::{
         router::EventResult,
         types::{Event, KeyCode, KeyEventKind},
     },
+    theme::{self, Theme},
     widgets::{
         dialog::{
             AutocompleteConfig, AutocompleteDialog, AutocompleteDialogOptions, DialogComponent,
@@ -26,7 +27,7 @@ use reactive_tui::{
             LineChartBuilder, PieChartBuilder, RadarChartBuilder, SankeyChartBuilder, SankeyLink,
             ScatterChartBuilder, SizeClass,
         },
-        menu::DialogMenuBuilder,
+        menu::{DialogMenuBuilder, MenuItem},
         DialogMenu, TerminalProps, TerminalWidget,
     },
 };
@@ -42,6 +43,15 @@ pub mod scene;
 use reactive_tui::graphics::{Canvas, CanvasProps, GraphicsFault, GraphicsOptions, GraphicsWorker};
 #[cfg(feature = "wgpu-graphics")]
 use std::sync::Arc;
+
+/// The built-in themes, in the order F3 cycles through them.
+const PRESETS: [fn() -> Theme; 5] = [
+    theme::dark_theme,
+    theme::light_theme,
+    theme::high_contrast_theme,
+    theme::solarized_dark_theme,
+    theme::gruvbox_dark_theme,
+];
 
 /// What the catalog's command line asks of the canvas, and whether the
 /// catalog opens on the Motion page.
@@ -254,13 +264,13 @@ impl Catalog {
     fn footer_text(&self) -> &'static str {
         match (self.navigation_layout(), self.page) {
             (NavigationLayout::Compact, CatalogPage::MenusDialogs) => {
-                "1–9 page · F2 demo · Ctrl+Q quit"
+                "1–9 page · F2 demo · F3 theme · Ctrl+Q quit"
             }
-            (NavigationLayout::Compact, _) => "1–9 page · Ctrl+Q quit",
+            (NavigationLayout::Compact, _) => "1–9 page · F3 theme · Ctrl+Q quit",
             (_, CatalogPage::MenusDialogs) => {
-                "↑↓/←→ page · 1–9 jump · F1/F2 demo · Tab interact · Ctrl+Q / Ctrl+C / Esc quit"
+                "↑↓/←→ page · 1–9 jump · F1/F2 demo · F3 theme · Tab interact · Ctrl+Q / Ctrl+C / Esc quit"
             }
-            (_, _) => "↑↓/←→ page · 1–9 jump · Tab interact · Ctrl+Q / Ctrl+C / Esc quit",
+            (_, _) => "↑↓/←→ page · 1–9 jump · F3 theme · Tab interact · Ctrl+Q / Ctrl+C / Esc quit",
         }
     }
 
@@ -284,9 +294,9 @@ impl Catalog {
                         "w-full shrink-0 h-1"
                     })
                     .class(if *page == self.page {
-                        "bg-cyan-900 text-cyan-200 font-bold"
+                        "bg-selection text-selection-foreground font-bold"
                     } else {
-                        "text-gray-400"
+                        "text-muted"
                     })
                     .text(&if compact {
                         format!("{marker}[{}]", index + 1)
@@ -299,11 +309,11 @@ impl Catalog {
 
         match self.navigation_layout() {
             NavigationLayout::Sidebar => div()
-                .class("w-24 shrink-0 h-full flex-col border-r border-gray-700 bg-gray-950 p-0")
+                .class("w-24 shrink-0 h-full flex-col bg-surface p-0")
                 .children(entries)
                 .build(),
             NavigationLayout::Compact => div()
-                .class("w-full shrink-0 h-3 flex-row border-b border-gray-700 bg-gray-950 px-0")
+                .class("w-full shrink-0 h-3 flex-row bg-surface px-0")
                 .children(entries)
                 .build(),
         }
@@ -315,10 +325,10 @@ impl Catalog {
             body.class.as_deref().unwrap_or_default()
         );
         div()
-            .class("flex-col min-w-0 shrink-0 border border-gray-700 bg-gray-900 p-0 gap-1")
+            .class("flex-col min-w-0 shrink-0 bg-surface p-1 gap-1")
             .child(
                 div()
-                    .class("h-1 shrink-0 text-cyan-300 font-bold")
+                    .class("h-1 shrink-0 text-accent font-bold")
                     .text(title)
                     .build(),
             )
@@ -331,20 +341,20 @@ impl Catalog {
             .class("w-full flex-col gap-1")
             .child(
                 div()
-                    .class("w-full shrink-0 whitespace-normal text-white font-bold")
+                    .class("w-full shrink-0 whitespace-normal text-foreground font-bold")
                     .text("One small app. Every widget family. Built for capture.")
                     .build(),
             )
             .child(
                 div()
-                    .class("w-full shrink-0 whitespace-normal text-gray-400")
+                    .class("w-full shrink-0 whitespace-normal text-muted")
                     .text("Use arrows or the numbered shortcuts to move between focused stages.")
                     .build(),
             )
             .child(Self::card(
                 "Coverage",
                 div()
-                    .class("w-full whitespace-normal text-gray-300")
+                    .class("w-full whitespace-normal text-muted")
                     .text(WIDGET_FAMILY_INVENTORY)
                     .build(),
             ))
@@ -453,7 +463,7 @@ impl Catalog {
         let span_cell = |label: &str, classes: &str| {
             div()
                 .class(if self.width < 80 { "h-2" } else { "h-3" })
-                .class("min-w-0 px-0 text-white")
+                .class("min-w-0 px-0 text-foreground")
                 .class(classes)
                 .text(label)
                 .build()
@@ -753,11 +763,34 @@ impl Catalog {
             .build()
     }
 
-    fn menus_dialogs_page(&self) -> Element {
-        let menu_items = vec![
-            action_item("new", "New capture", || {}),
+    /// The rows every menu demo shows: an action with a shortcut, a
+    /// separator, a checkbox, a radio pair, a disabled row and a submenu.
+    fn menu_rows() -> Vec<reactive_tui::builder::widgets::menu::MenuItem> {
+        use reactive_tui::builder::widgets::menu::MenuShortcut;
+        vec![
+            menu_item("new", "New capture")
+                .shortcut(MenuShortcut::new("Ctrl+N", vec!["ctrl+n"]))
+                .action(|| {})
+                .build(),
             action_item("export", "Export clip", || {}),
-        ];
+            separator(),
+            checkbox_item("wrap", "Wrap lines", true, |_| {}),
+            radio_item("small", "Small", false, "size", || {}),
+            radio_item("large", "Large", true, "size", || {}),
+            menu_item("locked", "Locked").enabled(false).build(),
+            submenu_item(
+                "recent",
+                "Recent",
+                vec![
+                    action_item("first", "First capture", || {}),
+                    action_item("second", "Second capture", || {}),
+                ],
+            ),
+        ]
+    }
+
+    fn menus_dialogs_page(&self) -> Element {
+        let menu_items = Self::menu_rows();
         let titles = [
             "MenuBar",
             "ContextMenu",
@@ -774,17 +807,53 @@ impl Catalog {
         ];
         let index = self.demo % titles.len();
         let body = match index {
-            0 => menubar().items(menu_items).title("Catalog").build(),
-            1 => context_menu().items(menu_items).build(),
+            0 => menubar()
+                .item(submenu_item("file", "File", menu_items))
+                .item(submenu_item(
+                    "edit",
+                    "Edit",
+                    vec![
+                        action_item("undo", "Undo", || {}),
+                        action_item("redo", "Redo", || {}),
+                    ],
+                ))
+                .item(menu_item("help", "Help").enabled(false).build())
+                .title("Catalog")
+                .build()
+                .auto_focus(),
+            // The context menu serves its card: a right click in it, or
+            // Shift+F10 while it holds the focus, opens the menu there.
+            1 => div()
+                .class("relative w-full h-6")
+                .child(
+                    Element::text("Right click here, or press Shift+F10").with_class("text-muted"),
+                )
+                .child(
+                    context_menu()
+                        .items(menu_items)
+                        .class("absolute left-0 top-0 w-full h-full")
+                        .build()
+                        .auto_focus(),
+                )
+                .build(),
             2 => reactive_tui::builder::popup_menu()
                 .items(menu_items)
-                .build(),
-            3 => Element::typed::<DialogMenu>(
-                DialogMenuBuilder::confirmation()
+                .build()
+                .auto_focus(),
+            3 => {
+                let mut dialog = DialogMenuBuilder::confirmation()
                     .title("DialogMenu")
                     .message("Keep this capture?")
-                    .build(),
-            ),
+                    .items(vec![
+                        MenuItem::action("keep", "Keep", || {}),
+                        MenuItem::action("discard", "Discard", || {}),
+                    ])
+                    .default_button(0)
+                    .cancel_button(1)
+                    .build();
+                dialog.visible = true;
+                Element::typed::<DialogMenu>(dialog)
+            }
             4 => reactive_tui::builder::modal()
                 .title("Modal")
                 .content(Element::text("Focused overlay · Escape closes"))
@@ -869,7 +938,7 @@ impl Catalog {
             ))
             .child(
                 div()
-                    .class("text-gray-400")
+                    .class("text-muted")
                     .text("Tracked local asset · terminal protocol or cell fallback")
                     .build(),
             )
@@ -901,13 +970,13 @@ impl Catalog {
                 .class("w-full h-full flex-1 flex-col min-h-0")
                 .child(
                     div()
-                        .class("h-1 shrink-0 text-white font-bold")
+                        .class("h-1 shrink-0 text-foreground font-bold")
                         .text("Shaded spinning cube")
                         .build(),
                 )
                 .child(
                     div()
-                        .class("h-1 shrink-0 text-cyan-300")
+                        .class("h-1 shrink-0 text-accent")
                         .text(&renderer)
                         .build(),
                 )
@@ -923,19 +992,19 @@ impl Catalog {
             .class("w-full h-full flex-1 flex-col min-h-0")
             .child(
                 div()
-                    .class("h-1 shrink-0 text-white font-bold")
+                    .class("h-1 shrink-0 text-foreground font-bold")
                     .text("Motion")
                     .build(),
             )
             .child(
                 div()
-                    .class("h-1 shrink-0 text-cyan-300")
+                    .class("h-1 shrink-0 text-accent")
                     .text("Wireframe cube · Braille subpixels · 50 ms")
                     .build(),
             )
             .child(
                 div()
-                    .class("w-full flex-1 min-h-0 whitespace-pre text-cyan-300")
+                    .class("w-full flex-1 min-h-0 whitespace-pre text-accent")
                     .text(self.motion.frame())
                     .build(),
             )
@@ -958,7 +1027,7 @@ impl Catalog {
             ))
             .child(
                 div()
-                    .class("text-yellow-300")
+                    .class("text-warning")
                     .text("Bounded command only; the Kitty shell crash remains tracked separately.")
                     .build(),
             )
@@ -982,7 +1051,7 @@ impl Catalog {
     fn stage(&self) -> Element {
         if self.page == CatalogPage::Motion {
             return div()
-                .class("flex-col flex-1 min-w-0 min-h-0 h-full bg-gray-900")
+                .class("flex-col flex-1 min-w-0 min-h-0 h-full bg-surface")
                 .child(self.motion_page())
                 .build();
         }
@@ -992,10 +1061,10 @@ impl Catalog {
             page.class.as_deref().unwrap_or_default()
         );
         div()
-            .class("flex-col flex-1 min-w-0 min-h-0 h-full p-0 gap-1 bg-black")
+            .class("flex-col flex-1 min-w-0 min-h-0 h-full p-0 gap-1 bg-background")
             .child(
                 div()
-                    .class("h-1 shrink-0 text-white font-bold")
+                    .class("h-1 shrink-0 text-foreground font-bold")
                     .text(self.page.title())
                     .build(),
             )
@@ -1038,20 +1107,25 @@ impl RootComponent for Catalog {
                 .build(),
         };
         div()
-            .class("w-screen h-screen flex-col bg-black text-gray-200")
+            .class("w-screen h-screen flex-col bg-background text-foreground")
             .child(
                 div()
-                    .class("w-full shrink-0 h-3 flex-row px-0 bg-gray-950 border-b border-gray-700")
+                    .class("w-full shrink-0 h-3 flex-row px-0 bg-surface")
                     .child(
                         div()
-                            .class("flex-1 text-cyan-300 font-bold")
+                            .class("flex-1 text-accent font-bold")
                             .text("◈ Reactive TUI · Widget Catalog")
                             .build(),
                     )
                     .child(
                         div()
-                            .class("text-gray-500")
-                            .text(&format!("{}×{}", self.width, self.height))
+                            .class("text-muted")
+                            .text(&format!(
+                                "{}×{} · theme {}",
+                                self.width,
+                                self.height,
+                                Theme::active().name
+                            ))
                             .build(),
                     )
                     .build(),
@@ -1059,7 +1133,7 @@ impl RootComponent for Catalog {
             .child(content)
             .child(
                 div()
-                    .class("w-full shrink-0 h-1 px-0 bg-gray-950 text-gray-500")
+                    .class("w-full shrink-0 h-1 px-0 bg-surface text-muted")
                     .text(self.footer_text())
                     .build(),
             )
@@ -1082,6 +1156,17 @@ impl RootComponent for Catalog {
         };
         if key.kind == KeyEventKind::Release {
             return Ok(EventResult::Ignored);
+        }
+        if key.code == KeyCode::F(3) {
+            // The next built-in theme after the active one; an application
+            // theme of another name gives way to the first.
+            let active = Theme::active();
+            let next = PRESETS
+                .iter()
+                .position(|preset| preset().name == active.name)
+                .map_or(0, |index| (index + 1) % PRESETS.len());
+            Theme::set_active(PRESETS[next]());
+            return Ok(EventResult::Handled);
         }
         if self.page == CatalogPage::MenusDialogs && matches!(key.code, KeyCode::F(1 | 2)) {
             self.demo = if key.code == KeyCode::F(1) {
