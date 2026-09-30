@@ -35,9 +35,9 @@ This file records user-visible changes to Reactive TUI. The project follows
   have one cell of padding at each side; a `DialogTheme` title `px-1`. The
   input and autocomplete dialogs' field, the suggestion list and the
   progress dialog's bar are 36 cells wide, so those boxes are 40 cells
-  unless a longer line widens them (they were a fixed 40). A confirmation dialog has no icon unless its
-  options name one. A line breaks at a space only, so "sure?" is never
-  split into "sure" and "?".
+  unless a longer line widens them (they were a fixed 40). A confirmation
+  dialog has no icon unless its options name one. A line breaks at a
+  space only, so "sure?" is never split into "sure" and "?".
 - **Breaking:** a modal, a dialog or a toast is placed on the screen and
   painted whole, also when the element that owns it stands inside a card
   or a box that clips its content; it was centered in that box and cut by
@@ -58,13 +58,13 @@ This file records user-visible changes to Reactive TUI. The project follows
   along the placement's axis, and `offset` moves the box from there (its
   default was `(0, 8)`, which is now `(0, 0)`; `PopoverArrow::size` was
   8). A struct literal that names every field of `PopoverProps` no longer
-  compiles; `..Default::default()` does. Its box is `bg-surface text-foreground` with a border in `border`
-  and one cell of padding inside it, and its arrow is a piece of the box,
-  filled in `surface` with its outline in `border`; the box had no color,
-  border or padding. The veil of `backdrop_filter` is
-  `bg-overlay`. Opened by Enter or Space on its trigger, a popover moves the
-  focus into its content when the content holds a focusable element and
-  back to the trigger when it closes.
+  compiles; `..Default::default()` does. Its box is `bg-surface
+  text-foreground` with a border in `border` and one cell of padding
+  inside it, and its arrow is a piece of the box, filled in `surface` with
+  its outline in `border`; the box had no color, border or padding. The
+  veil of `backdrop_filter` is `bg-overlay`. Opened by Enter or Space on
+  its trigger, a popover moves the focus into its content when the content
+  holds a focusable element and back to the trigger when it closes.
 - A confirmation dialog tells the screen reader it is an alert dialog, not
   a dialog; a toast is labeled by its kind and described by its message;
   a popover's trigger reports whether the popover is open (it set a class
