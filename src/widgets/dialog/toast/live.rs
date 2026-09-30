@@ -163,7 +163,7 @@ impl Component for LiveToast {
             backdrop_clickable: false,
             modal_style: Some(format!("{style} {}", props.class.as_deref().unwrap_or(""))),
             animation: ModalAnimation::None,
-            z_index: 2000,
+            z_index: super::super::engine::TOAST_LAYER,
             on_close: Some(Arc::new(move |_| {
                 lifetime.cancel(false);
                 close(&visible, &config);

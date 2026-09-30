@@ -3,8 +3,8 @@
 //! Provides input dialogs with validation, different input types, and async validation support.
 
 use super::{
-    BaseDialogState, DialogBounds, DialogComponent, DialogEventResult, DialogId, DialogPosition,
-    DialogResult, DialogTheme, FocusableElementInfo, ValidationResult,
+    BaseDialogState, DialogComponent, DialogEventResult, DialogId, DialogPosition, DialogResult,
+    DialogTheme, FocusableElementInfo, ValidationResult,
 };
 use crate::component::Element;
 use crate::core::geometry::{Point, Rect, Size};
@@ -247,8 +247,6 @@ pub struct InputDialog {
     validation_state: ValidationResult,
     /// Whether input is focused
     input_focused: bool,
-    /// Dialog bounds
-    bounds: DialogBounds,
     /// Last validation time for debouncing
     last_validation: Option<std::time::Instant>,
     /// Pending validation request
@@ -277,16 +275,6 @@ impl InputDialog {
         let cursor_position = input_value.len();
         let input_focused = !options.input.attribute_enabled("disabled");
 
-        let bounds = DialogBounds {
-            size: options.size,
-            min_size: Some(Size::new(400, 200)),
-            max_size: Some(Size::new(800, 600)),
-            position: options.position.clone(),
-            resizable: false,
-            draggable: true,
-            ..Default::default()
-        };
-
         Self {
             state: BaseDialogState::new(id),
             options,
@@ -295,7 +283,6 @@ impl InputDialog {
             selection: None,
             validation_state: ValidationResult::default(),
             input_focused,
-            bounds,
             last_validation: None,
             pending_validation: false,
         }
@@ -593,10 +580,6 @@ impl DialogComponent for InputDialog {
         }
 
         false
-    }
-
-    fn get_bounds(&self) -> DialogBounds {
-        self.bounds.clone()
     }
 
     fn is_modal(&self) -> bool {

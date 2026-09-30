@@ -141,7 +141,13 @@ impl Component for Host {
                     Element::typed::<Layer>(LayerProps {
                         content: content.render(id, &config.default_theme),
                         presentation: Presentation {
-                            z_index: config.base_z_index + (rank * 2) as u16,
+                            // A toast is painted over the dialogs and the
+                            // popovers, under the menu panels (OVL-003).
+                            z_index: if content.toast_position().is_some() {
+                                TOAST_LAYER
+                            } else {
+                                config.base_z_index
+                            } + (rank * 2) as u16,
                             focus_trap: config.focus_trap,
                             escape_to_close: config.escape_to_close,
                             backdrop_blur: config.backdrop_blur,
@@ -168,6 +174,10 @@ impl Drop for Host {
         self.release();
     }
 }
+
+/// Where a toast is painted: over a modal or a dialog (1000 and up) and a
+/// popover (2000), under a menu panel (3000).
+pub(in crate::widgets::dialog) const TOAST_LAYER: u16 = 2500;
 
 #[derive(Clone)]
 pub(in crate::widgets::dialog) struct Presentation {

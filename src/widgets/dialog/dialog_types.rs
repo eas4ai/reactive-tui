@@ -7,8 +7,8 @@ use std::time::Duration;
 
 // Re-export commonly used types from other modules
 pub use super::dialog_component::{
-    DialogAnimationConfig, DialogAnimationType, DialogBounds, DialogEasing, DialogPosition,
-    FocusableElementInfo, FocusableElementType, ValidationResult,
+    DialogAnimationConfig, DialogAnimationType, DialogEasing, DialogPosition, FocusableElementInfo,
+    FocusableElementType, ValidationResult,
 };
 
 /// Quick dialog builder for common dialog types

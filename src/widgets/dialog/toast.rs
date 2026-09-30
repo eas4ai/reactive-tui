@@ -3,7 +3,7 @@
 //! Provides non-modal toast notifications with auto-dismiss and positioning options.
 
 use super::{
-    BaseDialogState, DialogBounds, DialogComponent, DialogEventResult, DialogId, DialogTheme,
+    BaseDialogState, DialogComponent, DialogEventResult, DialogId, DialogTheme,
     FocusableElementInfo,
 };
 use crate::component::Element;
@@ -118,7 +118,6 @@ pub enum ToastPosition {
 pub struct Toast {
     state: BaseDialogState,
     options: ToastOptions,
-    bounds: DialogBounds,
     auto_dismiss_time: Option<std::time::Instant>,
 }
 
@@ -137,7 +136,6 @@ impl Toast {
         Self {
             state: BaseDialogState::new(id),
             options,
-            bounds: DialogBounds::default(),
             auto_dismiss_time,
         }
     }
@@ -170,9 +168,6 @@ impl DialogComponent for Toast {
             }
         }
         false
-    }
-    fn get_bounds(&self) -> DialogBounds {
-        self.bounds.clone()
     }
     fn is_modal(&self) -> bool {
         false

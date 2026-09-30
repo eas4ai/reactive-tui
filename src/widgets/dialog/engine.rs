@@ -11,7 +11,7 @@ mod live;
 mod mailbox;
 mod motion;
 use content::Content;
-pub(super) use live::Presentation;
+pub(super) use live::{Presentation, TOAST_LAYER};
 use mailbox::Mailbox;
 pub use motion::DialogAnimationFrame;
 type AnimationCallback = Arc<dyn Fn(f32) -> DialogAnimationFrame + Send + Sync>;

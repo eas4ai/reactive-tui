@@ -3,7 +3,7 @@
 //! Provides multi-step wizard dialogs with navigation and validation.
 
 use super::{
-    BaseDialogState, DialogBounds, DialogComponent, DialogEventResult, DialogId, DialogTheme,
+    BaseDialogState, DialogComponent, DialogEventResult, DialogId, DialogTheme,
     FocusableElementInfo, ValidationResult,
 };
 use crate::component::Element;
@@ -99,7 +99,6 @@ pub struct WizardDialog {
     options: WizardDialogOptions,
     current_step: usize,
     step_data: HashMap<String, String>,
-    bounds: DialogBounds,
 }
 
 impl WizardDialog {
@@ -128,7 +127,6 @@ impl WizardDialog {
             options,
             current_step: 0,
             step_data: HashMap::new(),
-            bounds: DialogBounds::default(),
         }
     }
 
@@ -212,9 +210,6 @@ impl DialogComponent for WizardDialog {
     fn update(&mut self, _delta_time: Duration) -> bool {
         // Wizard dialogs are typically static, but could animate transitions
         false
-    }
-    fn get_bounds(&self) -> DialogBounds {
-        self.bounds.clone()
     }
     fn is_modal(&self) -> bool {
         true

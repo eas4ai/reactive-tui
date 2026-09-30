@@ -247,7 +247,9 @@ impl Default for PopoverProps {
             hover_leave_delay: Duration::from_millis(300),
             focus_trap: false,
             auto_focus: false,
-            z_index: 1000,
+            // Over a modal or a dialog (1000 and up), under a toast (2500)
+            // and a menu panel (3000): the stacking order of OVL-003.
+            z_index: 2000,
             backdrop_filter: false,
             min_width: None,
             max_width: None,

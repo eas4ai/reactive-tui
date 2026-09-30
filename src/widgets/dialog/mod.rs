@@ -15,7 +15,6 @@
 
 pub mod autocomplete;
 pub mod confirmation;
-pub mod dialog_buffer;
 pub mod dialog_component;
 pub mod dialog_types;
 mod frame;
@@ -28,7 +27,6 @@ pub mod wizard;
 // Re-export main types
 pub use autocomplete::*;
 pub use confirmation::*;
-pub use dialog_buffer::*;
 pub use dialog_component::*;
 pub use dialog_types::*;
 pub use input::*;
