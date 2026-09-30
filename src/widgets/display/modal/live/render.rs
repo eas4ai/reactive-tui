@@ -44,7 +44,6 @@ impl Runtime {
         motion: Option<&Motion>,
         on_presented: Option<&Arc<dyn Fn() + Send + Sync>>,
     ) -> Element {
-        std::thread::sleep(std::time::Duration::from_millis(20)); // VIOLATING EXAMPLE
         if let Some(error) = validation_error(props) {
             self.cancel();
             return Element::text(error).class("text-error");
