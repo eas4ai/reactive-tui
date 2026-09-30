@@ -240,6 +240,7 @@ impl MenuView {
             used += heights[end];
             end += 1;
         }
+        let eligible_count = eligible.len();
         let rows: Vec<_> = eligible
             .into_iter()
             .skip(start)
@@ -344,10 +345,23 @@ impl MenuView {
                 outline,
             ));
         }
+        // The screen reader hears a panel by the row that opened it, and
+        // how many rows it holds of how many (BAR-003).
+        let mut semantic = Node::new(Role::Menu);
+        if let Some((last, above)) = parent.split_last() {
+            if let Some(opener) = list_at(&menu.items, above).get(*last) {
+                semantic.set_label(opener.text.clone());
+            }
+        }
+        semantic.set_description(if eligible_count == rows.len() {
+            format!("{} rows", rows.len())
+        } else {
+            format!("{} of {} rows", rows.len(), eligible_count)
+        });
         let mut panel = node(style, contents)
             .with_key(format!("menu-panel:{depth}"))
             .with_class(&options.rows.style.base_classes)
-            .with_accessibility(Node::new(Role::Menu));
+            .with_accessibility(semantic);
         if let Some(focus) = options.focus {
             panel = panel.with_focus(focus);
         }
@@ -430,6 +444,63 @@ mod tests {
         assert_eq!(
             Spot::LeftOf(anchor(4.0, 3.0, 8.0, 1.0)).corner(size, VIEWPORT),
             (12.0, 3.0)
+        );
+    }
+
+    #[test]
+    fn bar_003_a_panel_tells_the_screen_reader_what_opened_it_and_how_many_rows_it_holds() {
+        use crate::component::LayoutInfo;
+        use crate::event::hit::Bounds;
+        let menu = MenuModel::new(
+            vec![super::super::MenuItem::submenu(
+                "file",
+                "File",
+                (1..=4)
+                    .map(|n| super::super::MenuItem::new(format!("r{n}"), format!("Row {n}")))
+                    .collect(),
+            )],
+            vec![0, 0],
+        );
+        let style = super::super::MenuStyle::default();
+        let view = MenuView::default();
+        let root = LayoutInfo::from_bounds(Bounds::new(0.0, 0.0, 40.0, 12.0));
+        let elements = view.panel(
+            &menu,
+            &[0],
+            root,
+            Spot::At(0.0, 0.0),
+            PanelOptions {
+                rows: RowOptions {
+                    horizontal: false,
+                    style: &style,
+                    shortcuts: true,
+                    enabled: true,
+                    focused: true,
+                    selection: &[0, 0],
+                },
+                maximum: 2,
+                width: None,
+                focus: None,
+                height: None,
+                leading: Vec::new(),
+                trailing: Vec::new(),
+                border: true,
+                shadow: false,
+            },
+        );
+        let panel = elements.last().expect("a panel");
+        let spoken = panel
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the panel has an accessibility node");
+        assert_eq!(
+            (
+                spoken.inner.role(),
+                spoken.inner.label(),
+                spoken.inner.description()
+            ),
+            (Role::Menu, Some("File"), Some("2 of 4 rows"))
         );
     }
 
