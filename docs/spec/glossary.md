@@ -84,6 +84,16 @@ Terms as the code uses them. Each names where it is defined.
 - **Veil.** The layer an overlay or a dialog menu lays over the whole
   screen behind its box, in the theme's `overlay` role, so what is under
   it shows dimmed and takes no click.
+- **Control.** An input widget: the text input, the checkbox, the radio
+  button, the select, the slider and the button (input-widgets.md). It
+  shows a value or a choice, changes it on a key or a click, and reports
+  the change through a callback.
+- **Field.** The row of cells a text input or a select shows its value or
+  its placeholder in, in the theme's `input` role, between the two cells
+  of its frame.
+- **Frame.** The first and the last cell of a field, of a checkbox's box
+  and of a radio's ring (`[` and `]`, `(` and `)`), painted in `border`,
+  and in `ring` while the control holds the focus.
 - **Kitty keyboard protocol.** Progressive keyboard enhancement flags a
   terminal accepts with `CSI > flags u` and drops with `CSI < u`; with them
   it reports keys as `CSI code ; modifiers ; text u`, so keys that legacy
