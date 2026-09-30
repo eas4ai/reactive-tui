@@ -5,6 +5,58 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- **Breaking:** the text input, the checkbox, the radio button, the select,
+  the slider and the button take every color from the active theme. A
+  text input's and a select's field is `bg-input text-foreground`, its
+  placeholder, the select's caret and line numbers `text-muted`; a
+  control's frame (a field's two end cells, a checkbox's `[ ]`, a radio's
+  `( )`) is `border` and `ring` while it holds the focus, and `error` on a
+  text input whose value fails its validator; a check mark, a radio's dot
+  and a slider's filled track are `primary`, the track `border`, the
+  thumb `foreground`; labels are `foreground`, `text-muted` when
+  disabled; the row under the pointer is `hover`; the text input's cursor
+  is the field reversed, its selection `selection` (it painted `bg-white
+  text-black`, `bg-blue-600 text-white`, `text-gray-500` and
+  `text-red-500`). Focus, hover and disabled show by those colors alone:
+  the `▶ ` before a focused control, the `🔒 ` and `❌ ` status cells, the
+  underscores around a hovered label and the parentheses around a disabled
+  one are gone, so a text input's field starts at its first cell (it
+  started two cells in). `builder::button()` is `bg-secondary
+  text-secondary-foreground` and `builder::primary_button()` `bg-primary
+  text-primary-foreground`, each one row tall with one cell of padding at
+  each side and `bg-selection` while focused; they were `px-16 py-8` in a
+  fixed blue. `builder::input()`, `styled_input()` and `search_input()` set
+  no palette classes on the field. The input, autocomplete and progress
+  dialogs' goldens changed with the field.
+- **Breaking:** a text input's field, a select's row and a slider's track
+  fill the width their parent allots: `TextInputProps::width` and
+  `SelectProps::width` default to `None` (they were `Some(30)`), a
+  `SliderProps::width` of 0 (the default, it was 20) takes what the
+  label, the value and the end labels leave, and a `w-N` class on the
+  builder sets the width. A slider is one row: its label stands before the
+  track, not above it. A select's list shows every option as far as the
+  screen holds them, scrolling to keep the current row in view:
+  `SelectProps::max_visible_items` defaults to `usize::MAX` (it was 5).
+- **Breaking:** a select's open list and a text input's suggestion list are
+  a panel in `surface` with a border in `border`, under the row, or above
+  it when only the space above holds it, painted whole over the page (also
+  inside a modal, a popover or a box that clips) without moving what is
+  under the control; they were rows drawn inside the control's own box,
+  which pushed the page down and were cut by a card. The list's current
+  row is `bg-selection`, the chosen option marked `●`; a pointer row is
+  one lower than before, after the border.
+- `TextInputProps`, `CheckboxProps`, `RadioButtonProps`, `SelectProps` and
+  `SliderProps` have a new field `aria_label`, and their builders a method
+  of that name: the name the screen reader hears apart from the visible
+  label (a text input's placeholder names it otherwise, a select's
+  placeholder too). A radio group's node carries its orientation and the
+  chosen radio is selected as well as toggled; a text input's error line
+  is an alert. A struct literal that names every field of one of those
+  props no longer compiles; `..Default::default()` does.
+- The widget catalog's Input widgets page paints its text input (its card
+  was empty), opens with the text input focused, so Tab walks the
+  controls and Enter opens the select, and has a Button card.
+
 - **Breaking:** the modal, the popover, the toast and the confirmation,
   input, autocomplete, progress and wizard dialogs take every color from
   the active theme. `ModalProps::default()` is `bg-surface text-foreground`

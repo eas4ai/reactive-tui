@@ -89,27 +89,6 @@ pub fn card(children: Vec<Element>) -> Element {
         .build()
 }
 
-/// Create a primary button with default styling
-///
-/// # Arguments
-/// * `text` - Button text to display
-/// * `onclick` - Click handler function
-///
-/// # Returns
-/// A styled primary button element
-pub fn primary_button<F>(text: &str, onclick: F) -> Element
-where
-    F: Fn() + Send + Sync + 'static,
-{
-    // The primary look: `primary` with its text, one cell of padding at
-    // each side, `selection` while it holds the focus (CTL-001).
-    div()
-        .class(crate::widgets::input::look::PRIMARY_BUTTON)
-        .text(text)
-        .on_click(Box::new(onclick))
-        .build()
-}
-
 /// Create a horizontal flex container with specified gap
 ///
 /// # Arguments
@@ -164,9 +143,8 @@ pub fn grid_layout(cols: u8, gap: &str, children: Vec<Element>) -> Element {
 /// # Returns
 /// An `ElementBuilder` for a styled text input
 pub fn styled_input(placeholder: &str) -> ElementBuilder {
-    input()
-        .class("px-12 py-8 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500")
-        .placeholder(placeholder)
+    // The field's look comes from the theme's roles (CTL-001).
+    input().placeholder(placeholder)
 }
 
 /// Create a search input with search icon
@@ -180,12 +158,9 @@ pub fn search_input(placeholder: &str) -> Element {
     div()
         .class("relative")
         .children(vec![
-            input()
-                .class("pl-4 pr-2 py-0 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500")
-                .placeholder(placeholder)
-                .build(),
+            input().class("pl-4").placeholder(placeholder).build(),
             div()
-                .class("absolute left-1 top-1 text-gray-400")
+                .class("absolute left-1 top-1 text-muted")
                 .text("🔍")
                 .build(),
         ])

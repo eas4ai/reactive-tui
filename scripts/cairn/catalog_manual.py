@@ -357,15 +357,59 @@ def overlay_docs_problems() -> list[str]:
     return problems
 
 
+INPUT_MANUAL = ROOT / "manual/input-widgets.md"
+# Each input widget: its card's title on the catalog's Input widgets page,
+# what builds it there, and the heading of its section in the manual.
+INPUT_WIDGETS = (
+    ("TextInput", r"\btext_input\(\)", "Text input"),
+    ("Checkbox", r"(?<![\w.])checkbox\(\)", "Checkbox"),
+    ("RadioButton", r"\bradio_button\(\)", "Radio button"),
+    ("Select", r"(?<![\w.])select\(\)", "Select"),
+    ("Slider", r"(?<![\w.])slider\(\)", "Slider"),
+    ("Button", r"\bprimary_button\(", "Button"),
+)
+INPUT_CODE = ("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/specialized.rs",
+              "src/builder/core.rs")
+
+
+def input_docs_problems() -> list[str]:
+    """The input family: the catalog's Input widgets page builds each of the
+    six controls in a card of its name, the manual has a heading for each,
+    and every method the manual's sections cite is a pub fn in the input
+    code or its builders."""
+    problems = []
+    code, prose, pages = catalog_pages()
+    page = pages.get("Input")
+    if page is None:
+        problems.append("catalog lists no Input widgets page")
+    for card, built, _ in INPUT_WIDGETS:
+        if page is not None and not (re.search(rf'"{card}"', prose[page[0]:page[1]])
+                                     and re.search(built, code[page[0]:page[1]])):
+            problems.append(f"catalog's Input widgets page has no {card} card built with {built}")
+    methods = set()
+    for f in rust_sources(*INPUT_CODE):
+        methods |= set(re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", strip_test_modules(f.read_text(errors="replace"))))
+    manual = INPUT_MANUAL.read_text(errors="replace") if INPUT_MANUAL.exists() else ""
+    for _, _, heading in INPUT_WIDGETS:
+        if heading not in [title for _, title in headings(manual)]:
+            problems.append(f"{INPUT_MANUAL.relative_to(ROOT)} has no {heading} heading")
+            continue
+        for piece in citations(section(manual, heading) or ""):
+            for name in METHOD_CALL.findall(piece):
+                if name not in methods:
+                    problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn in input code")
+    return problems
+
+
 def main() -> int:
     problems = (chart_docs_problems() + image_docs_problems() + canvas_docs_problems() + menu_docs_problems()
-                + overlay_docs_problems())
+                + overlay_docs_problems() + input_docs_problems())
     if problems:
         print("BAR-006 violated:")
         for p in problems:
             print("  " + p)
         return 1
-    print("BAR-006 holds for the chart family, the image widget, the graphics canvas, the menus and the overlays")
+    print("BAR-006 holds for the chart family, the image widget, the graphics canvas, the menus, the overlays and the input widgets")
     return 0
 
 

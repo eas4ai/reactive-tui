@@ -16,8 +16,10 @@ family (tests/charts_contract.rs), the image widget, whose block fallback
 now draws through the renderer's blitters (tests/api_widget_behavior/image.rs
 and its screen-reader unit test in src/widgets/display/image/live.rs), the
 graphics canvas (tests/canvas_widget.rs, built with wgpu-graphics), the
-menu family (tests/menus_contract.rs) and the overlay family: the modal,
-the popover, the toast and the five dialogs (tests/overlays_contract.rs).
+menu family (tests/menus_contract.rs), the overlay family: the modal,
+the popover, the toast and the five dialogs (tests/overlays_contract.rs),
+and the input family: the text input, checkbox, radio button, select,
+slider and button (tests/input_widgets_contract.rs).
 frame-budget also measures an animating canvas (tests/canvas_widget.rs), a
 dialog fading in and a progress dialog whose bar moves
 (tests/overlays_contract.rs).
@@ -95,6 +97,11 @@ WIDGET_CODE = {
                  "src/widgets/display/popover.rs", "src/widgets/display/popover",
                  "src/builder/widgets/dialog.rs", "src/builder/dialog_builders.rs"),
                 r"(?:Modal|Toast|Dialog|ConfirmationDialog|ProgressDialog|Wizard|Popover)Builder"),
+    # The input family: the text input, checkbox, radio button, select and
+    # slider, their builders, and the two button builders (input-widgets.md).
+    "input": (("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/specialized.rs",
+               "src/builder/core.rs"),
+              r"(?:TextInput|Checkbox|RadioButton|Select|Slider)Builder"),
 }
 BUILDERS = "src/builder"
 # The kernel's list of performance cores on a hybrid CPU.
@@ -223,6 +230,7 @@ def main() -> int:
             ("canvas", cargo_test_filtered("canvas_widget", "bar_003_", features=["wgpu-graphics"])),
             ("menus", cargo_test_filtered("menus_contract", "bar_003_")),
             ("overlays", cargo_test_filtered("overlays_contract", "bar_003_")),
+            ("input widgets", cargo_test_filtered("input_widgets_contract", "bar_003_")),
         ):
             if not passed:
                 problems.append(f"{name}: {reason}")
@@ -230,7 +238,7 @@ def main() -> int:
             literals = color_literals(code)
             if literals:
                 problems.append(f"{len(literals)} hard-coded colors in {family} code: {', '.join(literals[:4])}")
-        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus and overlays: {why}")
+        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus, overlays and input widgets: {why}")
     return finish(results)
 
 
