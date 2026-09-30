@@ -174,10 +174,14 @@ impl Component for LiveToast {
         let lifetime = self.lifetime.clone();
         let visible = self.visible.clone();
         let options = self.options.clone();
+        // The screen reader hears the toast's kind and its message (OVL-004).
+        let mut spoken = crate::accessibility::Node::new(role);
+        spoken.set_label(props.options.toast_type.name());
+        spoken.set_description(props.options.message.clone());
         super::super::frame::modal_with_presented_callback(
             modal,
             props.options.closable,
-            role,
+            spoken,
             Some(Arc::new(move || lifetime.presented(&visible, &options))),
         )
     }
@@ -196,6 +200,40 @@ impl Drop for LiveToast {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// OVL-004: the screen reader hears a toast's kind and its message.
+    #[test]
+    fn ovl_004_a_toast_tells_the_screen_reader_its_kind_and_its_message() {
+        for (kind, role, name) in [
+            (ToastType::Info, Role::Status, "Information"),
+            (ToastType::Success, Role::Status, "Success"),
+            (ToastType::Warning, Role::Alert, "Warning"),
+            (ToastType::Error, Role::Alert, "Error"),
+            (
+                ToastType::Custom("bg-accent".into()),
+                Role::Status,
+                "Notice",
+            ),
+        ] {
+            let props = LiveProps {
+                options: ToastOptions {
+                    message: "Capture saved".into(),
+                    toast_type: kind,
+                    ..Default::default()
+                },
+                class: None,
+                bounds: Rect::default(),
+            };
+            let element = LiveToast::new(props.clone()).render(&props, &());
+            let spoken = crate::widgets::display::modal::Modal::spoken(&element)
+                .expect("a toast is a modal");
+            assert_eq!(
+                (spoken.role(), spoken.label(), spoken.description()),
+                (role, Some(name), Some("Capture saved")),
+                "OVL-004: the toast's kind {name} and its message"
+            );
+        }
+    }
 
     #[test]
     fn unmount_and_manual_close_cancel_toast_deadlines_with_retained_output() {

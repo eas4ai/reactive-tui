@@ -44,6 +44,17 @@ impl ToastType {
         }
     }
 
+    /// The kind's name, which the screen reader hears as the toast's label.
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Info => "Information",
+            Self::Success => "Success",
+            Self::Warning => "Warning",
+            Self::Error => "Error",
+            Self::Custom(_) => "Notice",
+        }
+    }
+
     /// What the screen reader is told: a warning or an error is an alert,
     /// the rest a status.
     pub fn role(&self) -> crate::accessibility::Role {

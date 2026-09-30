@@ -24,7 +24,7 @@ mod render;
 pub(super) struct LiveProps {
     pub config: ModalProps,
     pub seed: ModalState,
-    pub role: crate::accessibility::Role,
+    pub spoken: crate::accessibility::Node,
     pub escape_closable: bool,
     pub motion: Option<Motion>,
     pub on_presented: Option<Arc<dyn Fn() + Send + Sync>>,
@@ -32,7 +32,7 @@ pub(super) struct LiveProps {
 impl PartialEq for LiveProps {
     fn eq(&self, other: &Self) -> bool {
         self.config == other.config
-            && self.role == other.role
+            && self.spoken == other.spoken
             && self.escape_closable == other.escape_closable
             && self.motion == other.motion
             && super::super::overlay::same_callback(&self.on_presented, &other.on_presented)
@@ -61,7 +61,7 @@ impl Component for LiveModal {
     fn render(&self, props: &Self::Props, _: &Self::State) -> Element {
         self.0.render(
             &props.config,
-            props.role,
+            &props.spoken,
             props.escape_closable,
             props.motion.as_ref(),
             props.on_presented.as_ref(),
@@ -314,7 +314,7 @@ mod tests {
             let child = LiveModal::new(LiveProps {
                 config: props.clone(),
                 seed: ModalState::default(),
-                role: crate::accessibility::Role::Dialog,
+                spoken: crate::accessibility::Node::new(crate::accessibility::Role::Dialog),
                 motion: None,
                 on_presented: None,
                 escape_closable: true,
@@ -352,7 +352,7 @@ mod tests {
         let child = LiveModal::new(LiveProps {
             config: props.clone(),
             seed: ModalState::default(),
-            role: crate::accessibility::Role::Dialog,
+            spoken: crate::accessibility::Node::new(crate::accessibility::Role::Dialog),
             motion: None,
             on_presented: None,
             escape_closable: true,
@@ -397,7 +397,7 @@ mod tests {
                 ..Default::default()
             },
             seed: ModalState::default(),
-            role: crate::accessibility::Role::Dialog,
+            spoken: crate::accessibility::Node::new(crate::accessibility::Role::Dialog),
             motion: None,
             on_presented: None,
             escape_closable: true,
@@ -425,7 +425,7 @@ mod tests {
         let child = LiveModal::new(LiveProps {
             config: props.clone(),
             seed: ModalState::default(),
-            role: crate::accessibility::Role::Dialog,
+            spoken: crate::accessibility::Node::new(crate::accessibility::Role::Dialog),
             motion: None,
             on_presented: None,
             escape_closable: true,
