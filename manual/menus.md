@@ -94,7 +94,7 @@ the open panel; a row's shortcut activates it. Shift+F10 opens a context
 menu that holds the focus, at its first trigger area or at the first cell
 of its own box, as a right click opens it at the pointer.
 
-## Menu bar
+## The menu bar
 
 `menubar()` builds a bar of titles; `.title()` puts a label before them,
 `.item()` and `.items()` add the titles, each of which may hold a submenu.

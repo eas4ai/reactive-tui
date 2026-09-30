@@ -48,7 +48,7 @@ impl Default for MenuStyle {
     /// holds the focus and its hover color while it does not.
     fn default() -> Self {
         Self {
-            base_classes: "bg-surface text-foreground".to_string(),
+            base_classes: "bg-gray-800 text-foreground".to_string(),
             selected_classes: "bg-hover text-foreground".to_string(),
             focused_classes: "bg-selection text-selection-foreground font-bold".to_string(),
             disabled_classes: "text-muted".to_string(),
