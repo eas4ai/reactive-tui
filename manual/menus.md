@@ -90,9 +90,10 @@ the box's edge.
 Up and Down move between rows and wrap; PageUp and PageDown move by the
 rows the panel shows; Home and End go to the first and last row; Right
 opens a submenu and Left closes it; Enter or Space activates; Escape closes
-the open panel; a row's shortcut activates it. Shift+F10 opens a context
-menu that holds the focus, at its first trigger area or at the first cell
-of its own box, as a right click opens it at the pointer.
+the open panel; a row's shortcut activates it. The area a context menu
+serves is a focus stop of its own: Tab, or a click in it, gives it the
+focus, and Shift+F10 then opens the menu at its first trigger area or at
+the first cell of its own box, as a right click opens it at the pointer.
 
 ## Menu bar
 
@@ -106,8 +107,9 @@ does; `.max_dropdown_height()` limits the rows a panel shows. From props,
 ## Context menu
 
 `context_menu()` builds a menu that opens on a right click in the area it
-serves, or on Shift+F10 while it holds the focus; `.trigger_on_right_click()`
-turns the right click off. It is closed until the user opens it.
+serves, or on Shift+F10 while that area holds the focus, which Tab or a
+click gives it; `.trigger_on_right_click()` turns the right click off. It
+is closed until the user opens it.
 `.on_opened()` and `.on_closed()` report the two, `.on_item_selected()`
 the choice. From props, `ContextMenu` takes `ContextMenuProps`, whose
 `trigger_areas` limit where a right click opens it.

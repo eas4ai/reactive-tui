@@ -481,14 +481,22 @@ fn bar_003_a_menu_bar_and_its_panel_follow_a_resize() {
 fn bar_003_the_keyboard_alone_opens_a_context_menu_and_runs_its_action() {
     let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let (first, second) = (calls.clone(), calls.clone());
-    let menu = Element::typed::<ContextMenu>(ContextMenuProps {
-        items: vec![
-            MenuItem::action("one", "ONE", move || first.lock().unwrap().push("one")),
-            MenuItem::action("two", "TWO", move || second.lock().unwrap().push("two")),
-        ],
-        ..Default::default()
-    })
-    .auto_focus();
+    // The area the context menu serves is a focus stop of its own: the
+    // focus starts on a button before it, and Tab reaches the menu.
+    let menu = builder::div()
+        .class("flex flex-col w-full h-full")
+        .child(builder::button().text("BEFORE").build().auto_focus())
+        .child(
+            Element::typed::<ContextMenu>(ContextMenuProps {
+                items: vec![
+                    MenuItem::action("one", "ONE", move || first.lock().unwrap().push("one")),
+                    MenuItem::action("two", "TWO", move || second.lock().unwrap().push("two")),
+                ],
+                ..Default::default()
+            })
+            .class("w-full h-4"),
+        )
+        .build();
     let shift_f10 = || {
         Some(Event::Key(KeyEvent::new(KeyCode::F(10)).with_modifiers(
             KeyModifiers {
@@ -503,14 +511,15 @@ fn bar_003_the_keyboard_alone_opens_a_context_menu_and_runs_its_action() {
         Control(page(menu)),
         (60, 20),
         vec![
-            ("", Some("TWO"), shift_f10()),
+            ("BEFORE", Some("TWO"), key(KeyCode::Tab)),
+            ("BEFORE", Some("TWO"), shift_f10()),
             ("TWO", None, key(KeyCode::Down)),
             ("TWO", None, key(KeyCode::Enter)),
             // The action closed the menu; Shift+F10 opens it again and
             // Escape closes it without an action.
-            ("", Some("TWO"), shift_f10()),
+            ("BEFORE", Some("TWO"), shift_f10()),
             ("TWO", None, key(KeyCode::Escape)),
-            ("", Some("TWO"), None),
+            ("BEFORE", Some("TWO"), None),
         ],
     );
     assert_eq!(

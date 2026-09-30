@@ -4,7 +4,7 @@ use super::{
     ContextMenuProps, ContextMenuState, PopupMenuProps, PopupPlacement, TextCallback,
 };
 use crate::{
-    component::{Component, Element, LayoutInfo, Props},
+    component::{Component, Element, FocusProps, LayoutInfo, Props},
     event::{
         router::EventResult,
         types::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind},
@@ -153,6 +153,11 @@ impl Component for LiveContext {
                 .height_percent(100.0),
             children,
         );
+        // The area the menu serves is a focus stop of its own, so Tab
+        // reaches it and Shift+F10 opens the menu there (MNU-003, BAR-003).
+        if props.config.enabled {
+            root = root.with_focus(FocusProps::input());
+        }
         root.metadata.disabled = !props.config.enabled;
         root
     }
