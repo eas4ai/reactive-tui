@@ -194,6 +194,7 @@ impl TextInputBuilder {
             max_length: self.max_length,
             disabled: self.disabled,
             width: self.width,
+            field_class: None,
             mode: self.mode,
             validator_pattern: self.validator_pattern,
             error_message: self.error_message,
@@ -228,6 +229,10 @@ pub struct TextInputProps {
     /// The field's text width in cells; `None` takes the width the parent
     /// allots, less the frame and the line numbers (CTL-002)
     pub width: Option<u16>,
+    /// Classes added to the field's cells after the widget's own, so an
+    /// application's `bg-` or `text-` class there replaces the theme's
+    /// roles (a dialog passes its `input` class here)
+    pub field_class: Option<String>,
     /// Input mode (single line, multi-line, password, etc.)
     pub mode: InputMode,
     /// Regex pattern for validation
@@ -255,6 +260,7 @@ impl Default for TextInputProps {
             max_length: None,
             disabled: false,
             width: None,
+            field_class: None,
             mode: InputMode::default(),
             validator_pattern: None,
             error_message: None,

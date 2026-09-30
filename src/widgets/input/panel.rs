@@ -44,7 +44,10 @@ impl Placement {
 /// `root`, whose body (its row, or its rows) is `body_rows` tall, on a
 /// screen of `screen`. Under the body when the space below holds every
 /// row; above it when only the space above does; else at the side with
-/// more room, scrolling. Unmeasured, the panel opens below with every row.
+/// more room, scrolling. Unmeasured, the panel opens below with every
+/// row: the control's own clip cannot stand in for the screen, since
+/// inside a box that clips it would place the panel off the screen,
+/// where it is never laid out and so never measured.
 pub(crate) fn place(
     root: Option<LayoutInfo>,
     screen: Option<Bounds>,

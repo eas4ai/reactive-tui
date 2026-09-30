@@ -25,9 +25,12 @@ This file records user-visible changes to Reactive TUI. The project follows
   text-secondary-foreground` and `builder::primary_button()` `bg-primary
   text-primary-foreground`, each one row tall with one cell of padding at
   each side and `bg-selection` while focused; they were `px-16 py-8` in a
-  fixed blue. `builder::input()`, `styled_input()` and `search_input()` set
-  no palette classes on the field. The input, autocomplete and progress
-  dialogs' goldens changed with the field.
+  fixed blue, and their text is `text-muted` when they are disabled.
+  `builder::input()`, `styled_input()` and `search_input()` set no palette
+  classes on the field. The input and autocomplete dialogs pass the `bg-`
+  and `text-` classes of their `input` css class to the field's cells
+  (`TextInputProps::field_class`, new), so an application's colors there
+  still win; their goldens changed with the field.
 - **Breaking:** a text input's field, a select's row and a slider's track
   fill the width their parent allots: `TextInputProps::width` and
   `SelectProps::width` default to `None` (they were `Some(30)`), a
@@ -43,8 +46,10 @@ This file records user-visible changes to Reactive TUI. The project follows
   inside a modal, a popover or a box that clips) without moving what is
   under the control; they were rows drawn inside the control's own box,
   which pushed the page down and were cut by a card. The list's current
-  row is `bg-selection`, the chosen option marked `●`; a pointer row is
-  one lower than before, after the border.
+  row is `bg-selection`, the option under the pointer `bg-hover` (the
+  pointer moved the current row before; `SelectState` has a new field
+  `hover_index`), the chosen option marked `●`; a pointer row is one lower
+  than before, after the border.
 - `TextInputProps`, `CheckboxProps`, `RadioButtonProps`, `SelectProps` and
   `SliderProps` have a new field `aria_label`, and their builders a method
   of that name: the name the screen reader hears apart from the visible

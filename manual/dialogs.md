@@ -88,7 +88,9 @@ labeled by its title.
 `InputDialog::new(id, InputDialogOptions { .. })` and render it through
 `DialogComponent::render`, or open it with `DialogEngine::show_input`. The
 field fills the box; an error under it is `text-error`, a warning
-`text-warning`. OK is the primary button, Cancel the other.
+`text-warning`. OK is the primary button, Cancel the other. The `bg-` and
+`text-` classes of the options' `input` css class reach the field's cells
+after the theme's roles, so an application's colors win there.
 
 ## Autocomplete dialog
 

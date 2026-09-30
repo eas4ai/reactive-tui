@@ -111,8 +111,8 @@ Up or Down opens the list, as a click on the row does: a panel in
 `surface` with a border, under the row, or above it when only the space
 above holds it, painted whole over the page without moving what is under
 it. It shows every option as far as the screen holds them, scrolling to
-keep the current row, which is `selection`, in view; the chosen option
-carries a `●`. Up and Down move, Home, End, Page Up and Page Down jump,
+keep the current row, which is `selection`, in view; the option under the
+pointer is `hover`, and the chosen option carries a `●`. Up and Down move, Home, End, Page Up and Page Down jump,
 typed letters jump to the first option that starts with them, Enter or
 Space chooses and closes, Escape closes, and so does losing the focus. The
 screen reader hears a combo box named by its `aria_label` or placeholder
@@ -136,10 +136,10 @@ hears a slider with its label, value, minimum, maximum and step.
 
 `button()` builds an element with the secondary look (`bg-secondary
 text-secondary-foreground`) and `primary_button(text, on_click)` one with
-the primary look, each one row tall with one cell of padding at each side
-and `selection` while it holds the focus. `.on_click()` makes a button
-interactive: Enter or Space presses it, as a click does, and the screen
-reader hears it as a button.
+the primary look, each one row tall with one cell of padding at each side,
+`selection` while it holds the focus, and its text `text-muted` when it is
+disabled. `.on_click()` makes a button interactive: Enter or Space presses
+it, as a click does, and the screen reader hears it as a button.
 
 ## Limits
 
