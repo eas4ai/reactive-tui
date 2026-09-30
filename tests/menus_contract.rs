@@ -887,6 +887,123 @@ fn mnu_001_a_menu_with_a_named_look_takes_its_colors_from_that_preset() {
     );
 }
 
+/// Two popup menus, one in the default style and one with the look
+/// `Light`; a key the menus do not use reaches the root, which gives the
+/// application the second probe theme and says so on the page.
+struct TwoLooks {
+    switched: bool,
+}
+impl RootComponent for TwoLooks {
+    fn render(&self) -> Element {
+        page(
+            builder::div()
+                .class("w-full h-full")
+                .child(Element::text(if self.switched {
+                    "SWITCHED"
+                } else {
+                    "FIRST"
+                }))
+                .child(popup(
+                    vec![MenuItem::new("default", "DEFAULT")],
+                    PopupPlacement::Position { x: 2, y: 2 },
+                ))
+                .child(Element::typed::<PopupMenu>(PopupMenuProps {
+                    visible: true,
+                    style: MenuTheme::Light.to_style(),
+                    items: vec![MenuItem::new("light", "LIGHT")],
+                    placement: PopupPlacement::Position { x: 30, y: 2 },
+                    ..Default::default()
+                }))
+                .build(),
+        )
+    }
+    fn try_handle_event(
+        &mut self,
+        event: &Event,
+    ) -> reactive_tui::error::Result<reactive_tui::event::router::EventResult> {
+        if matches!(event, Event::Key(_)) {
+            Theme::set_active(second_probe());
+            self.switched = true;
+            return Ok(reactive_tui::event::router::EventResult::Handled);
+        }
+        Ok(reactive_tui::event::router::EventResult::Ignored)
+    }
+    fn wake_driven(&self) -> bool {
+        true
+    }
+}
+
+/// A probe theme whose roles differ from `probe()`'s: each role's green
+/// and blue are swapped.
+fn second_probe() -> Theme {
+    let mut variables = ThemeVariables::new();
+    for (index, name) in ROLES.iter().enumerate() {
+        let [r, g, b] = probe_color(index);
+        variables = variables.set(Theme::color_variable(name), hex([r, b, g], None));
+    }
+    Theme::new("second-probe").with_variables(variables)
+}
+
+#[test]
+#[serial_test::serial(theme)]
+// THM-003 asks the next frame after a theme change to paint a widget in
+// the new theme's colors; MNU-001 asks a menu with a named look to keep
+// the preset's colors under any theme. The look names colors, as an
+// application's own hex classes would, so it keeps them (decision recorded
+// with the adversary's finding 3): a default menu follows the change and a
+// menu with the look `Light` does not.
+fn mnu_001_a_theme_change_reaches_a_default_menu_and_not_a_named_look() {
+    let _theme = Active::set(probe());
+    let frames = app_input::run_until(
+        TwoLooks { switched: false },
+        (60, 20),
+        vec![
+            Until {
+                text: "LIGHT",
+                cell: Some((30, 4, "└")),
+                event: key(KeyCode::Char('t')),
+            },
+            Until {
+                text: "SWITCHED",
+                cell: Some((30, 4, "└")),
+                event: None,
+            },
+        ],
+        PANEL_WAIT,
+    );
+    let frame = frames.last().unwrap();
+    let light = light_theme();
+    let of_light = |name: &str| {
+        light.resolve_variable(name).map(|(r, g, b, _)| {
+            let byte = |value: f32| (value * 255.0).round() as u8;
+            [byte(r), byte(g), byte(b)]
+        })
+    };
+    // The panels' first corners: their border on their surface.
+    let corner = |column: u16| {
+        let cell = frame.screen.cell(2, column).unwrap();
+        (
+            cell.contents().to_owned(),
+            rgb(cell.fgcolor()),
+            rgb(cell.bgcolor()),
+        )
+    };
+    let swapped = |[r, g, b]: Rgb| [r, b, g];
+    assert_eq!(
+        (corner(2), corner(30)),
+        (
+            (
+                "┌".to_owned(),
+                Some(swapped(role("border"))),
+                Some(swapped(role("surface")))
+            ),
+            ("┌".to_owned(), of_light("border"), of_light("surface"))
+        ),
+        "the panels' first corners after the change, default and Light, as (glyph, glyph color, background):\n{}",
+        frame.text
+    );
+}
+
 // ---------------------------------------------------------------- MNU-002
 
 #[test]
