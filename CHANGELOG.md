@@ -5,6 +5,69 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- **Breaking:** the modal, the popover, the toast and the confirmation,
+  input, autocomplete, progress and wizard dialogs take every color from
+  the active theme. `ModalProps::default()` is `bg-surface text-foreground`
+  with a `bg-overlay` veil and a `text-muted` close button; it was white
+  with black text and a half-black veil. `DialogTheme::default()` names the
+  roles too: the box `bg-surface text-foreground`, the veil `bg-overlay`,
+  the primary button `bg-primary text-primary-foreground`, the secondary
+  `bg-secondary text-secondary-foreground`, the danger button `bg-error
+  text-error-foreground`, each `bg-selection text-selection-foreground`
+  while it holds the focus; it was a white box with blue buttons under any
+  theme. Its `border_style` is empty: the box's border is the modal's own,
+  in the `border` role (a `border-<color>` class there painted the box's
+  background grey). `DialogThemes::light()`, `dark()` and `high_contrast()`
+  take their colors from the preset of that name through the new
+  `DialogTheme::of(&theme)`, and `minimal()` draws its buttons as text in
+  the roles; their buttons had 16 cells and 8 rows of padding. A toast is
+  painted in the fill of its kind (`success`, `warning`, `error`, `info`)
+  with that fill's text, and `ToastType::Custom(classes)` paints the
+  classes its string names, where it looked like `info`. An error line is
+  `text-error`, a warning `text-warning`, a selected suggestion
+  `bg-selection`. Every dialog's buttons take the dialog theme's looks:
+  OK, Yes, Next and Finish are primary, Cancel, Back and Skip secondary.
+  `Theme::hex(role)` writes a role's color as the literal a class can name.
+- **Breaking:** a modal, a toast or a dialog whose width is not set is as
+  wide as its content, title or buttons need plus one cell of padding at
+  each side, and at most half the viewport; its content wraps at that
+  width instead of scrolling sideways. A modal's content, title and footer
+  have one cell of padding at each side; a `DialogTheme` title `px-1`. The
+  input, autocomplete and progress dialogs are 40 cells wide, or half the
+  viewport when that is less. A confirmation dialog has no icon unless its
+  options name one. A line breaks at a space only, so "sure?" is never
+  split into "sure" and "?".
+- **Breaking:** a modal, a dialog or a toast is placed on the screen and
+  painted whole, also when the element that owns it stands inside a card
+  or a box that clips its content; it was centered in that box and cut by
+  it. A box at an edge or a corner keeps one cell from it (`ModalPosition::
+  TopRight` and the rest were flush with the edge). `ModalProps` has two
+  new fields, `offset`, cells the box is moved from its place, and
+  `on_placed`, called with the box's position and size, so a struct
+  literal that names every field no longer compiles; `..Default::default()`
+  does. The dialog engine places each toast under the earlier toasts at
+  its position (over them at a bottom position), one row apart, where they
+  were painted on the same cells, and each dialog opened over another one
+  row lower. The stacking order is a modal or dialog at 1000 and up, a
+  popover at 2000, a toast at 2500 (`PopoverProps::z_index` was 1000 and a
+  toast 2000), a menu panel at 3000.
+- **Breaking:** a popover opens one row from its trigger with an arrow one
+  row deep (`PopoverProps::offset` was `(0, 8)` and `PopoverArrow::size`
+  8), its box is `bg-surface text-foreground` with a border in `border`
+  and one cell of padding inside it, and its arrow is painted in `surface`;
+  the box had no color, border or padding. The veil of `backdrop_filter` is
+  `bg-overlay`. Opened by Enter or Space on its trigger, a popover moves the
+  focus into its content when the content holds a focusable element and
+  back to the trigger when it closes.
+- A confirmation dialog tells the screen reader it is an alert dialog, not
+  a dialog.
+- **Breaking:** `DialogBounds`, `DialogMargin`, `DialogComponent::get_bounds`,
+  `DialogUtils::calculate_size` and `DialogBuffer` are removed. The bounds
+  were set by six dialogs and read by nothing; the size and position reach
+  the modal through each dialog's options. The others had no caller.
+- The widget catalog's popover demo opens from a primary button that holds
+  the focus, so Enter opens it; its modal and dialog demos are centered on
+  the screen over a veil, as an application shows them.
 - Every built-in theme preset defines fourteen more colors, each a role a
   widget names as `bg-<role>` or `text-<role>`: the text on each fill
   (`primary-foreground`, `error-foreground`, and so on), `selection` and

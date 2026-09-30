@@ -365,7 +365,7 @@ def main() -> int:
         for p in problems:
             print("  " + p)
         return 1
-    print("BAR-006 holds for the chart family, the image widget, the graphics canvas and the menus")
+    print("BAR-006 holds for the chart family, the image widget, the graphics canvas, the menus and the overlays")
     return 0
 
 
