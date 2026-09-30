@@ -37,7 +37,7 @@ impl RootComponent for Control {
 }
 
 /// The roles an overlay paints with.
-const ROLES: [&str; 18] = [
+const ROLES: [&str; 22] = [
     "background",
     "surface",
     "foreground",
@@ -56,6 +56,10 @@ const ROLES: [&str; 18] = [
     "warning-foreground",
     "success",
     "success-foreground",
+    "info",
+    "info-foreground",
+    "accent",
+    "accent-foreground",
 ];
 
 /// The color the probe theme gives the role at `index` of `ROLES`.
@@ -1246,5 +1250,675 @@ fn bar_005_an_animating_overlay_stays_under_the_frame_budget_at_700_by_200() {
         over.is_empty(),
         "BAR-005: per-frame work exceeds 16.6 ms at 700x200: {}",
         over.join("; ")
+    );
+}
+
+// ------------------------------------------ the falsifiers' other clauses
+
+/// The grid of `frame` with its colors, so two frames compare cell by cell.
+fn cells(frame: &Snapshot) -> Vec<(String, Option<Rgb>, Option<Rgb>)> {
+    let (rows, columns) = frame.screen.size();
+    (0..rows)
+        .flat_map(|row| (0..columns).map(move |column| (row, column)))
+        .map(|(row, column)| {
+            let cell = frame.screen.cell(row, column).unwrap();
+            (
+                cell.contents().to_owned(),
+                rgb(cell.fgcolor()),
+                rgb(cell.bgcolor()),
+            )
+        })
+        .collect()
+}
+
+/// The cells of `a` that differ from `b`, with their places.
+fn differing(a: &Snapshot, b: &Snapshot) -> Vec<String> {
+    let columns = a.screen.size().1;
+    cells(a)
+        .into_iter()
+        .zip(cells(b))
+        .enumerate()
+        .filter(|(_, (x, y))| x != y)
+        .map(|(index, (x, y))| {
+            format!(
+                "({}, {}): {x:?} against {y:?}",
+                index as u16 % columns,
+                index as u16 / columns
+            )
+        })
+        .collect()
+}
+
+/// A page with a dialog engine's layer that shows what `show` added to
+/// the engine.
+fn engine_with(show: impl FnOnce(&mut reactive_tui::widgets::dialog::DialogEngine)) -> Control {
+    let mut engine = reactive_tui::widgets::dialog::DialogEngine::new();
+    show(&mut engine);
+    Control(page(engine.render()))
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_001_an_overlay_looks_the_same_from_its_props_its_builder_and_the_engine() {
+    use reactive_tui::{
+        core::geometry::Rect,
+        widgets::{
+            dialog::{
+                ConfirmationDialog, ConfirmationDialogOptions, DialogComponent, DialogId,
+                DialogTheme, Toast, ToastOptions, ToastPosition, ToastType,
+            },
+            display::modal::{Modal, ModalProps},
+        },
+    };
+    let _theme = Active::set(probe());
+    let size = (80, 24);
+    let mut wrong = Vec::new();
+    // A modal from its props and from its builder.
+    let from_props = shown(
+        Element::typed::<Modal>(ModalProps {
+            visible: true,
+            title: Some("Modal".into()),
+            content: Some(
+                builder::div()
+                    .class("flex-col")
+                    .child(Element::text("Focused overlay"))
+                    .build(),
+            ),
+            ..Default::default()
+        }),
+        size,
+        "Focused overlay",
+    );
+    let from_builder = shown(
+        builder::modal()
+            .title("Modal")
+            .content(Element::text("Focused overlay"))
+            .visible(true)
+            .build(),
+        size,
+        "Focused overlay",
+    );
+    let differ = differing(&from_props, &from_builder);
+    if !differ.is_empty() {
+        wrong.push(format!(
+            "modal: {differ:?}\n{}\n{}",
+            from_props.text, from_builder.text
+        ));
+    }
+    // A confirmation dialog from its props, from its builder and from the
+    // engine.
+    let options = || ConfirmationDialogOptions {
+        title: "Confirm".into(),
+        message: "Ready to record?".into(),
+        ..Default::default()
+    };
+    let from_props = shown(
+        ConfirmationDialog::new(DialogId::from_u32(1), options())
+            .render(Rect::default(), &DialogTheme::default()),
+        size,
+        "Ready to record?",
+    );
+    let from_builder = shown(
+        builder::confirmation_dialog()
+            .title("Confirm")
+            .message("Ready to record?")
+            .build(),
+        size,
+        "Ready to record?",
+    );
+    let from_engine = app_input::run_until(
+        engine_with(|engine| {
+            engine.show_confirmation(options());
+        }),
+        size,
+        vec![Until {
+            text: "Ready to record?",
+            cell: None,
+            event: None,
+        }],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    for (name, other) in [("builder", &from_builder), ("engine", &from_engine)] {
+        let differ = differing(&from_props, other);
+        if !differ.is_empty() {
+            wrong.push(format!(
+                "confirmation dialog from its props against the {name}: {differ:?}\n{}\n{}",
+                from_props.text, other.text
+            ));
+        }
+    }
+    // A toast from its props, from its builder and from the engine.
+    let toast = || ToastOptions {
+        message: "Capture saved".into(),
+        toast_type: ToastType::Success,
+        duration: None,
+        position: ToastPosition::TopRight,
+        closable: false,
+        on_close: None,
+    };
+    let from_props = shown(
+        Toast::new(DialogId::from_u32(2), toast()).render(Rect::default(), &DialogTheme::default()),
+        size,
+        "Capture saved",
+    );
+    let from_builder = shown(
+        builder::toast()
+            .success("Capture saved")
+            .persistent()
+            .closable(false)
+            .position("top-right")
+            .build(),
+        size,
+        "Capture saved",
+    );
+    let from_engine = app_input::run_until(
+        engine_with(|engine| {
+            engine.show_toast(toast());
+        }),
+        size,
+        vec![Until {
+            text: "Capture saved",
+            cell: None,
+            event: None,
+        }],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    for (name, other) in [("builder", &from_builder), ("engine", &from_engine)] {
+        let differ = differing(&from_props, other);
+        if !differ.is_empty() {
+            wrong.push(format!(
+                "toast from its props against the {name}: {differ:?}\n{}\n{}",
+                from_props.text, other.text
+            ));
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "OVL-001: one look whatever built the overlay:\n{}",
+        wrong.join("\n")
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_001_a_toast_is_painted_in_the_fill_of_its_kind_or_in_its_own_classes() {
+    let _theme = Active::set(probe());
+    for (kind, fill) in [
+        ("success", "success"),
+        ("warning", "warning"),
+        ("error", "error"),
+        ("info", "info"),
+    ] {
+        let frame = shown(
+            builder::toast()
+                .message("Capture saved")
+                .toast_type(kind)
+                .persistent()
+                .build(),
+            (80, 24),
+            "Capture saved",
+        );
+        let (text, background) = colors(&frame, "Capture saved");
+        assert_eq!(
+            (text, background),
+            (Some(role(&format!("{fill}-foreground"))), Some(role(fill))),
+            "OVL-001: a {kind} toast in `{fill}` with its text role:\n{}",
+            frame.text
+        );
+    }
+    let frame = shown(
+        builder::toast()
+            .message("Capture saved")
+            .toast_type("bg-accent text-accent-foreground")
+            .persistent()
+            .build(),
+        (80, 24),
+        "Capture saved",
+    );
+    let (text, background) = colors(&frame, "Capture saved");
+    assert_eq!(
+        (text, background),
+        (Some(role("accent-foreground")), Some(role("accent"))),
+        "OVL-001: a custom toast in the classes its string names:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_001_a_danger_button_and_the_focused_button_take_their_roles_and_the_veil_is_overlay() {
+    let _theme = Active::set(probe());
+    let frame = shown(
+        builder::confirmation_dialog()
+            .title("Delete")
+            .message("Delete the capture?")
+            .confirm_text("Delete")
+            .cancel_text("Keep")
+            .danger(true)
+            .build(),
+        (80, 24),
+        "Delete the capture?",
+    );
+    // The confirm button holds the focus: `selection` with its text role.
+    // The buttons stand on Keep's row; Delete is the first D there.
+    let (_, buttons_row) = find(&frame, "Keep").unwrap();
+    let button = (0..80)
+        .find(|column| {
+            frame
+                .screen
+                .cell(buttons_row, *column)
+                .is_some_and(|cell| cell.contents() == "D")
+        })
+        .map(|column| frame.screen.cell(buttons_row, column).unwrap())
+        .expect("the Delete button");
+    assert_eq!(
+        (rgb(button.fgcolor()), rgb(button.bgcolor())),
+        (Some(role("selection-foreground")), Some(role("selection"))),
+        "OVL-001: the focused button in `selection` with `selection-foreground` text:\n{}",
+        frame.text
+    );
+    // Move the focus to Keep: the danger button shows its own look.
+    let frame = app_input::run_until(
+        Control(page(
+            builder::confirmation_dialog()
+                .title("Delete")
+                .message("Delete the capture?")
+                .confirm_text("Delete")
+                .cancel_text("Keep")
+                .danger(true)
+                .build(),
+        )),
+        (80, 24),
+        vec![
+            Until {
+                text: "Delete the capture?",
+                cell: None,
+                event: key(KeyCode::Tab),
+            },
+            Until {
+                text: "Keep",
+                cell: None,
+                event: None,
+            },
+        ],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    let (_, row) = find(&frame, "Keep").unwrap();
+    let delete = (0..80)
+        .find(|column| {
+            frame
+                .screen
+                .cell(row, *column)
+                .is_some_and(|cell| cell.contents() == "D")
+        })
+        .map(|column| frame.screen.cell(row, column).unwrap())
+        .expect("the Delete button on the buttons' row");
+    assert_eq!(
+        (rgb(delete.fgcolor()), rgb(delete.bgcolor())),
+        (Some(role("error-foreground")), Some(role("error"))),
+        "OVL-001: a danger button in `error` with `error-foreground` text:\n{}",
+        frame.text
+    );
+    let (_, keep) = colors(&frame, "Keep");
+    assert_eq!(
+        keep,
+        Some(role("selection")),
+        "OVL-001: the focus moved to Keep:\n{}",
+        frame.text
+    );
+    // The veil: `overlay` laid over the page's background, read at the
+    // page's first cell.
+    assert_eq!(
+        background(&frame, 0, 0),
+        Some(laid_over(OVERLAY, role("background"))),
+        "OVL-001: the veil is `overlay` laid over what is under it:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_001_a_named_look_takes_its_roles_from_that_preset() {
+    use reactive_tui::{
+        core::geometry::Rect,
+        theme::{dark_theme, high_contrast_theme, light_theme, Theme},
+        widgets::dialog::{
+            ConfirmationDialog, ConfirmationDialogOptions, DialogComponent, DialogId, DialogTheme,
+            DialogThemes,
+        },
+    };
+    let _theme = Active::set(probe());
+    let preset_color = |preset: &Theme, role: &str| {
+        let (r, g, b, _) = preset.resolve_variable(role).unwrap();
+        [
+            (r * 255.0).round() as u8,
+            (g * 255.0).round() as u8,
+            (b * 255.0).round() as u8,
+        ]
+    };
+    for (name, look, preset) in [
+        ("light", DialogThemes::light(), light_theme()),
+        ("dark", DialogThemes::dark(), dark_theme()),
+        (
+            "high_contrast",
+            DialogThemes::high_contrast(),
+            high_contrast_theme(),
+        ),
+    ] {
+        let look = DialogTheme {
+            animation: reactive_tui::widgets::dialog::DialogAnimation::None,
+            ..look
+        };
+        let frame = shown(
+            ConfirmationDialog::new(
+                DialogId::from_u32(5),
+                ConfirmationDialogOptions {
+                    title: "Look".into(),
+                    message: "Which preset?".into(),
+                    ..Default::default()
+                },
+            )
+            .render(Rect::default(), &look),
+            (80, 24),
+            "Which preset?",
+        );
+        let (text, box_fill) = colors(&frame, "Which preset?");
+        assert_eq!(
+            (text, box_fill),
+            (
+                Some(preset_color(&preset, "foreground")),
+                Some(preset_color(&preset, "surface"))
+            ),
+            "OVL-001: the look `{name}` paints its box in that preset's roles under another theme:\n{}",
+            frame.text
+        );
+        // OK holds the focus: the preset's selection roles.
+        let (_, ok_row) = find(&frame, "OK").unwrap();
+        let ok = (0..80)
+            .find(|column| {
+                frame
+                    .screen
+                    .cell(ok_row, *column)
+                    .is_some_and(|cell| cell.contents() == "O")
+            })
+            .map(|column| frame.screen.cell(ok_row, column).unwrap())
+            .unwrap();
+        assert_eq!(
+            rgb(ok.bgcolor()),
+            Some(preset_color(&preset, "selection")),
+            "OVL-001: the look `{name}` paints its focused button in that preset's `selection`:\n{}",
+            frame.text
+        );
+        // OVL-002: one cell of padding beside the title and inside the button.
+        let (title_column, title_row) = find(&frame, "Look").unwrap();
+        let (left, _) = find(&frame, "┌").unwrap();
+        assert_eq!(
+            (
+                title_column - left,
+                frame.screen.cell(title_row, left + 1).unwrap().contents()
+            ),
+            (2, " "),
+            "OVL-002: the look `{name}` gives its title one cell of padding:\n{}",
+            frame.text
+        );
+        let (ok_column, _) = find(&frame, "OK").unwrap();
+        assert_eq!(
+            (
+                rgb(frame.screen.cell(ok_row, ok_column - 1).unwrap().bgcolor()),
+                rgb(frame.screen.cell(ok_row, ok_column + 2).unwrap().bgcolor()),
+                rgb(frame.screen.cell(ok_row, ok_column - 2).unwrap().bgcolor()),
+            ),
+            (
+                Some(preset_color(&preset, "selection")),
+                Some(preset_color(&preset, "selection")),
+                Some(preset_color(&preset, "surface")),
+            ),
+            "OVL-002: the look `{name}` gives its button one cell of padding at each side:\n{}",
+            frame.text
+        );
+    }
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_003_toasts_stack_and_a_second_dialog_sits_one_row_lower() {
+    use reactive_tui::widgets::dialog::{
+        ConfirmationDialogOptions, ToastOptions, ToastPosition, ToastType,
+    };
+    let _theme = Active::set(probe());
+    let toast = |message: &str| ToastOptions {
+        message: message.into(),
+        toast_type: ToastType::Info,
+        duration: None,
+        position: ToastPosition::TopRight,
+        closable: false,
+        on_close: None,
+    };
+    let frame = app_input::run_until(
+        engine_with(|engine| {
+            engine.show_toast(toast("FIRST TOAST"));
+            engine.show_toast(toast("SECOND TOAST"));
+        }),
+        (80, 24),
+        vec![
+            Until {
+                text: "SECOND TOAST",
+                cell: None,
+                event: None,
+            },
+            // The second toast has moved under the first: its box starts
+            // on row 5, under the first's three rows and a row between.
+            Until {
+                text: "SECOND TOAST",
+                cell: Some((78, 5, "┐")),
+                event: None,
+            },
+        ],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    let (_, first) = find(&frame, "FIRST TOAST").unwrap();
+    let (_, second) = find(&frame, "SECOND TOAST").unwrap();
+    assert_eq!(
+        (first, second),
+        (2, 6),
+        "OVL-003: the second toast stands under the first, a row between:\n{}",
+        frame.text
+    );
+    let dialog = |title: &str| ConfirmationDialogOptions {
+        title: title.into(),
+        message: "Ready?".into(),
+        ..Default::default()
+    };
+    let frame = app_input::run_until(
+        engine_with(|engine| {
+            engine.show_confirmation(dialog("FIRST"));
+            engine.show_confirmation(dialog("SECOND"));
+        }),
+        (80, 24),
+        vec![Until {
+            text: "SECOND",
+            cell: None,
+            event: None,
+        }],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    // The first dialog's box is centered; the second's top border is one
+    // row lower and covers all of the first but its top border.
+    let corners: Vec<(u16, u16)> = (0..24)
+        .flat_map(|row| (0..80).map(move |column| (column, row)))
+        .filter(|(column, row)| {
+            frame
+                .screen
+                .cell(*row, *column)
+                .is_some_and(|cell| cell.contents() == "┌")
+        })
+        .collect();
+    assert_eq!(
+        corners.len(),
+        2,
+        "OVL-003: two boxes, the second one row lower than the first:\n{}",
+        frame.text
+    );
+    assert_eq!(
+        (corners[0].0, corners[1].1 - corners[0].1),
+        (corners[1].0, 1),
+        "OVL-003: the second dialog is one row lower than the first:\n{}",
+        frame.text
+    );
+    assert_eq!(
+        find(&frame, "FIRST"),
+        None,
+        "OVL-003: the second dialog covers the first:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_003_a_popover_inside_a_modal_a_toast_over_it_and_a_menu_panel_over_all() {
+    use reactive_tui::widgets::menu::{MenuItem, PopupMenu, PopupMenuProps, PopupPlacement};
+    let _theme = Active::set(probe());
+    // A popover opened from inside a modal is painted over the modal.
+    let frame = app_input::run_until(
+        Control(page(
+            builder::modal()
+                .title("Modal")
+                .content(
+                    builder::popover()
+                        .trigger(focusable("OPEN").auto_focus())
+                        .content(Element::text("OVER THE MODAL"))
+                        .build(),
+                )
+                .visible(true)
+                .build(),
+        )),
+        (80, 24),
+        vec![
+            Until {
+                text: "OPEN",
+                cell: None,
+                event: key(KeyCode::Enter),
+            },
+            Until {
+                text: "OVER THE MODAL",
+                cell: None,
+                event: None,
+            },
+        ],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    let (_, box_fill) = colors(&frame, "OVER THE MODAL");
+    assert_eq!(
+        box_fill,
+        Some(role("surface")),
+        "OVL-003: the popover's box is painted whole over the modal:\n{}",
+        frame.text
+    );
+    // A toast over a popover, and a menu panel over the toast: each is
+    // placed where the one under it stands, and the one on top shows.
+    let stacked = page(
+        builder::div()
+            .class("relative w-full h-full")
+            .child(
+                builder::popover()
+                    .trigger(focusable("OPEN"))
+                    .content(Element::text("UNDER THE TOAST"))
+                    .build()
+                    .class("absolute left-60 top-0"),
+            )
+            .child(
+                builder::toast()
+                    .info("A TOAST OVER THE POPOVER")
+                    .persistent()
+                    .closable(false)
+                    .position("top-right")
+                    .build(),
+            )
+            .child(
+                Element::typed::<PopupMenu>(PopupMenuProps {
+                    visible: true,
+                    items: vec![
+                        MenuItem::new("one", "MENU ROW ONE OVER THE TOAST"),
+                        MenuItem::new("two", "MENU ROW TWO"),
+                    ],
+                    placement: PopupPlacement::Position { x: 50, y: 1 },
+                    ..Default::default()
+                })
+                .auto_focus(),
+            )
+            .build(),
+    );
+    let frame = app_input::run_until(
+        Control(stacked),
+        (80, 24),
+        vec![Until {
+            text: "MENU ROW TWO",
+            cell: None,
+            event: None,
+        }],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    assert!(
+        find(&frame, "MENU ROW ONE OVER THE TOAST").is_some()
+            && find(&frame, "A TOAST OVER THE POPOVER").is_none(),
+        "OVL-003: the menu panel is painted over the toast:\n{}",
+        frame.text
+    );
+    let frame = app_input::run_until(
+        Control(page(
+            builder::div()
+                .class("relative w-full h-full")
+                .child(
+                    builder::popover()
+                        .trigger(focusable("OPEN").auto_focus())
+                        .content(Element::text("UNDER THE TOAST"))
+                        .build()
+                        .class("absolute left-60 top-0"),
+                )
+                .child(
+                    builder::toast()
+                        .info("A TOAST OVER THE POPOVER")
+                        .persistent()
+                        .closable(false)
+                        .position("top-right")
+                        .build(),
+                )
+                .build(),
+        )),
+        (80, 24),
+        vec![
+            Until {
+                text: "OPEN",
+                cell: None,
+                event: key(KeyCode::Enter),
+            },
+            Until {
+                text: "A TOAST OVER THE POPOVER",
+                cell: None,
+                event: None,
+            },
+        ],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    assert!(
+        find(&frame, "UNDER THE TOAST").is_none(),
+        "OVL-003: the toast is painted over the popover:\n{}",
+        frame.text
     );
 }
