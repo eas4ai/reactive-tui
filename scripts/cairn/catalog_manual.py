@@ -2,8 +2,10 @@
 """BAR-006: a delivered widget has a catalog page and a manual section whose
 builder methods exist in the code. Scope: the chart family (line, area,
 scatter, bar, candlestick), the image widget, reworked to draw its block
-fallback through the renderer's blitters, and the graphics canvas
-(src/graphics, manual/wgpu-graphics.md).
+fallback through the renderer's blitters, the graphics canvas
+(src/graphics, manual/wgpu-graphics.md), and the menu family (the menu bar,
+the context menu, the popup menu and the dialog menu: src/widgets/menu,
+src/builder/widgets/menu.rs, manual/menus.md).
 
 Both files are read by their structure, not by substring. A catalog page is
 a CatalogPage listed in ALL that selected_page maps to a function; a chart
@@ -256,14 +258,64 @@ def canvas_docs_problems() -> list[str]:
     return problems
 
 
+MENUS_MANUAL = ROOT / "manual/menus.md"
+# Each menu: its card's title on the catalog's Menus & dialogs page, what
+# builds it there, and its heading in the manual.
+MENUS = (
+    ("MenuBar", r"(?<![\w.])menubar\(\)", "Menu bar"),
+    ("ContextMenu", r"(?<![\w.])context_menu\(\)", "Context menu"),
+    ("PopupMenu", r"\bpopup_menu\(\)", "Popup menu"),
+    ("DialogMenu", r"\bDialogMenuBuilder::\w+\(\)", "Dialog menu"),
+)
+
+
+def menu_docs_problems() -> list[str]:
+    """The menu family: the catalog's Menus & dialogs page builds each of the
+    four menus in a card of its name, the manual has a heading for each, and
+    every method the manual's menu sections cite is a pub fn in the menu
+    code or its builder."""
+    problems = []
+    code, prose, pages = catalog_pages()
+    page = pages.get("MenusDialogs")
+    if page is None:
+        problems.append("catalog lists no Menus & dialogs page")
+    for card, built, _ in MENUS:
+        if page is not None and not (re.search(rf'"{card}"', prose[page[0]:page[1]])
+                                     and re.search(built, code[page[0]:page[1]])):
+            problems.append(f"catalog's Menus & dialogs page has no {card} card built with {built}")
+    manual = MENUS_MANUAL.read_text(errors="replace") if MENUS_MANUAL.exists() else ""
+    titles = [title for _, title in headings(manual)]
+    methods = set()
+    for f in rust_sources("src/widgets/menu", "src/builder/widgets/menu.rs"):
+        methods |= set(re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", strip_test_modules(f.read_text(errors="replace"))))
+    for _, _, heading in MENUS:
+        if heading not in titles:
+            problems.append(f"manual has no {heading} heading")
+            continue
+        for piece in citations(section(manual, heading) or ""):
+            for name in METHOD_CALL.findall(piece):
+                if name not in methods:
+                    problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn in menu code")
+    for heading in ("Colors", "Panels", "Keyboard"):
+        text = section(manual, heading)
+        if text is None:
+            problems.append(f"manual has no {heading} heading under Menus")
+            continue
+        for piece in citations(text):
+            for name in METHOD_CALL.findall(piece):
+                if name not in methods:
+                    problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn in menu code")
+    return problems
+
+
 def main() -> int:
-    problems = chart_docs_problems() + image_docs_problems() + canvas_docs_problems()
+    problems = chart_docs_problems() + image_docs_problems() + canvas_docs_problems() + menu_docs_problems()
     if problems:
         print("BAR-006 violated:")
         for p in problems:
             print("  " + p)
         return 1
-    print("BAR-006 holds for the chart family, the image widget and the graphics canvas")
+    print("BAR-006 holds for the chart family, the image widget, the graphics canvas and the menus")
     return 0
 
 

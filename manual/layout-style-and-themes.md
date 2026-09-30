@@ -80,6 +80,54 @@ The spacing classes counted in fours before: `p-1` was four cells and
 `gap-4` sixteen. To keep the size of a class written for that scale, multiply
 its number by four: `p-1` becomes `p-4`.
 
+## The theme's color roles
+
+A theme names its colors by role. A class names a role as `bg-<role>` or
+`text-<role>`: `bg-surface`, `text-foreground`, `text-primary-foreground`.
+Every built-in preset defines every role, and a widget that the widget bar
+covers takes every color from a role, so it follows the application's
+theme. `Theme::resolve_color` resolves a role, a palette name such as
+`blue-500` or a hex value; `Theme::active` is the theme in use and
+`Theme::set_active` or `App::set_theme` changes it, which shows in the
+next frame.
+
+| Role | What it colors |
+|---|---|
+| `background` | the page |
+| `surface` | a panel, a card, a bar: what stands on the page |
+| `foreground` | text on the page and on a surface |
+| `text-muted` | quieter text: a shortcut, a disabled row, a hint |
+| `border` | a border or a separator |
+| `input` | a field the user types in |
+| `ring` | the border of the widget that holds the focus |
+| `hover` | the row under the pointer, and the current row of a widget without the focus |
+| `selection`, `selection-foreground` | the current row, or the selected text, of the widget that holds the focus, and the text on it |
+| `primary`, `secondary`, `accent` | the fills of buttons, titles and marks, each with its `-foreground` text |
+| `success`, `warning`, `error`, `info` | the fills of a message by its kind, each with its `-foreground` text |
+| `overlay` | the veil over the page behind a modal; it has an alpha |
+| `shadow` | the shadow under a panel; it has an alpha |
+
+In every preset, text contrasts with what it is drawn on by at least 4.5 to
+1: each `-foreground` with its fill, `foreground` with `background`,
+`surface`, `input` and `hover`, and `text-muted` with `background` and
+`surface`. `ring` contrasts with `background` and `surface` by at least 3
+to 1.
+
+A theme that leaves a role out still resolves it:
+
+- The text on a fill is black or white, whichever contrasts more with the
+  fill.
+- `selection` and `ring` are the theme's `primary`; `input` is its
+  `surface`; `hover` is seven parts of its `surface` and one part of its
+  `foreground`.
+- Every other role comes from the built-in light preset when the theme's
+  `background` is light (black contrasts with it more than white does),
+  and from the dark preset otherwise.
+
+So a theme written with only `background`, `foreground` and `primary` still
+gives every widget a color. A name that is no role and that the theme does
+not define resolves to nothing, as before.
+
 ## Limits
 
 - Layout values are terminal-cell measurements after computation.
@@ -94,6 +142,10 @@ its number by four: `p-1` becomes `p-4`.
 - Utility-class entry points: [`src/layout/css/mod.rs`](../src/layout/css/mod.rs)
 - Typed styles: [`src/layout/style.rs`](../src/layout/style.rs)
 - Theme API: [`src/theme/mod.rs`](../src/theme/mod.rs)
+- The color roles and what a theme that leaves one out gets:
+  [`src/theme/roles.rs`](../src/theme/roles.rs)
+- Theme presets: [`src/theme/presets.rs`](../src/theme/presets.rs)
+- Theme role tests: [`tests/theme_contract.rs`](../tests/theme_contract.rs)
 - Styling API tests: [`tests/api_styling.rs`](../tests/api_styling.rs)
 - Layout paint tests: [`tests/layout_paint_tests.rs`](../tests/layout_paint_tests.rs)
 - Gap, spacing and grid tests: [`tests/layout_contract.rs`](../tests/layout_contract.rs)
