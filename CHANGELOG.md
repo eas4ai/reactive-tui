@@ -54,8 +54,9 @@ This file records user-visible changes to Reactive TUI. The project follows
 - **Breaking:** a popover opens one row from its trigger with an arrow one
   row deep (`PopoverProps::offset` was `(0, 8)` and `PopoverArrow::size`
   8), its box is `bg-surface text-foreground` with a border in `border`
-  and one cell of padding inside it, and its arrow is painted in `surface`;
-  the box had no color, border or padding. The veil of `backdrop_filter` is
+  and one cell of padding inside it, and its arrow is a piece of the box,
+  filled in `surface` with its outline in `border`; the box had no color,
+  border or padding. The veil of `backdrop_filter` is
   `bg-overlay`. Opened by Enter or Space on its trigger, a popover moves the
   focus into its content when the content holds a focusable element and
   back to the trigger when it closes.
