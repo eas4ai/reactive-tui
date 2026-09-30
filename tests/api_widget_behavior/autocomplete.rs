@@ -65,7 +65,15 @@ fn autocomplete_highlight_and_region_styles_reach_rendered_cells() {
                 cell_at("QUERY", 0).bgcolor(),
                 vt100::Color::Rgb(52, 86, 120)
             );
-            assert_eq!(cell_at("[ph", 1).bgcolor(), vt100::Color::Rgb(16, 32, 48));
+            // The field's cells are the theme's `input` role (CTL-001); the
+            // dialog's `input` class styles the box around them.
+            let input = reactive_tui::theme::Theme::active().hex("input");
+            let channel = |at: usize| u8::from_str_radix(&input[at..at + 2], 16).unwrap();
+            assert_eq!(
+                cell_at("[ph", 1).bgcolor(),
+                vt100::Color::Rgb(channel(1), channel(3), channel(5)),
+                "{input}"
+            );
         }
     }
 }

@@ -52,8 +52,8 @@ fn slider_mouse_uses_padded_track_and_vertical_rows() {
             Slider::new(p).with_on_change(move |v| callback.lock().unwrap().push(v))
         })
         .with_class("w-28 h-5 p-2");
-        // 24 content cells: two focus cells, five min-label cells, brackets,
-        // four max-label cells leave an 11-cell track from x=10 through x=20.
+        // 24 content cells: five min-label cells, the frame and four
+        // max-label cells leave a 13-cell track from x=8 through x=20.
         let frames = run(Control(slider), size, vec![(1, click(20, 2)), (2, None)]);
         assert_eq!(
             *values.lock().unwrap(),
@@ -69,21 +69,27 @@ fn slider_mouse_uses_padded_track_and_vertical_rows() {
             .show_value(false)
             .render()
             .with_class("w-5 h-5");
-        let frames = run(Control(slider), size, vec![(1, click(2, 0)), (2, None)]);
-        assert!(frames[0]
-            .screen
-            .cell(4, 2)
-            .unwrap()
-            .contents()
-            .contains('●'));
+        // The vertical track is at column 0: the thumb at the bottom row
+        // for the value 0, and at the top row after a click there.
+        let frames = run(Control(slider), size, vec![(1, click(0, 0)), (2, None)]);
+        assert!(
+            frames[0]
+                .screen
+                .cell(4, 0)
+                .unwrap()
+                .contents()
+                .contains('●'),
+            "{}",
+            frames[0].text
+        );
         assert!(frames
             .last()
             .unwrap()
             .screen
-            .cell(0, 2)
+            .cell(0, 0)
             .unwrap()
             .contents()
-            .contains('◉'));
+            .contains('●'));
     }
 }
 
@@ -187,19 +193,21 @@ fn slider_track_follows_viewport_and_resize() {
             vec![
                 (1, click(size.0 - 2, 0)),
                 (2, Some(Event::Resize(ResizeEvent::new(20, 6)))),
-                (3, click(3, 0)),
+                (3, click(1, 0)),
                 (4, None),
             ],
         );
         assert_eq!(*values.lock().unwrap(), vec![100.0, 0.0]);
+        // The track starts after its frame cell; the thumb sits at the
+        // value 0 there.
         assert!(frames
             .last()
             .unwrap()
             .screen
-            .cell(0, 3)
+            .cell(0, 1)
             .unwrap()
             .contents()
-            .contains('◉'));
+            .contains('●'));
     }
 }
 
@@ -221,11 +229,15 @@ fn slider_degenerate_range_stays_at_its_only_value() {
             vec![
                 (1, key(KeyCode::End)),
                 (1, key(KeyCode::PageDown)),
-                (1, click(3, 0)),
+                (1, click(1, 0)),
                 (2, None),
             ],
         );
-        assert!(frames.last().unwrap().text.contains("5.0"));
+        assert!(
+            frames.last().unwrap().text.contains("5.0"),
+            "{}",
+            frames.last().unwrap().text
+        );
         assert!(values.lock().unwrap().is_empty());
     }
 }
@@ -266,7 +278,7 @@ fn slider_drag_ends_on_release_and_focus_loss() {
                         .build()
                         .with_focus(reactive_tui::component::FocusProps::input()),
                 ]);
-            let mut events = vec![(1, mouse(3, MouseEventKind::Down))];
+            let mut events = vec![(1, mouse(1, MouseEventKind::Down))];
             if lose_focus {
                 events.extend([
                     (2, key(KeyCode::Tab)),
@@ -277,7 +289,7 @@ fn slider_drag_ends_on_release_and_focus_loss() {
                 events.extend([
                     (2, mouse(size.0 - 2, MouseEventKind::Drag)),
                     (3, mouse(size.0 - 2, MouseEventKind::Up)),
-                    (3, mouse(3, MouseEventKind::Drag)),
+                    (3, mouse(1, MouseEventKind::Drag)),
                     (3, None),
                 ]);
             }

@@ -107,17 +107,20 @@ impl Measured {
 /// The style of a control's root while its panel is open: the row and the
 /// panel in a column, a negative margin giving the panel's rows back to
 /// the flow, and the root as wide as the panel with the same margin at the
-/// right, so nothing around the control moves.
+/// right, so nothing around the control moves. `root` is the control's
+/// last layout, whose insets (its padding and border) the box keeps.
 pub(crate) fn host_style(
     placement: Placement,
+    root: Option<LayoutInfo>,
     field_width: usize,
     panel_width: usize,
 ) -> StyleBuilder {
+    let insets = root.map_or([0.0; 4], |root| root.insets);
     let panel_height = placement.height() as f32;
     let width = field_width.max(panel_width) as f32;
     let mut style = StyleBuilder::new()
-        .width_px(width)
-        .height_px(1.0 + panel_height)
+        .width_px(width + insets[0] + insets[2])
+        .height_px(1.0 + panel_height + insets[1] + insets[3])
         .margin_r_px(field_width as f32 - width)
         .overflow_visible()
         .z_index(PANEL_LAYER);
@@ -157,6 +160,7 @@ pub(crate) fn element(
             StyleBuilder::new()
                 .width_px(width as f32)
                 .height_px(height as f32)
+                .flex_shrink(0.0)
                 .padding_all_px(1.0)
                 .overflow_hidden()
                 .z_index(PANEL_LAYER)

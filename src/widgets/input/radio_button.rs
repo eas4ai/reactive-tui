@@ -255,7 +255,6 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
             }
             let mut child = Self::option_row(index, props, state)
                 .with_key(format!("radio:{index}"))
-                .with_class("whitespace-pre shrink-0")
                 .with_accessibility(node);
             if !disabled {
                 let options = child.metadata.accessibility_options.get_or_insert_default();

@@ -531,7 +531,6 @@ impl Component for Slider {
         }
         element
             .with_accessibility(accessible)
-            .with_class("overflow-hidden")
             .with_focus(crate::component::FocusProps::input())
             .disabled(props.disabled || length == 0)
     }

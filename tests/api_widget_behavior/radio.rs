@@ -22,8 +22,9 @@ fn radio_generic_builder_selects_by_keyboard_and_horizontal_mouse() {
             frames.iter().map(|f| &f.text).collect::<Vec<_>>(),
             frames[0].geometry
         );
+        // The pointer's row is shown by a fill, not by underscores (CTL-001).
         assert!(
-            frames.last().unwrap().text.contains("(●) _Beta_"),
+            frames.last().unwrap().text.contains("(●) Beta"),
             "{}",
             frames.last().unwrap().text
         );

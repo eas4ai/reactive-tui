@@ -272,7 +272,13 @@ impl TextInput {
             // cells of its frame, `border` or `ring` while focused; the
             // cursor cell is the field reversed, the selection `selection`,
             // the placeholder `text-muted` (CTL-001).
-            let frame = look::field_frame(state.is_focused && !props.disabled);
+            // An invalid value shows on the frame, in `error`, also when
+            // the field has no error line.
+            let frame = if !state.is_valid {
+                look::FIELD_FRAME_INVALID
+            } else {
+                look::field_frame(state.is_focused && !props.disabled)
+            };
             let field = if props.disabled {
                 look::FIELD_DISABLED
             } else {

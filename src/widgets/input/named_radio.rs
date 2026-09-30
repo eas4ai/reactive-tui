@@ -156,7 +156,6 @@ impl Component for NamedRadio {
             },
         )
         .with_accessibility(accessible)
-        .with_class("overflow-hidden")
         .with_focus(FocusProps::input())
         .disabled(props.disabled)
     }

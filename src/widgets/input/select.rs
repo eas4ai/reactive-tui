@@ -415,7 +415,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             .with_key("select-list");
         root = root.class("flex flex-col shrink-0");
         root.metadata.styles = Some(Arc::new(
-            panel::host_style(placement, field_width, panel_width).snapshot(),
+            panel::host_style(placement, self.viewport, field_width, panel_width).snapshot(),
         ));
         if placement.above {
             root.with_child(list).with_child(field)

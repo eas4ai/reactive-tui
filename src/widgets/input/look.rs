@@ -19,6 +19,8 @@ pub const FRAME_FOCUSED: &str = "text-ring";
 pub const FIELD_FRAME: &str = "bg-input text-border";
 /// A field's frame while the control holds the focus.
 pub const FIELD_FRAME_FOCUSED: &str = "bg-input text-ring";
+/// A field's frame while its value is invalid.
+pub const FIELD_FRAME_INVALID: &str = "bg-input text-error";
 /// The text input's cursor cell: the field reversed.
 pub const CURSOR: &str = "bg-foreground text-input";
 /// The text input's selection.
