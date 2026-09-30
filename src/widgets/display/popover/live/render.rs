@@ -24,9 +24,11 @@ impl Popover {
         let (visible, progress) = self.live.sample(&self.state, props);
         self.state.lock().unwrap().arrow_position = None;
         let mut trigger_content = props.trigger_element.clone();
+        // The trigger tells the screen reader whether the popover is open
+        // (OVL-004): `aria-expanded` is the open state, `-false` the closed.
         let mut trigger_class = trigger_content.class.take().unwrap_or_default();
         trigger_class.push_str(if visible {
-            " aria-expanded-true"
+            " aria-expanded"
         } else {
             " aria-expanded-false"
         });
@@ -454,4 +456,41 @@ fn screen_rect(layout: LayoutInfo) -> Rect<f32> {
             bottom: layout.size.1,
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The trigger element of a rendered popover, after the App's
+    /// accessibility pass has turned its classes into a node.
+    fn spoken_trigger(visible: bool) -> crate::accessibility::Node {
+        let popover = Popover::new();
+        let props = PopoverProps {
+            visible,
+            trigger_element: Element::text("OPEN"),
+            content: Element::text("INNER"),
+            ..Default::default()
+        };
+        let mut root = popover.render_live(&props);
+        crate::accessibility::style::prepare(&mut root)
+            .expect("the classes are accessibility classes");
+        let trigger = root
+            .children
+            .iter()
+            .find(|child| child.key.as_deref() == Some("popover-trigger"))
+            .expect("the trigger node");
+        trigger.children[0]
+            .metadata
+            .accessibility
+            .clone()
+            .expect("the trigger tells its state")
+    }
+
+    /// OVL-004: the trigger reports whether the popover is open.
+    #[test]
+    fn ovl_004_the_trigger_tells_the_screen_reader_whether_the_popover_is_open() {
+        assert_eq!(spoken_trigger(true).inner.is_expanded(), Some(true));
+        assert_eq!(spoken_trigger(false).inner.is_expanded(), Some(false));
+    }
 }
