@@ -2,6 +2,7 @@
 pub mod accordion;
 /// Breadcrumb navigation component
 pub mod breadcrumb;
+pub mod look;
 /// Scroll view implementation
 pub mod scroll_view;
 /// Stack layout implementation
