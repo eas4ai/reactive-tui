@@ -100,6 +100,8 @@ impl Theme {
         *active_slot().write().unwrap_or_else(|e| e.into_inner()) = theme.clone();
         // After the new theme is in place, so a thread that sees the new
         // count also sees the new theme.
+        GENERATION.fetch_add(1, std::sync::atomic::Ordering::Release);
+        crate::layout::css::cache::clear_color_cache();
         theme
     }
 
