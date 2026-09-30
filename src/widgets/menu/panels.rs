@@ -267,10 +267,10 @@ impl MenuView {
                         .inset_top(y + 1.0)
                         .width_px(width)
                         .height_px(height)
-                        .bg_rgba(0.0, 0.0, 0.0, 0.4)
                         .z_index(999 + depth as i32 * 2),
                     vec![],
                 )
+                .with_class(&options.rows.style.shadow_classes)
                 .with_key(format!("menu-shadow:{depth}")),
             );
         }

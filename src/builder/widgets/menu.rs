@@ -901,57 +901,70 @@ fn convert_menu_item(builder_item: MenuItem) -> crate::widgets::menu::MenuItem {
     }
 }
 
+/// The class that gives `prefix` the color `value` names: a role of the
+/// theme, a color of the palette or a hex value. Any other value is a class
+/// already.
 fn menu_color(value: &str, prefix: &str) -> String {
-    if crate::layout::colors::parse_color_token(value).is_some() {
+    if crate::theme::Theme::active().resolve_color(value).is_some() {
         format!("{prefix}-{value}")
     } else {
         value.to_owned()
     }
 }
 
-/// Convert builder colors and utility classes to the shared menu style.
+/// Convert builder colors and utility classes to the shared menu style. A
+/// color the application did not set is the shared default's, so a menu
+/// looks the same from its builder and from its props (MNU-001).
 fn convert_menu_style(builder_style: MenuStyle) -> crate::widgets::menu::MenuStyle {
-    let base_classes = format!(
-        "{} {} {} {}",
-        menu_color(builder_style.background.as_deref().unwrap_or("white"), "bg"),
-        menu_color(
-            builder_style.text_color.as_deref().unwrap_or("black"),
-            "text"
-        ),
-        builder_style.padding.as_deref().unwrap_or(""),
-        builder_style.margin.as_deref().unwrap_or("")
-    );
-    let selected_classes = format!(
-        "{} {}",
-        menu_color(
-            builder_style
-                .selected_background
-                .as_deref()
-                .unwrap_or("blue-500"),
-            "bg"
-        ),
-        menu_color(
-            builder_style
-                .selected_text_color
-                .as_deref()
-                .unwrap_or("white"),
-            "text"
+    let default = crate::widgets::menu::MenuStyle::default();
+    // The class of `prefix` in `classes`: `bg-surface` of `bg-surface text-foreground`.
+    let of = |classes: &str, prefix: &str| {
+        classes
+            .split_whitespace()
+            .find(|class| class.starts_with(prefix))
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let color = |value: &Option<String>, prefix: &str, classes: &str| {
+        value
+            .as_deref()
+            .map_or_else(|| of(classes, prefix), |value| menu_color(value, prefix))
+    };
+    let base_classes = [
+        color(&builder_style.background, "bg", &default.base_classes),
+        color(&builder_style.text_color, "text", &default.base_classes),
+        builder_style.padding.clone().unwrap_or_default(),
+        builder_style.margin.clone().unwrap_or_default(),
+    ]
+    .join(" ")
+    .trim_end()
+    .to_owned();
+    // A selection color the application set colors the current row with
+    // and without the focus; without one the two keep the default's.
+    let current = |classes: &str| {
+        if builder_style.selected_background.is_none()
+            && builder_style.selected_text_color.is_none()
+        {
+            return classes.to_owned();
+        }
+        format!(
+            "{} {}",
+            color(&builder_style.selected_background, "bg", classes),
+            color(&builder_style.selected_text_color, "text", classes)
         )
-    );
+    };
     crate::widgets::menu::MenuStyle {
         base_classes,
-        focused_classes: selected_classes.clone(),
-        selected_classes,
-        disabled_classes: menu_color(
-            builder_style
-                .disabled_text_color
-                .as_deref()
-                .unwrap_or("gray-400"),
+        focused_classes: current(&default.focused_classes),
+        selected_classes: current(&default.selected_classes),
+        disabled_classes: color(
+            &builder_style.disabled_text_color,
             "text",
+            &default.disabled_classes,
         ),
         border_classes: builder_style
             .border
-            .unwrap_or_else(|| "border border-gray-300".into()),
-        ..Default::default()
+            .unwrap_or_else(|| default.border_classes.clone()),
+        ..default
     }
 }

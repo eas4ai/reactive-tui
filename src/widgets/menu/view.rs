@@ -115,7 +115,7 @@ impl MenuView {
         .with_key(format!("separator:{path:?}"))
         .with_accessibility(Node::new(Role::Splitter))
     }
-    pub fn row(&self, options: &RowOptions<'_>, item: &MenuItem, path: Vec<usize>) -> Element {
+    pub fn row<'a>(&self, options: &RowOptions<'a>, item: &MenuItem, path: Vec<usize>) -> Element {
         if item.item_type == MenuItemType::Separator {
             return self.separator(options, &item.separator, &path);
         }
@@ -141,10 +141,16 @@ impl MenuView {
             }
             _ => "",
         };
+        // The current row and a disabled row are one color from end to
+        // end: an icon or a shortcut in a color of its own could not be
+        // read on every selection color.
+        let plain = selected || !item.enabled || !options.enabled;
+        let part = |classes: &'a str| if plain { "" } else { classes };
         let mut children = vec![];
         if style.show_icons {
             if let Some(icon) = &item.icon {
-                children.push(Element::text(format!("{icon} ")).with_class(&style.icon_classes));
+                children
+                    .push(Element::text(format!("{icon} ")).with_class(part(&style.icon_classes)));
             }
         }
         children.push(
@@ -154,7 +160,7 @@ impl MenuView {
             if let Some(shortcut) = &item.shortcut {
                 children.push(
                     Element::text(format!("  {}", shortcut.display))
-                        .with_class(&style.shortcut_classes),
+                        .with_class(part(&style.shortcut_classes)),
                 );
             }
         }

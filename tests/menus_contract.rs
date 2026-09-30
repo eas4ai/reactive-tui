@@ -29,6 +29,8 @@ use reactive_tui::{
 };
 
 type Rgb = [u8; 3];
+/// A cell as its glyph, its glyph's color and its background.
+type Cell = (String, vt100::Color, vt100::Color);
 
 struct Control(Element);
 impl RootComponent for Control {
@@ -169,7 +171,7 @@ fn background(frame: &Snapshot, column: u16, row: u16) -> Option<Rgb> {
 }
 
 /// Every cell of `frame` as its glyph and its two colors.
-fn painted(frame: &Snapshot) -> Vec<(String, vt100::Color, vt100::Color)> {
+fn painted(frame: &Snapshot) -> Vec<Cell> {
     let (rows, columns) = frame.screen.size();
     (0..rows)
         .flat_map(|row| (0..columns).map(move |column| (row, column)))
@@ -178,6 +180,24 @@ fn painted(frame: &Snapshot) -> Vec<(String, vt100::Color, vt100::Color)> {
             (cell.contents().to_owned(), cell.fgcolor(), cell.bgcolor())
         })
         .collect()
+}
+
+/// The cells of the first panel in `frame`, from its first corner to its
+/// last, row by row, with the panel's width before them.
+fn panel_cells(frame: &Snapshot) -> Option<(u16, Vec<Cell>)> {
+    let (left, top) = find(frame, "┌")?;
+    let (rows, columns) = frame.screen.size();
+    let glyph = |column: u16, row: u16| frame.screen.cell(row, column).map(|cell| cell.contents());
+    let right = (left..columns).find(|column| glyph(*column, top) == Some("┐"))?;
+    let bottom = (top..rows).find(|row| glyph(left, *row) == Some("└"))?;
+    let cells = (top..=bottom)
+        .flat_map(|row| (left..=right).map(move |column| (row, column)))
+        .map(|(row, column)| {
+            let cell = frame.screen.cell(row, column).unwrap();
+            (cell.contents().to_owned(), cell.fgcolor(), cell.bgcolor())
+        })
+        .collect();
+    Some((right - left + 1, cells))
 }
 
 fn key(code: KeyCode) -> Option<Event> {
@@ -224,11 +244,26 @@ fn mnu_001_a_default_menu_looks_the_same_from_its_props_and_from_its_builder() {
     let mut differ = Vec::new();
     let mut compare = |name: &str, one: Vec<Snapshot>, other: Vec<Snapshot>| {
         let (one, other) = (one.last().unwrap(), other.last().unwrap());
-        let cells = painted(one)
-            .iter()
-            .zip(painted(other))
-            .filter(|(a, b)| **a != *b)
-            .count();
+        // A popup menu from its builder opens beside its own element and
+        // one from its props at its placement, so their panels are compared
+        // and not their places; the other menus open at the same cell.
+        let cells = if name == "popup menu" {
+            match (panel_cells(one), panel_cells(other)) {
+                (Some(one), Some(other)) if one.0 == other.0 => {
+                    one.1.iter().zip(&other.1).filter(|(a, b)| a != b).count()
+                }
+                (one, other) => {
+                    one.map_or(1, |(_, cells)| cells.len())
+                        + other.map_or(1, |(_, cells)| cells.len())
+                }
+            }
+        } else {
+            painted(one)
+                .iter()
+                .zip(painted(other))
+                .filter(|(a, b)| **a != *b)
+                .count()
+        };
         if cells > 0 {
             differ.push(format!(
                 "{name}: {cells} cells differ\nfrom its props:\n{}\nfrom its builder:\n{}",
@@ -369,7 +404,7 @@ fn parts() -> Element {
     page(
         popup(
             vec![
-                MenuItem::new("new", "NEW"),
+                MenuItem::new("new", "NEW").shortcut(MenuShortcut::new("Ctrl+N", vec!["ctrl+n"])),
                 MenuItem::new("open", "OPEN").shortcut(MenuShortcut::new("Ctrl+O", vec!["ctrl+o"])),
                 MenuItem::separator(),
                 MenuItem::new("off", "OFF").enabled(false),
@@ -398,6 +433,13 @@ fn mnu_001_a_default_menu_paints_each_part_in_its_role() {
     check(
         "the current row",
         colors(frame, "NEW"),
+        "selection-foreground",
+        "selection",
+    );
+    // The current row is one color from end to end, its shortcut too.
+    check(
+        "the current row's shortcut",
+        colors(frame, "Ctrl+N"),
         "selection-foreground",
         "selection",
     );

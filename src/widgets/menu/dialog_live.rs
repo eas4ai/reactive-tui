@@ -394,17 +394,22 @@ impl Component for DialogRuntime {
         if let Some(root) = self.root {
             let bounds = bounds(root);
             if props.config.modal || props.config.close_on_outside_click {
-                let mut style = StyleBuilder::new()
-                    .position_absolute()
-                    .inset_left(bounds.left)
-                    .inset_top(bounds.top)
-                    .width_px(bounds.right - bounds.left)
-                    .height_px(bounds.bottom - bounds.top)
-                    .z_index(998);
-                if props.config.modal {
-                    style = style.bg_rgba(0.0, 0.0, 0.0, 0.3);
-                }
-                children.push(node(style, vec![]).with_key("dialog-shield"));
+                let shield = node(
+                    StyleBuilder::new()
+                        .position_absolute()
+                        .inset_left(bounds.left)
+                        .inset_top(bounds.top)
+                        .width_px(bounds.right - bounds.left)
+                        .height_px(bounds.bottom - bounds.top)
+                        .z_index(998),
+                    vec![],
+                )
+                .with_key("dialog-shield");
+                children.push(if props.config.modal {
+                    shield.with_class(&props.config.style.veil_classes)
+                } else {
+                    shield
+                });
             }
             let selected = self.selected.lock().unwrap().clone();
             let mut display = self.menu.items.clone();
