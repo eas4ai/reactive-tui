@@ -219,6 +219,7 @@ pub struct RadioButtonBuilder {
     value: String,
     label: Option<String>,
     checked: bool,
+    aria_label: Option<String>,
     disabled: bool,
     group: Option<String>,
     class: Option<String>,
@@ -236,6 +237,7 @@ impl RadioButtonBuilder {
         Self {
             value: String::new(),
             label: None,
+            aria_label: None,
             checked: false,
             disabled: false,
             group: None,
@@ -252,6 +254,13 @@ impl RadioButtonBuilder {
     /// Set the label text for the radio button
     pub fn label(mut self, label: &str) -> Self {
         self.label = Some(label.to_string());
+        self
+    }
+
+    /// Set the name the screen reader hears, when the visible label is
+    /// not it.
+    pub fn aria_label(mut self, label: &str) -> Self {
+        self.aria_label = Some(label.to_string());
         self
     }
 
@@ -285,6 +294,7 @@ impl RadioButtonBuilder {
         let mut element = Element::typed::<NamedRadio>(NamedRadioProps {
             value: self.value,
             label: self.label,
+            aria_label: self.aria_label,
             checked: self.checked,
             disabled: self.disabled,
             group: self.group,
@@ -312,6 +322,7 @@ pub struct SliderBuilder {
     max: f64,
     step: f64,
     label: Option<String>,
+    aria_label: Option<String>,
     disabled: bool,
     class: Option<String>,
 }
@@ -331,6 +342,7 @@ impl SliderBuilder {
             max: 100.0,
             step: 1.0,
             label: None,
+            aria_label: None,
             disabled: false,
             class: None,
         }
@@ -366,6 +378,13 @@ impl SliderBuilder {
         self
     }
 
+    /// Set the name the screen reader hears, when the visible label is
+    /// not it.
+    pub fn aria_label(mut self, label: &str) -> Self {
+        self.aria_label = Some(label.to_string());
+        self
+    }
+
     /// Set whether the slider is disabled
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
@@ -395,6 +414,7 @@ impl SliderBuilder {
             value: self.value,
             step: self.step,
             disabled: self.disabled,
+            aria_label: self.aria_label.clone(),
             ..Default::default()
         }
     }

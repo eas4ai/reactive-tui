@@ -1,6 +1,10 @@
 /// Checkbox input components
 mod checkbox;
+/// The look every control shares: role classes and rows of colored pieces
+pub mod look;
 pub(crate) mod named_radio;
+/// The list panel a select and a text input's suggestions open
+pub(crate) mod panel;
 /// Radio button input components
 mod radio_button;
 /// Select dropdown components

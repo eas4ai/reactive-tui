@@ -2,10 +2,11 @@ use reactive_tui::builder::specialized::WizardStep;
 use reactive_tui::{
     app::{RootComponent, RootUpdate},
     builder::{
-        action_item, checkbox, checkbox_item, confirmation_dialog, context_menu, data_table, div,
-        file_explorer, image, menu_item, menubar, path_breadcrumb, popover, progress_bar,
-        progress_dialog, radio_button, radio_item, scroll_view, select, separator,
-        simple_accordion, slider, stack, submenu_item, tabs, text_input, toast, tree, wizard,
+        action_item, button, checkbox, checkbox_item, confirmation_dialog, context_menu,
+        data_table, div, file_explorer, image, menu_item, menubar, path_breadcrumb, popover,
+        primary_button, progress_bar, progress_dialog, radio_button, radio_item, scroll_view,
+        select, separator, simple_accordion, slider, stack, submenu_item, tabs, text_input, toast,
+        tree, wizard,
     },
     component::Element,
     core::geometry::Rect,
@@ -364,13 +365,15 @@ impl Catalog {
     fn input_page(&self) -> Element {
         div()
             .class(Self::card_grid_class(self.width))
+            // The page opens with its first control focused, so Tab walks
+            // the controls and Enter opens the select.
             .child(Self::card(
                 "TextInput",
                 text_input()
                     .value("Reactive TUI")
                     .placeholder("Type here")
-                    .class("w-full")
-                    .build(),
+                    .build()
+                    .auto_focus(),
             ))
             .child(Self::card(
                 "Checkbox",
@@ -413,6 +416,14 @@ impl Catalog {
                     .max(100.0)
                     .step(5.0)
                     .value(65.0)
+                    .build(),
+            ))
+            .child(Self::card(
+                "Button",
+                div()
+                    .class("flex-row gap-1")
+                    .child(primary_button("Save", || {}))
+                    .child(button().text("Cancel").on_click(|| {}).build())
                     .build(),
             ))
             .build()

@@ -48,7 +48,9 @@ fn autocomplete_accepts_with_tab_and_mouse_without_moving_focus() {
                 .auto_focus();
             let mut steps = vec![(1, key(KeyCode::Char('a')))];
             if mouse {
-                steps.push((2, click(3, 2)));
+                // The suggestions are a panel under the field: its border
+                // on row 1, the first suggestion on row 2, the second on 3.
+                steps.push((2, click(3, 3)));
             } else {
                 steps.push((2, key(KeyCode::Down)));
                 steps.push((2, key(KeyCode::Tab)));
@@ -202,8 +204,18 @@ fn numeric_and_email_builder_modes_affect_input_and_validation() {
                 (2, None),
             ],
         );
-        assert!(frames[0].text.contains('❌'));
-        assert!(!frames.last().unwrap().text.contains('❌'));
+        // An invalid value paints the field's frame in the theme's `error`
+        // (CTL-001); a valid one paints it in `border` or `ring`.
+        let frame = |frame: &crate::app_input::Snapshot| {
+            let column = frame.text.lines().next().unwrap().find('[').unwrap() as u16;
+            frame.screen.cell(0, column).unwrap().fgcolor()
+        };
+        assert_ne!(
+            frame(&frames[0]),
+            frame(frames.last().unwrap()),
+            "{}",
+            frames[0].text
+        );
         assert!(frames.last().unwrap().text.contains("a@b.test"));
     }
 }
@@ -416,8 +428,10 @@ fn narrow_multiline_fields_wrap_wide_graphemes_into_visible_rows() {
         (24, 8),
         vec![(1, key(KeyCode::End)), (2, None)],
     );
+    // The field's text starts after its frame cell; six cells hold three
+    // wide graphemes a row.
     let screen = &frames.last().unwrap().screen;
-    for (row, column) in [(0, 3), (0, 5), (1, 3), (1, 5), (2, 3)] {
+    for (row, column) in [(0, 1), (0, 3), (0, 5), (1, 1), (1, 3)] {
         assert_eq!(
             screen.cell(row, column).unwrap().contents(),
             "界",
@@ -437,10 +451,11 @@ fn text_input_mouse_uses_display_columns_before_and_after_resize() {
         Control(element.class("w-12")),
         (24, 6),
         vec![
-            (1, click(5, 0)),
+            // The text starts after the frame cell: column 3 is after 界.
+            (1, click(3, 0)),
             (1, key(KeyCode::Char('X'))),
             (2, Some(Event::Resize(ResizeEvent::new(16, 8)))),
-            (3, click(3, 0)),
+            (3, click(1, 0)),
             (3, key(KeyCode::Char('Y'))),
             (4, None),
         ],
@@ -572,7 +587,9 @@ fn select_mouse_respects_padding_and_open_close_callbacks_after_resize() {
             vec![
                 (1, click(4, 2)),
                 (2, Some(Event::Resize(ResizeEvent::new(32, 10)))),
-                (3, click(5, 4)),
+                // The list's border takes the row under the field; Beta is
+                // the second option row.
+                (3, click(5, 5)),
                 (4, None),
             ],
         );

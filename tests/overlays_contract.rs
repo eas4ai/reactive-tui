@@ -803,9 +803,9 @@ fn foreign(frame: &Snapshot, skip: &[u16]) -> Vec<String> {
 }
 
 /// Each overlay as the widget catalog builds it, with the text that shows
-/// it is open and the text of the row a widget of another family paints
-/// (a text field), which the color check leaves out. The progress bar
-/// inside the progress dialog is told its roles by the dialog.
+/// it is open. The fourth item named the row of a text field, which the
+/// color check left out until the input family was brought to the widget
+/// bar; it is `None` now and stays for the table's shape.
 fn overlays() -> Vec<(&'static str, Element, &'static str, Option<&'static str>)> {
     use reactive_tui::{
         builder::specialized::WizardStep,
@@ -861,7 +861,7 @@ fn overlays() -> Vec<(&'static str, Element, &'static str, Option<&'static str>)
             )
             .render(Rect::default(), &DialogTheme::default()),
             "Capture name",
-            Some("["),
+            None,
         ),
         (
             "autocomplete dialog",
@@ -881,7 +881,7 @@ fn overlays() -> Vec<(&'static str, Element, &'static str, Option<&'static str>)
             )
             .render(Rect::default(), &DialogTheme::default()),
             "Checkbox",
-            Some("["),
+            None,
         ),
         (
             "progress dialog",

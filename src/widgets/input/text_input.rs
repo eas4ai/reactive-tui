@@ -45,6 +45,7 @@ pub struct Suggestion {
 pub struct TextInputBuilder {
     value: String,
     placeholder: Option<String>,
+    aria_label: Option<String>,
     max_length: Option<usize>,
     disabled: bool,
     width: Option<u16>,
@@ -64,7 +65,6 @@ impl TextInputBuilder {
         Self {
             wrap_text: true,
             tab_size: 4,
-            width: Some(30),
             placeholder: Some("Enter text...".to_string()),
             ..Default::default()
         }
@@ -79,6 +79,13 @@ impl TextInputBuilder {
     /// Set the placeholder text
     pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
         self.placeholder = Some(placeholder.into());
+        self
+    }
+
+    /// Set the name the screen reader hears for the field; without it
+    /// the placeholder names the field.
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
         self
     }
 
@@ -183,6 +190,7 @@ impl TextInputBuilder {
         TextInputProps {
             value: self.value,
             placeholder: self.placeholder,
+            aria_label: self.aria_label,
             max_length: self.max_length,
             disabled: self.disabled,
             width: self.width,
@@ -210,11 +218,15 @@ pub struct TextInputProps {
     pub value: String,
     /// Placeholder text when empty
     pub placeholder: Option<String>,
+    /// The name the screen reader hears for the field; without it the
+    /// placeholder names the field
+    pub aria_label: Option<String>,
     /// Maximum allowed text length
     pub max_length: Option<usize>,
     /// Whether the input is disabled
     pub disabled: bool,
-    /// Fixed width in characters
+    /// The field's text width in cells; `None` takes the width the parent
+    /// allots, less the frame and the line numbers (CTL-002)
     pub width: Option<u16>,
     /// Input mode (single line, multi-line, password, etc.)
     pub mode: InputMode,
@@ -239,9 +251,10 @@ impl Default for TextInputProps {
         Self {
             value: String::new(),
             placeholder: Some("Enter text...".to_string()),
+            aria_label: None,
             max_length: None,
             disabled: false,
-            width: Some(30),
+            width: None,
             mode: InputMode::default(),
             validator_pattern: None,
             error_message: None,
@@ -374,6 +387,8 @@ pub struct TextInput {
     read_only: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     clipboard_content: Option<String>,
     viewport: Option<crate::component::LayoutInfo>,
+    /// The screen the suggestion panel was laid out on, for its placement.
+    measured: Arc<super::panel::Measured>,
     validator: Mutex<Option<(String, Option<regex::Regex>)>>,
 }
 
@@ -911,6 +926,7 @@ impl Component for TextInput {
             read_only: None,
             clipboard_content: None,
             viewport: None,
+            measured: Arc::default(),
             validator: Mutex::new(None),
         }
     }
@@ -1207,18 +1223,33 @@ impl TextInput {
                 if x < inset_x || y < inset_y {
                     return EventResult::Ignored;
                 }
-                let y = y - inset_y;
-                let suggestion_top = self.view_size(props, state).1
-                    + usize::from(!state.is_valid && props.error_message.is_some());
-                if state.show_suggestions && y >= suggestion_top {
-                    if event.kind != MouseEventKind::Drag {
-                        let range = Self::suggestion_window(props, state);
-                        if let Some(index) = range.into_iter().nth(y - suggestion_top) {
-                            self.accept_suggestion(index, props, state);
-                            return EventResult::Consumed;
+                let mut y = y - inset_y;
+                if let Some(placement) = self.suggestion_placement(props, state) {
+                    // The panel stands under the body or above it; its
+                    // border takes its first row.
+                    let body_rows = self.body_rows(props, state);
+                    let (panel_top, body_top) = if placement.above {
+                        (0, placement.height())
+                    } else {
+                        (body_rows, 0)
+                    };
+                    if y >= panel_top && y < panel_top + placement.height() {
+                        if event.kind != MouseEventKind::Drag {
+                            let range = Self::suggestion_window(props, state);
+                            if let Some(index) = (y > panel_top)
+                                .then(|| range.into_iter().nth(y - panel_top - 1))
+                                .flatten()
+                            {
+                                self.accept_suggestion(index, props, state);
+                                return EventResult::Consumed;
+                            }
                         }
+                        return EventResult::Ignored;
                     }
-                    return EventResult::Ignored;
+                    let Some(local) = y.checked_sub(body_top) else {
+                        return EventResult::Ignored;
+                    };
+                    y = local;
                 }
                 let position = self.mouse_byte(props, state, x - inset_x, y);
                 let Some(position) = position else {

@@ -68,15 +68,38 @@ pub fn flex() -> ElementBuilder {
 
 /// Create a button-like element
 pub fn button() -> ElementBuilder {
-    div().class("px-16 py-8 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer")
+    // The secondary look: `secondary` with its text, one cell of padding
+    // at each side, `selection` while it holds the focus (CTL-001).
+    div().class(crate::widgets::input::look::BUTTON)
 }
 
 /// Create an editable single-line input. `text` supplies its initial value.
 pub fn input() -> ElementBuilder {
-    let mut builder = div()
-        .class("px-2 py-0 border border-gray-300 rounded focus:outline-none focus:border-blue-500");
+    // The field paints its own look from the theme's roles (CTL-001).
+    let mut builder = div();
     builder.input = Some(crate::widgets::TextInputProps::default());
     builder
+}
+
+/// Create a primary button with default styling
+///
+/// # Arguments
+/// * `text` - Button text to display
+/// * `onclick` - Click handler function
+///
+/// # Returns
+/// A styled primary button element
+pub fn primary_button<F>(text: &str, onclick: F) -> Element
+where
+    F: Fn() + Send + Sync + 'static,
+{
+    // The primary look: `primary` with its text, one cell of padding at
+    // each side, `selection` while it holds the focus (CTL-001).
+    div()
+        .class(crate::widgets::input::look::PRIMARY_BUTTON)
+        .text(text)
+        .on_click(Box::new(onclick))
+        .build()
 }
 
 /// Builder for creating elements with a fluent API

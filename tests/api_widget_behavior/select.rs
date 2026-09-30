@@ -36,18 +36,18 @@ fn select_multiple_authored_selection_replaces_retained_choices() {
             ChangedSelection(Default::default()),
             size,
             vec![
-                ("[Alpha]", None, key(KeyCode::Enter)),
-                ("▼", None, key(KeyCode::Down)),
-                ("▼", None, key(KeyCode::Enter)),
-                ("[Alpha, Beta]", None, key(KeyCode::Escape)),
-                ("[Alpha, Beta]", Some("▼"), key(KeyCode::F(2))),
-                ("[Gamma]", None, None),
+                ("[Alpha ", None, key(KeyCode::Enter)),
+                ("┌", None, key(KeyCode::Down)),
+                ("┌", None, key(KeyCode::Enter)),
+                ("[Alpha, Beta ", None, key(KeyCode::Escape)),
+                ("[Alpha, Beta ", Some("┌"), key(KeyCode::F(2))),
+                ("[Gamma ", None, None),
             ],
         );
         assert!(
             frames
                 .iter()
-                .any(|frame| frame.text.contains("[Alpha, Beta]")),
+                .any(|frame| frame.text.contains("[Alpha, Beta ")),
             "{:?}",
             frames
                 .iter()
@@ -55,7 +55,7 @@ fn select_multiple_authored_selection_replaces_retained_choices() {
                 .collect::<Vec<_>>()
         );
         assert!(
-            frames.last().unwrap().text.contains("[Gamma]"),
+            frames.last().unwrap().text.contains("[Gamma "),
             "{}",
             frames.last().unwrap().text
         );
@@ -87,12 +87,14 @@ fn select_builder_search_cycles_and_multiple_choices_survive_reopening() {
                 (2, None),
             ],
         );
+        // The row is a field: the value, then padding and the caret.
         assert!(
-            frames.last().unwrap().text.contains("[Alpha, Bravo]"),
+            frames.last().unwrap().text.contains("[Alpha, Bravo "),
             "{}",
             frames.last().unwrap().text
         );
-        assert!(!frames.last().unwrap().text.contains('▼'));
+        // The list is closed: no panel border below the row.
+        assert!(!frames.last().unwrap().text.contains('┌'));
     }
 }
 
@@ -123,11 +125,11 @@ fn select_search_opens_and_matches_enabled_unicode_prefixes() {
                     .last()
                     .unwrap()
                     .text
-                    .contains(&format!("[{expected}]")),
+                    .contains(&format!("[{expected} ")),
                 "{}",
                 frames.last().unwrap().text
             );
-            assert!(!frames.last().unwrap().text.contains("▼"));
+            assert!(!frames.last().unwrap().text.contains('┌'));
         }
     }
 }

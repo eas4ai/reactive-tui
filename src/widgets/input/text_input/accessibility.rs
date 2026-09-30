@@ -20,6 +20,10 @@ impl TextInput {
         if self.is_read_only() {
             accessible.set_read_only();
         }
+        // The field's name: its `aria_label`, or its placeholder (CTL-004).
+        if let Some(label) = props.aria_label.as_ref().or(props.placeholder.as_ref()) {
+            accessible.set_label(label.clone());
+        }
         if let Some(placeholder) = &props.placeholder {
             accessible.set_description(placeholder.clone());
         }

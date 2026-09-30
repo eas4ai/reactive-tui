@@ -291,16 +291,16 @@ fn ctl_001_a_text_input_paints_its_field_in_input_and_its_cursor_reversed() {
         "Type here",
     );
     let (column, row) = at(&frame, "Reactive");
+    // The cursor stands on the first glyph until the user moves it.
     assert_eq!(
-        cell_colors(&frame, column, row),
+        cell_colors(&frame, column + 1, row),
         (Some(role("foreground")), Some(role("input"))),
         "the field is input with foreground text:\n{}",
         frame.text
     );
-    let cursor = cell_colors(&frame, column + 8, row);
     assert_eq!(
-        cursor.1,
-        Some(role("foreground")),
+        cell_colors(&frame, column, row),
+        (Some(role("input")), Some(role("foreground"))),
         "the cursor cell is the field reversed:\n{}",
         frame.text
     );
@@ -351,8 +351,14 @@ fn ctl_001_a_button_takes_the_primary_or_the_secondary_look() {
         "one cell of padding before the label:\n{}",
         frame.text
     );
+    assert_eq!(
+        cell_colors(&frame, column + 4, row).1,
+        Some(role("primary")),
+        "one cell of padding after the label:\n{}",
+        frame.text
+    );
     assert_ne!(
-        cell_colors(&frame, column - 2, row).1,
+        cell_colors(&frame, column + 5, row).1,
         Some(role("primary")),
         "one cell of padding, not more:\n{}",
         frame.text
@@ -450,10 +456,14 @@ fn ctl_001_a_select_paints_its_field_and_its_open_list_in_the_roles() {
         "a row of the list is surface:\n{}",
         open.text
     );
-    let (column, row) = at(open, "Cyan");
-    let current = (0..row + 4)
-        .find(|r| *r != row && glyph(open, column, *r) == "C")
-        .expect("the list's Cyan row");
+    let (field_column, field_row) = at(open, "Cyan");
+    let (column, current) = (field_row + 1..field_row + 5)
+        .find_map(|r| {
+            (0..field_column + 6)
+                .find(|c| glyph(open, *c, r) == "C" && glyph(open, c + 1, r) == "y")
+                .map(|c| (c, r))
+        })
+        .unwrap_or_else(|| panic!("the list's Cyan row:\n{}", open.text));
     assert_eq!(
         cell_colors(open, column, current),
         (Some(role("selection-foreground")), Some(role("selection"))),
@@ -650,36 +660,41 @@ fn ctl_002_a_select_of_thirty_options_paints_every_row_when_opened() {
 #[serial_test::serial(theme)]
 fn ctl_003_opening_a_select_moves_nothing_under_it() {
     let _theme = Active::set(probe());
+    let mut page = builder::div().class("flex-col").child(
+        builder::select()
+            .option("cyan", "Cyan")
+            .option("violet", "Violet")
+            .selected("cyan")
+            .build()
+            .auto_focus(),
+    );
+    for n in 1..=6 {
+        page = page.child(Element::text(format!("LINE {n} UNDER THE SELECT")));
+    }
     let frames = shown_after(
-        builder::div()
-            .class("flex-col")
-            .child(
-                builder::select()
-                    .option("cyan", "Cyan")
-                    .option("violet", "Violet")
-                    .selected("cyan")
-                    .build()
-                    .auto_focus(),
-            )
-            .child(Element::text("BELOW THE SELECT"))
-            .build(),
+        page.build(),
         (80, 12),
-        vec![("BELOW THE SELECT", key(KeyCode::Enter)), ("Violet", None)],
+        vec![("LINE 6 UNDER", key(KeyCode::Enter)), ("Violet", None)],
     );
-    let before = at(first_with(&frames, "BELOW THE SELECT"), "BELOW THE SELECT");
+    let before = first_with(&frames, "LINE 6 UNDER");
     let open = last(&frames);
-    let after = find(open, "BELOW THE SELECT").unwrap_or(before);
-    assert_eq!(
-        after, before,
-        "the element under the select keeps its place:\n{}",
-        open.text
-    );
-    let (_, row) = at(open, "Violet");
-    assert!(
-        row <= before.1,
-        "the list is painted over what was under the select:\n{}",
-        open.text
-    );
+    // The panel of two options takes four rows: it covers lines 1 to 4,
+    // which are painted over, not moved; lines 5 and 6 keep their rows.
+    for n in 1..=4 {
+        assert!(
+            find(open, &format!("LINE {n} UNDER")).is_none(),
+            "line {n} is painted over, not moved:\n{}",
+            open.text
+        );
+    }
+    for n in 5..=6 {
+        assert_eq!(
+            find(open, &format!("LINE {n} UNDER")),
+            find(before, &format!("LINE {n} UNDER")),
+            "line {n} keeps its row:\n{}",
+            open.text
+        );
+    }
 }
 
 #[test]
@@ -789,6 +804,46 @@ fn ctl_003_escape_closes_the_list_and_a_choice_shows_at_once() {
     );
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn ctl_003_a_text_input_suggestion_list_inside_a_clipping_box_paints_whole() {
+    use reactive_tui::widgets::input::{Suggestion, TextInput, TextInputProps};
+    let _theme = Active::set(probe());
+    let suggestion = |text: &str| Suggestion {
+        text: text.into(),
+        description: None,
+        insert_text: text.into(),
+    };
+    let input = Element::typed::<TextInput>(TextInputProps {
+        suggestions: vec![suggestion("Alpha"), suggestion("Amber"), suggestion("Atom")],
+        placeholder: Some("Type here".into()),
+        ..Default::default()
+    })
+    .auto_focus();
+    let frames = shown_after(
+        builder::div()
+            .class("flex-col h-2 overflow-hidden")
+            .child(input)
+            .build(),
+        (80, 12),
+        vec![("Type here", key(KeyCode::Char('a'))), ("Alpha", None)],
+    );
+    let open = last(&frames);
+    for label in ["Alpha", "Amber", "Atom"] {
+        assert!(
+            find(open, label).is_some(),
+            "{label} is painted outside the clipping box:\n{}",
+            open.text
+        );
+    }
+    let (_, row) = at(open, "Atom");
+    assert!(
+        row >= 3,
+        "the suggestions stand under the field, past the box:\n{}",
+        open.text
+    );
+}
+
 // ---------------------------------------------------------------- CTL-004
 
 #[test]
@@ -830,5 +885,339 @@ fn ctl_004_a_key_moves_a_slider_and_opens_a_select_as_a_click_does() {
         find(open, "Violet").is_some(),
         "Down opens the select:\n{}",
         open.text
+    );
+}
+
+// ---------------------------------------------------------------- BAR-003
+
+/// Whether `color` is one the probe theme defines.
+fn of_the_theme(color: Option<Rgb>) -> bool {
+    color.is_some_and(|color| (0..ROLES.len()).any(|index| probe_color(index) == color))
+}
+
+/// The colors in `frame` that the probe theme does not define, each with
+/// the first cell that has it.
+fn foreign(frame: &Snapshot) -> Vec<String> {
+    let (rows, columns) = frame.screen.size();
+    let mut found: Vec<(vt100::Color, String)> = Vec::new();
+    for (row, column) in (0..rows).flat_map(|row| (0..columns).map(move |column| (row, column))) {
+        let cell = frame.screen.cell(row, column).unwrap();
+        let mut colors = vec![("background", cell.bgcolor())];
+        if !cell.contents().trim().is_empty() {
+            colors.push(("glyph", cell.fgcolor()));
+        }
+        for (part, color) in colors {
+            if !of_the_theme(rgb(color)) && !found.iter().any(|(seen, _)| *seen == color) {
+                found.push((
+                    color,
+                    format!(
+                        "{part} {color:?} at ({column}, {row}) {:?}",
+                        cell.contents()
+                    ),
+                ));
+            }
+        }
+    }
+    found.into_iter().map(|(_, where_)| where_).collect()
+}
+
+/// Each control as the widget catalog builds it, focused or not, with the
+/// text that shows it is painted.
+fn controls() -> Vec<(&'static str, Element, &'static str)> {
+    let select = || {
+        builder::select()
+            .option("cyan", "Cyan")
+            .option("violet", "Violet")
+            .selected("cyan")
+            .build()
+    };
+    vec![
+        (
+            "text input",
+            builder::text_input()
+                .value("Reactive TUI")
+                .placeholder("Type here")
+                .build(),
+            "Reactive TUI",
+        ),
+        (
+            "focused text input with an error",
+            reactive_tui::widgets::input::TextInputBuilder::new()
+                .value("ab1")
+                .validator_pattern("alpha")
+                .error_message("Letters only")
+                .render()
+                .auto_focus(),
+            "Letters only",
+        ),
+        (
+            "checkbox",
+            builder::checkbox()
+                .label("Capture-ready")
+                .checked(true)
+                .build(),
+            "Capture-ready",
+        ),
+        (
+            "focused checkbox",
+            builder::checkbox()
+                .label("Capture-ready")
+                .build()
+                .auto_focus(),
+            "Capture-ready",
+        ),
+        (
+            "disabled checkbox",
+            builder::checkbox()
+                .label("Locked")
+                .checked(true)
+                .disabled(true)
+                .build(),
+            "Locked",
+        ),
+        (
+            "radio buttons",
+            builder::div()
+                .class("flex-col")
+                .child(
+                    builder::radio_button()
+                        .group("quality")
+                        .value("balanced")
+                        .label("Balanced")
+                        .checked(true)
+                        .build()
+                        .auto_focus(),
+                )
+                .child(
+                    builder::radio_button()
+                        .group("quality")
+                        .value("high")
+                        .label("High detail")
+                        .build(),
+                )
+                .build(),
+            "High detail",
+        ),
+        ("select", select(), "Cyan"),
+        ("focused select", select().auto_focus(), "Cyan"),
+        (
+            "slider",
+            builder::slider()
+                .label("Intensity")
+                .min(0.0)
+                .max(100.0)
+                .step(5.0)
+                .value(65.0)
+                .build(),
+            "65.0",
+        ),
+        (
+            "focused slider",
+            builder::slider()
+                .label("Intensity")
+                .value(65.0)
+                .build()
+                .auto_focus(),
+            "65.0",
+        ),
+        (
+            "buttons",
+            builder::div()
+                .class("flex-row gap-1")
+                .child(builder::primary_button("Save", || {}))
+                .child(builder::button().text("Cancel").on_click(|| {}).build())
+                .build(),
+            "Cancel",
+        ),
+    ]
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_control_takes_every_color_from_the_active_theme() {
+    let _theme = Active::set(probe());
+    let mut wrong = Vec::new();
+    for (name, root, text) in controls() {
+        let frame = shown(root, (80, 24), text);
+        let foreign = foreign(&frame);
+        if !foreign.is_empty() {
+            wrong.push(format!("{name}: {foreign:#?}\n{}", frame.text));
+        }
+    }
+    // The open list too.
+    let frames = shown_after(
+        builder::select()
+            .option("cyan", "Cyan")
+            .option("violet", "Violet")
+            .selected("cyan")
+            .build()
+            .auto_focus(),
+        (80, 24),
+        vec![("Cyan", key(KeyCode::Enter)), ("Violet", None)],
+    );
+    let foreign = foreign(last(&frames));
+    if !foreign.is_empty() {
+        wrong.push(format!("open select: {foreign:#?}\n{}", last(&frames).text));
+    }
+    assert!(
+        wrong.is_empty(),
+        "BAR-003: a control paints a color the theme does not define:\n{}",
+        wrong.join("\n")
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_control_follows_a_resize() {
+    use reactive_tui::event::types::ResizeEvent;
+    let _theme = Active::set(probe());
+    let frames = shown_after(
+        builder::div()
+            .class("flex-col gap-1 w-full")
+            .child(builder::text_input().value("Reactive").build())
+            .child(
+                builder::select()
+                    .option("cyan", "Cyan")
+                    .option("violet", "Violet")
+                    .selected("cyan")
+                    .build(),
+            )
+            .child(builder::slider().label("Intensity").value(65.0).build())
+            .build(),
+        (80, 24),
+        vec![
+            ("Intensity", Some(Event::Resize(ResizeEvent::new(160, 48)))),
+            ("Intensity", None),
+        ],
+    );
+    // The settled frame at 80 columns: the last one of that width.
+    let before = frames
+        .iter()
+        .rev()
+        .find(|frame| frame.screen.size().1 == 80)
+        .expect("a frame at 80 columns");
+    let after = last(&frames);
+    for needle in ["Reactive", "Cyan", "Intensity"] {
+        let (_, row) = at(before, needle);
+        assert_eq!(
+            last_glyph_column(before, row),
+            Some(79),
+            "{needle} fills 80 columns:\n{}",
+            before.text
+        );
+        let (_, row) = at(after, needle);
+        assert_eq!(
+            last_glyph_column(after, row),
+            Some(159),
+            "{needle} fills 160 columns after the resize:\n{}",
+            after.text
+        );
+    }
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_every_pointer_action_of_a_control_has_a_key() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let _theme = Active::set(probe());
+    let clicks = Arc::new(AtomicUsize::new(0));
+    let counted = clicks.clone();
+    let frames = shown_after(
+        builder::div()
+            .class("flex-col gap-1")
+            .child(
+                builder::checkbox()
+                    .label("Capture-ready")
+                    .build()
+                    .auto_focus(),
+            )
+            .child(
+                builder::div()
+                    .class("flex-col")
+                    .child(
+                        builder::radio_button()
+                            .group("quality")
+                            .value("balanced")
+                            .label("Balanced")
+                            .checked(true)
+                            .build(),
+                    )
+                    .child(
+                        builder::radio_button()
+                            .group("quality")
+                            .value("high")
+                            .label("High detail")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .child(
+                builder::select()
+                    .option("cyan", "Cyan")
+                    .option("violet", "Violet")
+                    .selected("cyan")
+                    .build(),
+            )
+            .child(builder::slider().label("Intensity").value(50.0).build())
+            .child(
+                builder::button()
+                    .text("Count")
+                    .on_click(move || {
+                        counted.fetch_add(1, Ordering::SeqCst);
+                    })
+                    .build(),
+            )
+            .build(),
+        (80, 24),
+        vec![
+            // Space checks the box, as a click does.
+            ("Capture-ready", key(KeyCode::Char(' '))),
+            // Tab, Tab reaches the second radio; Space chooses it.
+            ("[✓]", key(KeyCode::Tab)),
+            ("[✓]", key(KeyCode::Tab)),
+            ("[✓]", key(KeyCode::Char(' '))),
+            // Tab reaches the select; Enter opens, Down moves, Enter chooses.
+            ("(●) High detail", key(KeyCode::Tab)),
+            ("(●) High detail", key(KeyCode::Enter)),
+            ("Violet", key(KeyCode::Down)),
+            ("Violet", key(KeyCode::Enter)),
+            // Tab reaches the slider; End takes it to the maximum.
+            ("[Violet", key(KeyCode::Tab)),
+            ("[Violet", key(KeyCode::End)),
+            // Tab reaches the button; Enter presses it.
+            ("100.0", key(KeyCode::Tab)),
+            ("100.0", key(KeyCode::Enter)),
+            ("100.0", None),
+        ],
+    );
+    let end = last(&frames);
+    assert!(
+        find(end, "[✓]").is_some(),
+        "the box is checked:\n{}",
+        end.text
+    );
+    assert!(
+        find(end, "(●) High detail").is_some(),
+        "the radio is chosen:\n{}",
+        end.text
+    );
+    assert!(
+        find(end, "[Violet").is_some() && find(end, "Cyan").is_none(),
+        "the select shows the choice:\n{}",
+        end.text
+    );
+    assert!(
+        find(end, "100.0").is_some(),
+        "the slider is at its maximum:\n{}",
+        end.text
+    );
+    assert_eq!(
+        clicks.load(Ordering::SeqCst),
+        1,
+        "Enter pressed the button:\n{}",
+        end.text
     );
 }

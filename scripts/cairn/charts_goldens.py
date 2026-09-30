@@ -4,9 +4,10 @@ CHT-026, CHT-027, CHT-028, CHT-030 and BAR-004 through the tests/charts_goldens.
 and doc probes. BAR-004 also covers the image widget's goldens, the graphics canvas's
 (tests/canvas_goldens.rs, built with wgpu-graphics: three scenes at 80 by 24 and 400 by 100)
 the menus' (tests/menus_goldens.rs: the menu bar, the popup menu, the context menu and
-the dialog menu, each open, at 80 by 24 and 400 by 100) and the overlays'
+the dialog menu, each open, at 80 by 24 and 400 by 100), the overlays'
 (tests/overlays_goldens.rs: the modal, the popover, the toast and the five dialogs, each
-shown, at the same two sizes).
+shown, at the same two sizes) and the input widgets' (tests/input_widgets_goldens.rs:
+the text input, checkbox, radio button, select, slider and button at the same two sizes).
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -42,6 +43,11 @@ MENU_GOLDENS = tuple(f"{menu}_{size}" for menu in MENUS for size in ("80x24", "4
 OVERLAYS = ("modal", "popover", "confirmation_dialog", "input_dialog", "autocomplete_dialog",
             "progress_dialog", "toast", "wizard_dialog")
 OVERLAY_GOLDENS = tuple(f"{overlay}_{size}" for overlay in OVERLAYS for size in ("80x24", "400x100"))
+# The six input widgets, at 80 by 24 and 400 by 100: a field, a select's
+# row and a slider's track fill the width the page allots, so the wide
+# golden is 400 columns of controls.
+INPUT_WIDGETS = ("text_input", "checkbox", "radio_button", "select", "slider", "button")
+INPUT_GOLDENS = tuple(f"{widget}_{size}" for widget in INPUT_WIDGETS for size in ("80x24", "400x100"))
 
 
 GOLDEN_TESTS = ("tests/charts_goldens.rs", "tests/api_widget_behavior/image.rs")
@@ -94,12 +100,13 @@ SNAPSHOTS_ENV = "REACTIVE_TUI_SNAPSHOTS"
 # every golden of the family.
 GOLDEN_RUNS = (("charts_goldens", "cht_023_", "charts", None), ("api_widget_behavior", "bar_004_", "image", None),
                ("canvas_goldens", "bar_004_", "canvas", CANVAS), ("menus_goldens", "bar_004_", "menus", None),
-               ("overlays_goldens", "bar_004_", "overlays", None))
+               ("overlays_goldens", "bar_004_", "overlays", None),
+               ("input_widgets_goldens", "bar_004_", "input_widgets", None))
 
 
 def checked_in() -> dict[Path, bytes]:
     """Every file of the golden families as it is now."""
-    return {p: p.read_bytes() for family in ("charts", "image", "canvas", "menus", "overlays")
+    return {p: p.read_bytes() for family in ("charts", "image", "canvas", "menus", "overlays", "input_widgets")
             for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
 
 
@@ -219,11 +226,21 @@ def wide_problems() -> list[str]:
             columns = max((display_width(row) for row in grid.split("\n")), default=0)
             if columns < 400:
                 problems.append(f"overlay golden {name}.ansi is {columns} columns wide, under 400")
+    for name in INPUT_GOLDENS:
+        path = SNAPSHOTS / "input_widgets" / f"{name}.ansi"
+        if not path.is_file():
+            problems.append(f"missing input widget golden {name}.ansi")
+        elif name.endswith("_400x100"):
+            grid = path.read_text(errors="replace").rsplit("\ncolors: ", 1)[0]
+            columns = max((display_width(row) for row in grid.split("\n")), default=0)
+            if columns < 400:
+                problems.append(f"input widget golden {name}.ansi is {columns} columns wide, under 400")
     for src, test in (("tests/charts_goldens.rs", "cht_023_"),
                       ("tests/api_widget_behavior/image.rs", "bar_004_"),
                       ("tests/canvas_goldens.rs", "bar_004_"),
                       ("tests/menus_goldens.rs", "bar_004_"),
-                      ("tests/overlays_goldens.rs", "bar_004_")):
+                      ("tests/overlays_goldens.rs", "bar_004_"),
+                      ("tests/input_widgets_goldens.rs", "bar_004_")):
         path = ROOT / src
         text = path.read_text(errors="replace") if path.is_file() else ""
         body = re.search(rf"fn {test}\w*\(\)\s*\{{(.*?)\n\}}", text, re.S)
@@ -235,6 +252,7 @@ def wide_problems() -> list[str]:
     problems.extend(regeneration_problems("tests/canvas_goldens.rs"))
     problems.extend(regeneration_problems("tests/menus_goldens.rs"))
     problems.extend(regeneration_problems("tests/overlays_goldens.rs"))
+    problems.extend(regeneration_problems("tests/input_widgets_goldens.rs"))
     return problems
 
 
@@ -290,18 +308,20 @@ def main() -> int:
     ok_canvas, why_canvas = cargo_test_filtered("canvas_goldens", "bar_004_", features=CANVAS)
     ok_menus, why_menus = cargo_test_filtered("menus_goldens", "bar_004_")
     ok_overlays, why_overlays = cargo_test_filtered("overlays_goldens", "bar_004_")
+    ok_inputs, why_inputs = cargo_test_filtered("input_widgets_goldens", "bar_004_")
     problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"]) + (
         [] if ok_image else [f"image golden comparison failed: {why_image}"]) + (
         [] if ok_canvas else [f"canvas golden comparison failed: {why_canvas}"]) + (
         [] if ok_menus else [f"menu golden comparison failed: {why_menus}"]) + (
-        [] if ok_overlays else [f"overlay golden comparison failed: {why_overlays}"])
-    if ok_023 and ok_image and ok_canvas and ok_menus and ok_overlays:
+        [] if ok_overlays else [f"overlay golden comparison failed: {why_overlays}"]) + (
+        [] if ok_inputs else [f"input widget golden comparison failed: {why_inputs}"])
+    if ok_023 and ok_image and ok_canvas and ok_menus and ok_overlays and ok_inputs:
         problems_004 += altered_golden_problems(before)
     after = checked_in()
     rewritten = sorted(str(p.relative_to(ROOT)) for p in before.keys() | after.keys() if before.get(p) != after.get(p))
     if rewritten:
         problems_004.append(f"a test run changed checked-in goldens: {', '.join(rewritten[:4])}")
-    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart, image, canvas and menu goldens on the debug backend compare equal; wide ones 400+ columns")
+    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart, image, canvas, menu, overlay and input widget goldens on the debug backend compare equal; wide ones 400+ columns")
     return finish(results)
 
 

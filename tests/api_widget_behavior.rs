@@ -160,7 +160,25 @@ fn checkbox_hover_covers_the_label_and_clears_outside() {
             size,
             vec![(1, movement(10, 0)), (2, movement(20, 3)), (3, None)],
         );
-        assert!(frames[1].text.contains("_agreement_"), "{}", frames[1].text);
+        // The row under the pointer is filled in `hover`; the label's text
+        // does not change (CTL-001).
+        let label = |frame: &app_input::Snapshot| {
+            let column = frame
+                .text
+                .lines()
+                .next()
+                .unwrap()
+                .find("agreement")
+                .unwrap() as u16;
+            frame.screen.cell(0, column).unwrap().bgcolor()
+        };
+        assert!(frames[1].text.contains("agreement"), "{}", frames[1].text);
+        assert_ne!(
+            label(&frames[1]),
+            label(frames.last().unwrap()),
+            "{}",
+            frames[1].text
+        );
         assert!(!frames.last().unwrap().text.contains("_agreement_"));
         assert!(frames.last().unwrap().text.contains("agreement"));
     }
