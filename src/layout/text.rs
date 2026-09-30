@@ -187,7 +187,7 @@ fn wrap_line(text: &str, width: usize, mode: WordBreak, collapse: bool) -> Vec<S
             let length: usize = run.iter().map(|piece| piece.len()).sum();
             let joined = &text[start..start + length];
             if UnicodeWidthStr::width(joined) > width {
-                tokens.extend(run.drain(..));
+                tokens.append(run);
             } else {
                 tokens.push(joined);
                 run.clear();
