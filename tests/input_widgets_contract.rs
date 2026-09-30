@@ -529,6 +529,169 @@ fn ctl_001_a_control_looks_the_same_from_its_props_and_its_builder() {
     }
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn ctl_001_the_option_under_the_pointer_is_hover_and_the_current_row_stays_selection() {
+    use reactive_tui::event::types::{MouseEvent, MouseEventKind, Position};
+    let _theme = Active::set(probe());
+    let frames = shown_after(
+        builder::select()
+            .option("cyan", "Cyan")
+            .option("violet", "Violet")
+            .option("amber", "Amber")
+            .selected("cyan")
+            .build()
+            .auto_focus(),
+        (80, 10),
+        vec![
+            ("Cyan", key(KeyCode::Enter)),
+            // The list's border is on row 1, Cyan on row 2, Violet on row 3.
+            (
+                "Amber",
+                Some(Event::Mouse(MouseEvent::new(
+                    MouseEventKind::Move,
+                    Position::cell(4, 3),
+                ))),
+            ),
+            ("Amber", None),
+        ],
+    );
+    let open = last(&frames);
+    let (column, row) = at(open, "Violet");
+    assert_eq!(
+        cell_colors(open, column, row).1,
+        Some(role("hover")),
+        "the row under the pointer is hover:\n{}",
+        open.text
+    );
+    let (column, row) = (column, row - 1);
+    assert_eq!(
+        cell_colors(open, column, row),
+        (Some(role("selection-foreground")), Some(role("selection"))),
+        "the current row stays selection:\n{}",
+        open.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn ctl_001_a_disabled_control_paints_its_label_muted_and_keeps_its_roles() {
+    let _theme = Active::set(probe());
+    let frame = shown(
+        builder::div()
+            .class("flex-col gap-1 w-full")
+            .child(
+                builder::text_input()
+                    .value("Locked text")
+                    .disabled(true)
+                    .build(),
+            )
+            .child(
+                builder::checkbox()
+                    .label("Locked box")
+                    .checked(true)
+                    .disabled(true)
+                    .build(),
+            )
+            .child(
+                builder::radio_button()
+                    .group("locked")
+                    .value("one")
+                    .label("Locked radio")
+                    .checked(true)
+                    .disabled(true)
+                    .build(),
+            )
+            .child(
+                builder::select()
+                    .option("cyan", "Cyan")
+                    .selected("cyan")
+                    .disabled(true)
+                    .build(),
+            )
+            .child(
+                builder::slider()
+                    .label("Locked slider")
+                    .value(50.0)
+                    .disabled(true)
+                    .build(),
+            )
+            .child(
+                builder::div()
+                    .class("flex-row gap-1")
+                    .child(builder::primary_button("Save", || {}).disabled(true))
+                    .child(
+                        builder::button()
+                            .text("Cancel")
+                            .on_click(|| {})
+                            .disabled(true)
+                            .build(),
+                    )
+                    .build(),
+            )
+            .build(),
+        (80, 12),
+        "Cancel",
+    );
+    // Labels and text are text-muted.
+    for needle in [
+        "Locked text",
+        "Locked box",
+        "Locked radio",
+        "Cyan",
+        "Locked slider",
+        "50.0",
+        "Save",
+        "Cancel",
+    ] {
+        assert_eq!(
+            colors(&frame, needle).0,
+            Some(role("text-muted")),
+            "{needle} is text-muted when disabled:\n{}",
+            frame.text
+        );
+    }
+    // Frames keep border, marks keep primary, fills keep their roles.
+    let (column, row) = at(&frame, "Locked box");
+    assert_eq!(
+        cell_colors(&frame, column - 4, row).0,
+        Some(role("border")),
+        "the box's frame stays border:\n{}",
+        frame.text
+    );
+    assert_eq!(
+        cell_colors(&frame, column - 3, row).0,
+        Some(role("primary")),
+        "the mark stays primary:\n{}",
+        frame.text
+    );
+    let (column, row) = at(&frame, "Locked slider");
+    let track = at(&frame, "[").0;
+    let _ = (column, row);
+    let (_, slider_row) = at(&frame, "Locked slider");
+    let start = (0..80)
+        .find(|c| glyph(&frame, *c, slider_row) == "[")
+        .unwrap_or(track);
+    assert_eq!(
+        cell_colors(&frame, start + 1, slider_row).0,
+        Some(role("primary")),
+        "the filled part stays primary:\n{}",
+        frame.text
+    );
+    assert_eq!(
+        colors(&frame, "Save").1,
+        Some(role("primary")),
+        "the primary button keeps its fill:\n{}",
+        frame.text
+    );
+    assert_eq!(
+        colors(&frame, "Cancel").1,
+        Some(role("secondary")),
+        "the secondary button keeps its fill:\n{}",
+        frame.text
+    );
+}
+
 // ---------------------------------------------------------------- CTL-002
 
 #[test]

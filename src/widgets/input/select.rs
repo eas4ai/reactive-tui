@@ -204,6 +204,8 @@ pub struct SelectState {
     pub scroll_offset: usize,
     /// Whether the select is focused
     pub is_focused: bool,
+    /// The option under the pointer while the list is open
+    pub hover_index: Option<usize>,
 }
 
 /// Select dropdown component with full keyboard navigation
@@ -363,6 +365,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                 |selected| selected.contains(&option.value),
             );
             let is_highlighted = i == state.highlighted_index;
+            let is_hovered = state.hover_index == Some(i);
             let disabled = props.disabled || option.disabled;
             let mark = if multiple.is_some() {
                 if is_selected {
@@ -377,8 +380,12 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             };
             let label_width = UnicodeWidthStr::width(option.label.as_str());
             let padding = " ".repeat(row_width.saturating_sub(mark_width + label_width));
+            // The current row is `selection`; the row under the pointer,
+            // when it is another, `hover` (CTL-001).
             let (mark_look, label_look, row_look) = if is_highlighted && !disabled {
                 (look::CURRENT_ROW, look::CURRENT_ROW, look::CURRENT_ROW)
+            } else if is_hovered && !disabled {
+                (look::MARK, look::label(disabled), look::HOVER)
             } else {
                 (look::MARK, look::label(disabled), "")
             };
@@ -689,6 +696,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             return;
         }
         state.is_open = open;
+        state.hover_index = None;
         self.search.clear();
         self.search_updated = None;
         let callback = if open { &self.on_open } else { &self.on_close };
@@ -920,14 +928,28 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
                 }
                 EventResult::Consumed
             }
-            MouseEventKind::Move => {
-                if let Some(index) = self.option_at(event.position, props, state) {
-                    if !props.options[index].disabled {
-                        state.highlighted_index = index;
-                        return EventResult::Consumed;
-                    }
+            MouseEventKind::Move | MouseEventKind::Enter => {
+                // The pointer's row is shown by the hover fill; the
+                // keyboard's current row stays where it is (CTL-001).
+                let hovered = self
+                    .option_at(event.position, props, state)
+                    .filter(|index| !props.options[*index].disabled);
+                let changed = state.hover_index != hovered;
+                state.hover_index = hovered;
+                if changed {
+                    EventResult::Consumed
+                } else {
+                    EventResult::Ignored
                 }
-                EventResult::Ignored
+            }
+            MouseEventKind::Leave => {
+                let changed = state.hover_index.is_some();
+                state.hover_index = None;
+                if changed {
+                    EventResult::Consumed
+                } else {
+                    EventResult::Ignored
+                }
             }
             _ => EventResult::Ignored,
         }

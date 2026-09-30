@@ -45,10 +45,11 @@ pub const PANEL: &str = "bg-surface text-foreground";
 /// The current row of a select's open list.
 pub const CURRENT_ROW: &str = "bg-selection text-selection-foreground";
 /// The look of `builder::button()`: one row, one cell of padding at each
-/// side, `secondary` with its text, `selection` while focused.
-pub const BUTTON: &str = "h-1 px-1 bg-secondary text-secondary-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground";
+/// side, `secondary` with its text, `selection` while focused, its text
+/// `text-muted` when disabled.
+pub const BUTTON: &str = "h-1 px-1 bg-secondary text-secondary-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground disabled:text-muted";
 /// The look of `builder::primary_button()`: as `BUTTON`, in `primary`.
-pub const PRIMARY_BUTTON: &str = "h-1 px-1 bg-primary text-primary-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground";
+pub const PRIMARY_BUTTON: &str = "h-1 px-1 bg-primary text-primary-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground disabled:text-muted";
 
 /// One row of colored text pieces: each piece is drawn in the classes
 /// beside it, so a frame, a mark and a label take their own roles. Pieces

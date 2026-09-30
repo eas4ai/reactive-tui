@@ -343,6 +343,9 @@ impl TextInput {
             let mut decoration =
                 crate::accessibility::Node::new(crate::accessibility::Role::GenericContainer);
             decoration.set_hidden();
+            // An application's class for the field comes after the
+            // widget's own, so its colors win.
+            let field_class = props.field_class.as_deref().unwrap_or_default();
             children.push(
                 Element::layout(LayoutType::Flex)
                     .with_accessibility(decoration)
@@ -352,7 +355,7 @@ impl TextInput {
                             .into_iter()
                             .map(|(text, style)| {
                                 Element::text(text)
-                                    .class(format!("shrink-0 whitespace-pre {style}"))
+                                    .class(format!("shrink-0 whitespace-pre {style} {field_class}"))
                             })
                             .collect(),
                     ),

@@ -356,6 +356,15 @@ impl Component for LiveAutocomplete {
                 // As wide as its node, which is 36 cells or the box's
                 // width when that is less.
                 width: Some(u16::MAX),
+                // The colors of the dialog's `input` class reach the field's
+                // cells; its sizing classes stay on the field's box.
+                field_class: options.css_classes.get("input").map(|class| {
+                    class
+                        .split_whitespace()
+                        .filter(|token| token.starts_with("bg-") || token.starts_with("text-"))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                }),
                 ..Default::default()
             },
             move |props| {

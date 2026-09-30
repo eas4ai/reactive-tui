@@ -427,15 +427,10 @@ impl Component for Slider {
         let thumb = self.calculate_thumb_position(props);
         let focused = state.is_focused && !props.disabled;
         // The track is `border`, its filled part `primary`, its thumb
-        // `foreground` and `ring` while focused; the label and the value
-        // `foreground`, `text-muted` when disabled (CTL-001).
-        let (fill_look, track_look, thumb_look) = if props.disabled {
-            (
-                look::LABEL_DISABLED,
-                look::LABEL_DISABLED,
-                look::LABEL_DISABLED,
-            )
-        } else if focused {
+        // `foreground` and `ring` while focused, disabled or not; the
+        // label and the value `foreground`, `text-muted` when disabled
+        // (CTL-001).
+        let (fill_look, track_look, thumb_look) = if focused {
             (look::MARK, look::TRACK, look::THUMB_FOCUSED)
         } else {
             (look::MARK, look::TRACK, look::THUMB)
