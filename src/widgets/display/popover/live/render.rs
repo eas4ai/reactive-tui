@@ -77,13 +77,18 @@ impl Popover {
             };
             self.state.lock().unwrap().trigger_rect = trigger_rect;
             if visible || progress > 0.0 {
+                // The box leaves the clip of its ancestors, so once it has
+                // been laid out its clip is the screen: what holds and
+                // bounds the box (OVL-003). Until then, what the container
+                // may paint in.
+                let clip = body_layout.map_or(root.clip, |body| body.clip);
                 let bounds = local_rect(
                     root,
                     Rect {
-                        left: root.clip.x,
-                        top: root.clip.y,
-                        right: root.clip.x + root.clip.width,
-                        bottom: root.clip.y + root.clip.height,
+                        left: clip.x,
+                        top: clip.y,
+                        right: clip.x + clip.width,
+                        bottom: clip.y + clip.height,
                     },
                 );
                 let trigger_local = local_rect(root, trigger_rect);
@@ -145,7 +150,8 @@ impl Popover {
                             .inset_top(bounds.top)
                             .width_px((bounds.right - bounds.left).max(0.0))
                             .height_px((bounds.bottom - bounds.top).max(0.0))
-                            .z_index(i32::from(props.z_index)),
+                            .z_index(i32::from(props.z_index))
+                            .unclipped(),
                         vec![],
                     )
                     .with_key("popover-shield");
@@ -168,7 +174,8 @@ impl Popover {
                     .inset_left(placed.left)
                     .inset_top(placed.top)
                     .overflow_hidden()
-                    .z_index(i32::from(props.z_index) + 1);
+                    .z_index(i32::from(props.z_index) + 1)
+                    .unclipped();
                 if props.boundary_behavior != BoundaryBehavior::Ignore {
                     style = style
                         .max_width_px((bounds.right - bounds.left).max(0.0))
