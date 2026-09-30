@@ -2,7 +2,7 @@ use super::runtime::{MenuRuntime, WorldEvents};
 pub(super) type LivePopup = WorldEvents<PopupRuntime>;
 use super::{
     model::{item_mut, list_at, shortcut_path, MenuModel},
-    panels::{bounds, PanelOptions},
+    panels::{shield, PanelOptions, Spot},
     view::{node, MenuView, RowOptions},
     PopupMenuProps, PopupMenuState, PopupPlacement, TextCallback,
 };
@@ -92,44 +92,63 @@ impl PopupRuntime {
             self.close(props);
         }
     }
-    fn origin(&self, root: LayoutInfo, props: &LiveProps) -> (f32, f32) {
-        let panel = self.view.panels.lock().unwrap().get(&0).copied();
-        let (width, height) = panel.map_or((0.0, 0.0), |layout| layout.size);
+    /// Where the first panel opens. A placement that names a side gives
+    /// the rectangle the panel stands beside; where it names only one
+    /// edge of that rectangle, the rectangle is one cell deep.
+    fn spot(&self, root: LayoutInfo, props: &LiveProps) -> Spot {
         if let Some(side) = props.relative_placement {
+            let own = taffy::geometry::Rect {
+                left: 0.0,
+                top: 0.0,
+                right: root.size.0,
+                bottom: root.size.1,
+            };
             return match side {
-                RelativePlacement::Above => (0.0, -height),
-                RelativePlacement::Left => (-width, 0.0),
-                RelativePlacement::Right => (root.size.0, 0.0),
-                RelativePlacement::Below | RelativePlacement::Auto => (0.0, root.size.1),
+                RelativePlacement::Above => Spot::Over(own),
+                RelativePlacement::Left => Spot::LeftOf(own),
+                RelativePlacement::Right => Spot::RightOf(own),
+                RelativePlacement::Below | RelativePlacement::Auto => Spot::Under(own),
             };
         }
         let placement = &props.config.placement;
         if matches!(placement, PopupPlacement::Cursor) && self.cursor.is_none() {
-            return (0.0, 0.0);
+            return Spot::At(0.0, 0.0);
         }
-        let (x, y) = match *placement {
-            PopupPlacement::Cursor => self.cursor.unwrap_or((0, 0)),
-            PopupPlacement::Position { x, y }
-            | PopupPlacement::Widget { x, y, .. }
-            | PopupPlacement::Below { x, y, .. }
-            | PopupPlacement::Above { x, y, .. }
-            | PopupPlacement::Left { x, y, .. }
-            | PopupPlacement::Right { x, y, .. } => (x, y),
+        let local = |x: u16, y: u16, width: u16, height: u16| {
+            crate::widgets::display::overlay::local_rect(
+                root,
+                taffy::geometry::Rect {
+                    left: f32::from(x),
+                    right: f32::from(x) + f32::from(width),
+                    top: f32::from(y),
+                    bottom: f32::from(y) + f32::from(height),
+                },
+            )
         };
-        let point = crate::widgets::display::overlay::local_rect(
-            root,
-            taffy::geometry::Rect {
-                left: f32::from(x),
-                right: f32::from(x),
-                top: f32::from(y),
-                bottom: f32::from(y),
-            },
-        );
         match *placement {
-            PopupPlacement::Widget { height, .. } => (point.left, point.top + f32::from(height)),
-            PopupPlacement::Above { .. } => (point.left, point.top - height),
-            PopupPlacement::Left { .. } => (point.left - width, point.top),
-            _ => (point.left, point.top),
+            PopupPlacement::Cursor => {
+                let (x, y) = self.cursor.unwrap_or((0, 0));
+                let point = local(x, y, 0, 0);
+                Spot::At(point.left, point.top)
+            }
+            PopupPlacement::Position { x, y } => {
+                let point = local(x, y, 0, 0);
+                Spot::At(point.left, point.top)
+            }
+            PopupPlacement::Widget {
+                x,
+                y,
+                width,
+                height,
+            } => Spot::Under(local(x, y, width, height)),
+            PopupPlacement::Below { x, y, width } => {
+                Spot::Under(local(x, y.saturating_sub(1), width, u16::from(y > 0)))
+            }
+            PopupPlacement::Above { x, y, width } => Spot::Over(local(x, y, width, 1)),
+            PopupPlacement::Left { x, y, height } => Spot::LeftOf(local(x, y, 1, height)),
+            PopupPlacement::Right { x, y, height } => {
+                Spot::RightOf(local(x.saturating_sub(1), y, u16::from(x > 0), height))
+            }
         }
     }
 }
@@ -201,28 +220,15 @@ impl Component for PopupRuntime {
         }
         let mut children = Vec::new();
         if let Some(root) = self.root {
-            let bounds = bounds(root);
             if props.config.close_on_outside_click {
-                children.push(
-                    node(
-                        StyleBuilder::new()
-                            .position_absolute()
-                            .inset_left(bounds.left)
-                            .inset_top(bounds.top)
-                            .width_px(bounds.right - bounds.left)
-                            .height_px(bounds.bottom - bounds.top)
-                            .z_index(998),
-                        vec![],
-                    )
-                    .with_key("menu-shield"),
-                );
+                children.push(shield(self.view.viewport(root), "menu-shield"));
             }
             for depth in 0..self.menu.path.len().max(1) {
                 let parent = &self.menu.path[..depth];
-                let origin = if depth == 0 {
-                    self.origin(root, props)
+                let spot = if depth == 0 {
+                    self.spot(root, props)
                 } else if let Some(anchor) = self.view.anchor(root, parent) {
-                    (anchor.right, anchor.top)
+                    Spot::RightOf(anchor)
                 } else {
                     continue;
                 };
@@ -230,7 +236,7 @@ impl Component for PopupRuntime {
                     &self.menu,
                     parent,
                     root,
-                    origin,
+                    spot,
                     PanelOptions {
                         rows: RowOptions {
                             horizontal: false,

@@ -5,6 +5,61 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- Every built-in theme preset defines fourteen more colors, each a role a
+  widget names as `bg-<role>` or `text-<role>`: the text on each fill
+  (`primary-foreground`, `error-foreground`, and so on), `selection` and
+  `selection-foreground` for the current row of the widget that holds the
+  focus, `hover` for the row under the pointer, `input`, `ring`, `overlay`
+  (the veil behind a modal) and `shadow`. Text contrasts with its fill by
+  at least 4.5 to 1 in every preset. A theme that leaves a role out still
+  resolves it: the text on a fill as black or white by contrast, `selection`
+  and `ring` from `primary`, `input` from `surface`, `hover` from `surface`
+  and `foreground`, and every other role from the light or the dark preset
+  by the theme's `background`. So an application's theme written before
+  these roles existed keeps working, and a class that names a role always
+  colors its element. The image widget's captured screen under a theme
+  without a foreground takes the dark preset's, where it inherited its
+  parent's.
+- **Breaking:** the menu bar, the context menu, the popup menu and the
+  dialog menu take every color from the active theme. The default
+  `MenuStyle` names roles: `bg-surface text-foreground` for a panel,
+  `bg-selection text-selection-foreground` for the current row of a menu
+  that holds the focus, `bg-hover` for one that does not, `text-muted` for
+  a disabled row, a shortcut and a separator. It named palette colors
+  before (`bg-gray-800`, `bg-blue-600`), and a menu from the builder was
+  white with black text. `MenuTheme::Dark`, `Light` and `HighContrast` take
+  their colors from the preset of that name; `MenuStyle::of(&theme)` does
+  the same for any theme. `MenuStyle` has two new fields, `shadow_classes`
+  and `veil_classes`, so a struct literal that names every field no longer
+  compiles; `..Default::default()` and the setters do. The current row and
+  a disabled row are one color from end to end: their icon and shortcut
+  take the row's text color.
+- **Breaking:** a menu panel has no default limit of width or rows. It
+  paints its widest row whole and every row the viewport holds, and
+  scrolls beyond that. `MenuStyle::max_width` defaults to `None` (it was
+  50 cells) and `max_visible_items` and `max_dropdown_height` to no limit
+  (they were 10 rows). A context menu made through the builder is closed
+  until the user opens it; it opened at the screen's first cell when it was
+  mounted.
+- A menu panel opens beside what opened it and no longer covers it: under
+  a menu bar's title or over it when only the space above holds the panel,
+  right of a submenu's parent row or left of it, at the side a popup
+  placement names or the opposite one. Shift+F10 opens a context menu that
+  holds the focus, at its first trigger area or its own first cell.
+- A menu panel, its shadow and the veil of a dialog menu are painted whole
+  over everything on the screen, also from inside a modal, a popover or a
+  box that clips its content, where they were cut or hidden. A dialog menu
+  centers in the viewport. `StyleBuilder::unclipped` lets any element out
+  of its ancestors' clip for the same purpose.
+- The menu bar fills the width its parent allots in a plain box, where it
+  was as wide as its titles. A dialog menu's buttons take the theme's
+  `primary` fill and its text; they were blue with white text under any
+  theme. A dialog menu's title, message and buttons stand one cell in from
+  the border, as its rows do.
+- The widget catalog changes its theme with F3 and names the active one in
+  its header; its frame and cards follow the theme, and each card has one
+  cell of padding. Its menu demos show a full set of rows, open in their
+  cards, and take the focus.
 - **Breaking:** the number in a padding, margin, gap or space class is a
   count of cells, as in the width and height classes: `p-1` pads one cell
   and `gap-2` leaves two. These classes counted in fours before: `p-1` was

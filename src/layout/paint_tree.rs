@@ -73,6 +73,8 @@ struct NodePaint {
     z_index: i32,
     overflow_x: Overflow,
     overflow_y: Overflow,
+    /// No ancestor clips the node; only the viewport does.
+    unclipped: bool,
 }
 
 /// Layout and paint nodes with options
@@ -278,6 +280,7 @@ fn node_parts(
             z_index,
             overflow_x,
             overflow_y,
+            unclipped: sb.is_unclipped(),
         },
         typography,
         foreground,

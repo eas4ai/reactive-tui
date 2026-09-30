@@ -107,7 +107,8 @@ def check_run(executable: Path, key_name: str, key: bytes) -> None:
             if process.poll() is not None:
                 raise AssertionError(f"example exited before capture: {process.returncode}")
             if not navigated and "Widget Catalog" in screen.text():
-                os.write(master, b"7")
+                # The Motion page, where the cube turns.
+                os.write(master, b"8")
                 navigated = True
             cube = screen.cube()
             if sum("\u2801" <= char <= "\u28ff" for char in cube) > 30:

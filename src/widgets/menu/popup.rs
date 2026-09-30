@@ -82,7 +82,8 @@ pub struct PopupMenuProps {
     pub auto_close: bool,
     /// Whether to auto-close when clicking outside
     pub close_on_outside_click: bool,
-    /// Maximum number of visible items (for scrolling)
+    /// Maximum number of visible items (for scrolling); without one a panel shows
+    /// every row the viewport holds
     pub max_visible_items: usize,
     /// Fixed width for the popup
     pub width: Option<u16>,
@@ -102,7 +103,7 @@ impl Default for PopupMenuProps {
             placement: PopupPlacement::default(),
             auto_close: true,
             close_on_outside_click: true,
-            max_visible_items: 10,
+            max_visible_items: usize::MAX,
             width: None,
             show_border: true,
             show_shadow: true,

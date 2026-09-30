@@ -1,7 +1,7 @@
 use super::runtime::{MenuRuntime, WorldEvents};
 pub(super) type LiveMenuBar = WorldEvents<MenuBarRuntime>;
 use super::model::{item_mut, list_at, shortcut_path, MenuModel};
-use super::panels::{bounds, PanelOptions};
+use super::panels::{shield, PanelOptions, Spot};
 use super::view::{node, MenuView, RowOptions};
 use super::{MenuBarProps, MenuBarState, MenuItem, TextCallback};
 use crate::{
@@ -181,36 +181,23 @@ impl Component for MenuBarRuntime {
         )];
         if let Some(root) = self.root {
             if self.menu.path.len() > 1 {
-                let area = bounds(root);
-                children.push(
-                    node(
-                        StyleBuilder::new()
-                            .position_absolute()
-                            .inset_left(area.left)
-                            .inset_top(area.top)
-                            .width_px(area.right - area.left)
-                            .height_px(area.bottom - area.top)
-                            .z_index(998),
-                        vec![],
-                    )
-                    .with_key("menu-shield"),
-                );
+                children.push(shield(self.view.viewport(root), "menu-shield"));
             }
             for depth in 1..self.menu.path.len() {
                 let parent = &self.menu.path[..depth];
                 let Some(anchor) = self.view.anchor(root, parent) else {
                     continue;
                 };
-                let origin = if depth == 1 {
-                    (anchor.left, anchor.bottom)
+                let spot = if depth == 1 {
+                    Spot::Under(anchor)
                 } else {
-                    (anchor.right, anchor.top)
+                    Spot::RightOf(anchor)
                 };
                 children.extend(self.view.panel(
                     &self.menu,
                     parent,
                     root,
-                    origin,
+                    spot,
                     PanelOptions {
                         rows: RowOptions {
                             horizontal: false,
@@ -232,9 +219,12 @@ impl Component for MenuBarRuntime {
                 ));
             }
         }
+        // The bar fills the width its parent allots, whatever the parent
+        // does with its children (BAR-003).
         let mut root = node(
             StyleBuilder::new()
                 .display_flex()
+                .width_percent(100.0)
                 .padding_all_px(f32::from(props.config.style.padding))
                 .direction(Direction::Column),
             children,

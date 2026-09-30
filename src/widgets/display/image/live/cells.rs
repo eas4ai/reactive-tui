@@ -192,10 +192,14 @@ mod tests {
             run_colors(&parse("\x1b[7mAB\n", 2, 1).unwrap(), &theme),
             (Some(background), Some(foreground))
         );
-        // A theme without them leaves the run to inherit its parent's colors.
+        // A theme without them takes the dark preset's (THM-002).
+        let dark = crate::theme::dark_theme();
         assert_eq!(
             run_colors(&parse("AB\n", 2, 1).unwrap(), &Theme::new("bare")),
-            (None, None)
+            (
+                dark.resolve_color("foreground"),
+                dark.resolve_color("background")
+            )
         );
     }
 }

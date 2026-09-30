@@ -24,6 +24,10 @@ pub struct MenuStyle {
     pub icon_classes: String,
     /// CSS classes for menu borders
     pub border_classes: String,
+    /// CSS classes for the shadow under a panel
+    pub shadow_classes: String,
+    /// CSS classes for the veil behind a dialog menu
+    pub veil_classes: String,
     /// Whether to show shadows for popup menus
     pub show_shadow: bool,
     /// Whether to show icons
@@ -39,21 +43,26 @@ pub struct MenuStyle {
 }
 
 impl Default for MenuStyle {
+    /// Every color is a role of the active theme (MNU-001): the panel is
+    /// the theme's surface, the current row its selection while the menu
+    /// holds the focus and its hover color while it does not.
     fn default() -> Self {
         Self {
-            base_classes: "bg-gray-800 text-white".to_string(),
-            selected_classes: "bg-blue-600 text-white font-bold".to_string(),
-            focused_classes: "bg-cyan-500 text-black font-bold".to_string(),
-            disabled_classes: "text-gray-500".to_string(),
-            separator_classes: "text-gray-400".to_string(),
-            shortcut_classes: "text-yellow-400".to_string(),
-            icon_classes: "text-green-400".to_string(),
-            border_classes: "border border-gray-600".to_string(),
+            base_classes: "bg-surface text-foreground".to_string(),
+            selected_classes: "bg-hover text-foreground".to_string(),
+            focused_classes: "bg-selection text-selection-foreground font-bold".to_string(),
+            disabled_classes: "text-muted".to_string(),
+            separator_classes: "text-muted".to_string(),
+            shortcut_classes: "text-muted".to_string(),
+            icon_classes: String::new(),
+            border_classes: "border border-border".to_string(),
+            shadow_classes: "bg-shadow".to_string(),
+            veil_classes: "bg-overlay".to_string(),
             show_shadow: true,
             show_icons: true,
             show_shortcuts: true,
             min_width: 10,
-            max_width: Some(50),
+            max_width: None,
             padding: 1,
         }
     }
@@ -111,6 +120,55 @@ impl MenuStyle {
     pub fn border_classes(mut self, classes: impl Into<String>) -> Self {
         self.border_classes = classes.into();
         self
+    }
+
+    /// Set the classes of the shadow under a panel
+    pub fn shadow_classes(mut self, classes: impl Into<String>) -> Self {
+        self.shadow_classes = classes.into();
+        self
+    }
+
+    /// Set the classes of the veil behind a dialog menu
+    pub fn veil_classes(mut self, classes: impl Into<String>) -> Self {
+        self.veil_classes = classes.into();
+        self
+    }
+
+    /// The default style with every color taken from `theme` instead of
+    /// the active theme: the menu keeps these colors when the application
+    /// changes its theme.
+    pub fn of(theme: &Theme) -> Self {
+        let color = |role: &str| {
+            let (r, g, b, a) = theme.resolve_variable(role).unwrap_or_default();
+            let byte = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+            if a < 1.0 {
+                format!(
+                    "#{:02x}{:02x}{:02x}{:02x}",
+                    byte(r),
+                    byte(g),
+                    byte(b),
+                    byte(a)
+                )
+            } else {
+                format!("#{:02x}{:02x}{:02x}", byte(r), byte(g), byte(b))
+            }
+        };
+        Self {
+            base_classes: format!("bg-{} text-{}", color("surface"), color("foreground")),
+            selected_classes: format!("bg-{} text-{}", color("hover"), color("foreground")),
+            focused_classes: format!(
+                "bg-{} text-{} font-bold",
+                color("selection"),
+                color("selection-foreground")
+            ),
+            disabled_classes: format!("text-{}", color("text-muted")),
+            separator_classes: format!("text-{}", color("text-muted")),
+            shortcut_classes: format!("text-{}", color("text-muted")),
+            border_classes: format!("border border-{}", color("border")),
+            shadow_classes: format!("bg-{}", color("shadow")),
+            veil_classes: format!("bg-{}", color("overlay")),
+            ..Self::default()
+        }
     }
 
     /// Set whether to show shadows
@@ -194,20 +252,22 @@ impl MenuStyle {
     }
 }
 
-/// Predefined menu themes using CSS utility classes
+/// The looks a menu can name. `Default` follows the application's theme;
+/// `Dark`, `Light` and `HighContrast` keep the colors of the built-in
+/// preset of that name under any theme.
 #[derive(Clone, Debug, PartialEq)]
 #[expect(
     clippy::large_enum_variant,
     reason = "Preserve the public Custom(MenuStyle) constructor without adding allocation"
 )]
 pub enum MenuTheme {
-    /// Default theme
+    /// The roles of the active theme
     Default,
-    /// Dark theme
+    /// The roles of the built-in dark preset
     Dark,
-    /// Light theme
+    /// The roles of the built-in light preset
     Light,
-    /// High contrast theme
+    /// The roles of the built-in high contrast preset
     HighContrast,
     /// Custom theme with specific CSS classes
     Custom(MenuStyle),
@@ -218,54 +278,9 @@ impl MenuTheme {
     pub fn to_style(&self) -> MenuStyle {
         match self {
             MenuTheme::Default => MenuStyle::default(),
-            MenuTheme::Dark => MenuStyle {
-                base_classes: "bg-gray-900 text-gray-100".to_string(),
-                selected_classes: "bg-blue-600 text-white font-bold".to_string(),
-                focused_classes: "bg-cyan-400 text-black font-bold".to_string(),
-                disabled_classes: "text-gray-600".to_string(),
-                separator_classes: "text-gray-500".to_string(),
-                shortcut_classes: "text-yellow-300".to_string(),
-                icon_classes: "text-green-400".to_string(),
-                border_classes: "border border-gray-700".to_string(),
-                show_shadow: true,
-                show_icons: true,
-                show_shortcuts: true,
-                min_width: 10,
-                max_width: Some(50),
-                padding: 1,
-            },
-            MenuTheme::Light => MenuStyle {
-                base_classes: "bg-white text-black".to_string(),
-                selected_classes: "bg-blue-500 text-white font-bold".to_string(),
-                focused_classes: "bg-blue-200 text-black font-bold".to_string(),
-                disabled_classes: "text-gray-400".to_string(),
-                separator_classes: "text-gray-600".to_string(),
-                shortcut_classes: "text-blue-600".to_string(),
-                icon_classes: "text-green-600".to_string(),
-                border_classes: "border border-gray-300".to_string(),
-                show_shadow: true,
-                show_icons: true,
-                show_shortcuts: true,
-                min_width: 10,
-                max_width: Some(50),
-                padding: 1,
-            },
-            MenuTheme::HighContrast => MenuStyle {
-                base_classes: "bg-black text-white".to_string(),
-                selected_classes: "bg-white text-black font-bold".to_string(),
-                focused_classes: "bg-yellow-400 text-black font-bold".to_string(),
-                disabled_classes: "text-gray-600".to_string(),
-                separator_classes: "text-white".to_string(),
-                shortcut_classes: "text-yellow-300".to_string(),
-                icon_classes: "text-white".to_string(),
-                border_classes: "border border-white".to_string(),
-                show_shadow: true,
-                show_icons: true,
-                show_shortcuts: true,
-                min_width: 10,
-                max_width: Some(50),
-                padding: 1,
-            },
+            MenuTheme::Dark => MenuStyle::of(&crate::theme::dark_theme()),
+            MenuTheme::Light => MenuStyle::of(&crate::theme::light_theme()),
+            MenuTheme::HighContrast => MenuStyle::of(&crate::theme::high_contrast_theme()),
             MenuTheme::Custom(style) => style.clone(),
         }
     }
@@ -278,9 +293,10 @@ mod tests {
     #[test]
     fn test_menu_style_default() {
         let style = MenuStyle::default();
-        assert_eq!(style.base_classes, "bg-gray-800 text-white");
+        assert_eq!(style.base_classes, "bg-surface text-foreground");
         assert_eq!(style.padding, 1);
-        assert_eq!(style.selected_classes, "bg-blue-600 text-white font-bold");
+        assert_eq!(style.selected_classes, "bg-hover text-foreground");
+        assert_eq!(style.max_width, None);
         assert!(style.show_shadow);
         assert!(style.show_icons);
         assert!(style.show_shortcuts);
@@ -302,17 +318,28 @@ mod tests {
 
     #[test]
     fn test_menu_theme_to_style() {
-        let dark_style = MenuTheme::Dark.to_style();
-        assert!(dark_style.base_classes.contains("bg-gray-900"));
-        assert!(dark_style.base_classes.contains("text-gray-100"));
-
-        let light_style = MenuTheme::Light.to_style();
-        assert!(light_style.base_classes.contains("bg-white"));
-        assert!(light_style.base_classes.contains("text-black"));
-
-        let high_contrast_style = MenuTheme::HighContrast.to_style();
-        assert!(high_contrast_style.base_classes.contains("bg-black"));
-        assert!(high_contrast_style.selected_classes.contains("bg-white"));
+        use crate::theme::{dark_theme, high_contrast_theme, light_theme};
+        for (look, preset) in [
+            (MenuTheme::Dark, dark_theme()),
+            (MenuTheme::Light, light_theme()),
+            (MenuTheme::HighContrast, high_contrast_theme()),
+        ] {
+            let style = look.to_style();
+            let surface = preset.get_variable("--color-surface").unwrap();
+            let selection = preset.get_variable("--color-selection").unwrap();
+            assert_eq!(
+                style.base_classes.split_whitespace().next(),
+                Some(format!("bg-{surface}").as_str()),
+                "{look:?}"
+            );
+            assert!(
+                style.focused_classes.contains(&format!("bg-{selection}")),
+                "{look:?}: {}",
+                style.focused_classes
+            );
+            assert_eq!(style.shadow_classes, "bg-#00000066", "{look:?}");
+        }
+        assert_eq!(MenuTheme::Default.to_style(), MenuStyle::default());
     }
 
     #[test]
@@ -324,12 +351,16 @@ mod tests {
         let selected_builder = style.apply_selected_style(None);
         let focused_builder = style.apply_focused_style(None);
 
-        // The base style carries the menu padding; selected and focused rows are bold
+        // The base style carries the menu padding; the current row of a
+        // menu that holds the focus is bold
         assert!(
             base_builder.bg_rgba.is_some(),
             "base classes set a background"
         );
-        assert_eq!(selected_builder.text.bold, Some(true));
+        assert!(
+            selected_builder.bg_rgba.is_some(),
+            "the current row of a menu without the focus has a background"
+        );
         assert_eq!(focused_builder.text.bold, Some(true));
         let padding = taffy::style::LengthPercentage::length(f32::from(style.padding));
         let base_style = base_builder.build();

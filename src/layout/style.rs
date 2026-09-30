@@ -251,6 +251,9 @@ pub struct StyleBuilder {
     pub(crate) bg_rgba: Option<(f32, f32, f32, f32)>,
     pub(crate) opacity: Option<f32>,
     z_index: Option<i32>,
+    /// No ancestor clips the element; only the viewport does.
+    #[serde(default)]
+    unclipped: bool,
     bold: bool,
     italic: bool,
     underline: bool,
@@ -1031,6 +1034,21 @@ impl StyleBuilder {
     /// Get z-index value if set
     pub fn get_z_index(&self) -> Option<i32> {
         self.z_index
+    }
+
+    /// Paint the element and what it holds whole, whatever box holds it:
+    /// no ancestor that clips its content clips this element, only the
+    /// viewport does. For a panel that opens over the page from inside a
+    /// box, such as a menu in a header of fixed height. The element keeps
+    /// its place in the layout and its stacking number.
+    pub fn unclipped(mut self) -> Self {
+        self.unclipped = true;
+        self
+    }
+
+    /// Whether no ancestor clips the element.
+    pub fn is_unclipped(&self) -> bool {
+        self.unclipped
     }
 
     /// Get horizontal overflow setting

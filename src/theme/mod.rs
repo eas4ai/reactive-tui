@@ -4,6 +4,8 @@ pub mod ansi;
 pub mod colors;
 /// Pre-built theme presets
 pub mod presets;
+/// The color roles and what a theme that leaves one out gets for it
+pub mod roles;
 /// Theme variable system
 pub mod variables;
 
@@ -121,13 +123,25 @@ impl Theme {
         }
     }
 
-    /// Resolve a token that names one of this theme's color variables.
-    pub fn resolve_variable(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
+    /// The color this theme, or a theme it extends, gives the variable
+    /// that `token` names.
+    fn defined(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
         let value = self.get_variable(&Self::color_variable(token))?;
         crate::layout::colors::parse_color_literal(&value).or_else(|| {
             (value != token)
                 .then(|| self.resolve_variable(&value))
                 .flatten()
+        })
+    }
+
+    /// Resolve a token that names one of this theme's color variables. A
+    /// color role (THM-001) that the theme leaves out still resolves, to
+    /// the color THM-002 gives it; any other name the theme does not
+    /// define resolves to nothing.
+    pub fn resolve_variable(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
+        self.defined(token).or_else(|| {
+            let variable = Self::color_variable(token);
+            self.fallback(variable.strip_prefix("--color-")?)
         })
     }
 

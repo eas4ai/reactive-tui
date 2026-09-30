@@ -5,8 +5,7 @@
 
 use super::node::{VComponent, VNode};
 use crate::widgets::menu::{
-    ContextMenuProps, DialogMenuProps, MenuBarProps, MenuItem, MenuStyle, PopupMenuProps,
-    PopupPlacement,
+    ContextMenuProps, DialogMenuProps, MenuBarProps, MenuItem, PopupMenuProps, PopupPlacement,
 };
 
 /// Create a MenuBar component in VDOM
@@ -53,12 +52,7 @@ pub fn dialog_menu_with_props(props: DialogMenuProps) -> VNode {
 pub fn simple_menubar(items: Vec<MenuItem>) -> VNode {
     let props = MenuBarProps {
         items,
-        style: MenuStyle::default(),
-        visible: true,
-        enabled: true,
-        title: None,
-        show_shortcuts: true,
-        max_dropdown_height: 10,
+        ..Default::default()
     };
     menubar_with_props(props)
 }
@@ -67,17 +61,7 @@ pub fn simple_menubar(items: Vec<MenuItem>) -> VNode {
 pub fn simple_context_menu(items: Vec<MenuItem>) -> VNode {
     let props = ContextMenuProps {
         items,
-        style: MenuStyle::default(),
-        enabled: true,
-        show_on_right_click: true,
-        show_on_long_press: false,
-        long_press_duration: 500,
-        close_on_outside_click: true,
-        max_visible_items: 10,
-        width: None,
-        show_border: true,
-        show_shadow: true,
-        trigger_areas: vec![],
+        ..Default::default()
     };
     context_menu_with_props(props)
 }
@@ -86,16 +70,9 @@ pub fn simple_context_menu(items: Vec<MenuItem>) -> VNode {
 pub fn simple_popup_menu(items: Vec<MenuItem>, placement: PopupPlacement) -> VNode {
     let props = PopupMenuProps {
         items,
-        style: MenuStyle::default(),
         visible: true,
-        enabled: true,
         placement,
-        auto_close: true,
-        close_on_outside_click: true,
-        max_visible_items: 10,
-        width: None,
-        show_border: true,
-        show_shadow: true,
+        ..Default::default()
     };
     popup_menu_with_props(props)
 }

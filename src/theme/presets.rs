@@ -21,6 +21,25 @@ pub fn dark_theme() -> Theme {
         .set("--color-warning", "#f59e0b") // Amber-500
         .set("--color-error", "#ef4444") // Red-500
         .set("--color-info", "#3b82f6") // Blue-500
+        // The text drawn on each fill: black or white, whichever contrasts more
+        .set("--color-primary-foreground", "#000000")
+        .set("--color-secondary-foreground", "#000000")
+        .set("--color-accent-foreground", "#000000")
+        .set("--color-success-foreground", "#000000")
+        .set("--color-warning-foreground", "#000000")
+        .set("--color-error-foreground", "#000000")
+        .set("--color-info-foreground", "#000000")
+        // The current row or the selected text of the widget that holds the focus
+        .set("--color-selection", "#3b82f6")
+        .set("--color-selection-foreground", "#000000")
+        // The row under the pointer and the current row of a widget without the focus
+        .set("--color-hover", "#3a4350")
+        // A field the user types in, and the border of the widget that holds the focus
+        .set("--color-input", "#1f2937")
+        .set("--color-ring", "#3b82f6")
+        // The veil over the page behind a modal, and the shadow under a panel
+        .set("--color-overlay", "#00000080")
+        .set("--color-shadow", "#00000066")
         // Chart series colors: a color-blind-safe set (CHT-017)
         .set("--color-chart-1", "#56b4e9")
         .set("--color-chart-2", "#e69f00")
@@ -61,6 +80,25 @@ pub fn light_theme() -> Theme {
         .set("--color-warning", "#d97706") // Amber-600
         .set("--color-error", "#dc2626") // Red-600
         .set("--color-info", "#2563eb") // Blue-600
+        // The text drawn on each fill: black or white, whichever contrasts more
+        .set("--color-primary-foreground", "#ffffff")
+        .set("--color-secondary-foreground", "#ffffff")
+        .set("--color-accent-foreground", "#000000")
+        .set("--color-success-foreground", "#000000")
+        .set("--color-warning-foreground", "#000000")
+        .set("--color-error-foreground", "#ffffff")
+        .set("--color-info-foreground", "#ffffff")
+        // The current row or the selected text of the widget that holds the focus
+        .set("--color-selection", "#2563eb")
+        .set("--color-selection-foreground", "#ffffff")
+        // The row under the pointer and the current row of a widget without the focus
+        .set("--color-hover", "#dcdee0")
+        // A field the user types in, and the border of the widget that holds the focus
+        .set("--color-input", "#f9fafb")
+        .set("--color-ring", "#2563eb")
+        // The veil over the page behind a modal, and the shadow under a panel
+        .set("--color-overlay", "#00000080")
+        .set("--color-shadow", "#00000066")
         // Chart series colors: a color-blind-safe set (CHT-017)
         .set("--color-chart-1", "#0072b2")
         .set("--color-chart-2", "#e69f00")
@@ -101,6 +139,25 @@ pub fn high_contrast_theme() -> Theme {
         .set("--color-warning", "#ffff00") // Bright yellow
         .set("--color-error", "#ff0000") // Bright red
         .set("--color-info", "#00ffff") // Bright cyan
+        // The text drawn on each fill: black or white, whichever contrasts more
+        .set("--color-primary-foreground", "#000000")
+        .set("--color-secondary-foreground", "#000000")
+        .set("--color-accent-foreground", "#000000")
+        .set("--color-success-foreground", "#000000")
+        .set("--color-warning-foreground", "#000000")
+        .set("--color-error-foreground", "#000000")
+        .set("--color-info-foreground", "#000000")
+        // The current row or the selected text of the widget that holds the focus
+        .set("--color-selection", "#007fff")
+        .set("--color-selection-foreground", "#000000")
+        // The row under the pointer and the current row of a widget without the focus
+        .set("--color-hover", "#313131")
+        // A field the user types in, and the border of the widget that holds the focus
+        .set("--color-input", "#141414")
+        .set("--color-ring", "#007fff")
+        // The veil over the page behind a modal, and the shadow under a panel
+        .set("--color-overlay", "#00000080")
+        .set("--color-shadow", "#00000066")
         // Chart series colors: a color-blind-safe set (CHT-017)
         .set("--color-chart-1", "#00d7ff")
         .set("--color-chart-2", "#ffaf00")
@@ -141,6 +198,25 @@ pub fn solarized_dark_theme() -> Theme {
         .set("--color-warning", "#b58900") // Yellow
         .set("--color-error", "#d30102") // Red
         .set("--color-info", "#2aa198") // Cyan
+        // The text drawn on each fill: black or white, whichever contrasts more
+        .set("--color-primary-foreground", "#000000")
+        .set("--color-secondary-foreground", "#000000")
+        .set("--color-accent-foreground", "#000000")
+        .set("--color-success-foreground", "#000000")
+        .set("--color-warning-foreground", "#000000")
+        .set("--color-error-foreground", "#ffffff")
+        .set("--color-info-foreground", "#000000")
+        // The current row or the selected text of the widget that holds the focus
+        .set("--color-selection", "#268bd2")
+        .set("--color-selection-foreground", "#000000")
+        // The row under the pointer and the current row of a widget without the focus
+        .set("--color-hover", "#264e56")
+        // A field the user types in, and the border of the widget that holds the focus
+        .set("--color-input", "#073642")
+        .set("--color-ring", "#268bd2")
+        // The veil over the page behind a modal, and the shadow under a panel
+        .set("--color-overlay", "#00000080")
+        .set("--color-shadow", "#00000066")
         // Chart series colors: a color-blind-safe set (CHT-017)
         .set("--color-chart-1", "#268bd2")
         .set("--color-chart-2", "#cb4b16")
@@ -181,6 +257,25 @@ pub fn gruvbox_dark_theme() -> Theme {
         .set("--color-warning", "#fabd2f") // Yellow
         .set("--color-error", "#fb4934") // Red
         .set("--color-info", "#83a598") // Blue
+        // The text drawn on each fill: black or white, whichever contrasts more
+        .set("--color-primary-foreground", "#000000")
+        .set("--color-secondary-foreground", "#000000")
+        .set("--color-accent-foreground", "#000000")
+        .set("--color-success-foreground", "#000000")
+        .set("--color-warning-foreground", "#000000")
+        .set("--color-error-foreground", "#000000")
+        .set("--color-info-foreground", "#000000")
+        // The current row or the selected text of the widget that holds the focus
+        .set("--color-selection", "#83a598")
+        .set("--color-selection-foreground", "#000000")
+        // The row under the pointer and the current row of a widget without the focus
+        .set("--color-hover", "#544f48")
+        // A field the user types in, and the border of the widget that holds the focus
+        .set("--color-input", "#3c3836")
+        .set("--color-ring", "#83a598")
+        // The veil over the page behind a modal, and the shadow under a panel
+        .set("--color-overlay", "#00000080")
+        .set("--color-shadow", "#00000066")
         // Chart series colors: a color-blind-safe set (CHT-017)
         .set("--color-chart-1", "#83a598")
         .set("--color-chart-2", "#fe8019")

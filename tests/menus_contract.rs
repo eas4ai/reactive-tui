@@ -1,6 +1,10 @@
 //! MNU-001 to MNU-004 (docs/spec/menus.md): the colors of the menu bar, the
 //! context menu, the popup menu and the dialog menu by role, the size of a
-//! panel, where a panel opens, and what it is painted over.
+//! panel, where a panel opens, and what it is painted over. And what the
+//! widget bar asks of the four menus (BAR-003): every color from the
+//! active theme, the width the parent allots, a layout that follows a
+//! resize, and a key for what the pointer does. What a row tells the screen
+//! reader is a unit test beside the row (src/widgets/menu/view.rs).
 //!
 //! Every test takes its turn (`serial(theme)`): the color tests set the
 //! active theme, which is one for the process, and the others must not
@@ -8,7 +12,7 @@
 
 mod common;
 
-use common::app_input::{self, Snapshot};
+use common::app_input::{self, Snapshot, Until};
 use reactive_tui::{
     app::RootComponent,
     builder::{
@@ -18,7 +22,9 @@ use reactive_tui::{
     component::{Component, Element},
     event::types::{
         Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, Position,
+        ResizeEvent,
     },
+    layout::style::StyleBuilder,
     theme::{dark_theme, high_contrast_theme, light_theme, Theme, ThemeVariables},
     widgets::menu::{
         ContextMenu, ContextMenuProps, DialogMenu, DialogMenuBuilder, DialogMenuProps, MenuBar,
@@ -28,6 +34,8 @@ use reactive_tui::{
 };
 
 type Rgb = [u8; 3];
+/// A cell as its glyph, its glyph's color and its background.
+type Cell = (String, vt100::Color, vt100::Color);
 
 struct Control(Element);
 impl RootComponent for Control {
@@ -40,7 +48,7 @@ impl RootComponent for Control {
 }
 
 /// The roles a menu paints with.
-const ROLES: [&str; 9] = [
+const ROLES: [&str; 10] = [
     "background",
     "surface",
     "foreground",
@@ -50,6 +58,7 @@ const ROLES: [&str; 9] = [
     "selection",
     "selection-foreground",
     "primary",
+    "primary-foreground",
 ];
 
 /// The veil and the shadow of the probe theme: a color and how much of it
@@ -168,7 +177,7 @@ fn background(frame: &Snapshot, column: u16, row: u16) -> Option<Rgb> {
 }
 
 /// Every cell of `frame` as its glyph and its two colors.
-fn painted(frame: &Snapshot) -> Vec<(String, vt100::Color, vt100::Color)> {
+fn painted(frame: &Snapshot) -> Vec<Cell> {
     let (rows, columns) = frame.screen.size();
     (0..rows)
         .flat_map(|row| (0..columns).map(move |column| (row, column)))
@@ -177,6 +186,24 @@ fn painted(frame: &Snapshot) -> Vec<(String, vt100::Color, vt100::Color)> {
             (cell.contents().to_owned(), cell.fgcolor(), cell.bgcolor())
         })
         .collect()
+}
+
+/// The cells of the first panel in `frame`, from its first corner to its
+/// last, row by row, with the panel's width before them.
+fn panel_cells(frame: &Snapshot) -> Option<(u16, Vec<Cell>)> {
+    let (left, top) = find(frame, "┌")?;
+    let (rows, columns) = frame.screen.size();
+    let glyph = |column: u16, row: u16| frame.screen.cell(row, column).map(|cell| cell.contents());
+    let right = (left..columns).find(|column| glyph(*column, top) == Some("┐"))?;
+    let bottom = (top..rows).find(|row| glyph(left, *row) == Some("└"))?;
+    let cells = (top..=bottom)
+        .flat_map(|row| (left..=right).map(move |column| (row, column)))
+        .map(|(row, column)| {
+            let cell = frame.screen.cell(row, column).unwrap();
+            (cell.contents().to_owned(), cell.fgcolor(), cell.bgcolor())
+        })
+        .collect();
+    Some((right - left + 1, cells))
 }
 
 fn key(code: KeyCode) -> Option<Event> {
@@ -213,6 +240,289 @@ fn rows(count: usize) -> Vec<MenuItem> {
         .collect()
 }
 
+// ---------------------------------------------------------------- BAR-003
+
+/// Whether `color` is a role of the probe theme, or its veil or its shadow
+/// laid over one, or its shadow laid over its veil over one: a dialog
+/// menu's shadow falls on the veil.
+fn of_the_theme(color: Option<Rgb>) -> bool {
+    let roles = || (0..ROLES.len()).map(probe_color);
+    color.is_some_and(|color| roles().any(|role| role == color))
+        || roles().any(|role| {
+            let veiled = laid_over(OVERLAY, role);
+            near(color, veiled)
+                || near(color, laid_over(SHADOW, role))
+                || near(color, laid_over(SHADOW, veiled))
+        })
+}
+
+/// The colors in `frame` that the probe theme does not define, each with
+/// the first cell that has it.
+fn foreign(frame: &Snapshot) -> Vec<String> {
+    let (rows, columns) = frame.screen.size();
+    let mut found: Vec<(vt100::Color, String)> = Vec::new();
+    for (row, column) in (0..rows).flat_map(|row| (0..columns).map(move |column| (row, column))) {
+        let cell = frame.screen.cell(row, column).unwrap();
+        let mut colors = vec![("background", cell.bgcolor())];
+        if !cell.contents().trim().is_empty() {
+            colors.push(("glyph", cell.fgcolor()));
+        }
+        for (part, color) in colors {
+            if !of_the_theme(rgb(color)) && !found.iter().any(|(seen, _)| *seen == color) {
+                found.push((
+                    color,
+                    format!(
+                        "{color:?} as the {part} of {:?} at ({column}, {row})",
+                        cell.contents()
+                    ),
+                ));
+            }
+        }
+    }
+    found.into_iter().map(|(_, place)| place).collect()
+}
+
+fn items() -> Vec<MenuItem> {
+    vec![
+        MenuItem::new("new", "NEW").shortcut(MenuShortcut::new("Ctrl+N", vec!["ctrl+n"])),
+        MenuItem::new("open", "OPEN").icon("*"),
+        MenuItem::separator(),
+        MenuItem::checkbox("wrap", "WRAP", true, |_| {}),
+        MenuItem::new("off", "OFF").enabled(false),
+        MenuItem::submenu("more", "MORE", rows(2)),
+    ]
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_menu_takes_every_color_from_the_active_theme() {
+    let _theme = Active::set(probe());
+    let size = (60, 20);
+    let mut wrong = Vec::new();
+    let mut check = |name: &str, frames: Vec<Snapshot>| {
+        let frame = frames.last().unwrap();
+        let foreign = foreign(frame);
+        if !foreign.is_empty() {
+            wrong.push(format!("{name}: {foreign:#?}\n{}", frame.text));
+        }
+    };
+    check(
+        "menu bar",
+        app_input::run_until(
+            Control(page(
+                Element::typed::<MenuBar>(MenuBarProps {
+                    title: Some("TITLE".into()),
+                    items: vec![
+                        MenuItem::submenu("file", "FILE", items()),
+                        MenuItem::new("edit", "EDIT"),
+                    ],
+                    ..Default::default()
+                })
+                .auto_focus(),
+            )),
+            size,
+            vec![
+                Until {
+                    text: "FILE",
+                    cell: None,
+                    event: key(KeyCode::Down),
+                },
+                Until {
+                    text: "MORE",
+                    cell: None,
+                    event: None,
+                },
+            ],
+            PANEL_WAIT,
+        ),
+    );
+    check(
+        "popup menu",
+        app_input::run_when(
+            Control(page(
+                popup(items(), PopupPlacement::Position { x: 4, y: 2 }).auto_focus(),
+            )),
+            size,
+            vec![
+                ("MORE", key(KeyCode::End)),
+                ("MORE", key(KeyCode::Right)),
+                ("ROW02", None),
+            ],
+        ),
+    );
+    check(
+        "context menu",
+        app_input::run_when(
+            Control(page(Element::typed::<ContextMenu>(ContextMenuProps {
+                items: items(),
+                ..Default::default()
+            }))),
+            size,
+            vec![("", right_click(6, 3)), ("MORE", None)],
+        ),
+    );
+    check(
+        "dialog menu",
+        app_input::run_when(
+            Control(page(Element::typed::<DialogMenu>(DialogMenuProps {
+                visible: true,
+                title: Some("TITLE".into()),
+                message: Some("MESSAGE".into()),
+                items: items(),
+                ..Default::default()
+            }))),
+            size,
+            vec![("MORE", None)],
+        ),
+    );
+    assert!(
+        wrong.is_empty(),
+        "BAR-003: colors that the active theme does not define: {}",
+        wrong.join("\n")
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_menu_bar_fills_the_width_its_parent_allots() {
+    let _theme = Active::set(probe());
+    // A parent that lays its children out in a column, and one that is a
+    // plain box.
+    for (class, width) in [
+        ("flex flex-col w-full", 240),
+        ("flex flex-col w-100", 100),
+        ("w-full", 240),
+        ("w-100", 100),
+    ] {
+        let tree = builder::div()
+            .class("flex flex-col w-full h-full bg-background text-foreground")
+            .child(
+                builder::div()
+                    .class(class)
+                    .child(Element::typed::<MenuBar>(MenuBarProps {
+                        items: vec![MenuItem::new("file", "FILE")],
+                        ..Default::default()
+                    }))
+                    .build(),
+            )
+            .build();
+        let frames = app_input::run_when(Control(tree), (240, 20), vec![("FILE", None)]);
+        let frame = frames.last().unwrap();
+        let (_, row) = find(frame, "FILE").unwrap();
+        // The bar's own colors: its surface, and the current title's.
+        let bar = [role("surface"), role("hover"), role("selection")];
+        let painted = (0..240)
+            .filter(|column| {
+                background(frame, *column, row).is_some_and(|color| bar.contains(&color))
+            })
+            .count();
+        assert_eq!(
+            painted, width,
+            "BAR-003: the cells of the menu bar's row in the bar's colors, in a parent `{class}` of {width} cells"
+        );
+    }
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_a_menu_bar_and_its_panel_follow_a_resize() {
+    let bar = Element::typed::<MenuBar>(MenuBarProps {
+        items: vec![MenuItem::submenu("file", "FILE", rows(2))],
+        ..Default::default()
+    })
+    .auto_focus();
+    let tree = builder::div()
+        .class("flex flex-col w-full h-full bg-background text-foreground")
+        .child(builder::div().class("grow").build())
+        .child(bar)
+        .build();
+    let (old, new) = ((60u16, 20u16), (100u16, 40u16));
+    let frames = app_input::run_until(
+        Control(tree),
+        old,
+        vec![
+            Until {
+                text: "FILE",
+                cell: None,
+                event: key(KeyCode::Down),
+            },
+            Until {
+                text: "ROW02",
+                cell: None,
+                event: Some(Event::Resize(ResizeEvent::new(new.0, new.1))),
+            },
+            // At the new size the title stands on row 38, between the
+            // bar's two rows of padding, and the panel's four rows end on
+            // the row over it.
+            Until {
+                text: "ROW02",
+                cell: Some((1, 37, "└")),
+                event: None,
+            },
+        ],
+        PANEL_WAIT,
+    );
+    let frame = frames.last().unwrap();
+    assert_eq!(
+        (
+            frame.screen.size(),
+            find(frame, "FILE").map(|(_, row)| row),
+            find(frame, "ROW01").map(|(_, row)| row),
+            find(frame, "ROW02").map(|(_, row)| row),
+        ),
+        ((new.1, new.0), Some(38), Some(35), Some(36)),
+        "BAR-003: the screen's size and the rows of the title and of the panel's two rows after the resize:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn bar_003_the_keyboard_alone_opens_a_context_menu_and_runs_its_action() {
+    let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (first, second) = (calls.clone(), calls.clone());
+    let menu = Element::typed::<ContextMenu>(ContextMenuProps {
+        items: vec![
+            MenuItem::action("one", "ONE", move || first.lock().unwrap().push("one")),
+            MenuItem::action("two", "TWO", move || second.lock().unwrap().push("two")),
+        ],
+        ..Default::default()
+    })
+    .auto_focus();
+    let shift_f10 = || {
+        Some(Event::Key(KeyEvent::new(KeyCode::F(10)).with_modifiers(
+            KeyModifiers {
+                shift: true,
+                ctrl: false,
+                alt: false,
+                meta: false,
+            },
+        )))
+    };
+    let frames = app_input::run_visibility(
+        Control(page(menu)),
+        (60, 20),
+        vec![
+            ("", Some("TWO"), shift_f10()),
+            ("TWO", None, key(KeyCode::Down)),
+            ("TWO", None, key(KeyCode::Enter)),
+            // The action closed the menu; Shift+F10 opens it again and
+            // Escape closes it without an action.
+            ("", Some("TWO"), shift_f10()),
+            ("TWO", None, key(KeyCode::Escape)),
+            ("", Some("TWO"), None),
+        ],
+    );
+    assert_eq!(
+        (
+            calls.lock().unwrap().clone(),
+            frames.last().unwrap().text.contains("ONE")
+        ),
+        (vec!["two"], false),
+        "BAR-003: the actions that keys alone ran, and whether the menu is still open after Escape"
+    );
+}
+
 // ---------------------------------------------------------------- MNU-001
 
 #[test]
@@ -223,11 +533,26 @@ fn mnu_001_a_default_menu_looks_the_same_from_its_props_and_from_its_builder() {
     let mut differ = Vec::new();
     let mut compare = |name: &str, one: Vec<Snapshot>, other: Vec<Snapshot>| {
         let (one, other) = (one.last().unwrap(), other.last().unwrap());
-        let cells = painted(one)
-            .iter()
-            .zip(painted(other))
-            .filter(|(a, b)| **a != *b)
-            .count();
+        // A popup menu from its builder opens beside its own element and
+        // one from its props at its placement, so their panels are compared
+        // and not their places; the other menus open at the same cell.
+        let cells = if name == "popup menu" {
+            match (panel_cells(one), panel_cells(other)) {
+                (Some(one), Some(other)) if one.0 == other.0 => {
+                    one.1.iter().zip(&other.1).filter(|(a, b)| a != b).count()
+                }
+                (one, other) => {
+                    one.map_or(1, |(_, cells)| cells.len())
+                        + other.map_or(1, |(_, cells)| cells.len())
+                }
+            }
+        } else {
+            painted(one)
+                .iter()
+                .zip(painted(other))
+                .filter(|(a, b)| **a != *b)
+                .count()
+        };
         if cells > 0 {
             differ.push(format!(
                 "{name}: {cells} cells differ\nfrom its props:\n{}\nfrom its builder:\n{}",
@@ -368,7 +693,7 @@ fn parts() -> Element {
     page(
         popup(
             vec![
-                MenuItem::new("new", "NEW"),
+                MenuItem::new("new", "NEW").shortcut(MenuShortcut::new("Ctrl+N", vec!["ctrl+n"])),
                 MenuItem::new("open", "OPEN").shortcut(MenuShortcut::new("Ctrl+O", vec!["ctrl+o"])),
                 MenuItem::separator(),
                 MenuItem::new("off", "OFF").enabled(false),
@@ -397,6 +722,13 @@ fn mnu_001_a_default_menu_paints_each_part_in_its_role() {
     check(
         "the current row",
         colors(frame, "NEW"),
+        "selection-foreground",
+        "selection",
+    );
+    // The current row is one color from end to end, its shortcut too.
+    check(
+        "the current row's shortcut",
+        colors(frame, "Ctrl+N"),
         "selection-foreground",
         "selection",
     );
@@ -683,30 +1015,47 @@ fn mnu_003_a_submenu_at_the_right_edge_opens_to_the_left_of_its_parent() {
 
 #[test]
 #[serial_test::serial(theme)]
-fn mnu_003_a_popup_below_an_anchor_on_the_last_row_opens_above_it() {
-    let frames = app_input::run_when(
-        Control(page(popup(
-            rows(2),
+fn mnu_003_a_popup_under_an_anchor_at_the_lower_edge_opens_over_it() {
+    for (placement, anchor) in [
+        (
+            PopupPlacement::Widget {
+                x: 10,
+                y: 19,
+                width: 8,
+                height: 1,
+            },
+            19,
+        ),
+        // `Below` names the row under its anchor: the anchor is the row
+        // over it.
+        (
             PopupPlacement::Below {
                 x: 10,
                 y: 19,
                 width: 8,
             },
-        ))),
-        (60, 20),
-        vec![("ROW02", None)],
-    );
-    let frame = frames.last().unwrap();
-    let on_anchor: String = (10..18)
-        .filter_map(|column| frame.screen.cell(19, column))
-        .map(|cell| cell.contents())
-        .collect();
-    let last = find(frame, "ROW02");
-    assert!(
-        on_anchor.trim().is_empty() && last.is_some_and(|(_, row)| row < 19),
-        "MNU-003: the anchor's cells on the last row hold {on_anchor:?} and the panel's last row is at {last:?}; the panel must stand above the anchor:\n{}",
-        frame.text
-    );
+            18,
+        ),
+    ] {
+        let frames = app_input::run_when(
+            Control(page(popup(rows(2), placement.clone()))),
+            (60, 20),
+            vec![("ROW02", None)],
+        );
+        let frame = frames.last().unwrap();
+        let on_anchor: String = (10..18)
+            .filter_map(|column| frame.screen.cell(anchor, column))
+            .map(|cell| cell.contents().to_owned())
+            .collect();
+        let (first, last) = (find(frame, "┌"), find(frame, "└"));
+        assert!(
+            on_anchor.trim().is_empty()
+                && first.is_some()
+                && last.is_some_and(|(_, row)| row + 1 == anchor),
+            "MNU-003: {placement:?}: the anchor's cells on row {anchor} hold {on_anchor:?} and the panel stands from {first:?} to {last:?}; it must stand over the anchor and touch it:\n{}",
+            frame.text
+        );
+    }
 }
 
 #[test]
@@ -750,28 +1099,21 @@ fn mnu_003_a_panel_opened_near_the_corner_of_the_viewport_is_painted_whole() {
     );
 }
 
-/// A page that paints a frame for the key `!`, so a key no menu takes
-/// still ends the run.
-struct Served(Element);
-impl RootComponent for Served {
-    fn render(&self) -> Element {
-        self.0.clone()
-    }
-    fn try_handle_event(
-        &mut self,
-        event: &Event,
-    ) -> reactive_tui::error::Result<reactive_tui::event::router::EventResult> {
-        Ok(match event {
-            Event::Key(key) if key.code == KeyCode::Char('!') => {
-                reactive_tui::event::router::EventResult::Handled
-            }
-            _ => reactive_tui::event::router::EventResult::Ignored,
-        })
-    }
-    fn wake_driven(&self) -> bool {
-        true
+/// The last step of a run that ends when a panel of two rows stands whole
+/// with its first corner at (`column`, `row`): its lower left corner is
+/// painted last, three rows under the first.
+fn whole_panel_at(column: u16, row: u16) -> Until {
+    Until {
+        text: "ROW02",
+        cell: Some((column, row + 3, "└")),
+        event: None,
     }
 }
+
+/// How long a test waits for a panel that may never be painted: the App
+/// paints a frame in milliseconds, so five seconds tell a missing panel
+/// from a slow machine.
+const PANEL_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
 
 #[test]
 #[serial_test::serial(theme)]
@@ -788,14 +1130,20 @@ fn mnu_003_shift_f10_opens_the_context_menu_at_the_area_it_serves() {
         alt: false,
         meta: false,
     }));
-    let frames = app_input::run(
-        Served(page(menu)),
+    // The run ends at the first frame that shows the panel's last row, and
+    // fails after `PANEL_WAIT` when none does.
+    let frames = app_input::run_until(
+        Control(page(menu)),
         (60, 20),
         vec![
-            (1, Some(shift_f10)),
-            (1, key(KeyCode::Char('!'))),
-            (2, None),
+            Until {
+                text: "",
+                cell: None,
+                event: Some(shift_f10),
+            },
+            whole_panel_at(4, 2),
         ],
+        PANEL_WAIT,
     );
     let frame = frames.last().unwrap();
     assert_eq!(
@@ -857,17 +1205,6 @@ fn body_with_menu() -> Element {
         .build()
 }
 
-/// Three more frames after `seen` is painted, so a panel that needs a
-/// frame to be measured has had it.
-fn settle(seen: &'static str) -> Vec<(&'static str, Option<Event>)> {
-    vec![
-        (seen, key(KeyCode::Char('!'))),
-        (seen, key(KeyCode::Char('!'))),
-        (seen, key(KeyCode::Char('!'))),
-        (seen, None),
-    ]
-}
-
 #[test]
 #[serial_test::serial(theme)]
 fn mnu_004_a_menu_opened_inside_a_modal_is_painted_over_it() {
@@ -877,7 +1214,12 @@ fn mnu_004_a_menu_opened_inside_a_modal_is_painted_over_it() {
         .size(30, 8)
         .visible(true)
         .build();
-    let frames = app_input::run_when(Served(page(modal)), (60, 20), settle("BODY"));
+    let frames = app_input::run_until(
+        Control(page(modal)),
+        (60, 20),
+        vec![whole_panel_at(40, 10)],
+        PANEL_WAIT,
+    );
     let frame = frames.last().unwrap();
     assert_eq!(
         missing(frame, (40, 10)),
@@ -894,9 +1236,19 @@ fn mnu_004_a_menu_opened_inside_a_popover_is_painted_over_it() {
         .trigger(builder::button().text("OPEN").class("w-6 h-1 p-0").build())
         .content(body_with_menu())
         .build();
-    let mut steps = vec![("OPEN", app_input::click(1, 0))];
-    steps.extend(settle("BODY"));
-    let frames = app_input::run_when(Served(page(popover)), (60, 20), steps);
+    let frames = app_input::run_until(
+        Control(page(popover)),
+        (60, 20),
+        vec![
+            Until {
+                text: "OPEN",
+                cell: None,
+                event: app_input::click(1, 0),
+            },
+            whole_panel_at(40, 10),
+        ],
+        PANEL_WAIT,
+    );
     let frame = frames.last().unwrap();
     assert_eq!(
         missing(frame, (40, 10)),
@@ -924,9 +1276,19 @@ fn mnu_004_a_box_that_clips_its_content_does_not_clip_a_panel() {
         .child(header)
         .child(Element::text("PAGE"))
         .build();
-    let mut steps = vec![("FILE", key(KeyCode::Down))];
-    steps.extend(settle("FILE"));
-    let frames = app_input::run_when(Served(tree), (60, 20), steps);
+    let frames = app_input::run_until(
+        Control(tree),
+        (60, 20),
+        vec![
+            Until {
+                text: "FILE",
+                cell: None,
+                event: key(KeyCode::Down),
+            },
+            whole_panel_at(1, 2),
+        ],
+        PANEL_WAIT,
+    );
     let frame = frames.last().unwrap();
     let rows: Vec<bool> = ["ROW01", "ROW02"]
         .iter()
@@ -937,6 +1299,59 @@ fn mnu_004_a_box_that_clips_its_content_does_not_clip_a_panel() {
         [true, true],
         "MNU-004: whether each row of a panel is painted when its menu bar stands in a box of three rows that clips its content:\n{}",
         frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn mnu_004_an_element_no_ancestor_clips_is_painted_and_clicked_past_the_box_that_holds_it() {
+    let calls = std::sync::Arc::new(std::sync::Mutex::new(0));
+    let tree = |free: bool| {
+        let calls = calls.clone();
+        let style = StyleBuilder::new()
+            .position_absolute()
+            .inset_left(0.0)
+            .inset_top(0.0)
+            .width_px(6.0)
+            .height_px(1.0);
+        let holder = builder::div()
+            .styles(if free { style.unclipped() } else { style })
+            .child(
+                builder::button()
+                    .text("abcdef")
+                    .class("w-6 h-1 p-0")
+                    .on_click(move || *calls.lock().unwrap() += 1)
+                    .build(),
+            )
+            .build();
+        builder::div()
+            .class("relative w-full h-full")
+            .child(
+                builder::div()
+                    .class("absolute left-0 top-0 w-3 h-1 overflow-hidden")
+                    .child(holder)
+                    .build(),
+            )
+            .build()
+    };
+    let steps = || vec![(1, app_input::click(5, 0)), (1, None)];
+    let clipped = app_input::run(Control(tree(false)), (12, 3), steps());
+    assert_eq!(
+        (
+            clipped.last().unwrap().text.trim().to_owned(),
+            *calls.lock().unwrap()
+        ),
+        ("abc".to_owned(), 0),
+        "a box of three cells that clips its content shows three cells of its child and takes no click past them"
+    );
+    let free = app_input::run(Control(tree(true)), (12, 3), steps());
+    assert_eq!(
+        (
+            free.last().unwrap().text.trim().to_owned(),
+            *calls.lock().unwrap()
+        ),
+        ("abcdef".to_owned(), 1),
+        "MNU-004: what is painted of an element that no ancestor clips, and the clicks that reached it at (5, 0)"
     );
 }
 

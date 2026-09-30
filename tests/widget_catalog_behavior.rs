@@ -235,13 +235,30 @@ fn live_dialogs_switch_through_real_app_input() {
 
 #[test]
 fn context_and_popup_menus_are_visible_when_selected() {
-    for demo in [1, 2] {
+    use reactive_tui::event::types::{KeyEvent, KeyModifiers};
+    // The context menu serves its card and opens on Shift+F10, which the
+    // demo can take because it holds the focus; the popup menu is open.
+    let shift_f10 = Some(Event::Key(KeyEvent::new(KeyCode::F(10)).with_modifiers(
+        KeyModifiers {
+            shift: true,
+            ctrl: false,
+            alt: false,
+            meta: false,
+        },
+    )));
+    for (demo, steps) in [
+        (
+            1,
+            vec![("Right click here", shift_f10), ("Export clip", None)],
+        ),
+        (2, vec![("Export clip", None)]),
+    ] {
         let mut catalog = Catalog::default();
         catalog.set_page(CatalogPage::MenusDialogs);
         for _ in 0..demo {
             catalog.try_handle_event(&key(KeyCode::F(2))).unwrap();
         }
-        let frames = app_input::run_when(catalog, (100, 32), vec![("Export clip", None)]);
+        let frames = app_input::run_when(catalog, (100, 32), steps);
         assert!(frames
             .iter()
             .any(|frame| frame.text.contains("New capture")));
