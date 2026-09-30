@@ -3,7 +3,7 @@ use crate::{
     component::{Component, LayoutInfo, Props},
     reactive::ThreadSafeSignal,
     widgets::display::{
-        modal::{ModalButton, ModalProps, ModalSize},
+        modal::{ModalButton, ModalProps},
         progress_bar::ProgressBarBuilder,
     },
 };

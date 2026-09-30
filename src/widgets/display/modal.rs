@@ -4,6 +4,9 @@ use std::sync::Arc;
 
 mod live;
 
+/// A callback told a box's position and size, in cells, when they change.
+pub type PlacedCallback = Arc<dyn Fn((u16, u16), (u16, u16)) + Send + Sync>;
+
 /// Props for the Modal component
 #[derive(Clone)]
 pub struct ModalProps {
@@ -71,7 +74,7 @@ pub struct ModalProps {
     pub on_button_click: Option<Arc<dyn Fn(String) + Send + Sync>>,
     /// Called with the box's position and size, in cells, each time they
     /// change: what stacks boxes needs to know how tall each one is.
-    pub on_placed: Option<Arc<dyn Fn((u16, u16), (u16, u16)) + Send + Sync>>,
+    pub on_placed: Option<PlacedCallback>,
 }
 
 /// Size specification for modal dialogs

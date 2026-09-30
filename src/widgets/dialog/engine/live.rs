@@ -191,7 +191,7 @@ pub(in crate::widgets::dialog) struct Presentation {
     /// Cells the box is moved from the place its position names.
     pub offset: (i16, i16),
     /// Told the box's position and size each time they change.
-    pub placed: Option<Arc<dyn Fn((u16, u16), (u16, u16)) + Send + Sync>>,
+    pub placed: Option<crate::widgets::display::modal::PlacedCallback>,
 }
 impl PartialEq for Presentation {
     fn eq(&self, other: &Self) -> bool {
