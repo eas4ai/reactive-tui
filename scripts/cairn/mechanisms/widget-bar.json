@@ -1,34 +1,35 @@
 {
-  "command": "python3 -B scripts/cairn/charts_contract.py widget-bar",
-  "cwd": null,
-  "documents": [],
-  "identity": {
-    "env": [
-      "TERM"
-    ],
-    "image": null,
-    "tools": {
-      "cargo": "cargo --version",
-      "rustc": "rustc --version"
-    }
-  },
-  "inputs": [
-    "Cargo.lock",
-    "Cargo.toml",
-    "build.rs",
-    "crates",
-    "scripts/cairn",
-    "src",
-    "tests/api_widget_behavior",
-    "tests/api_widget_behavior.rs",
-    "tests/canvas_support",
-    "tests/canvas_widget.rs",
-    "tests/charts_contract.rs",
-    "tests/common",
-    "tests/menus_contract.rs"
+ "command": "python3 -B scripts/cairn/charts_contract.py widget-bar",
+ "cwd": null,
+ "documents": [],
+ "identity": {
+  "env": [
+   "TERM"
   ],
-  "requirements": [
-    "BAR-003"
-  ],
-  "results": "per-requirement"
+  "image": null,
+  "tools": {
+   "cargo": "cargo --version",
+   "rustc": "rustc --version"
+  }
+ },
+ "inputs": [
+  "Cargo.lock",
+  "Cargo.toml",
+  "build.rs",
+  "crates",
+  "scripts/cairn",
+  "src",
+  "tests/api_widget_behavior",
+  "tests/api_widget_behavior.rs",
+  "tests/canvas_support",
+  "tests/canvas_widget.rs",
+  "tests/charts_contract.rs",
+  "tests/common",
+  "tests/menus_contract.rs",
+  "tests/overlays_contract.rs"
+ ],
+ "requirements": [
+  "BAR-003"
+ ],
+ "results": "per-requirement"
 }
