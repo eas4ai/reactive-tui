@@ -60,7 +60,9 @@ box on the screen or puts it at an edge or a corner, one cell from it;
 `offset` moves it by cells from there. The modal is painted whole on the
 screen even when the element that owns it stands inside a box that clips
 its content. Escape closes a closable modal; Tab moves between its buttons
-and Enter presses the focused one. The screen reader hears the box as a
+and Enter presses the focused one; Alt with an arrow moves a draggable
+modal one cell and Alt and Shift with an arrow resize a resizable one by
+a cell. The screen reader hears the box as a
 dialog labeled by its title. `on_placed` is called with the box's position
 and size each time they change.
 
@@ -72,8 +74,9 @@ and size each time they change.
 padding inside it; the arrow, one row deep and pointing at the trigger, is
 a piece of the box, filled in `surface` with its outline in `border`; the
 veil of `backdrop_filter` is `overlay`. The box
-opens one row from its trigger (one cell when beside it) at the side
-`position` names, and at the opposite side when only that side holds it
+opens `gap` cells from its trigger (one by default: one row under or over
+it, one cell beside it, the arrow in them) at the side `position` names,
+moved by `offset`, and at the opposite side when only that side holds it
 (`BoundaryBehavior::Flip`, the default). It stacks over a modal or a dialog
 and under a toast and a menu panel.
 
@@ -82,6 +85,8 @@ by a key, the popover moves the focus into its content when the content
 holds a focusable element, and back to the trigger when it closes;
 `auto_focus` does that for a click too, and `focus_trap` keeps the focus
 inside. The trigger tells the screen reader whether the popover is open.
+A popover is painted whole even when its trigger stands inside a modal or
+a box that clips its content.
 
 ## Charts
 
