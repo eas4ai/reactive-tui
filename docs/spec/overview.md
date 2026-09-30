@@ -59,6 +59,7 @@ component library as closely as a cell grid allows.
 | theme.md | THM | the theme's color roles, their contrast, what a theme that lacks a role gets, and a change of theme |
 | menus.md | MNU | the menu bar, context menu, popup menu and dialog menu: their colors by role, their size, where a panel opens, what it is painted over |
 | overlays.md | OVL | the modal, popover, toast and the five dialogs: their colors by role, their size in cells, where each is placed and what it is painted over, what the screen reader is told |
+| input-widgets.md | CTL | the text input, checkbox, radio button, select, slider and button: their colors by role, the width they fill, where a select's list opens and what it is painted over, what the screen reader is told |
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults and the demos |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
