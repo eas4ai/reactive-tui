@@ -378,3 +378,46 @@ fn nav_003_a_tab_bar_scrolls_to_keep_the_focused_tab_in_view() {
         end.text
     );
 }
+
+// ---------------------------------------------------------------- NAV-004
+
+#[test]
+#[serial_test::serial(theme)]
+fn nav_004_delete_closes_a_tab_as_a_click_on_its_mark_does() {
+    let _theme = Active::set(probe());
+    let tabs = || {
+        builder::tabs()
+            .tab("Preview", Element::text("Live preview"))
+            .tab("Source", Element::text("Public builder API"))
+            .tab("Notes", Element::text("Release notes"))
+            .closable(true)
+            .build()
+            .auto_focus()
+    };
+    // The close mark of the second tab: the first "✕" after "Source".
+    let opened = shown(tabs(), (80, 8), "Live preview");
+    let (source, row) = at(&opened, "Source");
+    let mark = (source..80)
+        .find(|column| glyph(&opened, *column, row) == "✕")
+        .expect("the second tab's close mark");
+    let frames = shown_after(
+        tabs(),
+        (80, 8),
+        vec![
+            ("Live preview", app_input::click(mark, row)),
+            ("Live preview", key(KeyCode::Delete)),
+            ("Notes", None),
+        ],
+    );
+    let end = last(&frames);
+    assert!(
+        find(end, "Source").is_none(),
+        "a click on its mark closed the second tab:\n{}",
+        end.text
+    );
+    assert!(
+        find(end, "Preview").is_none() && find(end, "Notes").is_some(),
+        "Delete closed the focused tab:\n{}",
+        end.text
+    );
+}
