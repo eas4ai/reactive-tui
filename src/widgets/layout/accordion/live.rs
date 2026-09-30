@@ -171,7 +171,7 @@ impl Component for LiveAccordion {
             }
             let mut header = Element::layout(LayoutType::Flex)
                 .with_key("header")
-                .with_class(format!("flex flex-row h-1 shrink-0 min-w-0 w-full {fill}"))
+                .with_class(format!("flex flex-row shrink-0 min-w-0 w-full {fill}"))
                 .with_children(header_children);
             let mut accessible =
                 crate::accessibility::Node::new(crate::accessibility::Role::Button);
