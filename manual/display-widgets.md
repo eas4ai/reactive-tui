@@ -40,6 +40,48 @@ owned worker and publishes results back to the application.
 Modal and popover widgets maintain their own open state, placement, focus, and
 event handling. Progress widgets can animate between values.
 
+## Modal
+
+`Modal` places a box over the screen with a veil behind it. Build it with
+`modal()` (`.title()`, `.content()`, `.contents()`, `.visible(true)`,
+`.closable()`, `.size(width, height)`) or with `ModalProps`. The box is
+`bg-surface text-foreground` with a border in `border`, the veil `overlay`,
+the title and the footer one cell in, the close button `text-muted`; a
+button without a style takes the primary look when its action confirms and
+the secondary look otherwise, and the `selection` roles while it holds the
+focus (`PRIMARY_BUTTON`, `SECONDARY_BUTTON`, `DANGER_BUTTON`). Set
+`modal_style`, `backdrop_style`, `header_style`, `footer_style` and
+`close_button_style` to change that.
+
+A box whose width is `ModalSize::Auto` is as wide as its content, its title
+or its buttons need plus one cell of padding at each side, and at most half
+the viewport; its content wraps at that width. `ModalPosition` centers the
+box on the screen or puts it at an edge or a corner, one cell from it;
+`offset` moves it by cells from there. The modal is painted whole on the
+screen even when the element that owns it stands inside a box that clips
+its content. Escape closes a closable modal; Tab moves between its buttons
+and Enter presses the focused one. The screen reader hears the box as a
+dialog labeled by its title. `on_placed` is called with the box's position
+and size each time they change.
+
+## Popover
+
+`Popover` opens a box beside its trigger. Build it with `popover()`
+(`.trigger()`, `.content()`, `.class()`) or with `PopoverProps`. The box is
+`bg-surface text-foreground` with a border in `border` and one cell of
+padding inside it; the arrow, one row deep and pointing at the trigger, is
+painted in `surface`; the veil of `backdrop_filter` is `overlay`. The box
+opens one row from its trigger (one cell when beside it) at the side
+`position` names, and at the opposite side when only that side holds it
+(`BoundaryBehavior::Flip`, the default). It stacks over a modal or a dialog
+and under a toast and a menu panel.
+
+Enter or Space on the trigger opens the popover and Escape closes it. Opened
+by a key, the popover moves the focus into its content when the content
+holds a focusable element, and back to the trigger when it closes;
+`auto_focus` does that for a click too, and `focus_trap` keeps the focus
+inside. The trigger tells the screen reader whether the popover is open.
+
 ## Charts
 
 Charts draw through one plot layer (`reactive_tui::widgets::display::plot`:

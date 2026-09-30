@@ -39,6 +39,91 @@ The engine maintains dialog focus and stacking. Close, cancel, submit, timeout,
 and transport failure are distinguishable outcomes where the dialog type
 supports them.
 
+## Colors and sizes
+
+Every dialog, the toast included, takes its colors from the active theme's
+roles: the box is `bg-surface text-foreground` with a border in `border`,
+the veil behind a modal dialog is `overlay`, the primary button (OK, Yes,
+Next, Finish) is `bg-primary text-primary-foreground`, a danger button
+`bg-error text-error-foreground`, every other button `bg-secondary
+text-secondary-foreground`, and the button that holds the focus
+`bg-selection text-selection-foreground`. An error line is `text-error`
+and a warning `text-warning`. `DialogTheme::default()` names those roles;
+`DialogTheme::of(&theme)` writes the colors of one theme, so the dialog
+keeps them when the application changes its theme, and
+`DialogThemes::light()`, `dark()` and `high_contrast()` do that for the
+preset of that name. `DialogThemes::minimal()` draws its buttons as text.
+`DialogTheme::border_style` holds classes added to the box; the border
+itself is the modal's own, so a `border-<color>` class there paints the
+box's background instead.
+
+A box whose width the options do not set is as wide as its message, its
+title or its row of buttons needs, plus one cell of padding at each side,
+and at most half the viewport; a longer message wraps. A title and a
+button have one cell of padding at each side. The input, autocomplete and
+progress dialogs are 40 cells wide, or half the viewport when that is
+less. A dialog is centered on the screen, or placed where its
+`DialogPosition` says, and painted whole even when the element that
+renders the engine stands inside a box that clips its content. A dialog
+the engine opens over another is placed one row lower than it.
+
+## Confirmation dialog
+
+`ConfirmationDialog` asks a question and closes on a button. Build it with
+`confirmation_dialog()` (`.title()`, `.message()`, `.confirm_text()`,
+`.cancel_text()`, `.danger(true)` for a red confirm button) or through
+`DialogEngine::show_confirmation` with `ConfirmationDialogOptions`. It has
+no icon unless `icon` names one. Enter presses the button that holds the
+focus, Tab moves between the buttons, Escape cancels when
+`escape_closable` is set. The screen reader hears it as an alert dialog
+labeled by its title.
+
+## Input dialog
+
+`InputDialog` edits one field and validates it. Build it with
+`InputDialog::new(id, InputDialogOptions { .. })` and render it through
+`DialogComponent::render`, or open it with `DialogEngine::show_input`. The
+field fills the box; an error under it is `text-error`, a warning
+`text-warning`. OK is the primary button, Cancel the other.
+
+## Autocomplete dialog
+
+`AutocompleteDialog` filters suggestions as the user types. Build it with
+`AutocompleteDialog::new(id, AutocompleteDialogOptions { .. })` and
+`DialogComponent::render`, or open it with `DialogEngine::show_autocomplete`.
+The selected suggestion is painted `bg-selection text-selection-foreground`.
+
+## Progress dialog
+
+`ProgressDialog` shows a bar and a percentage. Build it with
+`progress_dialog()` (`.title()`, `.message()`, `.progress(0.64)`,
+`.indeterminate(true)` for a bar that moves) or open it with
+`DialogEngine::show_progress` and update it with
+`DialogUpdate::Progress`. Its Cancel button, when `cancellable`, is a
+secondary button.
+
+## Toast
+
+`Toast` shows a message for a while. Build it with `toast()` (`.success()`,
+`.error()`, `.warning()`, `.info()` or `.message()` with `.toast_type()`,
+`.duration(ms)` or `.persistent()`, `.position("top-right")`,
+`.closable(true)`) or show it with `DialogEngine::show_toast`. A toast is
+painted in the fill of its kind with that fill's text: `success`,
+`warning`, `error` or `info`; `ToastType::Custom(classes)` paints the
+classes its string names. It sits at the corner or edge its position
+names with one cell between it and the screen's edge; toasts the engine
+shows at the same position stack, each under the earlier ones (or over
+them at a bottom position), one row apart. A warning or an error is an
+alert to the screen reader, the rest a status. Escape closes a closable
+toast that holds the focus.
+
+## Wizard dialog
+
+`WizardDialog` moves through steps. Build it with `wizard()` (`.title()`,
+`.step(WizardStep::new("name").content(element))`, `.cancelable(false)`)
+or open it with `DialogEngine::show_wizard`. Next and Finish are the
+primary button; Back, Skip and Cancel are secondary.
+
 ## Network access
 
 Dialogs make no network request unless the application sets an endpoint.
@@ -73,6 +158,10 @@ rest of the application environment or user curl configuration.
 
 - Dialog exports and common values: [`src/widgets/dialog/mod.rs`](../src/widgets/dialog/mod.rs)
 - Dialog engine: [`src/widgets/dialog/engine.rs`](../src/widgets/dialog/engine.rs)
+- Dialog theme and its looks: [`src/widgets/dialog/mod.rs`](../src/widgets/dialog/mod.rs),
+  [`src/widgets/dialog/dialog_types.rs`](../src/widgets/dialog/dialog_types.rs)
+- The box every dialog is drawn in: [`src/widgets/display/modal.rs`](../src/widgets/display/modal.rs)
+- Overlay contract tests: [`tests/overlays_contract.rs`](../tests/overlays_contract.rs)
 - Input validation: [`src/widgets/dialog/input/validation.rs`](../src/widgets/dialog/input/validation.rs)
 - Dialog behavior tests: [`tests/api_widget_behavior/dialogs.rs`](../tests/api_widget_behavior/dialogs.rs)
 - Dialog lifecycle tests: [`tests/api_dialog_lifecycle.rs`](../tests/api_dialog_lifecycle.rs)
