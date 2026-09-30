@@ -33,10 +33,11 @@ This file records user-visible changes to Reactive TUI. The project follows
   each side, and at most half the viewport; its content wraps at that
   width instead of scrolling sideways. A modal's content, title and footer
   have one cell of padding at each side; a `DialogTheme` title `px-1`. The
-  input, autocomplete and progress dialogs are 40 cells wide, or half the
-  viewport when that is less. A confirmation dialog has no icon unless its
-  options name one. A line breaks at a space only, so "sure?" is never
-  split into "sure" and "?".
+  input and autocomplete dialogs' field, the suggestion list and the
+  progress dialog's bar are 36 cells wide, so those boxes are 40 cells
+  unless a longer line widens them (they were a fixed 40). A confirmation
+  dialog has no icon unless its options name one. A line breaks at a
+  space only, so "sure?" is never split into "sure" and "?".
 - **Breaking:** a modal, a dialog or a toast is placed on the screen and
   painted whole, also when the element that owns it stands inside a card
   or a box that clips its content; it was centered in that box and cut by
@@ -51,17 +52,31 @@ This file records user-visible changes to Reactive TUI. The project follows
   row lower. The stacking order is a modal or dialog at 1000 and up, a
   popover at 2000, a toast at 2500 (`PopoverProps::z_index` was 1000 and a
   toast 2000), a menu panel at 3000.
-- **Breaking:** a popover opens one row from its trigger with an arrow one
-  row deep (`PopoverProps::offset` was `(0, 8)` and `PopoverArrow::size`
-  8), its box is `bg-surface text-foreground` with a border in `border`
-  and one cell of padding inside it, and its arrow is a piece of the box,
-  filled in `surface` with its outline in `border`; the box had no color,
-  border or padding. The veil of `backdrop_filter` is
-  `bg-overlay`. Opened by Enter or Space on its trigger, a popover moves the
-  focus into its content when the content holds a focusable element and
-  back to the trigger when it closes.
+- **Breaking:** a popover opens one row from its trigger, or one cell
+  when beside it, with an arrow one row deep: `PopoverProps` has a new
+  field `gap` (1 by default), the cells between the box and the trigger
+  along the placement's axis, and `offset` moves the box from there (its
+  default was `(0, 8)`, which is now `(0, 0)`; `PopoverArrow::size` was
+  8). A struct literal that names every field of `PopoverProps` no longer
+  compiles; `..Default::default()` does. Its box is `bg-surface
+  text-foreground` with a border in `border` and one cell of padding
+  inside it, and its arrow is a piece of the box, filled in `surface` with
+  its outline in `border`; the box had no color, border or padding. The
+  veil of `backdrop_filter` is `bg-overlay`. Opened by Enter or Space on
+  its trigger, a popover moves the focus into its content when the content
+  holds a focusable element and back to the trigger when it closes.
 - A confirmation dialog tells the screen reader it is an alert dialog, not
-  a dialog.
+  a dialog; a toast is labeled by its kind and described by its message;
+  a popover's trigger reports whether the popover is open (it set a class
+  no table knew). A popover is painted whole inside a modal or a box that
+  clips its content. Alt with an arrow moves a draggable modal one cell
+  and Alt and Shift with an arrow resize a resizable one. A confirmation
+  button whose variant the dialog theme has no look for (Retry, a warning
+  button) takes the fill of the role it names, where it painted with no
+  fill and no padding. The progress dialog's bar is `bg-primary` on a
+  `bg-border` track. A word keeps its punctuation when a line breaks, and
+  a run without a space that is wider than the line (Han text, a path)
+  still breaks at its word boundaries.
 - **Breaking:** `DialogBounds`, `DialogMargin`, `DialogComponent::get_bounds`,
   `DialogUtils::calculate_size` and `DialogBuffer` are removed. The bounds
   were set by six dialogs and read by nothing; the size and position reach

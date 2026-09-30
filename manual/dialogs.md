@@ -47,7 +47,9 @@ the veil behind a modal dialog is `overlay`, the primary button (OK, Yes,
 Next, Finish) is `bg-primary text-primary-foreground`, a danger button
 `bg-error text-error-foreground`, every other button `bg-secondary
 text-secondary-foreground`, and the button that holds the focus
-`bg-selection text-selection-foreground`. An error line is `text-error`
+`bg-selection text-selection-foreground`; a button whose variant the
+theme has no look for takes the fill of the role it names (`warning`,
+`success`, `info`) or the secondary look. An error line is `text-error`
 and a warning `text-warning`. `DialogTheme::default()` names those roles;
 `DialogTheme::of(&theme)` writes the colors of one theme, so the dialog
 keeps them when the application changes its theme, and
@@ -60,9 +62,11 @@ box's background instead.
 A box whose width the options do not set is as wide as its message, its
 title or its row of buttons needs, plus one cell of padding at each side,
 and at most half the viewport; a longer message wraps. A title and a
-button have one cell of padding at each side. The input, autocomplete and
-progress dialogs are 40 cells wide, or half the viewport when that is
-less. A dialog is centered on the screen, or placed where its
+button have one cell of padding at each side. The field of the input and
+autocomplete dialogs, the suggestion list and the progress dialog's bar
+are 36 cells wide, so those boxes are 40 cells unless a longer line
+widens them, and they shrink to a narrower box. A dialog is centered on
+the screen, or placed where its
 `DialogPosition` says, and painted whole even when the element that
 renders the engine stands inside a box that clips its content. A dialog
 the engine opens over another is placed one row lower than it.
@@ -114,8 +118,9 @@ classes its string names. It sits at the corner or edge its position
 names with one cell between it and the screen's edge; toasts the engine
 shows at the same position stack, each under the earlier ones (or over
 them at a bottom position), one row apart. A warning or an error is an
-alert to the screen reader, the rest a status. Escape closes a closable
-toast that holds the focus.
+alert to the screen reader, the rest a status, labeled by the kind and
+described by the message. Escape closes a closable toast that holds the
+focus.
 
 ## Wizard dialog
 
