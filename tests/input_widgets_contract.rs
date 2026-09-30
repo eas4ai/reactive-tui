@@ -804,6 +804,46 @@ fn ctl_003_escape_closes_the_list_and_a_choice_shows_at_once() {
     );
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn ctl_003_a_text_input_suggestion_list_inside_a_clipping_box_paints_whole() {
+    use reactive_tui::widgets::input::{Suggestion, TextInput, TextInputProps};
+    let _theme = Active::set(probe());
+    let suggestion = |text: &str| Suggestion {
+        text: text.into(),
+        description: None,
+        insert_text: text.into(),
+    };
+    let input = Element::typed::<TextInput>(TextInputProps {
+        suggestions: vec![suggestion("Alpha"), suggestion("Amber"), suggestion("Atom")],
+        placeholder: Some("Type here".into()),
+        ..Default::default()
+    })
+    .auto_focus();
+    let frames = shown_after(
+        builder::div()
+            .class("flex-col h-2 overflow-hidden")
+            .child(input)
+            .build(),
+        (80, 12),
+        vec![("Type here", key(KeyCode::Char('a'))), ("Alpha", None)],
+    );
+    let open = last(&frames);
+    for label in ["Alpha", "Amber", "Atom"] {
+        assert!(
+            find(open, label).is_some(),
+            "{label} is painted outside the clipping box:\n{}",
+            open.text
+        );
+    }
+    let (_, row) = at(open, "Atom");
+    assert!(
+        row >= 3,
+        "the suggestions stand under the field, past the box:\n{}",
+        open.text
+    );
+}
+
 // ---------------------------------------------------------------- CTL-004
 
 #[test]

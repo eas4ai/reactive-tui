@@ -370,29 +370,116 @@ impl TextInput {
                 );
             }
         }
-        if state.show_suggestions {
-            for index in Self::suggestion_window(props, state) {
+        let root = Element::layout(LayoutType::Flex)
+            .with_focus(FocusProps::input())
+            .disabled(props.disabled);
+        let Some(placement) = self.suggestion_placement(props, state) else {
+            return root
+                .class("text-input flex flex-col w-full overflow-hidden")
+                .children(children);
+        };
+        // The suggestions: a panel under the field, or above it when only
+        // the space above holds it, painted whole over the page (CTL-003),
+        // its current row in `selection` (CTL-001).
+        use crate::widgets::input::panel;
+        use unicode_width::UnicodeWidthStr;
+        let window = Self::suggestion_window(props, state);
+        let lines: Vec<(usize, String, String)> = window
+            .map(|index| {
                 let suggestion = &props.suggestions[index];
-                let label = format!(
-                    "{} {}{}",
-                    if state.suggestion_index == Some(index) {
-                        "▶"
-                    } else {
-                        " "
-                    },
-                    suggestion.text,
+                (
+                    index,
+                    suggestion.text.clone(),
                     suggestion
                         .description
                         .as_ref()
-                        .map_or(String::new(), |description| format!(" — {description}"))
-                );
-                children.push(Element::text(label).class("whitespace-pre h-1 shrink-0"));
-            }
+                        .map_or(String::new(), |description| format!(" — {description}")),
+                )
+            })
+            .collect();
+        let body_rows = self.body_rows(props, state);
+        let field_width = self
+            .viewport
+            .map_or(width + self.prefix_width(props, state) + 1, |layout| {
+                layout.content_size().0 as usize
+            });
+        let widest = lines
+            .iter()
+            .map(|(_, text, description)| {
+                UnicodeWidthStr::width(text.as_str()) + UnicodeWidthStr::width(description.as_str())
+            })
+            .max()
+            .unwrap_or(0);
+        let panel_width = field_width.max(widest + 4);
+        let row_width = panel_width - 2;
+        let rows = lines
+            .iter()
+            .map(|(index, text, description)| {
+                let current = state.suggestion_index == Some(*index);
+                let padding = " ".repeat(row_width.saturating_sub(
+                    2 + UnicodeWidthStr::width(text.as_str())
+                        + UnicodeWidthStr::width(description.as_str()),
+                ));
+                let (text_look, description_look, row_look) = if current {
+                    (look::CURRENT_ROW, look::CURRENT_ROW, look::CURRENT_ROW)
+                } else {
+                    (look::LABEL, look::LABEL_DISABLED, "")
+                };
+                look::row(
+                    &[
+                        ("  ", row_look),
+                        (text.as_str(), text_look),
+                        (description.as_str(), description_look),
+                        (padding.as_str(), row_look),
+                    ],
+                    row_look,
+                )
+                .with_key(format!("suggestion:{index}"))
+            })
+            .collect();
+        let list = panel::element(placement, panel_width, rows, &self.measured)
+            .with_key("text-input-suggestions");
+        let mut root = root.class("text-input flex flex-col overflow-visible");
+        root.metadata.styles = Some(std::sync::Arc::new(
+            panel::host_style(
+                placement,
+                self.viewport,
+                body_rows,
+                field_width,
+                panel_width,
+            )
+            .snapshot(),
+        ));
+        if placement.above {
+            let mut ordered = vec![list];
+            ordered.extend(children);
+            root.children(ordered)
+        } else {
+            children.push(list);
+            root.children(children)
         }
-        Element::layout(LayoutType::Flex)
-            .class("text-input flex flex-col w-full overflow-hidden")
-            .children(children)
-            .with_focus(FocusProps::input())
-            .disabled(props.disabled)
+    }
+
+    /// The rows the field and its error line take.
+    pub(super) fn body_rows(&self, props: &TextInputProps, state: &TextInputState) -> usize {
+        self.view_size(props, state).1
+            + usize::from(!state.is_valid && props.error_message.is_some())
+    }
+
+    /// Where the suggestion panel stands while suggestions are shown.
+    pub(super) fn suggestion_placement(
+        &self,
+        props: &TextInputProps,
+        state: &TextInputState,
+    ) -> Option<crate::widgets::input::panel::Placement> {
+        if !state.show_suggestions || props.suggestions.is_empty() {
+            return None;
+        }
+        Some(crate::widgets::input::panel::place(
+            self.viewport,
+            self.measured.screen(),
+            self.body_rows(props, state),
+            Self::suggestion_window(props, state).len(),
+        ))
     }
 }

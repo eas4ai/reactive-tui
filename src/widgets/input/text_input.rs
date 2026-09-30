@@ -387,6 +387,8 @@ pub struct TextInput {
     read_only: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     clipboard_content: Option<String>,
     viewport: Option<crate::component::LayoutInfo>,
+    /// The screen the suggestion panel was laid out on, for its placement.
+    measured: Arc<super::panel::Measured>,
     validator: Mutex<Option<(String, Option<regex::Regex>)>>,
 }
 
@@ -924,6 +926,7 @@ impl Component for TextInput {
             read_only: None,
             clipboard_content: None,
             viewport: None,
+            measured: Arc::default(),
             validator: Mutex::new(None),
         }
     }
@@ -1220,18 +1223,33 @@ impl TextInput {
                 if x < inset_x || y < inset_y {
                     return EventResult::Ignored;
                 }
-                let y = y - inset_y;
-                let suggestion_top = self.view_size(props, state).1
-                    + usize::from(!state.is_valid && props.error_message.is_some());
-                if state.show_suggestions && y >= suggestion_top {
-                    if event.kind != MouseEventKind::Drag {
-                        let range = Self::suggestion_window(props, state);
-                        if let Some(index) = range.into_iter().nth(y - suggestion_top) {
-                            self.accept_suggestion(index, props, state);
-                            return EventResult::Consumed;
+                let mut y = y - inset_y;
+                if let Some(placement) = self.suggestion_placement(props, state) {
+                    // The panel stands under the body or above it; its
+                    // border takes its first row.
+                    let body_rows = self.body_rows(props, state);
+                    let (panel_top, body_top) = if placement.above {
+                        (0, placement.height())
+                    } else {
+                        (body_rows, 0)
+                    };
+                    if y >= panel_top && y < panel_top + placement.height() {
+                        if event.kind != MouseEventKind::Drag {
+                            let range = Self::suggestion_window(props, state);
+                            if let Some(index) = (y > panel_top)
+                                .then(|| range.into_iter().nth(y - panel_top - 1))
+                                .flatten()
+                            {
+                                self.accept_suggestion(index, props, state);
+                                return EventResult::Consumed;
+                            }
                         }
+                        return EventResult::Ignored;
                     }
-                    return EventResult::Ignored;
+                    let Some(local) = y.checked_sub(body_top) else {
+                        return EventResult::Ignored;
+                    };
+                    y = local;
                 }
                 let position = self.mouse_byte(props, state, x - inset_x, y);
                 let Some(position) = position else {

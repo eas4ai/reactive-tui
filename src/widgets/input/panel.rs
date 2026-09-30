@@ -41,11 +41,16 @@ impl Placement {
 }
 
 /// The panel's place for `wanted` rows under a control whose root is
-/// `root` on a screen of `screen`. Under the row when the space below
-/// holds every row; above it when only the space above does; else at
-/// the side with more room, scrolling. Unmeasured, the panel opens below
-/// with every row.
-pub(crate) fn place(root: Option<LayoutInfo>, screen: Option<Bounds>, wanted: usize) -> Placement {
+/// `root`, whose body (its row, or its rows) is `body_rows` tall, on a
+/// screen of `screen`. Under the body when the space below holds every
+/// row; above it when only the space above does; else at the side with
+/// more room, scrolling. Unmeasured, the panel opens below with every row.
+pub(crate) fn place(
+    root: Option<LayoutInfo>,
+    screen: Option<Bounds>,
+    body_rows: usize,
+    wanted: usize,
+) -> Placement {
     let wanted = wanted.max(1);
     let (Some(root), Some(screen)) = (root, screen) else {
         return Placement {
@@ -53,9 +58,10 @@ pub(crate) fn place(root: Option<LayoutInfo>, screen: Option<Bounds>, wanted: us
             rows: wanted,
         };
     };
-    let row_top = root.transform[5];
-    let below = (screen.y + screen.height - row_top - 1.0).max(0.0) as usize;
-    let above = (row_top - screen.y).max(0.0) as usize;
+    // The body starts after the root's top inset.
+    let body_top = root.transform[5] + root.insets[1];
+    let below = (screen.y + screen.height - body_top - body_rows as f32).max(0.0) as usize;
+    let above = (body_top - screen.y).max(0.0) as usize;
     let fits = |room: usize| room >= wanted + 2;
     if fits(below) {
         Placement {
@@ -104,14 +110,16 @@ impl Measured {
     }
 }
 
-/// The style of a control's root while its panel is open: the row and the
-/// panel in a column, a negative margin giving the panel's rows back to
-/// the flow, and the root as wide as the panel with the same margin at the
-/// right, so nothing around the control moves. `root` is the control's
-/// last layout, whose insets (its padding and border) the box keeps.
+/// The style of a control's root while its panel is open: the control's
+/// `body_rows` and the panel in a column, a negative margin giving the
+/// panel's rows back to the flow, and the root as wide as the panel with
+/// the same margin at the right, so nothing around the control moves.
+/// `root` is the control's last layout, whose insets (its padding and
+/// border) the box keeps.
 pub(crate) fn host_style(
     placement: Placement,
     root: Option<LayoutInfo>,
+    body_rows: usize,
     field_width: usize,
     panel_width: usize,
 ) -> StyleBuilder {
@@ -120,7 +128,7 @@ pub(crate) fn host_style(
     let width = field_width.max(panel_width) as f32;
     let mut style = StyleBuilder::new()
         .width_px(width + insets[0] + insets[2])
-        .height_px(1.0 + panel_height + insets[1] + insets[3])
+        .height_px(body_rows as f32 + panel_height + insets[1] + insets[3])
         .margin_r_px(field_width as f32 - width)
         .overflow_visible()
         .z_index(PANEL_LAYER);

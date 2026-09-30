@@ -48,7 +48,9 @@ fn autocomplete_accepts_with_tab_and_mouse_without_moving_focus() {
                 .auto_focus();
             let mut steps = vec![(1, key(KeyCode::Char('a')))];
             if mouse {
-                steps.push((2, click(3, 2)));
+                // The suggestions are a panel under the field: its border
+                // on row 1, the first suggestion on row 2, the second on 3.
+                steps.push((2, click(3, 3)));
             } else {
                 steps.push((2, key(KeyCode::Down)));
                 steps.push((2, key(KeyCode::Tab)));
