@@ -2146,3 +2146,1911 @@ Every module G/lib.rs declares (80), with the line that declares it and the part
 - `virtual_list` (G/lib.rs:17): families both libraries have
 - `window_border` (G/lib.rs:18): support code
 - `window_ext` (G/lib.rs:19): support code
+
+
+## Update for gpui-kit 0.7.0
+
+Date: 2026-09-29. Read at reactive-tui 78b1b5de and gpui-kit 0.7.0, with
+gpui-kit 0.6.6 beside it to see what changed.
+
+The developer asked on 2026-09-28 for the widgets to be compared with the
+new gpui-kit before the widget work is specified. Four reviewers each read
+one part of the two libraries: the charts, the input widgets, the display
+and layout widgets, and the overlays, the menus and the theme. They read
+code and ran `diff` and `grep`; they built and ran nothing, so each
+statement says what the code does, not how it looks. Each report follows
+as its reviewer wrote it, with its own path shorthand at its head. The
+line numbers are those of the commit named above.
+
+What has changed in reactive-tui since the reports were written: the
+commitment layout-cells (done on 2026-09-29) made the padding, margin, gap
+and space classes count in cells, made a gap the number of cells it asks
+for at every width, corrected `gap-x-N`, `gap-y-N`, `col-span-full` and the
+auto-fit classes, and stopped the data table's panels from growing. The
+statements about those in the display and layout report describe the code
+before that commitment. The order of the widget work that uses these
+reports is in docs/spec/roadmap.md.
+
+
+### Charts: Chart comparison: gpui-kit 0.6.6, gpui-kit 0.7.0 and reactive-tui
+
+Read-only review. I ran `diff`, `grep`, `sed` and `cat -n` only. I did not build, run or render anything.
+I cannot see output, so every statement says what the code does, not how it looks.
+
+Path shorthand used below:
+
+- `G7` = ~/workspace2/gpui-kit-0.7.0/crates
+- `G6` = ~/workspace2/gpui-kit-0.6.6/crates
+- `R` = ~/workspace2/reactive-tui/src/widgets/display/charts
+- `RT` = ~/workspace2/reactive-tui
+- A bare `charts.rs:N` = RT/src/widgets/display/charts.rs. Other bare names are files under R: `typed.rs`, `live.rs`, `mask.rs`; `canvas.rs` and `motion.rs` are in R/live/; `cartesian.rs`, `pie.rs`, `radar.rs`, `sankey.rs` are in R/live/canvas/; `tick.rs`, `axis.rs`, `scale.rs`, `layout.rs`, `decimate.rs`, `curve.rs`, `polar.rs`, `tooltip.rs` (reactive-tui's) are in R/plot/. G7 files are named with their `G7/` path or `<type>_chart.rs`.
+- G7 chart files are `G7/component/src/chart/<type>_chart.rs`. G7 plot primitives are `G7/base/src/plot/`.
+- Marks: [obs] = read in code. [assume] = my inference, not checked.
+
+---
+
+#### Part 1. What changed from 0.6.6 to 0.7.0
+
+Method: `diff -r` of `component/src/chart` (both), `component/src/plot` (6.6) against `base/src/plot` (7.0) and the new `component/src/plot` (mod.rs, tooltip.rs). Release notes: `gpui-kit-0.7.0/release-notes.md:25-91`.
+
+##### 1.1 Renamed methods and types (from the release notes and the diff)
+
+| 0.6.6 | 0.7.0 | 0.7.0 place |
+|---|---|---|
+| `StrokeStyle` (enum) | `Curve` | G7/base/src/plot/mod.rs (enum near line 181) |
+| `Line/Area::stroke_style(..)` | `curve(..)` | G7/base/src/plot/shape/line.rs:85-87, shape/area.rs:82-84 |
+| `Line/RadialLine::dot_fill_color(Hsla)` | `dot_fill(impl Into<Background>)` | shape/line.rs:103-105, shape/radial_line.rs:136-138 |
+| `dot_stroke_color` | `dot_stroke` | shape/line.rs:109-112 |
+| `PlotHover::focus`, `Tooltip::focus` | `progress` | base/src/plot/hover.rs:64-71; component/src/plot/tooltip.rs:343-352 |
+| `Scale::least_index` | `nearest_index` | base/src/plot/scale.rs:30-33 |
+| `AXIS_GAP` const | `axis_gutter(font_size)` | base/src/plot/axis.rs:18-28 |
+
+- Old names stay as `#[deprecated]` aliases for `dot_fill_color`, `dot_stroke_color`, `focus`, `AXIS_GAP` (release-notes.md:82-84). `StrokeStyle` and `stroke_style` are removed (release-notes.md:82).
+- `least_index_with_domain` is removed (base/src/plot/scale.rs; the old one was G6/component/src/plot/scale/linear.rs:67-84).
+- `Arc::paint`, `paint_cached`, `contains` lose their radius arguments (base/src/plot/shape/arc.rs:90-102, 200-251).
+- Scale constructors take two-element arrays and iterators: `ScaleLinear::new(values, [h, 0.])` (scale/linear.rs:15-30).
+  - A range with more than two stops (old test `test_scale_linear_multiple_range`) can no longer be expressed. [obs]
+- Value bound is now the public `PlotValue` (f32, f64, Decimal) instead of the hidden `Sealed`. `f32` is new (scale.rs:11-24).
+
+**Effect on reactive-tui's spec (CHT-020 and CHT-029, docs/spec/charts.md:103, 125):**
+
+- None of the method names those two requirements list is renamed. The lists use `x y band value stroke fill natural linear step_after dot tick_margin alignment label grid open high low close` and, for radial and Sankey, the names in line 103. All still exist in 0.7.0 (checked with `grep -o "pub fn"` on each chart file). [obs]
+- The renames hit only the plot-primitive builders (`Line`, `Area`, `RadialLine`). Search run: `grep -rn "stroke_style\|dot_fill_color\|dot_stroke_color\|StrokeStyle" RT/docs/spec RT/src/widgets/display RT/manual RT/examples/widget_catalog`. One hit only: a doc comment in R/plot/curve.rs:2 that still says "the reference's `StrokeStyle`". [obs]
+- reactive-tui already uses the 0.7.0 name: `ChartsBuilder::curve` and type `Curve` (RT/src/widgets/display/charts.rs:240-244; R/plot/curve.rs:6-16). [obs]
+- The spec header still says "modeled on gpui-kit 0.6.6" (docs/spec/charts.md:5).
+
+##### 1.2 New chart options in 0.7.0 (methods that did not exist in 0.6.6)
+
+Found by diffing `pub fn` names per chart file.
+
+| Chart | New methods |
+|---|---|
+| all seven | `interactive(bool)` |
+| line, area | `y_axis`, `y_axis_label_placement`, `y_tick_count` (default 5), `y_tick_format`, `y_domain`, `y_padding` (default 10 px top, 0 bottom), `x_tick_count`, `point_count`, `grid_columns`, `grid_dashed`, `reference_line`, `tooltip_title`, `tooltip_value`, `tooltip_value_color`, `tooltip_content` |
+| bar | `band_count`, `band_tick_count`, `grid_dashed`, `label_color`, `max_band_width` (30 px), `min_length`, `padding_inner` (0.4), `padding_outer` (0.2), `value_axis_label_placement`, `value_tick_format`, four `tooltip_*` |
+| candlestick | `max_band_width`, four `tooltip_*` |
+| pie | `tooltip_name`, `tooltip_value(d, value, share)` |
+| radar | four `tooltip_*` |
+| sankey | `tooltip_name`, `tooltip_value` |
+
+Citations: line G7/component/src/chart/line_chart.rs:99-153, 208-317; area area_chart.rs:99-125 (same set); bar bar_chart.rs:126-200, 303-457; candlestick candlestick_chart.rs:97-146, 185-188; pie pie_chart.rs:110-113, 218-243; radar radar_chart.rs:140-213; sankey sankey_chart.rs:183-196, 279-301. Shared machinery: G7/component/src/chart/mod.rs:215-305 (`TooltipContent`) and 311-339 (`PointAxes` defaults).
+
+##### 1.3 Behavior, default and appearance changes
+
+1. **Tooltips and hover are on by default.** 0.6.6: `id: Option<ElementId>` defaulted to `None`, so no hitbox and no tooltip (G6 line_chart.rs:229-241). 0.7.0: `id` defaults to the construction site via `caller_id()` and `interactive` is `true` (G7 chart/mod.rs:42-51; line_chart.rs:73-74, 91-102, 461-463). [obs]
+2. **Hover motion moved out of the charts into a theme-driven layer.**
+   - `PlotMotion` (pointer spring, enter and exit transitions) lives in base (G7/base/src/plot/mod.rs:32-88). Base defaults are all `Duration::ZERO`, so with base alone the hover snaps.
+   - The component theme projects the "fast" motion tier onto it: pointer spring epsilon 0.1, enter and exit `Transition` with `easing_enter` and `easing_exit` (G7/component/src/theme/mod.rs:90-107). [obs]
+   - Hover memory (last datum, cursor, fade) moved from `component/src/plot/tooltip.rs` to `G7/base/src/plot/hover.rs:115-193`. Pointer spring: hover.rs:104-109. `PlotHover::glide`: hover.rs:86-101.
+   - `Tooltip` now glides the crosshair and dots itself, default `glide = true` (component/src/plot/tooltip.rs:322-335, 484-512), grows the halo with progress (513-516) and fades the whole overlay with `opacity(progress)` (564-588).
+   - Result: line, area, candlestick and radar no longer keep their own hover struct. Bar (`BarHover`, bar_chart.rs:28-35, 1063-1077), pie (`PieHover`, pie_chart.rs:32-39, 438-463) and sankey (sankey_chart.rs:63-70, 727) still do. Pie uses the `spring_control` token (pie_chart.rs:444). [obs]
+3. **Grid color is a new theme token `chart_grid`** (G7/component/src/theme/theme_color.rs:146-147). Line and area grid (chart/mod.rs:405-428), bar (bar_chart.rs:857) and radar (radar_chart.rs:485) switched from `border` to `chart_grid`. Candlestick was not switched and still uses `border` (candlestick_chart.rs:304; old G6 candlestick_chart.rs:234). [obs]
+4. **Line and area gained a value axis** (off by default), tick count 5, evenly spaced in pixels from baseline to top, both ends included (chart/mod.rs:396-403, 405-428, 455-496; line_chart.rs:233-270). The grid still draws 4 horizontal lines by default: the ticks 0..4 of 5, baseline excluded. Same line positions as the old hard-coded `i/4` (G6 line_chart.rs:205). [obs]
+5. **Bar value axis:**
+   - `value_tick_count` default went from 4 to 5 and now counts ticks, not steps (G6 bar_chart.rs:92, 247-248, 557 against G7 bar_chart.rs:104, 344-347, 852-853). The tick count on screen is the same by default (5). [obs]
+   - The value-label gutter is measured from the label text, with a 32 px minimum (G7 chart/mod.rs:155-168; bar_chart.rs:612-623, 741-743). It was a fixed 32 px (G6 bar_chart.rs:23-29, 285). Horizontal bars still use 32 px (bar_chart.rs:617-619).
+   - `AxisLabelPlacement::Inside` puts labels over the plot edge (base/src/plot/axis.rs:39-46; bar_chart.rs:905-922; chart/mod.rs:474-489).
+   - Room above the tallest vertical bar is now one text line when the chart has value labels, else 10 px (bar_chart.rs:510-516). Old: fixed 10 px (G6 bar_chart.rs:550-556). [obs]
+6. **Band width cap moved.** `ScaleBand::band_width` no longer clamps to 30 px. The charts pass `max_band_width` explicitly, default 30 px (base/src/plot/scale/band.rs:51-63; chart/mod.rs:149-151; bar_chart.rs:437-444, 472-476; candlestick_chart.rs:185-188, 241; release-notes.md:64-66). Same look by default, now configurable. [obs]
+7. **Point charts place points by index, not by looking up the x value** (`tick_at`, base scale/point.rs:47-64; line_chart.rs:423-429). The 0.6.6 lookup returned the first match for a repeated x label. The comment at line_chart.rs:423-424 says the old path was O(n^2). [obs; the duplicate-x effect is my reading of the `tick_at` doc, base scale/point.rs:47-52]
+8. **Fixed slots for growing data:** `point_count` and `band_count` lay the axis out for N slots and leave the tail empty (chart/mod.rs:56-72; line_chart.rs:220-231; bar_chart.rs:369-378; base scale/band.rs:76-83).
+9. **Pinned y domain** clips the line to the plot (`pinned_plot_mask`, chart/mod.rs:498-508; line_chart.rs:438-442). New.
+10. **Candlestick wick** is painted as a 1 px quad instead of a stroked path (candlestick_chart.rs:352-358; old G6 candlestick_chart.rs:282-289). The candle highlight band glides through `Tooltip` (candlestick_chart.rs:427-437).
+11. **Pie tooltip lost its title.** 0.6.6 titled it with `label(d)`; 0.7.0 shows one row with name, value and share, and says why in a comment (pie_chart.rs:483-497; old diff line 458). The row is still "value (share%)" (pie_chart.rs:495). [obs]
+12. **Sankey:** ribbon paths are cached per link by index (sankey_chart.rs:585-616). `tooltip_value` overrides `value_label` for the tooltip only (757-759).
+13. **Plot layer internals:**
+    - `PlotAxis` records labels and places them at paint time, so builder order no longer matters (base axis.rs:83-90, 181-208, 230-243).
+    - Axis `stroke`, `Grid` `stroke` and dot fill take `Background` (gradient capable) (axis.rs:97, grid.rs:8; line.rs:20).
+    - `AxisText`, `TooltipState`, `ArcData` and others are `#[non_exhaustive]` (release-notes.md:76-78).
+    - `PlotAxis::y_axis` doc now says "Default is false" (base axis.rs:155-160). The old doc said "Default is true" (G6 axis.rs:125-128) while the code defaulted to false; a doc fix only. [obs]
+14. **Radar/line dot** fill is `Background` and `dot_stroke` falls back to the solid part of `dot_fill` (shape/line.rs:131-135, radial_line.rs:164-168).
+
+Not changed (checked): pie default outer radius 0.4 x height (pie_chart.rs:246-252); radar default label gap 10, 4 rings, fill opacity 0.3 (radar_chart.rs:29-33, 516-520); area default fill `chart_2` at 0.4 (area_chart.rs:432-433; old G6 area_chart.rs:217); sankey constants (sankey_chart.rs:27-39); band padding 0.4 and 0.2 (bar_chart.rs:112-113). No animation on data change or on first draw anywhere in `G7/component/src/chart` (search: `grep -rn -i "animat" chart/*.rs` found none apart from the words "center" and "enter"). [obs]
+
+##### 1.4 Statements in docs/widget-study.md "### chart, plot" that are no longer true for 0.7.0
+
+The section is at RT/docs/widget-study.md:331-395. Its `G/` refs are 0.6.6 paths.
+
+| Study line | Statement | Status at 0.7.0 |
+|---|---|---|
+| 332 | "B/ has no chart code. It supplies only the `Spring` ... (G/chart/mod.rs:20, 39-41)" | False. `pointer_spring` left chart/mod.rs. Base now holds the plot layer, `PlotMotion`, hover tracking and `PlotElement` (base/src/plot/*.rs; hover.rs:107-109). Base still has no chart types. |
+| 334 | "The hover memory ... lives in keyed element state (G/plot/tooltip.rs:324-401)" | Moved to G7/base/src/plot/hover.rs:115-193. |
+| 334 | "Tooltips stay off until `id()` is set (G/chart/line_chart.rs:78-85)" | False. On by default via `caller_id()`; `interactive(false)` turns them off (line_chart.rs:73-74, 91-102). |
+| 334 | `Plot` trait at G/plot/mod.rs:25-111 | The trait is now G7/base/src/plot/mod.rs:90-171. The method set is unchanged (`prepaint`, `paint`, `id`, `tooltip_state`, `hover`, `tooltip`; `prepaint` also existed in 0.6.6 at plot/mod.rs:37). `IntoPlot` now generates `type Element = PlotElement<Self>` (release-notes.md:79-80). |
+| 340 | "Only ours: Axis title, min, max, custom labels and tick count" | Partly false. The reference now has pinned min/max (`y_domain`), tick count (`y_tick_count`, `value_tick_count`) and tick text (`y_tick_format`). Axis title and custom label lists are still ours only. |
+| 341 | "Only ours: Value-axis tick labels on every cartesian chart" | False. Line, area and bar have them, off by default (`y_axis`, `value_axis`). Candlestick has no value axis (search: no `y_axis` in candlestick_chart.rs). |
+| 353 | "`value_axis` switch and `value_tick_count` on bars (G/chart/bar_chart.rs:229-250)" | Still exists. Default 4 changed to 5 and it now counts ticks (bar_chart.rs:104, 344-347). Line refs are now bar_chart.rs:324-347. |
+| 360 | Hover emphasis line refs (bar 31-32, 628-644; pie 25-29, 412-437) | Behavior unchanged (bar `HOVER_DIM` 0.45; pie lift 6 px and dim 0.35). New refs: bar_chart.rs:25-26, 948-964, 1063-1077; pie_chart.rs:26-30, 276-282, 300-305, 438-463. |
+| 362-364 | "gpui-kit keeps a stroke and a fill for each area series (G/chart/area_chart.rs:225-239)" | Still true. Now area_chart.rs:431-455. |
+| 364 | "gpui-kit dots off by default (G/chart/line_chart.rs:66)" | Still true. Now line_chart.rs:64. |
+| 369-371 | Builder method lists for `LineChart`, `BarChart`, `PieChart` | Incomplete. See 1.2. Line now has 16 more public methods. |
+| 381 | "Each chart also keeps a sprung pointer position ... (G/chart/line_chart.rs:23-30 ...)" | False for line, area, candlestick and radar. `Tooltip` glides for them (tooltip.rs:484-512). Bar, pie, sankey keep their own. |
+| 381 | "focus value from 0 to 1 ... (G/plot/tooltip.rs:264-332)" | Renamed `progress`, moved to base hover.rs:45-102 (`focus` is a deprecated alias, hover.rs:68-71). |
+| 389 | "a11y search of G/chart and G/plot found none" | Still true. Re-ran `grep -rn -i "accessib\|a11y\|aria\|announce\|on_key\|key_down\|KeyBinding\|actions!\|role"` on `component/src/chart`, `component/src/plot`, `base/src/plot`: no matches. |
+| 392 | "pie tooltip shows the slice's share (G/chart/pie_chart.rs:447-463)" | Still true, now pie_chart.rs:473-497. The tooltip no longer has a title. |
+| 394 | "public `Plot` trait ... hook for custom charts" | Still true; the trait moved to gpui-base (see 334). |
+| 396 (sankey cycle) | "gpui-kit paints nothing (G/chart/sankey_chart.rs:378, 484-501, 506-509)" | Still true; now `topology(..).ok()?` at sankey_chart.rs:420-422 and `prepaint` early return at 520-522. |
+
+Study statements that hold as written: area fill replaces stroke color in ours; typed line builder cannot turn dots off (both re-checked in Part 4); scatter places points by index.
+
+---
+
+#### Part 2. Chart by chart: gpui-kit 0.7.0 against reactive-tui today
+
+Terminal widths are 240 to 512 columns. Where it matters I say what the code does at that width. Size classes (R/plot/layout.rs:95-105): Mini under 40 columns or 8 rows; Large needs width >= 200 and height >= 40; else Medium. A 300 x 30 chart is Medium. [obs]
+
+##### 2.0 Cross-cutting defaults
+
+| Topic | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Plot margin | Top 10 px above highest value (`y_padding`, chart/mod.rs:334); bottom axis gutter 18 px (`AXIS_GAP`, mod.rs:147); left gutter measured, min 32 px when value axis on | No top margin: the value scale ends on the top dot of the plot (cartesian.rs:197-210). Left gutter = widest tick label + 1, capped at width/3 (cartesian.rs:133-142). Bottom gutter = 1 row, +1 with an x title (152-162). |
+| Tick count | 5 (`y_tick_count`, `value_tick_count`), evenly spaced, both ends included (mod.rs:396-403; bar_chart.rs:1257-1262) | `ChartAxis::tick_count` default 5 (charts.rs:430). `tick_count()` only lowers it to the cell count (canvas.rs:611-613). Ticks land on round values inside the domain (tick.rs:18-95), so the count is "about" and the top of the plot may have no label. Same 5 at 12 rows or 100 rows. [obs] |
+| X label spacing | `tick_margin` (every n-th, default 1) or `x_tick_count` (n evenly) (mod.rs:186-211). No text-width check. | `tick_margin` (charts.rs:264-268, default 0 = auto). Auto = `label_skip` on measured widths with a 1-cell gap (tick.rs:156-175; cartesian.rs:288-304, 350-367), plus a second guard in `Axis::draw` (axis.rs:161-163). |
+| Axis and grid style | Axis line `border`; labels `muted_foreground`; grid `chart_grid`, dashed 4 px on 2 px off (mod.rs:405-428). `grid_dashed(false)` for solid. y axis line off, x axis line on. | Axis line and labels drawn with `None` color, i.e. no theme token passed (cartesian.rs:322-325, 383-386; axis.rs:114-182). Grid glyph `·` with `None` color (cartesian.rs:311, 319, 373, 380). Grid only at Large (layout.rs:117-120; cartesian.rs:254). Left axis `│` and `└`, bottom `─` (axis.rs:117-123, 141-146). No `chart-grid` preset var (src/theme/presets.rs:24-31 defines chart-1..5, bullish, bearish only). |
+| Legend | None in any chart | `ChartLegend` default visible, position Right (charts.rs:447-455); shown at Medium and Large (layout.rs:113-115); Right/Left take up to width/2 (canvas.rs:523-544). Typed builders have no legend method (typed.rs:66-109); only Sankey turns it off (typed.rs:1029). |
+| Color choice | Single series: `chart_2` (line 422, area 433, bar 929, pie 267-272). Multi-series area: `strokes[i]` else `chart_2` for every series. Radar and sankey: palette chart_1..5 (radar_chart.rs:326-331; sankey_chart.rs:566-580). | Palette `chart-1..chart-5` by series index (charts.rs:828; canvas.rs:226-250). Pie slices cycle the palette with a wrap fix (pie.rs:53-77). Colors resolve through `Theme::resolve_color` (canvas.rs:220-222). Series 0 gets chart-1, not chart-2. |
+| Empty data | Not a message. Line, bar, candlestick still paint axes and grid with empty scales (line_chart.rs:374-459). Pie paints nothing. Radar returns (radar_chart.rs:428, 473). Sankey returns (sankey_chart.rs:520). Search `"No data"`: none in `chart/`. | Text "No data to display" (canvas.rs:419-422; also pie.rs:158-161, radar.rs:33-36, sankey.rs:152-155). NaN or infinite value: an error text, no shapes (canvas.rs:273-281; CHT-026). |
+| One point | `ScalePoint` puts it mid-range (base scale/point.rs:47-64). Line draws no stroke for one point; dot only if `dot()`. | `ScalePoint::map` puts it at the centre (scale.rs:240-247). Dot marker is on by default (charts.rs:836; cartesian.rs:679-683). |
+| Negative values | Line/area: y domain includes zero (`point_value_scale`, mod.rs:118-139). **Area fills to the plot bottom, not to zero** (`.y0(height)`, area_chart.rs:450). Bars grow from zero; band labels flip to the empty side of each bar (bar_chart.rs:801-826, 1249-1251). Pie: negatives clamped to 0 for the share only (pie_chart.rs:476). | Domain includes zero (`domain_including_zero`, scale.rs:26-48; CHT-011). Area fills to the zero baseline or the stacked base (cartesian.rs:602-609). Bars grow from zero, stacked positives and negatives separately (406-450). No zero line and no flipped labels (see P3.6). Pie with any negative value: whole chart is an error text (canvas.rs:282-284). Radar clamps values to 0..max (radar.rs:120). |
+| More points than pixels | No decimation anywhere (`grep -rn "decimat\|downsample\|lttb"` on chart, plot, base/plot: none). | Line/area/scatter: min/max decimation to at most 2 per plot column (cartesian.rs:593-597; decimate.rs:17-60), markers dropped when decimated (681). Bars and candles: not decimated; each bar keeps at least one cell, so more bars than cells overlap (cartesian.rs:419-433, 533-539). [obs] |
+
+##### 2.1 Line
+
+**Options only in the reference (0.7.0):** `y_domain` (clipped), `y_padding`, `point_count`, `reference_line`, `grid_columns`, `grid_dashed`, `x_tick_count`, `y_tick_format`, `y_axis_label_placement` Inside, `interactive`, tooltip title/value/color/content hooks, `name` per chart (line_chart.rs:99-317).
+**Options only in reactive-tui:** several series per chart (`y()` adds a series, typed.rs:186-194), per-series `LineStyle` Solid/Dashed/Dotted/None (charts.rs:589-600; cartesian.rs:658-678), axis `title`, `custom_labels`, `min`/`max` (charts.rs:403-420), value labels, legend, size classes, stacking (areas only), decimation, ASCII mode.
+
+| Default | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Curve | Natural (`Curve::default`, line_chart.rs:63) | `Curve::Natural` (charts.rs:835). Ours is Catmull-Rom (plot/curve.rs:1-5, 34-45), not d3 natural. |
+| Stroke width | 2 px (line_chart.rs:432) | One dot wide polyline in the mask (cartesian.rs:661) |
+| Dots | Off. On: 8 px, filled with stroke (line_chart.rs:64, 434-436) | **On** (charts.rs:836). `Marker::Disc` `●` (mask.rs:46-51, 879-880); only when nothing was decimated (cartesian.rs:681). |
+| Fill | none | none |
+| Grid | On, dashed, 4 lines (baseline excluded) | On only at Large |
+| Legend | none | Right |
+
+**Motion.** Reference: crosshair and dot glide between points on the pointer spring, fade in and out on the fast tier (tooltip.rs:322-335, 484-516, 564-588; theme/mod.rs:90-107). No enter or data-change animation. Ours: no hover motion at all. The overlay is patched into a copy of the grid each frame (live.rs:257-268, 855-918). Reveal and data-change transitions exist and are linear in time (motion.rs:115-118, 196-210); reveal is off by default (`animated: false`, charts.rs:829) while the 200 ms data transition is on (840; motion.rs:165-233). [obs]
+
+**Tooltip and hover.**
+- Reference: title = x value, one row per series with swatch, name and value, box hugs the cursor with an 8 px gap, flips to the centre side at the half-way point of the plot, min width 150 px (line_chart.rs:508-531; tooltip.rs:585-605). A vertical dashed crosshair confined to the plot (`cross_line`, line_chart.rs:512-515; tooltip.rs:124-129, 159-165) and a dot with a 20 px halo on the point (line_chart.rs:516-522; tooltip.rs:241-271). Hover is only inside the plot, not over the axis labels or the value gutter (line_chart.rs:474-480).
+- Ours: no title, one row per visible series `name  label: value; key=value` (live.rs:685-700; canvas.rs:593-608). Box is a bordered box at the anchor cell, right of it or flipped left or above (tooltip.rs:112-140; live.rs:783-799), at most 8 rows then "+N more, sum X" (tooltip.rs:11-12, 54-91). Crosshair is a `│` written to empty cells only, no color (live.rs:800-803, 879-899). No marker on the hovered point. Keyboard selection and aria-live text exist (live.rs:380-454, 318-324); the reference has neither.
+
+**Edge cases.** Empty, one point, negative, many points: see 2.0. Ours also rejects a NaN with an error (canvas.rs:273-281).
+
+##### 2.2 Area
+
+**Only in the reference:** stroke and fill are separate per series (`strokes`, `fills: Vec<Background>`, area_chart.rs:35-38, 434-455); curve per series (`curves`, 36, 441-444); all the line-only options in 2.1.
+**Only in reactive-tui:** stacked series (charts.rs:233-238; cartesian.rs:569-581, 602-609), `FillStyle` None/Solid/Gradient/Pattern (charts.rs:602-613; cartesian.rs:610-657, 705-762).
+
+| Default | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Fill | `chart_2` at 0.4 opacity, per-series `Background` (area_chart.rs:432-440) | `FillStyle::Solid` (charts.rs:566): same color as the stroke, no opacity: `_ => tint` (cartesian.rs:749); stroke uses the same `tint` (598, 658-662) |
+| Gradient | User supplies a `Background`; the story fades to the baseline ("Gradient fills fade to the baseline", G7/story/src/stories/chart_story/chart_story.rs:1259) | `FillStyle::Gradient` scales r,g,b by 0.45 at the plot top up to 1.0 at the baseline (cartesian.rs:742-748). No blend toward the background. |
+| Baseline | Plot bottom (`.y0(height)`, area_chart.rs:450) | Zero line or stack base (cartesian.rs:602-609, 612-625) |
+| Dots | none | Same `props.dots` marker as line: **on by default for area**, typed `AreaChartBuilder` has no way to turn off (see D2) |
+
+Motion, tooltip, hover: as line. Ours draws one crosshair column and one row per series; the reference draws one dot per series (area_chart.rs:509-520, 546-552).
+
+##### 2.3 Bar
+
+**Only in the reference:** `fill(closure)` and `fill_gradient` per datum (bar_chart.rs:213-288); `corner_radii` (412-419); `padding_inner`, `padding_outer`, `max_band_width` (30 px), `min_length`, `band_count`, `band_tick_count`, `label_color`, `value_axis_label_placement`, `value_tick_format`, `grid_dashed`; hover dim of the other bars.
+**Only in reactive-tui:** grouped and stacked multi-series bars (cartesian.rs:406-450), `BarGrowth` incl. per-orientation label side (charts.rs:362-381), value labels by size class, decimation none.
+
+| Default | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Band padding | inner 0.4, outer 0.2 (bar_chart.rs:112-113) | inner 0.4 (0.3 when several grouped series), outer 0.2 (0 at Mini) (cartesian.rs:212-218). Grouped lanes use inner 0.15 (424). |
+| Max bar width | 30 px (bar_chart.rs:114; chart/mod.rs:151) | **None.** `ScaleBand` has no cap (R/plot/scale.rs:107-183; search `max_band\|bar_width` over R found nothing). Each bar is `bandwidth` wide, snapped to whole cells (cartesian.rs:427-432). At 400 columns and 4 categories a bar is about 0.6 x 100 = 60 columns. [obs, arithmetic from cartesian.rs:212-218] |
+| Corner radius | 0 (bar_chart.rs:111) | n/a on cells |
+| Fill | `chart_2` solid (929) | palette by series (canvas.rs:226-234) |
+| Labels | Band labels at the zero line, on the side each bar leaves empty (801-826). Value labels at the bar tip, `foreground` unless `label_color` (932-934, 1006-1009). | Band labels at the plot bottom (cartesian.rs:339-349). Value labels only at Large or with `.label()`/`value_labels(true)` (391-393; typed.rs:502-507), drawn in the bar color (492-505). |
+| Tick count / gutter | 5, measured gutter | 5, measured gutter |
+| Grid | On, dashed, 4 lines | Large only |
+
+**Tooltip and hover.** Reference: a translucent band the width of the bar (`foreground` at 0.08) glides between bars, other bars fade by up to 45% (bar_chart.rs:25-26, 948-964, 1092-1114; tooltip.rs:124-129). Ours: a 1-column `│` (vertical bars) or `─` (horizontal) line in empty cells only (live.rs:800-805, 895-903); nothing dims. Selection resolves by nearest band centre (live.rs:669-681).
+
+**Small values.** Reference: `min_length` stub option; default 0 (bar_chart.rs:446-457). Ours: a bar shorter than 1/16 of a cell after snapping to eighths is skipped (`(from - to).abs() < 1e-9` after `snap`, cartesian.rs:455-459). Value 0 draws nothing. [obs]
+
+##### 2.4 Candlestick
+
+**Only in the reference:** `body_width_ratio` (0.8, candlestick_chart.rs:66, 120-123, 348), `max_band_width` (30 px), tooltip hooks, glide band.
+**Only in reactive-tui:** per-point color override via `DataPoint::color` (cartesian.rs:523-532); value axis with ticks and labels (the reference candlestick has no value axis; y range is `[height, 10.]`, candlestick_chart.rs:283).
+
+| Default | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Padding | inner 0.4, outer 0.2 (candlestick_chart.rs:242-243) | same via the shared band (cartesian.rs:212-218) |
+| Body width | `body_width_ratio` 0.8 of the band (348) | The whole band lane, snapped to cells, at least 1 cell (533-539) |
+| Wick | 1 px quad (352-358) | 1 dot wide rect (542-549) |
+| Colors | `chart_bullish`, `chart_bearish` (225-229); doji (`close == open`) is bearish (343) | `chart-bullish`/`chart-bearish` (cartesian.rs:14-15, 514-532); `is_bullish` = close > open (charts.rs:398-400), doji is bearish |
+| Doji body | zero height | forced to 0.5 dot tall (552-555) |
+| Grid | 4 lines, `border` color (303-306) | Large only |
+
+Tooltip: reference shows Open/High/Low/Close rows in the candle color (435-455). Ours shows `label: O .. H .. L .. C ..` in one row (canvas.rs:595-599).
+
+##### 2.5 Pie and donut
+
+**Only in the reference:** `inner_radius_fn`, `outer_radius_fn` per slice (pie_chart.rs:127-168), `label_color`, `label_line_color` (200-209), `tooltip_name`, `tooltip_value(d, value, share)` (225-241), hover lift 6 px and dim 0.35 (26-30, 276-282, 300-305).
+**Only in reactive-tui:** Donut as a type (inner default 0.5, charts.rs:617-629; pie.rs:196-205), radii as fractions (`RadialOptions`, charts.rs:644-666), legend that keeps unlabeled slices (pie.rs:100-133), label placement without overlap (pie.rs:288-393), keyboard stepping through slices (live.rs:400-431).
+
+| Default | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Outer radius | 0.4 x height (pie_chart.rs:246-252) | 1.0 of the largest circle that fits (charts.rs:672; pie.rs:190-192): the circle spans the full height of the area. |
+| Inner radius | 0 (73) | 0 for pie, 0.5 for donut (pie.rs:196-205) |
+| Pad angle | 0 (75) | 0 (charts.rs:673) |
+| Label gap | 15 px (24, 81) | 2 columns (charts.rs:674) |
+| Label | Leader line + text, `foreground`; line `border` (329-330); labels spread with `spread_labels` (371-376) | Text in the slice color, leader in default color; medium 16 columns max, large full text plus raw value (pie.rs:21-22, 164-175, 385-390) |
+| Color | All slices `chart_2` unless `color(f)` (267-272) | Palette cycle (pie.rs:53-77) |
+| Legend | none | side, per slice |
+
+**Tooltip and hover.** Reference: one row, slice color swatch, name, `value (share%)` (pie_chart.rs:483-497); hovered slice lifts, others fade; tooltip follows the cursor. Ours: one row in the slice color with `label: value` (live.rs:759-776); a `·` ray along the slice's middle angle (live.rs:569-597, 906-908); nothing lifts or dims. No share percent anywhere (search `share\|percent` in live.rs and canvas.rs: none).
+
+**Edge cases.** Negative slice: error text (canvas.rs:282-284). All zero: "No data to display" (pie.rs:158-161). Slices under 0.5 degree: reference skips their labels (pie_chart.rs:338-341); ours labels only slices whose fill set a sample (pie.rs:236-256).
+
+##### 2.6 Radar
+
+**Only in the reference:** `RadarLabel::Element` (custom label elements, radar_chart.rs:35-68), tooltip hooks.
+**Only in reactive-tui:** per-series fill token incl. `"none"` (charts.rs:662-665; radar.rs:124-128), grid at Large only.
+
+| Default | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Rings | 4, always drawn when `grid` (radar_chart.rs:33, 484-496) | 4 (charts.rs:675), drawn only at Large (radar.rs:99-107) |
+| Radius | 0.4 x height (341-347) | Largest circle minus label margins, minus one dot (radar.rs:52-68) |
+| Fill | series stroke at 0.3 (516-520) | Series color, no opacity, per-series token (radar.rs:124-128) |
+| Stroke | 2 px (531) | one dot (radar.rs:138) |
+| Dots | off (127); 8 px when on | typed builder off (typed.rs:1057); `ChartsBuilder::radar()` **on** (charts.rs:836; radar.rs:141) |
+| Label | `muted_foreground`, gap 10 px, left/centre/right by angle (538-570) | Default color, gap fixed at one dot past the ring (radar.rs:154-171); medium cap 12 columns (19-20) |
+| Scale | zero to max data or `max_value` (377-389) | same (radar.rs:88-95), values clamped to 0..max |
+
+**Tooltip.** Reference: title = category label, one row per series, one dot per series at the spoke vertex (radar_chart.rs:611-660). Ours: a row per series with the category label inside the value text; a ray along the spoke (live.rs:569-597).
+
+##### 2.7 Sankey
+
+**Only in the reference:** `node_corner_radius`, `font_size`, `color` (per-line label styling), `tooltip_name`, `tooltip_value` (sankey_chart.rs:279-301). **Only in reactive-tui:** error texts for cycle or missing node (canvas.rs:334-346), keyboard node selection (live.rs:400-431).
+
+| Default | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Node width | 10 px (27) | 2 columns (charts.rs:747) |
+| Node padding | 16 px (28) | 1 row (748) |
+| Link opacity | 0.3 (29) | 0.3 (749), blended toward the theme background, not alpha (sankey.rs:117-127) |
+| Min link width | 1 px (30) | 0.25 row (750) |
+| Label gap | 6 px (31) | 1 column (751) |
+| Iterations | 6 (157) | 6 (745) |
+| Colors | palette chart_1..5 by node (566-580) | palette by node (sankey.rs:38-45) |
+| Hover dim | other links x (1 - 0.7 x progress) (37-39, 619-624) | other links x (1 - 0.7) (sankey.rs:18-20, 248-252); selection is drawn into the shapes by the worker (live.rs:205-209) |
+| Labels | truncated with an ellipsis, first/last beside, middle centred above (645-705) | same rule (sankey.rs:157-208, 327-374); large adds throughput as raw `f64::to_string()` (74, 102) |
+
+Empty or no links: reference returns (520-522); ours prints "No data to display" (sankey.rs:152-155).
+
+---
+
+#### Part 3. Polish candidates for reactive-tui
+
+Size: small under 200 lines, medium, large. "Contract" means an Agreed requirement would have to change.
+Left out on purpose because a cell grid cannot show them: bar corner radii (bar_chart.rs:412-419), pie lift of 6 px (pie_chart.rs:27), a 20 px hover halo (chart/mod.rs:56-58), sub-cell spring glide of the crosshair (theme/mod.rs:90-107).
+
+**P3.1 Cap bar and candle width.** [small to medium]
+- Reference: `max_band_width` 30 px default (G7 chart/mod.rs:151; bar_chart.rs:437-444, 472-476; candlestick_chart.rs:185-188, 241; base scale/band.rs:51-63).
+- Ours: no cap. Bar lane comes from `band.band(i)` and is rounded to whole cells (cartesian.rs:419-433); candles the same (533-539). `ScaleBand` in R/plot/scale.rs:107-183 has no such field.
+- Observed: at 240 to 512 columns, few bars become very wide. [obs for the arithmetic; how it looks is [assume]]
+- Cell version: a cap in columns, centred in its band (the reference keeps the tick where it was, scale/band.rs:176-182 test). Also `body_width_ratio` 0.8 for candles (candlestick_chart.rs:66, 348).
+
+**P3.2 Hover emphasis: dim the other bars, slices, candles, radar series.** [medium]
+- Reference: bar dim 0.45 x distance to the hovered band (bar_chart.rs:948-964); pie dim 0.35 (pie_chart.rs:276-282).
+- Ours: only sankey passes the selection to the worker (live.rs:205-209, 223-232). Other charts get a crosshair or ray patched on a copy of the finished grid (live.rs:855-918). No dimming, and no re-raster on selection.
+- Cell version: either pass `selected` to the worker for every type, as sankey does, and multiply shape colors, or blend cell colors in `overlay_grid`. The former re-rasters per hover move; the latter needs per-cell ownership (the mask already tracks `owner` keys, cartesian.rs:461-463).
+
+**P3.3 Highlight band for the hovered bar or candle.** [small to medium]
+- Reference: a translucent band as wide as the bar, over the whole plot height (`CrossLine::band`, bar_chart.rs:1092-1114; tooltip.rs:124-129).
+- Ours: a `│` in empty cells at the bar centre (live.rs:800-805, 895-899). Above a bar tip that is a thin line; over the bar body it draws nothing because the cell is not free (881-889).
+- Cell version: set a background color on every cell in the lane (`CellGrid::set_with_background` exists, canvas.rs:580-583).
+
+**P3.4 Hover marker on the hovered point.** [small]
+- Reference: `Dot` on each series at the hovered x, with halo (line_chart.rs:508-522; area_chart.rs:546-552).
+- Ours: no marker (live.rs:895-908). The anchor cell of every point is known (`picture.anchors`, cartesian.rs:690).
+- Cell version: write `●` or `◉` at the anchor cell for line, area, scatter in the series color.
+
+**P3.5 Tooltip title and formatting.** [small]
+- Reference: title = x value or band value, then swatch, name, value rows (chart/mod.rs:279-330; line_chart.rs:524-531). Overrides: `tooltip_title`, `tooltip_value`, `tooltip_value_color`.
+- Ours: `Tooltip { title: None, .. }` (live.rs:699, 749, 767); the label repeats inside each row (canvas.rs:593-608); numbers print with `{}` on `f64` (canvas.rs:600), so `0.1 + 0.2` prints `0.30000000000000004`. [obs]
+- Cell version: fill `Tooltip::title` from the category label (the field exists, tooltip.rs:29); format values with `format_tick` (tick.rs:40-52). Props hold data, not closures (CHT-020), so a formatter option would be an enum or a precision, not a closure. [assume]
+
+**P3.6 Zero line and label side for mixed-sign bars.** [small to medium]
+- Reference: axis line at the zero pixel; each band label on the side its bar leaves empty (bar_chart.rs:771-777, 790-828, 1249-1251).
+- Ours: bars grow from `value_scale.map(0)` (cartesian.rs:434-456) but the category axis and its labels sit at the plot bottom (339-349); no zero line at Medium (grid is Large only).
+- Cell version: draw a `─` at the zero row when the domain crosses zero; move labels to the free side. Assumes a bar chart with negatives is a common case. [assume]
+
+**P3.7 Colors for axis, grid and labels.** [small]
+- Reference: axis `border`, labels `muted_foreground`, grid `chart_grid` (new token, theme_color.rs:146-147; chart/mod.rs:405-428, 455-496).
+- Ours: axes, tick labels and grid pass color `None` (cartesian.rs:311, 322-325, 373, 383-386). Presets define no chart-grid (src/theme/presets.rs:24-31); `--color-border` exists (presets.rs:18, 58, 98, 138).
+- Cell version: add `--color-chart-grid` to the presets and resolve it via `Theme::resolve_color`; use `border` for axis lines. [assume: default-color rendering is the same as data text color; I did not render]
+
+**P3.8 Separate area fill and stroke, with blended fill.** [small to medium]
+- Reference: `strokes[i]` and `fills[i]`, default fill `chart_2` at 0.4 (area_chart.rs:432-455).
+- Ours: one `tint` per series for fill and stroke (cartesian.rs:598, 611-625, 658-662); typed builder overwrites the series color with the fill (typed.rs:344-353).
+- Cell version: add a fill token per series; blend it toward the theme background at about 0.4 with the existing `blend` helper (sankey.rs:117-127); draw the stroke on top in full color. Fix the gradient to fade toward the baseline (see D7).
+
+**P3.9 Reference lines.** [small]
+- Reference: `reference_line(value)`, dashed, darker than the grid (line_chart.rs:300-308; chart/mod.rs:430-452).
+- Ours: none.
+- Cell version: extra rows in the under layer at `value_scale.map(v)`.
+
+**P3.10 Headroom above the highest value and a round top tick.** [small]
+- Reference: 10 px top padding by default (chart/mod.rs:334).
+- Ours: the max value maps to the top dot (cartesian.rs:197-210); ticks only inside the domain (tick.rs:66-93), so the top row often has no label. [obs]
+- Cell version: one row of headroom, or extend the domain to the next tick step. [assume: "looks better"; the reference itself does not round to a tick]
+
+**P3.11 Tick count that follows the plot height.** [small]
+- Reference: fixed 5 (mod.rs:329).
+- Ours: `tick_count(axis, cells)` = min(axis.tick_count, cells) (canvas.rs:611-613); default 5 (charts.rs:430).
+- Cell version: derive the default from rows, for example one tick per 4 to 6 rows. In the study's 240-512 wide, tall terminals, 5 ticks over 60 rows leaves about 12 rows between labels. [assume for the row count]
+
+**P3.12 Grid and rings below the Large class.** [small; contract]
+- Reference: grid on by default at every size (line_chart.rs:69; bar_chart.rs:108; radar_chart.rs:125).
+- Ours: grid and radar rings only at Large (layout.rs:117-120; cartesian.rs:254; radar.rs:99). Large needs height >= 40, so a 300 x 30 chart has neither. [obs]
+- Contract: CHT-024 (docs/spec/charts.md:145) says medium has "axes, ticks" and large has "grid". Changing it means editing an Agreed requirement.
+
+**P3.13 Bar `min_length` stub.** [small]
+- Reference: `min_length` (bar_chart.rs:446-457, 1140-1180).
+- Ours: bars under 1/16 cell are skipped (cartesian.rs:455-459).
+- Cell version: a minimum of one eighth block.
+
+**P3.14 Fixed slots for growing data (`point_count`, `band_count`).** [medium]
+- Reference: line_chart.rs:220-231; bar_chart.rs:369-378; chart/mod.rs:56-72.
+- Ours: none; `count` is the longest series (cartesian.rs:87-91), so the axis rescales every time data grows.
+
+**P3.15 Pie share percent, per-slice hooks, smaller default radius.** [small]
+- Reference: `value (share%)` (pie_chart.rs:476-497); default outer 0.4 x height (246-252).
+- Ours: `label: value` (live.rs:759-776); large label appends raw `data[i].value` (pie.rs:164-171); outer 1.0 (charts.rs:672).
+- Cell version: add the share to the tooltip and the Large label. A smaller default radius is a taste call; the label placement already needs side room. [assume]
+
+**P3.16 Tick number format for large values.** [small]
+- Reference: `format_tick` prints whole numbers bare and the rest to one decimal (chart/mod.rs:176-183); `y_tick_format` hook (line_chart.rs:263-270).
+- Ours: from 1e6 up it prints scientific notation (tick.rs:44-46). With 240 or more columns there is room for `2.5M` or `2500000`. [assume]
+- Also `ChartAxis` has no format field (charts.rs:403-420); props must stay `PartialEq`.
+
+**P3.17 Legend control in typed builders.** [small]
+- Reference: no legend.
+- Ours: legend on at Medium and Large, Right (canvas.rs:496-544); typed builders cannot hide or move it (typed.rs:66-109).
+
+**P3.18 Ease-out on reveal and data transitions.** [small; not from the reference]
+- Ours: linear in time (motion.rs:115-118, 196-210).
+- The reference has no data animation, but uses theme easing for hover fades (theme/mod.rs:90-107). [assume: an easing curve reads better; not checked]
+
+**P3.19 Bar gradients (per-row color ramp).** [medium; low priority]
+- Reference: `fill_gradient` (bar_chart.rs:246-288, 983-997).
+- Cells carry one color each, so a per-row ramp along a bar is possible, but the mask draws one tint per rectangle (cartesian.rs:461-463). I list it for completeness, not as a recommendation.
+
+---
+
+#### Part 4. Defects found by reading reactive-tui's chart code
+
+##### D1 (still holds). Area fill replaces the stroke color
+- `AreaChartBuilder::stroke` sets `SeriesSpec.color` (R/typed.rs:304-310). `fill` stores a token in `fills` (312-318). `build()` then writes that token into `series.color` (344-353), so the fill wins whatever the call order.
+- The canvas draws fill and stroke from one `tint = point_color(props, s, 0)` (R/live/canvas/cartesian.rs:598, 611-625, 658-662).
+- Result: stroke and fill cannot differ. There is no way to set only the stroke color on an area chart that also has a fill token.
+
+##### D2 (still holds, wider than the study says). Typed builders cannot turn dots off
+- `LineChartBuilder::dot()` only sets `true` (typed.rs:231-235). Default is `dots: true` (charts.rs:836). No `dots(false)` on any typed builder. `ChartsBuilder::dots(bool)` exists (charts.rs:246-250), so only the typed route is affected.
+- Wider: the marker branch is `_ if props.dots && samples.len() == values.len() => Some(Marker::Disc)` (cartesian.rs:679-683). It applies to every non-scatter chart type that reaches this code, so `AreaChartBuilder` (no `dot` method at all, typed.rs:244-354) always draws a disc at every point. The doc string says "line-chart point" (charts.rs:246, 793). [obs]
+- `ChartsBuilder::radar()` also has dots on (charts.rs:836; radar.rs:141); the typed radar builder defaults them off (typed.rs:1057).
+
+##### D3. State fields that are written and never read
+- `ChartState::tooltip`, `animation_progress`, `animating` (charts.rs:848-859).
+- `tooltip` is written at live.rs:159, 374-377, 393, 429, 452 and never read. Render builds the tooltip from `hovered_point` (live.rs:257-262). `tooltip_text` (702-714) exists only to fill it.
+- `animation_progress` and `animating`: search `grep -rn "animation_progress\|\.animating" src` shows the chart never touches them (the only other hits are popover.rs). They are public API (src/widgets/mod.rs:36, display/mod.rs:27).
+
+##### D4. `tick_margin` also thins the value axis and its grid, and never thins horizontal-bar categories
+- Contract text and doc: "Show every n-th axis label" (charts.rs:264; typed.rs:168).
+- Vertical charts: `stride` is applied to the value axis (`Axis::vertical(..).with_skip(stride)`, cartesian.rs:328-338) and to the category axis (350-367). Value grid rows come from `vertical.shown()` (369-372), so grid lines also disappear.
+- Horizontal bars: `stride` goes to the value axis (289, 305); the category axis `vertical` has no `with_skip` (266-276, 321-323), so category labels are never thinned and its grid rows use all ticks (313-319).
+- The reference's `tick_margin` is a stride over the category axis only (bar_chart.rs:340-342 doc; chart/mod.rs:186-211).
+
+##### D5. Typed bar `.label()` leaks into tooltips
+- `BarChartBuilder::build` writes the label into `point.metadata["label"]` for every point (typed.rs:517-523).
+- `point_text` appends every metadata pair as `; key=value` (canvas.rs:602-606). Result: the tooltip and announcement text carry `; label=<value label>`. [obs from reading; not run]
+
+##### D6. Labels that can overlap or leave the plot
+- Bar value labels (cartesian.rs:477-507): no check against neighbours or lane width. In grouped or dense bar charts, labels wider than a lane write over each other (later write wins in `TextLayer::put`, canvas.rs:141-145). Vertical labels are centred with only a left clamp `.max(plot.x)` (504), no right clamp; the text layer only clips at the chart width (171), and the legend is drawn after and can overwrite (canvas.rs:462-484).
+- Radar category labels (radar.rs:154-171): no collision test; text cut by `text.text(.., width)` without an ellipsis (169), unlike pie labels that use `fit_label` (pie.rs:382).
+- Pie labels and Sankey labels are guarded (pie.rs:344-381, sankey.rs:199-208). Cartesian x labels are guarded (axis.rs:161-163; tick.rs:156-175).
+
+##### D7. Area gradient direction (possible inversion; not rendered)
+- `FillStyle::Gradient`: `t = (y - near) / (far - near)` with `near` the top of the plot; `k = 0.45 + 0.55 * t`; rgb is multiplied by `k` (cartesian.rs:742-748). Top of the plot is the darkest, baseline is full color.
+- Manual says "shades the fill toward the baseline" (RT/manual/display-widgets.md:88-89). The reference's gradient story says "fade to the baseline" (chart_story.rs:1259). Ours reaches full brightness at the baseline. I did not render, so I cannot say which reading the author meant. The multiply darkens toward black instead of blending toward the theme background (compare sankey.rs:117-127). [obs for the math; the mismatch with intent is [assume]]
+
+##### D8. Stale reference names
+- R/plot/curve.rs:2 still says "the reference's `StrokeStyle`" (renamed `Curve` in 0.7.0).
+- docs/spec/charts.md:5 says "gpui-kit 0.6.6".
+
+##### D9. Typed builders cannot switch off value-axis labels
+- `Common::finish` sets `x_axis.show_labels` from the builder and leaves `y_axis.show_labels` at the default true (typed.rs:53-61). `common_methods!` has only `x_axis(bool)` (typed.rs:86-90). Ours cannot reproduce the reference's value axis being off by default through typed builders. `ChartsBuilder::y_axis(ChartAxis{..})` can (charts.rs:178-182).
+
+##### Checked and found fine
+- `tick_count` cannot be 0 (`max(1)`, canvas.rs:613); `PolarGrid` with 0 levels draws spokes only (polar.rs:33-34, 42).
+- `Axis::draw` clamps a tick at `row == plot.h` to the last row (axis.rs:130-133); consistent with the bottom axis row being the last plot row (cartesian.rs:176-187).
+- Reveal never scales the value domain: `value_domain` reads `props.series`, not animated `job.values` (cartesian.rs:18-25).
+- Pie and radar with `label_gap` or `grid_levels` at 0 do not divide by zero (pie.rs:339-343; polar.rs:42-43).
+
+##### Not checked
+- I did not run any test, golden or demo. `tests/charts_goldens.rs:522` lists a 600 x 160 large golden, but I did not read the goldens.
+- The catalog page uses 20x5, 60x12 and 60x14 (examples/widget_catalog/catalog.rs:501-506). It shows no chart at 240 to 512 columns. [obs]
+- I did not read R/mask.rs beyond the marker enum, so stroke thickness and blitter behavior are from comments and call sites only.
+- I did not read the gpui-kit `stories` beyond the list of cards and the "fade to the baseline" note.
+
+
+### Input widgets: Input widgets: reactive-tui vs gpui-kit 0.7.0
+
+Read-only review. No file in either repo was changed. Nothing was built or run. I read source only, so I make no claim about how anything looks on screen.
+
+#### Path aliases
+
+- `R/` = ~/workspace2/reactive-tui/
+- `C7/` = ~/workspace2/gpui-kit-0.7.0/crates/component/src/
+- `B7/` = ~/workspace2/gpui-kit-0.7.0/crates/base/src/
+- `C6/`, `B6/` = the same paths under ~/workspace2/gpui-kit-0.6.6/crates/
+- `study` = R/docs/widget-study.md
+
+#### How the comparison was done
+
+- `diff -rq` and `diff` between C6/B6 and C7/B7 for the matching paths.
+- Then a full read of R/src/widgets/input/*.rs, R/src/widgets/input/text_input/*.rs, R/src/builder/widgets/input.rs and the radio and slider parts of R/src/builder/specialized.rs.
+- I did not read R/src/widgets/dialog/input*. It is outside `widgets/input`.
+- I did not read the App's event routing or the layout engine. Where a claim depends on them I say so.
+
+---
+
+#### Part 1. What changed in gpui-kit between 0.6.6 and 0.7.0
+
+#### 1.0 The release notes do not cover these families
+
+- release-notes.md (164 lines) lists only Root overlays, `SettingGroup::variant`, the Plot move and its breaking changes, and `gpui_base::Root` / `open_window` (gpui-kit-0.7.0/release-notes.md:5-164).
+- I searched it with grep for input, token, checkbox, radio, select, combobox, slider, switch, rating, form, label, time, questionnaire, otp and mask. The only hits were unrelated words (`Root` "selection", chart "label", "tokens" for motion). So every change below comes from `diff`, not from notes.
+- The breaking change that touches this group and is not in the notes: `DatePickerEvent::Change` now carries `DateTime`, not `Date` (C7/time/date_picker.rs, the `Change(DateTime)` variant; C6 had `Change(Date)`).
+
+#### 1.1 Files that are byte-identical in 0.6.6 and 0.7.0
+
+Checked with `diff -q`. No change of any kind:
+
+- C7/checkbox.rs, C7/radio.rs, C7/slider.rs, C7/label.rs
+- B7/checkbox.rs, B7/radio.rs, B7/radio_group.rs, B7/slider.rs, B7/select.rs, B7/combobox.rs, B7/number_input.rs, B7/otp_input.rs
+- C7/input/number_input.rs, C7/input/otp_input.rs, C7/input/content_type.rs, C7/input/clear_button.rs, C7/input/group.rs, B7/input/base/mask_pattern.rs, B7/input/base/selection.rs
+
+So for checkbox, radio, slider, label, number input and OTP input there is no change. The `study` text for them is still true for 0.7.0, apart from line numbers that moved in the files that did change.
+
+#### 1.2 Changes by family
+
+##### Text input (C7/input/, B7/input/)
+
+Size of diff: input.rs 197 lines, base/state.rs 1201, base/element.rs 1525.
+
+1. New inline tokens. An atomic chip inside the text.
+   - Types: `InlineToken` (id, text, label; validated: id not blank, text and label not empty, no control chars or U+2028/2029), `InlineTokenSpan`, `InputContent` (text plus token spans, validated on attach), `InlineTokenError` (B7/input/base/inline_tokens.rs:9-170).
+   - `InputContent::with_token` rejects: empty range, range off a grapheme boundary, text that differs from the token text, overlap (B7/input/base/inline_tokens.rs:99-128).
+   - Ranges are UTF-8 byte offsets (B7/input/base/inline_tokens.rs:1).
+   - `set_value` now takes plain text or `InputContent`, clears history, emits no Change (B7/input/base/state.rs:925-952).
+   - Presentation types: `InlineTokenContext` (selected, disabled, readonly, line height, available width), `InlineTokenClickEvent`, renderer and click listener aliases (B7/input/base/token_presentation.rs:6-70).
+   - Builders on the styled controls: `Input::token(render)` and `Input::on_token_click(listener)` (C7/input/input.rs:178-195); the same two on `Textarea` (C7/input/textarea.rs, `token`, `on_token_click`).
+   - Default token look is `InputToken`: `gap_1`, `px_1`, `border_1`, radius from the theme, `bg` = `theme.muted` and border = `theme.border`, or `theme.selection` when selected, opacity 0.5 when disabled, ellipsis on overflow, optional icon (C7/input/token.rs:1-69).
+   - Screen reader: a token gets role `Button`, its label and a Click action only when a click listener is set and the token is not disabled (B7/input/base/element.rs:1458-1480). Without a listener the token has no role of its own.
+   - Keyboard: an `ActivateToken` action opens the selected token (B7/input/base/state.rs:4484-4500). I grepped `KeyBinding` and `ActivateToken` under B7/ and found no default key bound to it. The application must bind it. (Assumption: none in C7 either; I searched B7 only.)
+   - A press on a token selects it; opening is the listener's job (B7/input/base/element.rs, comments at the `token_element` function).
+2. New range decorations (`RangeDecoration`, `RangeDecorationStyle`, `range_decorations`): geometric highlights over ranges, clipped to the viewport, folds and wraps (C7/input/mod.rs:31-38 exports; B7/input/base/kind.rs:83-90; B7/input/base/element.rs `layout_range_decorations`). Not tokens. Editor-oriented.
+3. Behavior changes on `Input` (C7/input/input.rs):
+   - SetValue from a screen reader is ignored unless the input is editable (`is_editable`), so it no longer edits a read-only or disabled input (lines 488-495 and 754-758).
+   - New screen-reader Focus action, refused when disabled (lines 497-501, 750-753).
+   - A disabled input swallows every mouse down (lines 732-734).
+   - Right-click menu: Paste is offered whenever the text can change; it no longer checks the clipboard (lines 631-640). A custom `context_menu` shows only while the state's context menu is enabled (lines 355-358; B7/input/base/state.rs:778-781). Turning the menu off now also hides a custom menu.
+   - Code-editor left padding is capped at 6 px (lines 582-590).
+   - `Textarea` gets `Sizable`/`with_size` and passes the size to its input (C7/input/textarea.rs, `impl Sizable for Textarea`, `into_input`).
+4. Engine changes in B7/input/base/state.rs:
+   - Paste is a single atomic edit, drops newlines in a single-line input, is skipped when the clipboard has no text (image), and a late clipboard read is compared with the target captured at Paste time (`PasteTarget`, `paste_target`, `insert_clipboard`, lines 2709-2760).
+   - Vertical selection at the first or last visual row now extends to the document edge (B7/input/base/movement.rs, `vertical_selection_target`).
+   - Undo merges a run of single-cursor keystrokes into one recorded change (B7/input/base/undo_manager.rs:24-28, 187-215). Limits unchanged: 1000 transactions (`MAX_UNDO_TRANSACTIONS`, line 6).
+   - Masking is not re-applied while history is replayed (undo/redo) (B7/input/base/state.rs:4096, `!self.replaying_history && !self.mask_pattern.is_none()`).
+   - Blink cursor `stop` now resets the blink state; stale tasks from an older blink cycle no longer change state (B7/input/base/blink_cursor.rs:42-63).
+   - A single line is centered in a taller frame (test `single_line_is_centered_in_a_taller_frame`, B7/input/base/state.rs:4919).
+   - Line-number gutter starts at 3 digits and grows to 7 (B7/input/base/element.rs, `line_number_len`, `displayed_line_number`).
+
+##### Number input, OTP input, mask
+
+- Number input and OTP input files: no change (section 1.1).
+- Mask: only the replay guard above. `MaskPattern` file is unchanged.
+- `Input` password reveal, `mask_toggle`, `cleanable`, `prefix`, `suffix`: no change to the option set (C7/input/input.rs:265-315).
+
+##### Checkbox, radio, slider, label
+
+No change. See 1.1. Consequence for the two claims you asked about:
+
+- Radios have no arrow keys in 0.7.0 either. B7/radio.rs and B7/radio_group.rs are identical to 0.6.6. I grepped both plus C7/radio.rs for `key_context`, `on_action`, `KeyBinding`, `on_key`, `arrow` and found only focus and `tab_stop` plumbing (B7/radio.rs:32-33, 136-166, 221-224). Enter and Space come from the click path (test at B7/radio.rs:359-377).
+- Sliders have no keyboard handling in 0.7.0 either. B7/slider.rs and C7/slider.rs are identical. I grepped both for `key_context`, `KeyBinding`, `on_key`, `track_focus`, `focus_handle`, `on_action`. Only `on_a11y_action` Increment and Decrement exist (B7/slider.rs:489-508).
+- New in 0.7.0 that does add arrow keys for radios: the questionnaire module, not the Radio widget. When a single-choice question has a focused choice, Up/Down/Left/Right move to the previous/next choice (B7/questionnaire/keyboard.rs:56-71, `move_current_radio` at B7/questionnaire/state.rs:774). This is a separate widget.
+
+##### Select and combobox
+
+- `SelectState` emits `DismissEvent` whenever an open menu closes, including after a confirmed pick (C7/select.rs:119-120, 431-441).
+- Popup width: `bounds.width + 2px` became `bounds.width` for both select and combobox (C7/select.rs:612-618; C7/combobox.rs:1049-1053).
+- List role: `Role::List` moved from the end of the list render to line 670 (C7/list/list.rs:670; was at line 790 in C6). Row content now shrinks with `min_w_0` and truncates (C7/list/list_item.rs:125-140; C7/searchable_list/adapter.rs:133-134). Old rows used `whitespace_nowrap`.
+- `SearchableVec` keeps an index list instead of cloned items (C7/searchable_list/vec.rs:73-97). Internal.
+- Keyboard: no new keys. Base select is identical (B7/select.rs:17-27).
+- Combobox: nothing else changed (4-line diff).
+
+##### Switch
+
+The largest change among the small widgets (C7/switch.rs, 202 diff lines; B7/switch.rs, 23):
+- New options `tab_stop`, `tab_index` (C7/switch.rs:112-124) and `focus_ring` via `FocusableExt` (C7/switch.rs:147-156). The switch now owns a keyed focus handle and tracks it (C7/switch.rs:166-170, 229-233).
+- The focus ring is drawn on the track only, not on the label row (C7/switch.rs:268-272).
+- The track no longer shrinks with a long label: `flex_shrink_0` on the track, `min_w_0` on the label (C7/switch.rs:246-250, 286-290). Track inset is now a 1px border plus padding so the ring stays visible (C7/switch.rs:252-262).
+- Base switch accepts a caller focus handle: `track_focus` (B7/switch.rs:319-331).
+
+##### Rating
+
+Hover updates are guarded: no `notify` when the hovered value does not change (C7/rating.rs:143-146, 172-176). No option change.
+
+##### Form and label
+
+- Form: a `Field` marked not visible is now hidden and skipped by the form (C7/form/field.rs:170-173, 284; C7/form/form.rs:139, 151).
+- Form: `Form` now applies its own style refinements (`.refine_style`, C7/form/form.rs:151; test at C7/form/tests.rs:156-246).
+- Label: no change.
+
+##### Time
+
+- New `time/time_field.rs`, plus base logic in `B7/time_field.rs` (775 lines).
+- `DatePicker` can edit a time of day: `time_precision`, `hour_cycle`, `default_time`, `DateTime` value, `date_time()`, `set_date_time()` (C7/time/date_picker.rs, the `+` lines of the diff; 459 diff lines). `date_format` default becomes date plus time when a precision is set. Selecting a date keeps the popup open when a precision is set. A range picker edits dates only.
+- Calendar: cell text is `text_xs` at `Size::Small`, `text_sm` otherwise (C7/time/calendar.rs:118-127).
+
+##### Questionnaire (new)
+
+See Part 5.
+
+#### 1.3 Statements in `study` that are no longer true for 0.7.0
+
+Only statements about files that changed can be stale. Findings:
+
+1. study "input (text)", Keyboard and screen reader: "The SetValue action replaces the text". Now true only for an editable input. Read-only and disabled refuse it (C7/input/input.rs:488-495, 754-758).
+2. study "input (text)", Only gpui-kit: "a custom context menu". Now conditional on the state's context menu being enabled (see 1.2 item 3).
+3. study "input (text)", keys: right-click "opens a native menu with Cut, Copy, Paste and Select All". Paste is now enabled without checking the clipboard (C7/input/input.rs:634-640).
+4. study lists "undo that merges a run of typing into one step and keeps 1000 steps (B/undo_manager.rs:6, 176-203)". Still true. The merge code moved to B7/input/base/undo_manager.rs:187-215. Update the line numbers.
+5. study "select", Keyboard: "Rows are role ListItem ... inside role List (G/list/list.rs:481, 488-495), (G/list/list.rs:788-790)". Still true, but the `Role::List` line moved to C7/list/list.rs:670.
+6. study gives all `G/input/input.rs` line numbers from 0.6.6. Every one is off in 0.7.0 (the file grew by the token fields and accessibility code).
+7. study "input (text)", "Only gpui-kit" list has no tokens, no range decorations and no `Textarea` sizing. These are new.
+8. study "gpui-kit components we lack: time" and "switch" and "rating" sections: `time` now has a time field and date-time value; switch has focus ring and tab options. The study's statements about them describe 0.6.6. (I did not read those study sections; I checked only the summary and the sections you named. I infer this from the diffs. Unverified against the text.)
+
+Statements that are still true:
+
+- "Radios: ... no arrow keys" (study line 178). True for Radio and RadioGroup. See 1.2. Not true of the new questionnaire's choice list.
+- "Sliders: ... no keyboard handling" (study line 181). True.
+- Study Summary item 3 (names, positions and counts for screen readers) and item 7 (named key actions): the files it cites are unchanged.
+- "gpui-kit's popup is a deferred overlay (G/select.rs:601-604)": still true; the code now sits at C7/select.rs:604-632.
+
+---
+
+#### Part 2. Family by family: gpui-kit 0.7.0 vs reactive-tui today
+
+Sizes in gpui-kit are pixels; in reactive-tui they are terminal cells. Do not equate numbers. I give the number and the unit.
+
+#### 2.0 Cross-cutting: colors and states
+
+Theme source.
+- gpui-kit: every color comes from `cx.theme()`: `input`, `input_background()`, `primary`, `primary_foreground`, `foreground`, `muted_foreground`, `ring`, `selection`, `danger`, `tokens.slider_bar`, `tokens.slider_thumb` (C7/checkbox.rs:238-246; C7/radio.rs:185-192; C7/slider.rs:164-170; C7/select.rs:519, 552-560; C7/input/input.rs:98-107, 694-701).
+- reactive-tui: `grep -rn -i theme R/src/widgets/input` finds nothing. Checkbox, radio, select and slider set no color at all; they emit text plus layout classes (R/src/widgets/input/checkbox.rs:127-185; radio_button.rs:203-243; select.rs:279-304; slider.rs:448-471). Only text input sets colors, and they are literal palette classes: `text-gray-500`, `bg-white text-black`, `bg-blue-600 text-white`, `text-red-500` (R/src/widgets/input/text_input/paint.rs:275, 300, 304, 306, 324, 354).
+- The theme can supply roles: `--color-primary`, `--color-foreground`, `--color-background`, `--color-surface`, `--color-text-muted`, `--color-border`, `--color-error` etc. (R/src/theme/presets.rs:5-23), and `Theme::resolve_color` maps `primary`, `muted`, `chart-1` before falling back to palette names (R/src/theme/mod.rs:112-131). The presets have no `selection`, `input`, `ring`, `disabled` or `focus` role (`grep -n "selection\|focus\|--color-input\|disabled\|--color-ring" R/src/theme/presets.rs` = no hits).
+
+State table (what each side draws):
+
+| State | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| focus | ring from `focus_ring_style` on checkbox, radio, select, input, switch (C7/checkbox.rs:281-285; C7/radio.rs:216-218; C7/select.rs:556-559; C7/input/input.rs:775-777) | a `▶ ` glyph in front, no color (checkbox.rs:133-134; radio_button.rs:299-302; named_radio.rs:139; select.rs:244-245; slider.rs:392-396; paint.rs:62-63). Input cursor is a `bg-white text-black` cell (paint.rs:300, 324) |
+| hover | slider thumb ring only (C7/slider.rs:220-230). Checkbox, radio, select: none found (`grep -i hover` in those three = no hits) | checkbox and radio: label becomes `_label_` (checkbox.rs:157-158; radio_button.rs:311-312). Slider: marker `◉` (slider.rs:387-388). Select: mouse move highlights a row (select.rs:827-835) |
+| disabled | opacity 0.5 and `muted_foreground` text (C7/checkbox.rs:246, 336-339; C7/select.rs:546; C7/input/input.rs:700-703, 788, 804) and mouse blocked on input (C7/input/input.rs:732-734) | `🔒 ` glyph (checkbox.rs:131-132; select.rs:240-241; paint.rs:60-61), label in `(...)` (checkbox.rs:155-156; radio_button.rs:309-310), slider marker `○` (slider.rs:385-386). No dim color |
+| invalid | Input: none (no `invalid` in C7/input/input.rs; `grep -n -i invalid` = no hits). `InputGroup::invalid` and `TimeField::invalid` exist (C7/input/group.rs:88-90; C7/time/time_field.rs:69-73). Checkbox, radio, select, slider: none | text input only: `❌ ` glyph and optional red error line (paint.rs:58-59, 352-356) |
+| read-only | `Input::readonly`; same look as normal, edits refused (C7/input/input.rs:342-348, 597) | text input only, and only when a caller sets the private closure. Not drawn differently (text_input.rs:381-391; only user: R/src/widgets/dialog/input/live.rs:293). Builder `.readonly()` does not call it, see Part 4 D2 |
+| loading | Input: spinner in the suffix (C7/input/input.rs:805-807). Others: none | none |
+
+#### 2.1 Text input
+
+Layout defaults.
+
+| Item | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Horizontal padding | `input_px`: 4/8/10/12 px for XSmall/Small/Medium/Large (C7/sizing.rs:147-155) | none. The row is `status + [ + text + ]`; status is 2 cells, or 3 with a 2-cell emoji (paint.rs:57-67, 268-278, 333) |
+| Vertical padding | `input_py`: 0/2/8/10 px (C7/sizing.rs:158-165); not applied to multi-line input (C7/input/input.rs:762-764) | none. Each row is `h-1` (paint.rs:340) |
+| Gap between parts | `gap_x` 4/6/8 px by size (C7/input/input.rs:688-692, 772) | prefix is status (2 or 3 cells) plus 1 cell for `[`, then the text, then `]` (paint.rs:77-79) |
+| Height | `input_h`: 20/24/32/44 px (C7/sizing.rs:268-276) | 1 row, or `MultiLine{height}` rows (paint.rs:87-90) |
+| Width | root is `.size_full()` (C7/input/input.rs:760): takes the width its parent gives | fixed: `width.unwrap_or(30)` cells of text (paint.rs:86, 97-100), default `Some(30)` (text_input.rs:67, 244). The outer box says `w-full` (paint.rs:377) but the painted row is `prefix + min(width, available) + ]` |
+| Minimum width | none set | none, but `available_width` uses `saturating_sub` so it can reach 0 (paint.rs:92-93, 98) |
+| Alignment | `text_align` from style, default Left (C7/input/input.rs:527) | left only |
+| Wide parent (240+ cols) | grows to fill | stays at 30 text cells. In the catalog the input has `class("w-full")` (R/examples/widget_catalog/catalog.rs:359-363) and the field is still 30 cells |
+
+Options and builder methods.
+- Only gpui-kit: `prefix`, `suffix`, `cleanable`, `mask_toggle`, `content_type`, `role`, `aria_label`, `appearance`, `bordered`, `focus_bordered`, `h`, `tab_index`, `context_menu`, `on_paste`, `token`, `on_token_click` (C7/input/input.rs:178-361); state: `masked`, `mask_pattern`, `pattern`, `validate`, `clean_on_escape`, loading (study lines 596-606, unchanged).
+- Only reactive-tui: `max_length` (graphemes), `numeric` mode, `validator_pattern` and named validators, `error_message`, `suggestions`, `show_line_numbers`, `wrap_text`, `tab_size`, `auto_indent`, `width` (R/src/widgets/input/text_input.rs:45-204). Builder `text_input()` has only `value`, `placeholder`, `disabled`, `readonly`, `max_length`, `input_type`, `class` (R/src/builder/widgets/input.rs:96-197). It has no `width`, no change or submit callback (input.rs:230-232).
+
+Keyboard.
+- gpui-kit: full set from actions; bindings are in B7/input/base/state.rs (unchanged list except tokens). `Escape` clears when `clean_on_escape`.
+- reactive-tui: Ctrl+A/C/X/V/Z/Y, Ctrl+arrows and Home/End, Ctrl+Backspace/Delete (text_input.rs:830-884); Enter, Tab, Escape, arrows, Home/End/Page (text_input.rs:1039-1164). Alt keys are ignored (text_input.rs:890-899, 1036-1038). Super/Meta is not checked (see D5).
+
+Screen reader.
+- gpui-kit: role by content type: TextInput, PasswordInput, EmailInput, UrlInput, PhoneNumberInput, DateTimeInput, DateInput, MultilineTextInput (C7/input/input.rs:27-87). Label from `aria_label`, else the placeholder unless it is a mask placeholder (C7/input/input.rs:717-723). Value withheld when masked or password (C7/input/input.rs:89-96). Actions: Focus and SetValue (C7/input/input.rs:750-758).
+- reactive-tui: role PasswordInput, MultilineTextInput, NumberInput, TextInput; `read_only` flag; placeholder as description; value, caret and selection as text runs (R/src/widgets/input/text_input/accessibility.rs:13-42). No label from the placeholder. No Focus/SetValue handling here; the study says the App handles only Focus and Click (study lines 61-66; R/src/app.rs:411-417 as cited there; I did not re-read app.rs).
+
+#### 2.2 Checkbox
+
+| Item | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Box size | 12/14/16/18 px (`0.75/0.875/1/1.125` rem) (C7/checkbox.rs:219-224) | `[x]` = 3 cells, fixed (checkbox.rs:139-150) |
+| Gap box to label | `gap_2` = 8 px, label column `flex_1`, inner gap `gap_1` (C7/checkbox.rs:271, 327-331) | 1 cell (checkbox.rs:153-154) |
+| Leading area | none | 2 or 3 cells: `  `, `▶ `, or `🔒 ` (checkbox.rs:130-137) |
+| Width | root `h_flex`, no width; label column `flex_1` `overflow_hidden` (C7/checkbox.rs:270, 326-328) | one text node; no width or wrap class (checkbox.rs:181) |
+| Sizes | XSmall..Large (C7/checkbox.rs:219-224) | one size |
+| Label spoken | `accessibility_label` override, else label (C7/checkbox.rs:229-231) | label only (checkbox.rs:166-168) |
+
+Options. Only gpui-kit: size, tooltip, child content, tab index/stop, focus ring switch, role override, label override. Only reactive-tui: `indeterminate` in the styled widget (gpui-kit has it only in the base part, B7/checkbox.rs:16-22). Builder: no change callback (R/src/builder/widgets/input.rs:319-405). The component has `with_on_change` (checkbox.rs:105-108).
+
+Keyboard. gpui-kit: Space/Enter from the click path, one Tab stop. reactive-tui: Space or Enter toggles when focused; left mouse down toggles (checkbox.rs:198-273). Indeterminate goes to checked (checkbox.rs:231-234).
+
+Screen reader. gpui-kit: role CheckBox, toggled (True/False/Mixed), label (B7/checkbox.rs:374-379). reactive-tui: role CheckBox, label, toggled incl. Mixed, Click or disabled (checkbox.rs:164-180). Equivalent, except no name override.
+
+#### 2.3 Radio
+
+| Item | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Circle size | same rem sizes as checkbox (C7/radio.rs:168-172) | `( )` = 3 cells (radio_button.rs:316; named_radio.rs:137-142) |
+| Gap circle to label | `gap_x_2` = 8 px (C7/radio.rs:211) | 1 cell |
+| Gap between radios | `gap_3` = 12 px (C7/radio.rs:402) | vertical: 0 (rows, radio_button.rs:209). horizontal: class `gap-0.5` (radio_button.rs:207); the mouse hit test assumes 2 cells (radio_button.rs:398). The class table maps `0.5` to 2 (R/src/layout/css/parsers.rs:44); I did not verify the px-to-cells conversion |
+| Group width | horizontal group: `w_full().flex_wrap()` (C7/radio.rs:394); vertical: `v_flex` | `flex flex-row overflow-hidden`: no wrap (radio_button.rs:207) |
+| Leading area | none | 2 cells `▶ ` or blanks (radio_button.rs:299-303) |
+
+Options. Only reactive-tui: values of any type, per-option `disabled` (in gpui-kit the group `disabled` overwrites each radio's flag, C7/radio.rs:409). Only gpui-kit: size, tooltip, child content, tab options, label override, position in set. Builder `radio_button()` makes a `NamedRadio`; no change callback and `NamedRadioProps` is `pub(crate)` (R/src/builder/specialized.rs:233-296; R/src/widgets/input/named_radio.rs:56-63).
+
+Keyboard.
+- gpui-kit: Enter/Space on a radio; each radio is its own Tab stop (C7/radio.rs:198-201). No arrows (see 1.2).
+- reactive-tui `RadioButton`: arrows move focus and skip disabled options, but do not select; Space/Enter select (radio_button.rs:349-365). All four arrow keys work in both orientations (radio_button.rs:349). `NamedRadio`: Space/Enter/click only; each radio is a Tab stop (named_radio.rs:165-178).
+
+Screen reader.
+- gpui-kit: radio has toggled and selected, label, position in set, size of set; group has orientation (B7/radio.rs:203-219; B7/radio_group.rs:59-63).
+- reactive-tui: group is `RadioGroup` with no label and no orientation (radio_button.rs:211); options are `RadioButton` with label and toggled, plus a focus event (radio_button.rs:214-239). No selected flag, no position in set. `NamedRadio`: same node without the group (named_radio.rs:124-136).
+
+#### 2.4 Select
+
+| Item | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Trigger size | `input_size`: height 20/24/32/44 px, `input_px` 4..12 px (C7/select.rs:550) | 1 row |
+| Trigger width | `size_full`, inner `w_full().min_w_0()` truncates (C7/select.rs:526, 566-567, 577-580) | root class `w-{width}` with `width.unwrap_or(30)`, and `max-w-full` (select.rs:279-283). Default 30 (select.rs:27, 170) |
+| Gap title to caret | `gap_1` (C7/select.rs:572) | none |
+| Popup width | trigger width, or a set width (C7/select.rs:612-618) | inline list under the header, same 30 cells |
+| Popup height | `menu_max_h` default `rems(20)` (C7/select.rs:106) | `max_visible_items` default 5, limited by room left (select.rs:169, 394-402) |
+| Popup padding | `Edges::all(4px)` (C7/select.rs:629) | 2 leading cells per row (select.rs:319) |
+| Truncation | CSS truncate | cut by grapheme, no ellipsis (select.rs:250-261) |
+
+Options. Only gpui-kit: search box, groups, `cleanable`, `title_prefix`, icon, `empty`, `menu_width`, `menu_max_h`, size, `appearance`, focus ring switch, selection veto hook (study lines 1108-1119, unchanged). Only reactive-tui: multi-select in the builder, type-ahead, `width`, `max_visible_items`, wheel scroll, open and close callbacks. Builder `select()` has `option`, `options`, `selected`, `placeholder`, `disabled`, `multiple`, `class` (R/src/builder/widgets/input.rs:430-533); it cannot set `width`, `max_visible_items` or a per-option disabled flag (input.rs:542-556 uses `..Default::default()`).
+
+Keyboard.
+- gpui-kit: up, down, enter, secondary-enter, escape in a "Select" context (B7/select.rs:17-27); no Home/End/Page (unchanged; list.rs did not change key bindings in the diff I read).
+- reactive-tui: Enter/Space open or choose; Escape; Up/Down; Home/End/PageUp/ PageDown when open; printable keys jump by prefix (select.rs:646-705).
+
+Screen reader.
+- gpui-kit: ComboBox with expanded, label, value (B7/select.rs:195-203); Click action (B7/select.rs:216); rows `ListItem` with position and set size.
+- reactive-tui: ComboBox with value, expanded, multiselectable, no label (select.rs:267-278); list `ListBox`, rows `ListBoxOption` with label and selected (select.rs:296-304, 342-350).
+
+#### 2.5 Slider
+
+| Item | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Track thickness | `h_6` hit area, `h_1p5` bar (C7/slider.rs:279, 288) | 1 row |
+| Thumb size | `size_4` = 16 px (C7/slider.rs:218) | 1 cell |
+| Length | horizontal `w_full` and `flex_1`; vertical `h(120px)` (C7/slider.rs:265-269) | `width` cells, default 20 (slider.rs:33, 174); `available.min(props.width)` never lets it grow (slider.rs:261, 270) |
+| Decorations | none | focus glyph 2 cells, optional min/max labels, value text (slider.rs:238-273, 398-421) |
+| Builder length | n/a | `builder::slider()` cannot set width, show_value or show_labels; it uses `..Default::default()` (R/src/builder/specialized.rs:391-400) |
+
+Options. Only gpui-kit: range with two thumbs, log scale, `reverse`, Change and Release events (study lines 1170-1176; C7/slider.rs:124-135). Only reactive-tui: `show_value`, `show_labels`, `width`, label, invalid-range message.
+
+Keyboard. gpui-kit: none. reactive-tui: arrows, PageUp/Down at 10% of range, Home/End (slider.rs:514-529); click and drag (slider.rs:541-559).
+
+Screen reader. gpui-kit: Slider role, value, min, max, step, orientation, and Increment/Decrement actions (B7/slider.rs:479-508). reactive-tui: Slider role, label, value, min, max, step, orientation (slider.rs:453-465); no Increment/Decrement handling (study line 66 cites the App).
+
+---
+
+#### Part 3. Clean-up candidates for reactive-tui's input widgets
+
+Size: small = under 200 lines, medium = 200 to 800, large = more. "Ref" is where gpui-kit 0.7.0 does the matching thing. Ordered by how likely each is to matter at 240-512 columns.
+
+#### A. Fixed numbers that ignore a wide parent
+
+A1. Text input does not fill its parent. Text width defaults to 30 and `None` also means 30. The `w-full` on the outer box does nothing to the row.
+- Ours: R/src/widgets/input/text_input/paint.rs:86, 97-100, 377; R/src/widgets/input/text_input.rs:67, 244.
+- Ref: `size_full` root, C7/input/input.rs:760.
+- Fix idea: let `width: None` mean "fill", use `layout.content_size()` for the text width, and keep `Some(n)` for a fixed size. Builder needs a `width`.
+- Size: small.
+
+A2. Select is 30 cells wide by default and `None` also means 30.
+- Ours: R/src/widgets/input/select.rs:27, 170, 279-283, 404-409.
+- Ref: `w_full().min_w_0()` trigger, popup follows trigger, C7/select.rs:566-567, 612-618.
+- Size: small. Same fix as A1.
+
+A3. Slider track stops at 20 cells. `available.min(props.width)` blocks growth.
+- Ours: R/src/widgets/input/slider.rs:33, 174, 261, 270.
+- Ref: `w_full` horizontal, C7/slider.rs:269.
+- Fix idea: an "auto" width that uses the parent's content width minus labels.
+- Size: small.
+
+A4. Builders cannot set the sizes at all: `builder::text_input()`, `builder::select()`, `builder::slider()` all end in `..Default::default()` (30, 30/5, 20).
+- Ours: R/src/builder/widgets/input.rs:206-221, 542-556; R/src/builder/specialized.rs:391-400.
+- Ref: `w()`/`h()` on the gpui-kit builders through `Styled`.
+- Size: small.
+
+A5. Horizontal radio group does not wrap and clips at the edge (`overflow-hidden`).
+- Ours: R/src/widgets/input/radio_button.rs:207.
+- Ref: `h_flex().w_full().flex_wrap()`, C7/radio.rs:394.
+- Cost: wrap changes `option_at` hit-testing (radio_button.rs:385-399), which assumes a single row.
+- Size: medium.
+
+A6. Gap and hit-test both hold the number 2 in separate places (class `gap-0.5` and `start = end + 2`). If one changes the mouse target drifts.
+- Ours: R/src/widgets/input/radio_button.rs:207 and 398.
+- Size: small.
+
+A7. Select rows are cut with no ellipsis; long labels lose their tail silently.
+- Ours: R/src/widgets/input/select.rs:250-261.
+- Ref: `truncate`, C7/select.rs:577-580; C7/searchable_list/adapter.rs:133-134.
+- Size: small.
+
+#### B. Colors written as literals
+
+B1. Text input: replace palette classes with theme roles.
+- Ours: R/src/widgets/input/text_input/paint.rs:275, 306 (`text-gray-500` -> `text-muted`), 354 (`text-red-500` -> `text-error`), 300 and 324 (`bg-white text-black` cursor -> `bg-foreground text-background`), 304 (`bg-blue-600 text-white` selection -> needs a `selection` role).
+- Ref: C7/input/input.rs:98-107 and `theme.selection`, `theme.ring`, `theme.input`, `theme.danger`.
+- The presets have `--color-text-muted`, `--color-error`, `--color-foreground`, `--color-background`, `--color-primary` (R/src/theme/presets.rs:5-23) but no `selection`, `input` or `ring`. Adding them is part of this item.
+- Size: small for the swap, medium with new theme variables in every preset.
+
+B2. Checkbox, radio, select and slider draw no color for focus, hover, disabled or selected. State is shown by glyph and text only. Adding roles (for example focus row `bg-primary`, disabled `text-muted`) is a design change, not a bug.
+- Ours: R/src/widgets/input/checkbox.rs:127-185; radio_button.rs:297-317; named_radio.rs:137-146; select.rs:236-304, 311-364; slider.rs:379-471.
+- Ref: C7/checkbox.rs:238-246, 299-320; C7/radio.rs:185-192; C7/select.rs:519-560.
+- Size: medium.
+
+#### C. State drawn by changing text width
+
+C1. The state glyph is 2 cells wide for `▶ ` and blanks but 3 cells for `🔒 ` and `❌ ` (2-cell emoji plus a space). Label and text start shift by 1 cell between states. The checkbox and radio also add `_` around the label on hover and `(...)` when disabled, so the label grows by 2 cells.
+- Ours: checkbox.rs:130-137, 155-158; radio_button.rs:299-315; select.rs:240-248, 253; paint.rs:57-67.
+- Ref: gpui-kit changes opacity and color, not the size.
+- Fix idea: keep a fixed 2-cell state column and change color, not text.
+- Size: small per widget.
+
+C2. Radio unselected mark differs between the two radio widgets: `( )` in `RadioButton`, `(○)` in `NamedRadio`.
+- Ours: radio_button.rs:304-308; named_radio.rs:140.
+- Size: small.
+
+#### D. Options that exist but have no effect
+
+D1. `input_type` values other than password, number and email are dropped (`tel`, `url`, `search`, `date`, and so on become plain single-line). The doc comment says "text, password, email, number, etc.".
+- Ours: R/src/builder/widgets/input.rs:164-171, 213-218.
+- Ref: `content_type` picks role and hints, C7/input/input.rs:321-327 and 27-87.
+- Size: small to map to roles; medium if new validators are added.
+
+D2. `NamedRadioProps.checked` is read once, in `new` (named_radio.rs:96). Later prop changes are ignored; `update` only re-joins the group (named_radio.rs:107-119).
+- Size: small.
+
+D3. Builder `.readonly(true)` never reaches the inner `TextInput::with_read_only`, so the read-only flag is not set on the accessibility node, and `execute_command` does not know it (see D2 in Part 4).
+- Ours: R/src/builder/widgets/input.rs:230-232, 260-290; R/src/widgets/input/text_input.rs:381-391.
+- Size: small.
+
+D4. Dead fields: `Checkbox.state` and `Select.state` are written in `update` and never read.
+- Ours: R/src/widgets/input/checkbox.rs:93, 123; R/src/widgets/input/select.rs:200, 503.
+- Size: small.
+
+#### E. Gaps in what the reference does
+
+E1. Prefix and suffix cells, clear button, password reveal inside the text input frame.
+- Ref: C7/input/input.rs:265-315, 788-807.
+- Ours: frame at R/src/widgets/input/text_input/paint.rs:268-278, 333.
+- Size: medium.
+
+E2. Change callbacks on all builders (`text_input`, `checkbox`, `radio_button`, `slider`, `select`). The manual says callbacks can be set "through the matching builder" (R/manual/input-widgets.md:26-28); they cannot.
+- Ours: R/src/builder/widgets/input.rs:230-232; R/src/builder/specialized.rs:283-296, 409-445.
+- Ref: gpui-kit builders take `on_change` (study Summary item 1).
+- Size: medium (touches five builders and the way props are stored).
+
+E3. Radio group: name, orientation and selected flag on the accessibility nodes.
+- Ours: R/src/widgets/input/radio_button.rs:211-231.
+- Ref: B7/radio_group.rs:59-63; B7/radio.rs:203-219.
+- Size: small.
+
+E4. Select needs a name for screen readers apart from its value.
+- Ours: R/src/widgets/input/select.rs:267-278.
+- Ref: B7/select.rs:195-203.
+- Size: small.
+
+E5. `invalid` and `disabled` looks as color, not glyph, on text input, select and slider. gpui-kit has `invalid` only on group and time field, so there is no reference for select and slider invalid state.
+- Size: medium.
+
+E6. Slider Increment/Decrement/SetValue from screen readers.
+- Ours: R/src/widgets/input/slider.rs:453-465 (no handler). Ref: B7/slider.rs:489-508.
+- Size: medium (App dispatch change, study item 2).
+
+---
+
+#### Part 4. Defects found by reading
+
+Each item is from reading the code, not from running it. "Confirmed by reading" means the lines say so; nothing was executed. Items marked (assumption) depend on code I did not read.
+
+D1. An empty email field is drawn invalid before the user types.
+- `initial_state` and `update` call `validate(value, pattern)` (R/src/widgets/input/text_input.rs:918-923, 946). For `"email"` the regex is `^[^\s@]+@[^\s@]+\.[^\s@]+$` (text_input.rs:482-483), which does not match `""`. So `is_valid` is false at once and `status` returns `❌ ` (paint.rs:57-59). The `numeric`, `alpha`, `alphanumeric` checks use `.all(...)`, which is true for the empty string (text_input.rs:474-480). So they behave differently.
+- `builder::text_input().input_type("email")` sets this pattern (R/src/builder/widgets/input.rs:218).
+
+D2. Builder `.readonly(true)` misses the accessibility flag.
+- `ConfiguredTextInput::new` builds `TextInput::new(...)` with no read-only closure (R/src/builder/widgets/input.rs:230-232). `with_read_only` has one caller, the dialog (R/src/widgets/dialog/input/live.rs:293). Read-only is enforced only by a key filter in `handle_event` (input.rs:260-290). The accessibility node checks `is_read_only()` (accessibility.rs:20-22), which is false here. The filter also swallows Enter (Consumed) while read-only (input.rs:270-283).
+
+D3. Static suggestions are not filtered by the typed text.
+- After any text change from a Char key or paste, the suggestion callback runs only if set (text_input.rs:1012-1014). Then `show_suggestions = !props.suggestions.is_empty()` (text_input.rs:1015). The builder's `suggestions(...)` list is static (text_input.rs:146-153, 192) and there is no `starts_with`/filter anywhere in text_input.rs (I searched `suggestions` in the file; every use is listed in lines 54-1213). Result: every typed character shows the full list, up to 5 rows (paint.rs:244-246).
+- Backspace and Delete change the text but skip this block (the condition needs `KeyCode::Char` or a paste, text_input.rs:1009-1011), so a stale list stays open.
+
+D4. CRLF pasted into a single-line input becomes two spaces.
+- `paste.content.replace(['\r', '\n'], " ")` replaces each character (R/src/widgets/input/text_input.rs:985). The multi-line branch handles CRLF correctly (line 983). Windows clipboard text `a\r\nb` becomes `a  b`.
+
+D5. Super/Meta+letter inserts the letter (assumption: the terminal reports the modifier, for example through the Kitty keyboard protocol).
+- `handle_key_event` checks `ctrl` and `alt` only, then inserts any `KeyCode::Char(c)` (R/src/widgets/input/text_input.rs:1033-1040). `select.rs` checks `meta` (select.rs:698-702). Text input does not.
+
+D6. Select: Space always chooses, so type-ahead cannot match labels with spaces.
+- `KeyCode::Enter | Char(' ') | Space` is matched before the char search (R/src/widgets/input/select.rs:647-653, 698-705). A label like "New York" cannot be typed past "New". Typing the space while open chooses the current row.
+
+D7. Select header can overflow by one cell when disabled.
+- The header prefix is `🔒 ` (3 cells) when disabled, `▼ `/`▶ `/blanks (2 cells) otherwise (select.rs:240-248). The text budget is a fixed `width - 4` (select.rs:253) and assumes 2. (Assumption: the layout engine measures the emoji as 2 cells like `unicode_width`. The root has `overflow-hidden`, so the effect would be a clipped `]`.)
+
+D8. Slider shows one decimal whatever the step is.
+- Value text is `{value:.1}` (R/src/widgets/input/slider.rs:419, 443). Min/max labels use `{:.0}` (slider.rs:241-242, 402, 416, 426, 440). With `step(0.05)` the shown value moves in visible jumps of 0.1 or 0.0, and a `min` of `0.5` shows as `0` (`{:.0}` of 0.5 is "0" in Rust's round-half-even formatting; I did not run it).
+
+D9. Slider keys do not snap and accumulate float error.
+- Left/Right add or subtract `props.step` from the current value and only clamp (slider.rs:516-517). PageUp/Down snap (slider.rs:518-525); Home/End set exact ends. With `step 0.1` the value can reach `0.30000000000000004` and go to `on_change` (slider.rs:311-318). The manual says sliders "clamp values to their range and step" (R/manual/input-widgets.md:38).
+
+D10. Slider builder default value differs from the widget builder.
+- `builder::slider()` starts at 0.0 (R/src/builder/specialized.rs:329); the widget's `SliderBuilder`/`SliderProps` start at 50.0 (R/src/widgets/input/slider.rs:27, 168). Same crate, two defaults.
+
+D11. Numeric mode accepts more than numbers.
+- The filter checks only the inserted text: `is_numeric()` or `.` or `-` (R/src/widgets/input/text_input.rs:627-633). `is_numeric()` is true for non-ASCII digits and fractions such as `½`. `-` and `.` are allowed anywhere and more than once (`1-2.3.4`). A paste with one bad character is rejected whole.
+
+D12. `max_length` rejects a paste that is too long instead of cutting it.
+- `insert_text` returns without inserting when the candidate is over the limit (text_input.rs:621-626).
+
+D13. An invalid user regex marks every value invalid, with no message.
+- `Regex::new(pattern).ok()` is cached (text_input.rs:492); a `None` regex makes `is_some_and` false (text_input.rs:494-497). The input shows `❌` for every value. Also a custom pattern uses `is_match`, which is not anchored; the built-in email pattern is anchored (text_input.rs:482, 497).
+
+D14. Undo entry pushed before the edit is known to apply.
+- `execute_command` pushes the inverse and clears redo (text_input.rs:511-518) and then `apply_command` may return early if the text at `position` differs (text_input.rs:536-539). A failed apply leaves a dead undo entry.
+
+D15. `NamedRadio` label and disabled look differ from `RadioButton`.
+- No `(...)` around a disabled label, no `_..._` on hover, `○` for off (named_radio.rs:137-146 vs radio_button.rs:297-317). Same family, two looks. (Listed as C2 in Part 3 for the mark; here for the rest.)
+
+D16. `NamedRadio` group state lives in a shared `AtomicBool`; I could not verify that sibling radios repaint when one is chosen.
+- `RadioGroups::select` flips every member's flag (named_radio.rs:46-53) but the handler returns `Consumed` only for the clicked radio (named_radio.rs:187). Whether the App redraws the whole tree on `Consumed` is in code I did not read. Not confirmed as a defect. Worth a test.
+
+D17. Enter is consumed by a single-line text input that has no `on_submit`.
+- `KeyCode::Enter` falls through to `EventResult::Consumed` (text_input.rs:1063-1077, 1167) even when `on_submit` is `None`. A parent's default action for Enter is blocked. (Assumption: parents would otherwise get the key.)
+
+Not defects, noted so they are not re-reported:
+- `Checkbox` and `Select` write a `state` field they never read (Part 3 D4).
+- Left/Right with a selection moves the cursor one step from its old position instead of jumping to the selection edge (text_input.rs:1114-1121). This is a behavior choice.
+
+---
+
+#### Part 5. New gpui-kit 0.7.0 modules
+
+#### 5.1 Questionnaire
+
+What it is. A multi-question form controller: items with single or multiple choices plus an optional free-text input; required flags; validators; Previous/Next/Skip/Submit navigation state; progress; answers snapshot. Logic is in base, the look in component (B7/questionnaire/state.rs 1703 lines, types.rs 698, keyboard.rs 104, control.rs 121; C7/questionnaire/components.rs 1984 lines).
+- Keyboard: arrows move between answers and items, Enter confirms a filled answer, Cmd/Ctrl+Enter confirms, bare letter or digit activates a shortcut (`Letters` or `Numbers` mode) (B7/questionnaire/keyboard.rs:36-81; B7/questionnaire/types.rs:247-250).
+- Screen reader: form root `Role::Form`, item `Role::Group`, choices group `Role::Group`, progress `Role::ProgressIndicator`, errors `Role::Alert` (C7/questionnaire/components.rs:351, 587, 662, 420, 1191); choices carry description, position and set size (B7/questionnaire/control.rs:77-80).
+- Layout: `w_full` on root, item, choices, actions (C7/questionnaire/components.rs:361, 598, 666-675, 1287).
+
+In a terminal. One question at a time: a title row, a radio or checkbox list where each row shows a shortcut key (`1)`, `a)`), an optional text row, a required marker, an error line, and a `Back | Next | Skip | Submit` row. Progress as `2/5`.
+
+Call: skip as a new widget. Reason: reactive-tui already has a wizard dialog (study line 189-191 cites R/src/widgets/dialog/wizard.rs:43-56) and an input dialog with validation (R/src/widgets/dialog/input.rs:100-128); a controller would add a third path. Take two ideas into the existing widgets instead: shortcut keys on choice rows and the radio arrow keys with wrap (RadioButton already has the arrows).
+
+#### 5.2 Time field (`time_field.rs`)
+
+What it is. One segmented editor, `09:30`, `09:30:15` or `09:30 PM` (B7/time_field.rs:33-52). Precision Minute or Second; hour cycle H23 or H12.
+- Keys: Up/Down step the selected segment and wrap inside it, Left/Right and Tab/Shift-Tab move between segments, digits typed with a two-digit buffer, `a`/`p` set AM/PM, Backspace/Delete reset the segment (B7/time_field.rs:291-299). The field is one Tab stop; Tab leaves the last segment by design of the bindings (B7/time_field.rs:22-29). (Assumption: Tab leaves at the ends; I did not read `on_next_column`.)
+- Screen reader: `Role::TimeInput`, value is the formatted time (B7/time_field.rs:587-588).
+- Styled: border, radius, `input_h`, `px_1`, `flex_none` (does not stretch), `theme.selection` on the active segment, `invalid` in `danger` border, tabular digits (C7/time/time_field.rs:39-131).
+- The date picker uses it for `time_precision`.
+
+In a terminal. `[09:30 PM]` with the active segment in reverse video, in 10 to 13 cells. It is a fixed-width widget, so no wide-layout problem.
+
+Call: build, small to medium (about 300 lines). It is a pure state machine (SegmentEditor is already testable without a window, B7/time_field.rs:104-289) and fits one text node with a per-segment cursor. It also unblocks time entry in the future date picker (study "time" row: medium). Needs a `TimeInput` role check in the platform accessibility map (I did not check whether it exists).
+
+#### 5.3 Input tokens (`input/token.rs`, `inline_tokens.rs`)
+
+What it is. Atomic chips inside a text field: `@alice`, `#tag`, file references. The cursor treats each as one unit; delete removes it whole; undo keeps it; the app gets click or keyboard activation.
+
+In a terminal. A token is a run of cells with a different style, for example ` @alice ` on a muted background, one grapheme-like unit for the cursor. Width is `unicode_width` of the label; wrapping needs whole-token moves.
+
+Call: skip for now. Reason: the text input stores `lines: Vec<String>` and byte offsets (R/src/widgets/input/text_input.rs:348, 665) with no annotation layer, and undo, selection, paint and mouse hit-testing would all need span awareness (paint.rs:212-238). That is a large change with no stated user. Revisit if a chat composer or mention field is planned.
+
+#### 5.4 Not asked, seen in the diff
+
+- Range decorations (`RangeDecoration`): editor highlight layer. Skip; the code editor is a separate roadmap item.
+- `DatePicker` with time editing (`DateTime`): part of the medium "calendar and date picker" row in the study; do not build before the time field.
+
+---
+
+#### Limits of this review
+
+- No code was run and nothing was built. Every "the code does X" is from reading.
+- I did not read: R/src/app.rs, the layout engine, the event router, the accessibility platform map, R/src/widgets/dialog/input*, the study sections other than those you named (except the Summary tables), or gpui-kit combobox and rating beyond their diffs.
+- I did not verify how `gap-0.5` and `w-30` convert to cells at paint time. I found that `w-` uses `parse_spacing_terminal` (cells) and `gap-` uses `parse_spacing` (a px table) in R/src/layout/css/sizing.rs:14 and R/src/layout/css/spacing.rs:77, and I did not follow the conversion.
+- The 0.6.6 tree was compared with `diff` only. I did not check its git history.
+- Line numbers for gpui-kit 0.7.0 come from `grep -n` and `sed -n` on the 0.7.0 files. Where I cite a range that I only saw un-numbered in a diff, the range is approximate to within a few lines (marked by a function name).
+
+
+### Display and layout widgets: Display and layout widgets: reactive-tui vs gpui-kit 0.7.0
+
+Read-only review. I read files and ran ls, grep, sed and diff. I ran no cargo, rustc, tests or builds. I cannot see rendered output, so every statement says what the code does, not how it looks.
+
+Short names used below:
+
+- `R/` = ~/workspace2/reactive-tui/src
+- `G7/` = ~/workspace2/gpui-kit-0.7.0/crates/component/src
+- `B7/` = ~/workspace2/gpui-kit-0.7.0/crates/base/src
+- `G6/`, `B6/` = the same paths in ~/workspace2/gpui-kit-0.6.6
+- `study` = ~/workspace2/reactive-tui/docs/widget-study.md (last commit 9340fcc2, 2026-09-26)
+- `catalog` = ~/workspace2/reactive-tui/examples/widget_catalog/catalog.rs
+
+Not covered: the charts directory (another reviewer), image, popover, modal, file_explorer and dialog widgets beyond the greps named in the text.
+
+---
+
+#### Part 1. What changed in gpui-kit between 0.6.6 and 0.7.0
+
+Method: `diff -r` and `diff` on the matching paths in crates/component/src and crates/base/src. The file ~/workspace2/gpui-kit-0.7.0/release-notes.md (164 lines) mentions none of the families below. It lists Root overlays, `SettingGroup::variant`, the Plot move to base, and the Plot and Root breaking changes (release-notes.md:1-164). The diffs are the only source for what follows.
+
+##### 1.1 Files with no difference (searched with `diff -rq` and `diff -q`)
+
+- Accordion, base: B7/accordion.rs is identical to B6.
+- Collapsible: G7/collapsible.rs and B7/collapsible.rs are identical.
+- Breadcrumb: G7/breadcrumb.rs is identical. There is no base part in either version.
+- Progress: G7/progress/progress.rs, G7/progress/mod.rs and B7/progress.rs are identical.
+- Scroll: everything under G7/scroll/, and B7/scrollbar.rs, B7/scrollable_mask.rs and B7/auto_scroll.rs, are identical.
+- Tab: all of G7/tab/ (mod.rs, tab.rs, tab_bar.rs) and B7/tabs.rs are identical.
+- Table: G7/table/column.rs, delegate.rs, data_table.rs, table.rs, loading.rs and B7/table.rs are identical.
+- Virtual list: G7/virtual_list.rs and B7/virtual_list.rs are identical.
+- Also unchanged among the "other" families you listed: badge, tag, skeleton, spinner, separator, description_list, empty, status_bar, stepper. `diff -rq` on component/src did not list them.
+
+##### 1.2 Changes that affect behavior, options, keyboard, roles, defaults or appearance
+
+Accordion (G7/accordion.rs)
+
+1. Disabled state. An item now uses `self.disabled || accordion.disabled` (G7/accordion.rs:123-129). In 0.6.6 the item passed only its own flag (G6 line 128). Before, `Accordion::disabled(true)` blocked only `on_toggle_click` (G7/accordion.rs:147). Now it also disables each item trigger.
+2. Closed panels unmount. `.keep_mounted(true)` became `.keep_mounted(progress != 0. || cx.reduce_motion())` (G7/accordion.rs:353-359). A settled closed panel no longer stays in layout and paint. A new test covers it (G7/accordion.rs:430-483).
+3. No change to the base accordion, so roles are unchanged: Group root, Button trigger with expanded, Heading with level, Region panel.
+4. No key handling was added (`grep -n -i "key_context\|on_action\|KeyBinding" G7/accordion.rs B7/accordion.rs` finds nothing).
+
+Progress (G7/progress/progress_circle.rs)
+
+5. Only the circle changed. It builds arcs with `ArcData::new(&(), 0, 100., 0., TAU)` (G7/progress/progress_circle.rs:102 and 112) and no longer passes two `None` radius overrides. This follows the Plot API change in the release notes. No visible or keyboard change.
+
+Table (G7/table/state.rs)
+
+6. New `TableSelection` enum (None, Row, Column, Cell) at G7/table/state.rs:59-77. New `selection()` (476-491) and `set_selection()` (603-615).
+7. `selected_row()`, `selected_col()` and `selected_cell()` now return `Some` only in their own selection mode (497, 541-546, 572). Before, `selected_row()` returned the stored value whatever the mode (G6 line 459).
+8. Highlight rules now go through these accessors. A selected cell never leaves its column highlighted (1411-1413) and never highlights its row (2010-2012, 2054-2055, 2159-2160, 2243). Before, the code read the fields and tested `selection_mode` separately.
+9. The row-selection "reselect" test no longer requires cell mode (859).
+10. The fake trailing cells were replaced by one spacer `div().flex_shrink_0().h_full().w(cols_width)` (2275-2281, 2301-2304). Before, one h_flex element per column.
+11. No role change: Row is still set at G7/table/state.rs:2024. The styled table sets no row or column count (see Part 2.6).
+
+Tree (G7/tree.rs, B7/tree.rs)
+
+12. Context menu. The row closure keeps only the item id and looks the entry up again when the menu opens. It returns the menu unchanged if the id at that index has changed or the entry is disabled (G7/tree.rs:84-110). Before, it cloned the entry (with its whole subtree) for each row on each frame and tested `is_disabled` on the stale clone. Behavior change: a menu opened after the tree changed no longer builds for the wrong row.
+13. Performance in the base tree: `ancestor_refs` borrows instead of deep-cloning (B7/tree.rs:147-160). `push_root` and a reference-taking `add_entry` flatten without cloning the root subtree (321-346). `reveal_item` searches only root entries (299-305). The collapse path moves entries instead of cloning them (370-373).
+14. A new test asserts that revealing an item under a later root keeps the other roots' subtrees (B7/tree.rs:645-677). This suggests a bug fixed in `reveal_item`. I did not check whether 0.6.6 lost subtrees.
+15. Keys and roles are unchanged: arrows through the Tree key context, TreeItem with label, selected and expanded (B7/tree.rs:463-467, 548-551).
+
+List (G7/list/)
+
+16. `Role::List` moved from the outer `List` wrapper (G6 line 790) to `ListState::render` (G7/list/list.rs:670). A bare `ListState` is now exposed as a list. A test checks it (884-901).
+17. `ListItem::accessibility_label` is new (G7/list/list_item.rs:41, 61, 89-97, 210). Before, rows had no accessible name from their children.
+18. `hover` is registered always, and returns no change when the row is active (G7/list/list_item.rs:225-232). This fixes a stale hover style.
+19. `secondary_selected` used to suppress the selected fill (G6 lines 234-245). It now draws a 1 px outline in `theme().selection` with the row's corner radius, independent of `selected` (G7/list/list_item.rs:194-197, 257-274). Appearance change for a right-clicked row.
+
+Resizable (G7/resizable.rs, B7/resizable/)
+
+20. In 0.6.6 the component `resizable` was an inline re-export module (G6 lib.rs:67-71). In 0.7.0 it is a real file, G7/resizable.rs (136 lines), with a new `resize_handle_appearance()` (39). It draws a 1 px `theme().border` line and a 3 px indicator (25, 93-120). The indicator uses `muted_foreground` and grows on hover, press and drag (50-53, 108). It takes motion timing from `motion_tokens()` (65).
+21. New handle states Idle, Hovered, Pressed and Dragging (B7/resizable/resize_handle.rs:60-91, 76). The old bool `active` is gone.
+22. Handle hit-testing uses a hitbox (B7/resizable/resize_handle.rs:214, 364). A handle covered by an occluding element now stays idle. New tests at B7/resizable/mod.rs:633-757.
+23. Breaking rename: `placement(Side)` became `inside(HandleEdge)` (B7/resizable/resize_handle.rs:119, 171). `HandleEdge` and `ResizeHandleState` are exported (B7/lib.rs:152-155).
+24. Still no role, focus or key handling on the handle: `grep -c -i "role\|focus\|keybinding\|on_action"` returns 0 for B7/resizable/resize_handle.rs and B7/resizable/panel.rs. `PANEL_MIN_SIZE` is still `px(100.)` (B7/resizable/mod.rs:14).
+
+Toolbar (new): see Part 6.
+
+Other changes found while diffing (not in your list, but in the same crate)
+
+25. B7/scroll_bounce.rs (touch overscroll only): a short drag that catches a moving fling no longer starts a new fling (`CATCH_DRAG_SLOP` = 8 px, B7/scroll_bounce.rs:145-153, 253-342). Touch only. Not relevant to a terminal.
+26. B7/component_traits.rs adds `Selectable::open` and `is_open`, which default to `selected` (B7/component_traits.rs:2-34).
+27. G7/group_box.rs adds `footer()` under the surface, 8 px gap, small muted text (G7/group_box.rs:111-119, 165-187). The content gap under the title is now `gap_2`. The surface still has `p_4` and `gap_4`.
+28. G7/pagination.rs caps the ellipsis menu at 100 pages, near the current page (G7/pagination.rs:19-36, 239).
+29. G7/sidebar/mod.rs adds `accessibility_label` for the toggle button (G7/sidebar/mod.rs:334-342).
+30. B7/dock/tab_group.rs: `is_panel_closable` and constraints (B7/dock/tab_group.rs:281-282, 823-838). This is the dock's tab group, not `TabBar`.
+
+##### 1.3 Study statements that are no longer true for 0.7.0
+
+The study cites G/ and B/ lines in 0.6.6. Every line number in these files moved:
+
+- G/accordion.rs: shifts of +1 from line 123, up to +7 after 352.
+- G/table/state.rs: shifts of +19 after line 58, and more further down. The study's "G/table/state.rs:1959-1988" is now about 2010-2040.
+- G/tree.rs from line 84.
+- G/list/list.rs and list_item.rs.
+- B/tree.rs from line 147, by +7 to about +30. The study's "B/tree.rs:230-241, 268-278, 291-309" is now shifted.
+- G/lib.rs resizable lines.
+
+Statements that changed meaning:
+
+- Study line 274, accordion: "`keep_mounted` on the base panel, so closed content can be unmounted." In 0.6.6 the styled accordion always passed `keep_mounted(true)`, so it never unmounted. In 0.7.0 it unmounts when settled (G7/accordion.rs:353-359).
+- Study line 271: "Disabling the whole accordion at once (G/accordion.rs:56-60, 128)." In 0.6.6 the flag did not reach the item triggers (only `on_toggle_click`). It does in 0.7.0 (G7/accordion.rs:123-129).
+- Study "table" section: selection accessors. `selected_row()` and the others no longer return a stale value from another mode (item 7). If the study says a caller can read `selected_row` in any mode, that is no longer true. I did not find that exact sentence.
+- Study "tree" section: "Context menu per row" (G/tree.rs:54-62, 92-103). The lookup and the disabled check changed (item 12).
+- Study "resizable" section (study lines 1816-1826): "`resizable` is an inline module in the component crate that only re-exports base types (G/lib.rs:67-73, 107-110)". False for 0.7.0. It is now a module file with its own handle look (items 20-23). Also "It has no role, focus or key handling" is still true.
+- Study "list" section (study lines 1728-1749): "Rows are Role::ListItem with position, set size and selected state (G/list/list.rs:490-495)". Still true (now G7/list/list.rs:492). It does not say that `ListState` now carries `Role::List`, and that ListItem can now take an accessible name.
+- Study "Summary" item 3 (study lines 63-73, "gpui-kit also sets position in set on radios and tabs (B/radio.rs:213-219; B/tabs.rs:75-81)"). The tab half is misleading in both versions. B7/tabs.rs:75-81 defines `set_position`, but the styled TabBar never calls it: `grep -rn "set_position" G7/` finds only G7/radio.rs:208, and the study's own tab section says the same. The same holds for table counts: B7/table.rs:91-110 defines `row_count` and `column_count`, but `grep -rn "row_count(\|column_count(\|aria_row\|aria_col" G7/table/` finds nothing.
+
+##### 1.4 The "tabs keyboard is a TODO" statement (study line 177)
+
+Still true in 0.7.0. B7/tabs.rs is byte-identical to B6/tabs.rs (`diff -q` prints nothing). The comment at B7/tabs.rs:15-20 still says tabs do not take keyboard focus and lists roving focus, arrows, Home/End and Enter/Space as a TODO. G7/tab/ is identical. `grep -n -i "key_context\|on_action\|KeyBinding\|on_key\|track_focus\|focus_handle" G7/tab/*.rs B7/tabs.rs` finds nothing.
+
+What 0.7.0 did add is keyboard roving for the new toolbar (B7/toolbar.rs:114-131). It is a separate primitive. It does not touch tabs.
+
+---
+
+#### Part 2. Family-by-family comparison
+
+Notation: "ours" = reactive-tui today. Cell counts for ours. "px" for gpui-kit. I did not convert px to cells.
+
+Unit background used by several rows below (details in Part 3): utility spacing classes map to numbers as `p-1`=4, `p-4`=16, `gap-0.25`=1, `gap-0.5`=2, and the number is used as cells (R/layout/css/parsers.rs:27-79). `w-N` and `h-N` use the number directly as cells (R/layout/css/sizing.rs:14, 52). So `w-4` is 4 cells wide, but `p-4` is 16 cells of padding.
+
+##### 2.1 Accordion
+
+Layout defaults
+
+- Ours: no padding, border or gap. Sections are `flex flex-col shrink-0 min-w-0` (R/widgets/layout/accordion/live.rs:216-221). The root is `flex flex-col min-w-0` (R/widgets/layout/accordion/live.rs:226-231), so it fills a column parent and has no width of its own. Header row: `flex flex-row shrink-0 min-w-0` (137). It holds a 2-cell focus marker `"▶ "` or `"  "` (116-118), the title, and the glyph `" ▼"` or `" ▲"` right after the title (121-133). The glyph is not pushed to the right edge.
+- gpui-kit: `size_full()` and a bordered rounded card by default (G7/accordion.rs:105-111, 37). Header `py_2 px_3`, `gap_3` (298-304). Content `pb_2 px_3` (366-369). Item background `tokens.accordion`, `border_b_1` between items (378-381). Sizes XSmall to Large.
+- Wide parent: both fill the parent width. Ours has no maximum. Content is `width_percent(100)` (R/widgets/layout/accordion/live.rs:172-180).
+
+Content that does not fit
+
+- Ours: the body is `overflow_hidden` with an animated height (R/widgets/layout/accordion/live.rs:190-206). Text wrapping depends on the child's own class. I did not check wrapping in the catalog's accordion.
+- gpui-kit: GUI text wraps. The chevron is a fixed icon at the end (G7/accordion.rs:322-331).
+
+States and colors
+
+- Ours: focus = the `▶ ` glyph (116). Disabled = literal class `text-gray-500` (113). No hover. Expanded = glyph change. No theme lookup in any of these.
+- gpui-kit: open uses `theme().foreground` (306). The chevron uses `muted_foreground` (330). Hover is off by default (`hover()` doc, G7/accordion.rs:227-231). Disabled comes from the base.
+
+Options
+
+- Ours only: modes Single, Multiple, AlwaysOne; glyphs; stagger; `persist_state`; per-section `aria_label`; presets (study lines 260-270).
+- gpui-kit only: `bordered`, whole-accordion `disabled` (now working, Part 1 item 1), sizes, title, hover and content styles, `keep_mounted` behavior (now used).
+
+Keyboard and roles
+
+- Ours: Up, Down (wrap), Home, End, Enter, Space (R/widgets/layout/accordion.rs:333-337). Header is `Role::Button` with a label, expanded, click, disabled (R/widgets/layout/accordion/live.rs:139-152). A collapsed body is inert and a hidden Group (207-214).
+- gpui-kit: no keys. Roles Heading (level) and Region come from the base (study lines 288-289 cite B/accordion.rs:188-203, 255-270).
+
+##### 2.2 Breadcrumb
+
+Layout defaults
+
+- Ours: each segment has class `px-1` unless `compact` (R/widgets/layout/breadcrumb/live.rs:154-157). `px-1` is 4 cells on each side, so a segment is its label plus 8 cells. The separator is `" / "` (3 cells) unless compact (43-49). The root is `flex flex-col min-w-0 w-full` (416). Default separator `/`, default strategy MiddleEllipsis, `max_width` None (R/widgets/layout/breadcrumb.rs:145-147). Home icon default is the emoji `🏠` and `show_home_icon` is true (R/widgets/layout/breadcrumb.rs:153-154). An emoji may be two cells wide; I did not check how the code measures it.
+- gpui-kit: `h_flex().gap_1p5().text_sm()` (G7/breadcrumb.rs:171-176). Separator is a 3.5 icon (145). No item padding.
+- Wide parent: ours fills (`w-full`). The trail is left-aligned. Nothing stretches.
+
+Content that does not fit
+
+- Ours: five strategies. MiddleEllipsis (default) keeps first and last and fills from the end (R/widgets/layout/breadcrumb/overflow.rs:8-60). Available width is the smaller of the viewport and `max_width` (R/widgets/layout/breadcrumb/live.rs:52-60). Scroll mode scrolls to the focused segment (92-120).
+- gpui-kit: nothing. No wrap, no clip, no menu.
+
+States and colors
+
+- Ours: current = `font-bold`, clickable = `underline`, disabled = `opacity-50` (204-211). No color from the theme. Hover only shows a tooltip line with the literal `bg-gray-800 text-white` (404).
+- gpui-kit: `muted_foreground`; last item `foreground`; disabled `muted_foreground` (G7/breadcrumb.rs:101-105). Cursor pointer for links.
+
+Options
+
+- Ours only: separator text, compact, max_width, five strategies, icons, home icon, tooltips, presets.
+- gpui-kit only: a click closure per item, `disabled` per item.
+
+Keyboard and roles
+
+- Ours: Left and Right (no wrap), Home, End, Enter, Space (R/widgets/layout/breadcrumb.rs:274-278). Root `Navigation`. Segment `Link` with label or aria_label, description, `aria-current=page` (R/widgets/layout/breadcrumb/live.rs:183-202, 419). Hidden segments are unreachable (study line 316-317).
+- gpui-kit: no keys. Item is `Link` when clickable, else `ListItem` (G7/breadcrumb.rs:94-99). The row has no role.
+
+##### 2.3 Progress
+
+Layout defaults
+
+- Ours: height 1 cell (R/widgets/display/progress_bar.rs:235). `width` None gives `width_percent(100)`, so it fills the parent (R/widgets/display/progress_bar/live.rs:171-178). The error line is fixed `width_px(40.0)` (173). An intrinsic-width helper uses 24 cells when `width` is None (180-184). A label adds a row above, and the text adds a row below (160-165).
+- gpui-kit: `w_full()`, height 4, 6, 8 or 10 px by size, default Medium 8 px (G7/progress/progress.rs:97-102, 126-129). Pill radius unless the theme has no radius (104-111).
+- Wide parent: both fill the parent when width is not set. Ours steps in whole cells (R/widgets/display/progress_bar/live.rs:310), so at 240 columns the step is small.
+
+Content that does not fit: ours has no wrapping. The label and text rows are `whitespace-pre truncate` (231-236 in the helper `text_at`). gpui: not applicable.
+
+States and colors
+
+- Ours: default fill `bg-blue`, track `bg-gray-200` (R/widgets/display/progress_bar.rs:233-234, 308-309). The error line is literal `text-red-500` (R/widgets/display/progress_bar/live.rs:62-66). Both are palette names, not theme roles. Theme roles that exist: primary, secondary, accent, surface, border, foreground, background, error, success, warning, info, text-muted (R/theme/presets.rs, `grep -o '"--color-[a-z0-9-]*"'`).
+- gpui-kit: `theme().tokens.progress_bar`, track at 20% opacity (G7/progress/progress.rs:85-86, 137-139). Value transition uses `motion_tokens().duration_normal` (114). No focus or hover.
+
+Options
+
+- Ours only: range, percent/value/custom text, label, vertical, segments, stripes, pulse, `on_complete`, dialog (study lines 949-957).
+- gpui-kit only: circle, five sizes, accessible name, theme color token.
+
+Keyboard and roles
+
+- Ours: no keys. `ProgressIndicator`, name = label or the fixed English `"Progress"`, value text, numeric value and min and max when determinate (R/widgets/display/progress_bar/live.rs:186-195).
+- gpui-kit: same role, optional name, min 0, max 100 (B7/progress.rs:70-84; the study cites the same lines).
+
+##### 2.4 Scroll
+
+Layout defaults
+
+- Ours: root size is the props `viewport_width` x `viewport_height`, default 80 x 24 (R/widgets/layout/scroll_view.rs:31-32, 147-148), with `max_width_percent(100)` and `max_height_percent(100)` (351-352). It never grows past 80 cells wide unless a class overrides it. The scrollbar takes one column or row from the visible area whenever it is enabled and that axis scrolls, even with no overflow (185-193 subtracts `usize::from(show_scrollbars && scroll_y)`). Bar glyphs `█` and `░` are plain text (R/widgets/layout/scroll_view.rs:455-470). The content is absolutely positioned with `inset_left(-offset)` (262-265).
+- gpui-kit: the caller's element is the scroll area (G7/scroll/scrollable.rs:142-165). The scrollbar is an overlay (B7/scrollbar.rs:22-31, width 16 px, thumb 6 px, minimum thumb 48 px). It takes no layout space.
+- Wide parent: ours stays 80 cells wide and does not fill (see cleanup C1). gpui fills because the element is the caller's.
+
+Content that does not fit: that is the purpose of both. Ours scrolls by cells. Horizontal scroll only if `scroll_x`. With `scroll_x` false the content is forced to the viewport width (R/widgets/layout/scroll_view.rs:266-271).
+
+States and colors
+
+- Ours: focus flag only. No color from the theme (bar text has no color class).
+- gpui-kit: theme scrollbar tokens, modes Scrolling, Hover, Always (B7/scrollbar.rs:46-56).
+
+Options
+
+- Ours only: `scroll_speed`, `smooth_scroll`, fixed viewport size, `show_scrollbars` (R/widgets/layout/scroll_view.rs:24-112).
+- gpui-kit only: modes, drag on the thumb, click on the track, `max_fps`, auto-scroll near an edge, bounce.
+- Two builders exist with different options. `builder::scroll_view()` (R/builder/specialized.rs:456-540) has `horizontal_scroll`, `vertical_scroll`, `show_scrollbars`, `class`, `contents`. It has no viewport or speed setters, so it always uses the 80 x 24 default (R/builder/specialized.rs:520-528).
+
+Keyboard and roles
+
+- Ours: arrows by one cell, PageUp and PageDown by the viewport height, Home and End; only while the view has focus (R/widgets/layout/scroll_view.rs:378-411). The wheel scrolls, with Shift for horizontal (413-429). At an edge the wheel returns `Ignored` so a parent can scroll (430-433, comment INP-005). Role `ScrollView` (358). The bar has no role or values.
+- gpui-kit: no keys, no roles (B7/scrollbar.rs: 0 matches for role, aria, keybinding).
+
+##### 2.5 Tabs
+
+Layout defaults
+
+- Ours: header text is `<focus glyph><icon ><label><badge>`, where the glyph is `▶` when focused, `→` when hovered, else a space (R/widgets/layout/tabs.rs:541-563). Each header is `flex flex-row items-center shrink-0` plus `px-0` (Small), `px-0.5` (Medium, default) or `px-1` (Large) (675-678, 709). Those are 0, 2 and 4 cells each side. Tab bar row is `flex flex-row shrink-0` (729-736). Root is `flex flex-col min-w-0 overflow-hidden` (778-787). Panels are `flex flex-col min-w-0`, the content area `flex-1 min-w-0 overflow-hidden` (751, 763).
+- gpui-kit: padding by variant and size, 8, 10, 12 or 16 px (G7/tab/tab.rs:71-77, tab_bar.rs:362-364). Underline gap 16 px. Fixed heights 20 to 44 px (G7/tab/tab.rs:27-40).
+- Wide parent: the bar is content-wide and left-aligned. The root fills a column parent.
+
+Content that does not fit
+
+- Ours: clipped by the root's `overflow-hidden` (R/widgets/layout/tabs.rs:781-783). No scroll, no ellipsis, no menu. I searched `scroll|overflow|ellipsis|truncat|max_width` in R/widgets/layout/tabs.rs. It finds only `overflow-hidden` classes (763, 776, 781, 783). Tabs beyond the width cannot be seen. Keyboard focus can still move to them.
+- gpui-kit: horizontal scroll (G7/tab/tab_bar.rs:545-546), an overflow menu with `.menu(true)` (default false, 109-113), and per-tab `max_width` with an ellipsis (118-121).
+
+States and colors
+
+- Ours: selected = variant class: `underline`, `border`, `bg-gray-700`, `bg-blue-600 text-white` (R/widgets/layout/tabs.rs:667-673). `border` adds no border, see Part 3.6. Disabled = the label is wrapped in `~...~` (564-566). Focus and hover = the glyphs above. Tooltip uses `bg-gray-800 text-white` (776). All literal, none from the theme.
+- gpui-kit: `tab_foreground`, `foreground`, `border`, `tab_bar` and `tab_bar_segmented` tokens (G7/tab/tab.rs:131-149, tab_bar.rs:369-391).
+
+Options
+
+- Ours only: positions Top, Bottom, Left, Right; closable; badges; tooltips; lazy panels; keyboard activation; keyed identity.
+- gpui-kit only: overflow menu, `max_width`, scroll handle, prefix and suffix, icon-only tabs, sliding indicator.
+
+Keyboard and roles
+
+- Ours: Left, Up, Right, Down (wrap, skip disabled), Home, End, Enter, Space, Delete or `x` (close, only if the tab is closable, R/widgets/layout/tabs.rs:500-507), keys 1 to 9 (876-891). Roles: `TabList` labelled with the fixed English "Tabs" (737 and the label after it), `Tab` with label, selected, click or disabled (699-706), `TabPanel` labelled "<label> panel" (756), root `Group` (787). No position in set or size of set.
+- gpui-kit: no keys (Part 1.4). `Tab` role with optional position (B7/tabs.rs:157-172). The styled bar never sets it.
+
+##### 2.6 Table
+
+Layout defaults
+
+- Ours: root `w-full min-w-0 min-h-0`, plus `border` and 1-cell padding when a border is enabled (R/widgets/display/table/live.rs:539-560). Height = rows + header (+2 with border), capped by `max_height` and 100% of the parent (539-556). Rows are one cell tall. Cells have no padding and no gap between columns (R/widgets/display/table/live.rs:172-199). Text is `whitespace-pre truncate` (194). Column defaults: `TableColumn::new` has width Auto and `min_width` 50 (R/widgets/display/table.rs:653-664). `builder::data_table().column` has width Flex(1.0) and `min_width` 100 (R/builder/widgets/table.rs:52-64). Flex columns start at their minimum, then share the spare width by weight (R/widgets/display/table.rs:302-341).
+- gpui-kit: column width 100 px, `min_width` 20 px (G7/table/column.rs:75-80). A table cell has `min_w(100 px * col_span)` (G7/table/table.rs:14, 505). About 10 characters wide, not 100.
+- Wide parent (240+ columns): ours fills the width. With the builder's 100-cell minimum, 3 columns need 300 cells and the table scrolls sideways on a 240-column screen (R/widgets/display/table/live.rs:75-76, 92-100 clamp offset_x to content width).
+
+Content that does not fit: ours truncates a cell (194) and scrolls horizontally when `scrollable` (R/widgets/display/table/live.rs:89-100). Header sort arrows ` ↑` and ` ↓` are appended to the title and can be cut off (385-388).
+
+States and colors
+
+- Ours: selected row class from `selected_style`, default literal `bg-blue fg-white` (R/widgets/display/table.rs:166). Header default `font-bold`. Zebra and row styles are caller strings. `hover_row` exists in `TableState` (R/widgets/display/table.rs:231, 251) but nothing sets or reads it (`grep -rn hover_row src` finds only those two lines). Focus = accessibility focus on the selected cell (R/widgets/display/table/live.rs:456-462). No visible focus style.
+- gpui-kit: selected, stripe and hover colors from theme (study line 1300; G7/table/state.rs:2010-2040).
+
+Options
+
+- Ours only: Fixed, Percent, Auto, Flex widths; multi-select; per-row and per-cell styles; clickable cells; data-table filters, pages, hidden columns, multi-sort.
+- gpui-kit only: pinned and movable columns, group headers, column spans, footer and caption, row, column and cell modes (now with `TableSelection`), context menu, loading and empty views.
+
+Keyboard and roles
+
+- Ours: Down wraps to the first row and Up wraps to the last (R/widgets/display/table.rs:395-398). Home, End, PageUp, PageDown, Enter, Space (multi), Ctrl+A (399-421). Roles: `Table`, `ColumnHeader`, `Row` (selected, disabled), `Cell` (R/widgets/display/table/live.rs:395, 435, 467, 565). No row index or count (`grep -n "row_count\|row_index\|column_count\|set_position" R/widgets/display/table/live.rs table.rs` finds nothing).
+- gpui-kit: keys not checked. Roles: `Row` only in the styled table (G7/table/state.rs:2024). Base counts exist but are not called (Part 1.3).
+
+##### 2.7 Tree
+
+Layout defaults
+
+- Ours: indent 2 cells per level (R/widgets/display/tree.rs:423, 519). Expander `"▶ "` or `"▼ "` is 2 cells. A checkbox is 2 cells. With `show_lines`, 3 more cells per nested row (R/widgets/display/tree/live/paint.rs:76-86, 141-145). Rows are absolute one-line elements, `width = max(row width, viewport)` (paint.rs:206-208, 227-234), so they fill. Root `w-full min-w-0 min-h-0` (paint.rs:349-357).
+- gpui-kit: the styled tree draws no rows itself. The app draws `ListItem`s (G7/tree.rs:84-92). Indent is the app's.
+- Wide parent: fills. Nothing stretches.
+
+Content that does not fit: label text is `whitespace-pre truncate` (paint.rs:101). Horizontal scroll with Shift+Left or Shift+Right (study line 1430). Unwindowed by default: every row is built and painted (paint.rs:266-272 skips only when `virtual_scrolling` is on).
+
+States and colors
+
+- Ours: selected = literal `bg-blue fg-white` (R/widgets/display/tree.rs:431, 527). Tree lines = literal `fg-gray` (434, 530). Match = `underline`. Drop target = `underline font-bold` (paint.rs:116-140). `hover_node` is set on mouse move (R/widgets/display/tree/live.rs:818, 835) but never used when painting (`grep -rn hover_node src` shows the field, the two setters, nothing else). Focus = accessibility focus on the cursor row (paint.rs:243).
+- gpui-kit: `ListItem` uses `list_hover`, `list_active` or `accent`, and `selection` (G7/list/list_item.rs:225-274).
+
+Options
+
+- Ours only: multi-select, checkboxes, search, lazy load, drag and drop, lines, horizontal scroll, borders, windowing.
+- gpui-kit only: context menu, `reveal_item`, `scroll_to_item`, app-drawn rows.
+
+Keyboard and roles
+
+- Ours: Up, Down, Home, End, PageUp, PageDown, Left, Right (collapse, expand, move), Enter, Space, `+ = - *`, Ctrl+A (study lines 1422-1428, unchanged: R/widgets/display/tree/live.rs:505-602). `Tree` root and `TreeItem` with label, selected, expanded (paint.rs:210-221, 359). No level or position.
+- gpui-kit: arrows through actions; Up and Down wrap; Left and Right only collapse and expand (study line 1435). `TreeItem` with label, selected, expanded (B7/tree.rs:463-467).
+
+##### 2.8 Virtual list
+
+- Ours: no widget. Windowing lives in the table (R/widgets/display/table/live.rs:117-127), the tree (paint.rs:266-272), the file explorer and the data table.
+- Data table defaults: `row_height` 32, `viewport_height` 400 (R/widgets/display/data_table.rs:352-358). When virtual scroll is on (more than 100 rows, R/widgets/display/data_table.rs:358), the table is capped at ceil(400/32) = 13 rows plus header plus border, whatever the terminal height (R/widgets/display/data_table/live.rs:525-545).
+- gpui-kit: `v_virtual_list` and `h_virtual_list`, per-item sizes, no role, no keys. Both files unchanged (Part 1.1).
+- Layout, overflow, states, options, roles: not applicable to ours. gpui-kit has none of its own (the caller's rows carry them).
+
+---
+
+#### Part 3. The gap problem
+
+##### 3.1 From class to Taffy value
+
+1. `w-full grid grid-cols-3 gap-0.25` is split by whitespace and applied token by token (R/layout/css/optimizer.rs:106-132, 146-200).
+2. `gap-0.25` reaches `apply_gap` through `delegate_to_existing_modules` (R/layout/css/optimizer.rs:194) and `apply_spacing_utilities` (R/layout/css/spacing.rs:113-134). `apply_gap` calls `parse_spacing(token, "gap-")` (R/layout/css/spacing.rs:75-79).
+3. `parse_spacing` is a table lookup. `"0.25"` returns `1.0`, `"0.5"` returns `2.0`, `"1"` returns `4.0` (R/layout/css/parsers.rs:27-79, `"0.25" => Some(1.0)` at line 47). Its doc comment says "pixel values" (24-26). A value not in the table returns `None` (parsers.rs:73, "No fallback").
+4. `apply_gap` then calls `StyleBuilder::gap_px(1.0, 1.0)` (R/layout/css/spacing.rs:78; R/layout/style.rs:908-913). It stores `LengthPercentage::length(1.0)` in the Taffy `gap`. The layout unit is one terminal cell (a test checks `gap-4` becomes `length(16.0)`, R/layout/css/spacing.rs:196-216). So `gap-0.25` is exactly 1 cell, not a fraction of a cell. Nothing rounds a gap before layout.
+5. `grid-cols-3` sets `grid_cols = Some(3)` (R/layout/css/layout.rs:113-115, R/layout/style.rs:1095-1098). `build()` turns it into three tracks made with `TrackSizingFunction::from_fr(1.0)` (R/layout/style.rs:1530-1534). In Taffy 0.9.2 that is `minmax(auto, 1fr)` (taffy-0.9.2/src/style/grid.rs:1120-1123). So a track can grow past its equal share if an item's minimum content is larger. Catalog cards and span cells set `min-w-0`, which removes the automatic minimum (R/layout/css/sizing.rs:85).
+
+##### 3.2 Where Taffy's float result becomes whole cells
+
+- Every layout call uses `TaffyTree::new()` with default settings: R/layout/paint_tree.rs:84 and 124, R/layout/paint_tree/suprtui.rs:365, R/layout/mod.rs:62, R/layout/manager.rs:131. Cargo.toml pins `taffy = "0.9.1"` (line 41). Cargo.lock has 0.9.2. The default is `use_rounding: true` (taffy-0.9.2/src/tree/taffy_tree.rs:79-84). I searched `use_rounding|disable_rounding|enable_rounding` in src and crates and found no override.
+- Taffy's rounding pass is `round_layout` (taffy-0.9.2/src/compute/mod.rs:207-247; the same code is in 0.13.0 at compute/mod.rs:230-232). For each node:
+  - `location = round(unrounded location relative to the parent)` (line 218-219);
+  - `size = round(cumulative_start + size) - round(cumulative_start)` (line 220), where `cumulative_start` is the sum of the unrounded relative positions from the root.
+- So the position is rounded relative to the parent, and the size is rounded from the absolute position. They do not use the same rounding origin.
+- reactive-tui then reads those rounded values. `collect` uses `layout.size` and `layout.location` from `tree.layout(id)` (R/layout/paint_tree/suprtui.rs:665-685), then adds parent transforms and takes `ceil` of the corners (R/layout/paint_tree/transform.rs:61-97, 98-124). With identity motion and integer positions, this adds no new rounding. The older non-suprtui painter truncates: `location.x.max(0.0) as usize` (R/layout/paint_tree.rs:495-509).
+- Grid track widths: Taffy computes `(container - gaps) / n` in floats and rounds only at the end, as above. For 3 equal tracks in width W with gap g, track width is `(W - 2g)/3`.
+
+##### 3.3 Every place where a requested gap can become 0 cells
+
+1. Class value not in the table. `gap-0.75`, `gap-1.25`, `gap-13` and others return `None` (R/layout/css/parsers.rs:73). The token is ignored without error and the gap stays 0 (optimizer.rs:249-251, "Token not recognized").
+2. `gap-x-N` and `gap-y-N` overwrite the other axis. They call `gap_px(px, 0.0)` and `gap_px(0.0, px)` (R/layout/css/spacing.rs:82-89), and `gap_px` replaces the whole `gap` (R/layout/style.rs:908-913). `gap-4 gap-x-2` leaves the row gap at 0, and `gap-x-2 gap-y-2` keeps only the last. The same for `space-x-N` and `space-y-N` (R/layout/css/spacing.rs:96-106).
+3. `DeclarativeGrid`. `grid_to_node_spec` writes `gap-{gap}` with a cell count as if it were a scale step. `Grid::gap(1)` becomes `gap-1`, which is 4 cells. `gap: 13` becomes `gap-13`, which is not in the table, so 0 (R/layout/renderer.rs:84-93, R/layout/grid.rs:175-176, 207-208). The field docs say "in cells" (188-190). Also `column_gap` and `row_gap` default to 1 but are used only when `gap` is 0 and are turned into 4 cells each.
+4. Animation. `gap` in the motion property table is set from a float and clamped at 0 (R/app/motion/property.rs:317). A tween can pass through fractional values. Taffy then rounds the resulting positions. I did not read the tween code.
+5. Inline styles. `gap:` with a negative number returns `None` and drops the declaration (R/layout/style/inline.rs:256-262).
+6. Rounding (next section). By the derivation below, an integer gap `g` becomes `g`, `g-1` or `g+1` cells between two neighbours only when the grid's cumulative origin is fractional. This can give 0 for `g = 1`.
+
+##### 3.4 Where two neighbouring tracks can be rounded so they touch
+
+Let a container have cumulative unrounded origin `c` (the sum of unrounded relative positions from the root to the grid). Track k starts at relative position `r_k` and ends at `r_k + w`, and the next track starts at `r_{k+1} = r_k + w + g`. Using Taffy's rule (Part 3.2):
+
+- painted start of k+1 = `round(r_{k+1})`
+- painted end of k = `round(r_k) + round(c + r_k + w) - round(c + r_k)`
+- Let `e_k = round(r_k) - round(c + r_k) + round(c)`. Then the painted gap is `g + e_{k+1} - e_k` when `g` is an integer. Each `e_k` is in {-1, 0, +1}.
+
+So (derivation done by hand, not run):
+
+- If `c` is an integer, `e_k` is 0 for all k, and the painted gap equals `g` exactly (1 for `gap-0.25`).
+- If `c` has a fractional part, the painted gap between neighbours can be `g-1`, `g` or `g+1`. For `g = 1` that is 0, 1 or 2 cells, in the same row of tracks. This matches "first and second touch, third keeps its gap" and "gaps of two cells and one cell". It also explains why gap 4 (16 cells) would not show it: 15 to 17 cells looks the same.
+- Any node whose absolute x is fractional gives such a `c`. Sources in reactive-tui: `w-1/3` or `width_percent` on an ancestor, `flex-1` sharing with unequal siblings, or an outer grid track that is itself fractional. A grid nested inside a grid track inherits that fractional origin.
+
+Rounding also affects sizes, not only gaps: an item spanning tracks (`col-span-2`) has width `2w + g`, rounded from its own start (R/layout/css/layout.rs:130-131, 137).
+
+##### 3.5 Which explains the reproduction (hypothesis)
+
+Hypothesis, since I cannot run the code: the relative-location vs cumulative-size rounding in `taffy::round_layout` (3.2), applied to a grid whose cumulative origin is fractional (3.4). Reasons:
+
+- It gives exactly the reported pattern: some gaps 0, some 1, some 2 in one grid, at a width not divisible by the column count.
+- The catalog's gaps are all 1 cell (`gap-0.25`, next section), the smallest value where +/-1 matters.
+- The catalog's cards have no visible border: `border` only sets a gray background if none is set (R/layout/css/effects.rs:51-60). A card is a colored block, so a 0-cell gap fuses two cards.
+
+What I could not confirm, and it weakens the hypothesis:
+
+- Reading the catalog structure at 160 columns (sidebar `w-24`, stage `flex-1`, `p-0.25`, scroll view with a fixed `width_px`, no percent widths), I could not find a fractional origin. Every ancestor width and offset I traced is an integer (catalog.rs:302, 995, 1004-1020). I traced them by hand: sidebar 24, stage 136, stage content 134, scroll content 133, grid at x = 25. If all these are integers, the formula gives gap 1 everywhere and the reproduction is not explained by rounding alone.
+- So the reproduction is either (a) caused by a fractional origin I did not find (for example inside the scroll view's measured size or a component that reports fractional layout), or (b) caused by something else in the path. Candidates I did not rule out: the retained-tree update path reusing stale layout (R/layout/paint_tree/suprtui.rs:365-420); `minmax(auto, 1fr)` tracks becoming unequal.
+- A direct check, which I could not run: print `tree.layout(id)` (both `location` and `size`, unrounded via `disable_rounding`) for the grid's children at width 160 and compare.
+
+##### 3.6 Gap and padding classes used by the catalog
+
+Card grids
+
+- `card_grid_class(width)` (catalog.rs:240-250) returns `w-full grid grid-cols-N gap-0.25` with N = 1 below 80 columns, 2 below 150, 3 below 200, 4 from 200 up. It is used at catalog.rs:356, 416, 670 and 693.
+- Layout page span grid: `w-full grid grid-cols-4 gap-0.25` (catalog.rs:466). Cells use `min-w-0 px-0.25 text-white` (456) and `col-span-4`, `col-span-2`, `col-span-3` (467-476).
+
+Other gap and padding classes (all 1 cell)
+
+- `w-full flex-col gap-0.25` (catalog.rs:331, 462, 861, 954), `flex-col gap-0.25` (509, 847).
+- Card: `flex-col min-w-0 shrink-0 border border-gray-700 bg-gray-900 p-0.25 gap-0.25` (318).
+- Sidebar: `w-24 shrink-0 h-full flex-col border-r border-gray-700 bg-gray-950 p-0.25` (302). Compact bar `h-3 ... px-0.25` (306).
+- Stage: `flex-col flex-1 min-w-0 min-h-0 h-full p-0.25 gap-0.25 bg-black` (995). Header and footer bars `px-0.25` (1045, 1064).
+
+Effects on wide terminals
+
+- Grid columns stop at 4 (from 200 columns). At 512 columns each card is about 120 wide, and cards never use more than 4 columns.
+- The catalog picks `0.25` because `gap-1` would be 4 cells. This is the unit problem in Part 3.1 step 3. A developer writing `p-1` or `gap-1` gets 4 cells.
+- `border-*` classes have no effect (`border-r`, `border-b`, `border-gray-700` are not layout or paint: `grep -n '"border-r"\|"border-b"' R/layout/css/*.rs` finds nothing, and R/layout/css/effects.rs:81-91 accepts `border-gray*` as a no-op).
+
+---
+
+#### Part 4. Clean-up candidates
+
+Sizes: small under 200 lines, medium, large. Sizes are guesses.
+
+**C1. ScrollView does not fill its parent.** Root size is the fixed props 80 x 24 with a 100% cap (R/widgets/layout/scroll_view.rs:31-32, 347-352). `builder::scroll_view()` has no way to set a size (R/builder/specialized.rs:520-528). The catalog works around it by computing the viewport by hand (catalog.rs:1004-1020). Reference: gpui's scroll area is the caller's element (G7/scroll/scrollable.rs:142-165). Fix: default to fill the parent (100% and `min-h-0`) and make the fixed size optional. Size: small.
+
+**C2. Table column minimums of 50 and 100 cells.** R/widgets/display/table.rs:661 and R/builder/widgets/table.rs:61, enforced at R/widgets/display/table/live.rs:75-76 and 666-667. Reference: gpui column `min_width` 20 px and default 100 px (G7/table/column.rs:75-80), cell min 100 px (G7/table/table.rs:14). Fix: minimum of about 8 to 10 cells, and equal weights so 4 columns fit 240 columns. Size: small.
+
+**C3. Data table row cap of 13.** `row_height` 32 and `viewport_height` 400 are read as cells (R/widgets/display/data_table.rs:352-358). They cap the table at 13 rows, header and border (R/widgets/display/data_table/live.rs:525-545). Reference: gpui virtual list takes item sizes and fills the parent (B7/virtual_list.rs:129-212). Fix: derive the row count from the measured height. Size: small to medium.
+
+**C4. Spacing scale used as cells.** `p-1` is 4 cells, `gap-1` is 4, `gap-4` is 16 (R/layout/css/parsers.rs:27-79, R/layout/css/spacing.rs:196-216). `w-4` is 4 cells (sizing.rs:14). Consumers: breadcrumb segment `px-1` = 4 cells each side (R/widgets/layout/breadcrumb/live.rs:156); tabs `px-1` = 4 (R/widgets/layout/tabs.rs:678); `responsive_grid` has `gap-4` = 16 cells (R/builder/layout.rs:38); `primary_button` `px-4 py-2` = 16 cells and 8 rows (R/builder/layout.rs:105). Reference: gpui uses px on a 4 px scale (G7/tab/tab.rs:71-77; G7/breadcrumb.rs:172). Fix: one terminal spacing scale (1 unit = 1 cell or 2 cells), and check every widget class. Size: medium, because it touches every class string.
+
+**C5. Gap parsing gaps.** (a) values not in the table are dropped silently; (b) `gap-x`, `gap-y` and `space-*` overwrite the other axis (R/layout/css/spacing.rs:82-106; R/layout/style.rs:908-913); (c) `DeclarativeGrid` writes cells as scale steps (R/layout/renderer.rs:84-93). Fix: accept any number and `px`, keep the other axis, and add a `gap_x` and `gap_y` setter. Size: small.
+
+**C6. Rounding of fractional grid tracks.** Part 3.2 to 3.4. Options: give Taffy integer-friendly tracks (compute column widths in the grid setup so gaps stay integral), or post-process children so consecutive tracks keep at least `gap` cells. Size: medium. Needs a test at 160 columns first.
+
+**C7. Colors written as literals instead of theme roles.**
+- Progress `bg-blue`, `bg-gray-200`, `text-red-500` (R/widgets/display/progress_bar.rs:233-234, 308-309; live.rs:62-66).
+- Table and tree selected `bg-blue fg-white` (R/widgets/display/table.rs:166; R/widgets/display/tree.rs:431, 527).
+- Tree lines `fg-gray` (tree.rs:434, 530).
+- Tabs `bg-gray-700`, `bg-blue-600 text-white`, `bg-gray-800` (R/widgets/layout/tabs.rs:670-671, 776).
+- Accordion `text-gray-500` (R/widgets/layout/accordion/live.rs:113). Breadcrumb tooltip `bg-gray-800 text-white` (R/widgets/layout/breadcrumb/live.rs:404).
+- Error lines `text-red-500` in table, tree, data table, modal and popover (R/widgets/display/table/live.rs:372; tree/live/paint.rs:259; data_table/live.rs:685, 701; modal/live/render.rs:41, 248; popover/live/render.rs:21).
+- Modal default `bg-white text-black`, backdrop `bg-black/50` (R/widgets/display/modal.rs:184-189). The file explorer selection uses `bg-blue-600 text-white` (R/widgets/display/file_explorer/live/paint.rs:340).
+- `builder::card()` is `bg-white ... border-gray-200` (R/builder/layout.rs:85-89).
+- Reference: gpui reads `theme().foreground`, `muted_foreground`, `border`, `accent`, `list_active`, tokens (G7/accordion.rs:306, 330; G7/breadcrumb.rs:101-105; G7/tab/tab.rs:131-149; G7/list/list_item.rs:225-274; G7/progress/progress.rs:85-86).
+- Theme roles available: `--color-primary`, `secondary`, `accent`, `surface`, `border`, `foreground`, `background`, `error`, `success`, `warning`, `info`, `text-muted` (R/theme/presets.rs). A class such as `bg-primary` resolves through the theme (R/layout/colors.rs:357-361). Size: small per widget, medium in total.
+
+**C8. Defaults that name a class the parser does not know.** `fg-white` and `fg-gray` (Part 5.5). Size: small.
+
+**C9. Tabs that do not fit.** Root clips (R/widgets/layout/tabs.rs:778-787). Reference: horizontal scroll and menu (G7/tab/tab_bar.rs:109-121, 545-546). Fix: scroll the bar to keep the focused tab in view, then a menu, then optional `max_width` with an ellipsis. Size: medium.
+
+**C10. Breadcrumb segments hidden by overflow cannot be reached** (R/widgets/layout/breadcrumb.rs:256-265; the `…` is hidden text, live.rs:322-343). Reference: gpui tab menu (G7/tab/tab_bar.rs:554-585). Size: medium.
+
+**C11. Position, count and level for screen readers.** Tabs (R/widgets/layout/tabs.rs:699-706), tree rows (R/widgets/display/tree/live/paint.rs:210-221), table rows and cells (R/widgets/display/table/live.rs:435, 467). Reference: B7/tabs.rs:75-81 (defined; not called by the styled bar), B7/table.rs:91-110 (defined; not called). Ours would go beyond the reference. Size: small each.
+
+**C12. Fixed English accessible names.** "Tabs" (tabs.rs:738 area), "Progress" (R/widgets/display/progress_bar/live.rs:188), "<label> panel" (R/widgets/layout/tabs.rs:757), "Close <label> tab" (683). Reference: gpui takes an optional label (G7/progress/progress.rs:62; G7/list/list_item.rs:89-97). Fix: an optional label. Size: small.
+
+**C13. Whole-accordion disable, and unmount closed content.** Reference: G7/accordion.rs:123-129, 353-359. Ours: disabled is per section (R/widgets/layout/accordion.rs:65-66). Closed bodies stay in the tree with zero height (R/widgets/layout/accordion/live.rs:190-214). Size: small.
+
+**C14. Accordion and breadcrumb have no visual separation.** No border, padding or gap between sections (R/widgets/layout/accordion/live.rs:216-221). Reference: item padding and a border between items (G7/accordion.rs:298-304, 378-381). The glyph is next to the title, not at the right edge (121-133). Size: small.
+
+**C15. Progress: fractional fill.** Whole cells only (R/widgets/display/progress_bar/live.rs:310). Study line 984 proposes eighth blocks. At 240+ columns the step is already about 0.4% per cell, so the value is low there. Size: small.
+
+**C16. Scrollbar takes a column even with no overflow** (R/widgets/layout/scroll_view.rs:185-193). Reference: gpui overlays the bar (B7/scrollbar.rs:22-31). Fix: subtract only when the content overflows. Size: small.
+
+**C17. Mouse on the scrollbar.** No click on the track and no thumb drag (R/widgets/layout/scroll_view.rs:369-431). Study line 1083. Size: medium.
+
+**C18. Tab labels: `~label~` for disabled.** Tabs draw disabled as literal tildes (R/widgets/layout/tabs.rs:564-566). Use a dim class from the theme. Size: small.
+
+**C19. Modal `Auto` size is half the viewport.** 120 cells at 240 columns, 256 at 512 (R/widgets/display/modal.rs:405-406). I did not check whether the live modal uses this helper. Size: small.
+
+**C20. `col-span-full` spans 12** (R/layout/css/layout.rs:125). In a 4-column grid, Taffy adds implicit tracks. Fix: span to the last line (`grid-column: 1 / -1`). Size: small.
+
+**C21. `grid-cols-auto-fit-N` and `auto-fill-N` set N columns, not a minimum width** (R/layout/style.rs:1205-1217, R/layout/css/layout.rs:169-190). `grid-cols-auto-fit-20` makes 20 columns. Fix: use Taffy `repeat(auto-fit, minmax(N, 1fr))`. Size: small.
+
+**C22. Dead state and options.** `TableState::hover_row` (R/widgets/display/table.rs:231, 251) and `TreeState::hover_node` (R/widgets/display/tree.rs:592; R/widgets/display/tree/live.rs:818, 835) are tracked but not drawn. Either draw a hover style (theme `list_hover` equivalent) or remove them. Size: small.
+
+**C23. Two builders per widget, with different options.** `builder::tabs()` vs `widgets::layout::TabsBuilder` (study line 1235); `builder::scroll_view()` vs `widgets::layout::ScrollViewBuilder`. Size: medium.
+
+---
+
+#### Part 5. Defects found by reading
+
+Study items first.
+
+**5.1 Table sorts every column as text. Still holds.** `content_a.cmp(content_b)` on the cell strings (R/widgets/display/table.rs:343-360, the compare at 356). The data table's multi-column sort compares strings the same way (R/widgets/display/data_table/live.rs:143-159). So "10" sorts before "9".
+
+**5.2 Table column minimums of 50 and 100 cells. Still holds.** `TableColumn::new` has `min_width: 50` (R/widgets/display/table.rs:661). `TableBuilder::column` has `min_width: 100` (R/builder/widgets/table.rs:61). Both are enforced in `LiveTable::widths` (R/widgets/display/table/live.rs:75-76) and in the column drag clamp (666-667). Data table virtual defaults 32 and 400 also still hold (R/widgets/display/data_table.rs:352-358).
+
+**5.3 Tree node selected under a collapsed parent stays hidden. Still holds, in a narrower form.** The selection itself survives: `selected_nodes` is retained against all selectable nodes, not only visible ones (R/widgets/display/tree/live.rs:223, and 160). The cursor does not: if the cursor id is not among the visible rows, it is reset to the first row (R/widgets/display/tree/live.rs:227-233). The row is not painted, and there is no reveal or auto-expand. Setting `selected_node` puts the cursor on it (lines 638, 655, 662), and the next `rebuild` moves it away. Collapsing an ancestor of the cursor row has the same effect (401-410 then `rebuild`).
+
+**5.4 Study-listed items that are fixed or changed.** The study's "always returns Consumed" for the scroll wheel (study line 1084) is no longer true. The wheel returns `Ignored` at an edge (R/widgets/layout/scroll_view.rs:430-433). The study's line references for the other items in the earlier sections match the current code for tabs (R/widgets/layout/tabs.rs:763, 776, 781, 783 are still the `overflow-hidden` lines). I did not re-verify every study line number.
+
+New defects (not in the study)
+
+**5.5 `fg-white` and `fg-gray` are not parsed.** Defaults use them: `selected_style: "bg-blue fg-white"` (R/widgets/display/table.rs:166; R/widgets/display/tree.rs:431, 527) and `line_style: "fg-gray"` (tree.rs:434, 530). I found no parser for the `fg-` prefix: `grep -rn '"fg-\|fg-"' src` finds only these strings, and `grep -rn 'strip_prefix("fg' src` finds nothing. The color modules handle only `text-` and `bg-` (R/layout/css/colors.rs:17, 47). An unknown token is ignored (R/layout/css/optimizer.rs:249-251). So the selected row gets `bg-blue` and keeps its inherited text color, and tree lines get no color. This is a static reading. I did not run it.
+
+**5.6 A `gap-x-N` or `gap-y-N` class clears the other axis.** (Part 3.3, item 2.) R/layout/css/spacing.rs:82-89 and R/layout/style.rs:908-913.
+
+**5.7 `grid-cols-auto-fit-N` makes N columns.** R/layout/style.rs:1205-1210 stores `min_size` in `grid_cols`. The comment at 1206-1207 says it "would need special handling". So a "minimum 20 chars" class asks for 20 tracks of `1fr`.
+
+**5.8 `col-span-full` is `col-span-12`.** R/layout/css/layout.rs:125.
+
+**5.9 `DeclarativeGrid` gap units.** Part 3.3 item 3. R/layout/renderer.rs:84-93. The struct says "in cells" (R/layout/grid.rs:188-190), the class scale multiplies by 4.
+
+**5.10 Accordion glyph meaning.** A collapsed section shows `▼` and an expanded one shows `▲` (R/widgets/layout/accordion/live.rs:121-130, defaults `expand_icon: ▼`, `collapse_icon: ▲` at R/widgets/layout/accordion.rs:171-172). The glyph shows the action, not the state. The focus marker is a separate `▶ ` (116). Not a bug by code, but a reader may take `▼` as "open". Style opinion; listed for awareness.
+
+**5.11 Tabs `Delete` and `x` close a tab only if closable** (R/widgets/layout/tabs.rs:500-507). No defect. Noted because `x` is easy to hit and there is no confirm step. Style opinion.
+
+**5.12 ScrollView subtracts a scrollbar column when there is no overflow** (R/widgets/layout/scroll_view.rs:189-190, `usize::from(props.show_scrollbars && props.scroll_y)`). The content width is 1 cell narrower than the space even when no bar is drawn (bar drawn only if `limits.1 > 0`, line 306). This is a layout defect: unused column.
+
+**5.13 `truncate` on cells and rows.** I did not open `R/layout/css/typography.rs:68`. I did not check whether `truncate` draws an ellipsis or a hard cut.
+
+**5.14 Text nodes get `min-height: 1` only if the class has no `h-`.** `spec.class.contains("h-")` (R/layout/paint_tree.rs:235 in `node_parts`). It matches any class containing `h-`, such as `max-h-4`, `min-h-0` or `sm:h-2`. So a text node with `min-h-0` gets no minimum. I did not test this.
+
+Checked, no defect found
+
+- Data table search and filters read cell text only. No rounding issue.
+- Tabs `close` guards `disabled` and `closable` (R/widgets/layout/tabs.rs:500-507).
+
+---
+
+#### Part 6. Toolbar (new in gpui-kit 0.7.0)
+
+What it is (B7/toolbar.rs, 460 lines; G7/toolbar.rs, 379 lines)
+
+- A container that groups controls and owns roving arrow-key focus (B7/toolbar.rs:10-45).
+- Left and Right move focus to the previous or next focusable child and wrap at the ends (B7/toolbar.rs:114-131, 87-105). No Up, Down, Home or End. It is capped at 100 hops (14). Disabled turns navigation off (65).
+- Role `Toolbar` with horizontal orientation (B7/toolbar.rs:184-185). `ToolbarGroup` is a `Group` with an accessible label (B7/toolbar.rs:260-261).
+- It is not a tab stop (`tab_stop(false)`, B7/toolbar.rs:171-173), so Tab enters through the items.
+- The styled version adds a size (default Small, Large maps to Medium, G7/toolbar.rs:58, 109, 172, 235) and a `child` method that sizes controls (G7/toolbar.rs:169-200). It draws no background or border; the surrounding surface does (G7/toolbar.rs:140-157 doc).
+- Text inputs inside keep their arrow keys (B7/toolbar.rs:40-43).
+- The release notes do not mention it.
+
+In a terminal
+
+- A one-row strip of buttons. Tab reaches the first button. Left and Right move between buttons (wrap), and Tab leaves. The screen reader gets a Toolbar role and named groups.
+- Ours today has no `Role::Toolbar` use in any widget. The role exists only in the accessibility translation (R/accessibility/platform/translation/node.rs:284). The data table's toolbar is a plain wrapping row of buttons with no role and no arrow-key roving (R/widgets/display/data_table/live.rs:226-261, row at 179-186). I searched `-i toolbar` in src and found only those and one doc comment (R/builder/widgets/breadcrumb.rs:116).
+
+Call: **build, small.** It is one keyed container plus a Left and Right handler over the existing focus order, and it adds a named role for a pattern the data table already draws. Do it after the input-protocol work if the roadmap requires. The study's status bar entry (study line 1909) says it can use the same role for a bar of buttons.
+
+---
+
+#### Appendix. What I did not check
+
+- Rendered output. Every layout statement is from code.
+- Whether `truncate` produces an ellipsis, and how the emoji home icon is measured.
+- How `ElementBuilder::styles(...)` and `.class(...)` merge when both set a width (I assumed class wins because the catalog relies on `with_class("w-full ...")` on the scroll view, catalog.rs:1020).
+- Keyboard handling in gpui-kit's table state (G7/table/state.rs). Not searched.
+- Image, file explorer, popover and modal widgets beyond the greps named above.
+- The retained-tree update path (R/layout/paint_tree/suprtui.rs:290-420) for stale layout as a source of the gap defect.
+- Whether Taffy 0.10 to 0.13 (present in ~/.cargo/registry) change grid gap handling. I compared only `round_layout` between 0.9.2 and 0.13.0 (same rule).
+
+
+### Overlays, menus and theme: Overlays, menus and theme: reactive-tui against gpui-kit 0.7.0
+
+Read-only review. No file in either repository was changed. No build or test was run. I could not see rendered output, so every statement below says what the code does, not how it looks.
+
+Path shorthand used in this report:
+
+- `R/` = ~/workspace2/reactive-tui/
+- `G0/` = ~/workspace2/gpui-kit-0.7.0/crates/component/src/
+- `B0/` = ~/workspace2/gpui-kit-0.7.0/crates/base/src/
+- `G6/`, `B6/` = the same directories in ~/workspace2/gpui-kit-0.6.6/crates/
+- `study` = R/docs/widget-study.md
+
+Method: `diff -rq` and `diff -u` of matching paths between 0.6.6 and 0.7.0, then reading the 0.7.0 files. `release-notes.md` exists only in 0.7.0 (no 0.6.6 copy to diff).
+
+Limits I hit:
+
+- The `text` family diff in `B0/text` is about 6900 lines. I read the Markdown parser hunk, `component/src/text/*.rs` and the file list. I did not read every hunk of `B0/text/*`.
+- I did not read gpui-kit tests except where their names state a behavior.
+- Study line numbers point into 0.6.6. Files that changed in 0.7.0 have shifted lines. Files with an empty diff (sheet.rs, hover_card.rs, alert.rs, link.rs, highlighter/language_name.rs, theme/registry.rs, themes/*.json) keep their numbers.
+
+---
+
+#### Part 1. What changed in gpui-kit between 0.6.6 and 0.7.0
+
+##### Overall
+
+- `diff -rq G6 G0`: 0.7.0 adds `input/token.rs`, `questionnaire/`, `resizable.rs`, `time/time_field.rs`, `toolbar.rs`. It removes the `plot/` internals (moved to `B0/plot/`, see release-notes.md "Plot moves to gpui-base"). None of these are in the families asked about.
+- `diff -rq gpui-kit-0.6.6/themes gpui-kit-0.7.0/themes` prints nothing. The 21 theme files are identical.
+- Files with an empty diff: `G0/sheet.rs`, `G0/hover_card.rs`, `G0/alert.rs`, `G0/link.rs`. Their own code did not change. Sheets are still affected by the Root change below.
+
+##### Root (release-notes.md "Root owns window overlays", "Root layers", "Added: gpui_base::Root")
+
+- `Root` now always mounts the dialog, sheet and notification layers itself. `Root::render_dialog_layer`, `render_sheet_layer` and `render_notification_layer` are removed. The application must delete those calls. There is no replacement switch. (release-notes.md, "Root layers" section; `G0/root.rs:129-200` are now private `notification_layer`, `sheet_layer`, `dialog_layer` on a `pub(crate) WindowState` struct at `G0/root.rs:25`.)
+- A new `gpui_base::Root` type owns overlay hosting, Tab traversal and copy. `G0/root.rs:434` implements `gpui_base::RootPlugin for WindowState`. The plugin trait is at `B0/root.rs:20-70`. Plugins must be registered before a window is created.
+- `gpui_kit::open_window` (`crates/kit/src/lib.rs:144`) wraps content in `Root`. Applications must not return a `Root` from its builder.
+- The window methods `open_dialog`, `open_sheet`, `open_sheet_at`, `push_notification` remain (`G0/window_ext.rs:94-170`). They now call `WindowState::update` instead of `Root::update`.
+- Removed from `WindowExt`: `selected_text`, `has_text_selection`, `clear_text_selection`, `end_text_selection` (use `gpui_base::TextSelection`). Root fields such as `notification` and `active_dialogs` are no longer public.
+- Tab and Shift-Tab bindings and the focus-trap logic moved from `G0/root.rs` (`Tab`, `TabPrev` actions) to `B0/root.rs:13-21` (bindings) and `B0/root.rs:194-260` (`on_action_tab`, `on_action_tab_prev`, using `active_focus_trap`). Behavior is the same code moved.
+
+##### Dialog (`G0/dialog/`, `B0/dialog.rs`, `B0/alert_dialog.rs`)
+
+- `DialogButtonProps` fields are now `Option`s that are unset until a builder sets them. Defaults are applied at render time (`G0/dialog/dialog.rs:31-140`; `show_cancel` is `Option<bool>` at line 51). `Dialog::button_props` and `AlertDialog::button_props` now merge instead of replacing. Before, `AlertDialog::confirm().button_props(...)` could drop the Cancel button, and `on_ok` set earlier was lost. Now call order does not matter. Four tests in `G0/dialog/alert_dialog.rs` (end of file) state this.
+- New `AlertDialog` builders: `ok_text`, `ok_variant`, `cancel_text`, `cancel_variant` (`G0/dialog/alert_dialog.rs:209-230`). Defaults documented there: OK text `OK`, OK variant Primary, Cancel text `Cancel`.
+- Placement now goes through `gpui_base::Positioner::corner(Anchor::TopLeft, ...)` with `.margin(margin)` (`G0/dialog/dialog.rs:570-600`, diff hunk "gpui_base::Positioner::corner"). Window paddings are added to the offset.
+- Height limit changed. 0.6.6: `max_height = view.height - y - margin`. 0.7.0: `max_height = view.height - margin*2 - layer_offset` (`G0/dialog/dialog.rs:584`). The stack step is still 16px per layer (`G0/dialog/dialog.rs:577`). Width is `props.width.min(view.width - margin*2)` (`G0/dialog/dialog.rs:580-582`), default width `px(448.)` (`G0/dialog/dialog.rs:219`). The edge margin is `spacing_tokens().lg` (`G0/dialog/dialog.rs:575`). An overflowing dialog is snapped up to the edge margin (comment at `G0/dialog/dialog.rs:570-574`).
+- Base dialog popup and alert popup now call `.occlude()` (`B0/dialog.rs:190,231`; `B0/alert_dialog.rs:16,50`), so a press on the popup does not reach the backdrop and dismiss the dialog. The base host centers its popup by default (test `the_popup_is_centered_by_default`, end of `B0/dialog.rs`). `AlertDialog` now implements `Styled` (`B0/alert_dialog.rs:275`), so a caller can change its host layout.
+- Screen-reader roles unchanged: `Role::Dialog` (`B0/dialog.rs:428`), `Role::AlertDialog` (`B0/alert_dialog.rs:199`). Escape still binds `Cancel` (`B0/dialog.rs:91`). I found no diff hunk that adds a label from the title (search: `diff -ru` of both dialog dirs filtered for `aria_label`, `Role::`; only a `Role::Button` test appears).
+
+##### Sheet
+
+- `G0/sheet.rs` has no diff. Study "### sheet" still describes 0.7.0 code, except that the sheet layer is mounted by Root (see Root above).
+
+##### Notification (`G0/notification.rs`)
+
+- Lifecycle clock: a new `autohide_ids` set (`G0/notification.rs:706,718`) and `needs_clock` (`G0/notification.rs:757`) stop the tick timer when only persistent notifications are at rest. Dismiss requests now restart the clock (`start_advancing`).
+- `TopCenter` and `BottomCenter` placement changed from `left_0().right_0().mx_auto()` to `left(relative(0.5)).ml(-width/2)` (`G0/notification.rs:1060-1066`).
+- The notification layer now uses the Root's full bounds (release-notes.md, "Root owns window overlays").
+- Defaults are unchanged: width `px(382.)` (`G0/notification.rs:33`), margins 16px plus title bar on top, `max_items: 10` (`G0/notification.rs:555-568`).
+
+##### Popover (`G0/popover.rs`, `B0/popover.rs`, `B0/popup.rs`, `B0/positioner.rs`)
+
+- New options: `Popover::offset(px)` (`G0/popover.rs:169`; gap from trigger, default 0.25rem) and `Popover::arrow(bool)` (`G0/popover.rs:177`; default false; drawn with a path, sized 0.375rem; `G0/popover.rs:318-360`, `arrow_anchor` at `:419`).
+- `Popover` now implements `Styled` on the trigger container (`B0/popover.rs`, hunk "impl Styled for Popover"). The doc says `w_full` or `flex_1` must go there.
+- Open state and selected state are now separate: the popover calls `trigger.open(..)`, not `trigger.selected(..)` (`B0/popover.rs` hunk at lines ~212-215; new trait methods `open` and `is_open` at `B0/component_traits.rs:25,32`; `Button` stores `open` apart from `selected` at `G0/button/button.rs:548-556`, shown selected by `shows_selected_style` at `:501`). The `AppMenuBar` uses `.open(is_open)` for the same reason (`G0/menu/app_menu_bar.rs` hunk).
+- The popup's state subscription holds a weak handle so the state does not outlive its trigger (`B0/popover.rs` hunk at line ~102).
+- `Popup` and `Positioner` gain `offset`, `on_position` and `tracked_corner_position`, so an open popup follows a moving trigger (`B0/popup.rs`, `B0/positioner.rs` hunks).
+- Anchoring doc changed: the anchor names the popover's own anchor, "Legacy anchoring clamps without flipping" (`G0/popover.rs` doc on `anchor`).
+- Role unchanged: content `Role::Dialog` (`B0/popover.rs:356`). Escape unchanged (`B0/popover.rs:19`). I found no `aria_expanded` in `B0/popover.rs` (search: `grep -n "aria_expanded\|expanded" B0/popover.rs` returned nothing).
+
+##### Hover card, tooltip
+
+- `G0/hover_card.rs`: no diff.
+- `G0/tooltip.rs`: only the name change `Root::tooltip_overlay` to `WindowState::tooltip_overlay` (`G0/tooltip.rs:260,283`). `Role::Tooltip` is unchanged (`B0/tooltip.rs:31`).
+
+##### Menu (`G0/menu/`)
+
+- `ContextMenu` now draws its menu through a new `DeferredMenu` element (`G0/menu/context_menu.rs:167`). The menu is drawn only when the click position is inside the element's bounds (`draws_menu`, same file). Tests: a click fires `on_click` once for rows without ids; an opened menu without dismiss releases its entity.
+- `DropdownMenu`: the `trigger_style` builder is removed (`G0/menu/dropdown_menu.rs`, hunk lines 24-69). The trigger's own style is used through `Popover`'s new `Styled`.
+- `AppMenuBar`: `is_selected` became `is_open` (`G0/menu/app_menu_bar.rs:162`).
+- Key bindings unchanged: `enter`, `escape`, `up`, `down`, `left`, `right` on `PopupMenu` (`G0/menu/popup_menu.rs:23-28`); `escape`, `left`, `right` on `AppMenuBar` (`G0/menu/app_menu_bar.rs:19-21`). Roles unchanged: `Role::Menu` at `G0/menu/popup_menu.rs:1466`; item label via `aria_label` at `:1244`.
+- I searched `G0/menu` and `G0/command/state.rs` for `typeahead`, `type_ahead`, `mnemonic`, `"home"`, `"end"`, `page_up`. Nothing found. So gpui-kit has no type-ahead and no Home/End in menus.
+
+##### Command (`G0/command/`)
+
+- Row measuring changed: `install_model` keeps measured rows when the new model has the same layout (`same_layout` in `G0/command/item.rs`, `set_options` at `G0/command/state.rs:175`, `measure_rows` at `:643`). Row shortcut hints (`Kbd`) are re-measured on the next frame when the binding changes (`item_binding` at `:774`). `Kbd::keystroke()` and `Icon::same_layout` were added for this.
+- Roles unchanged: `Role::ListBox` (`G0/command/state.rs:945`), `Role::ListBoxOption` with `aria_selected` (`:830-831`). Keys unchanged: `escape`, `enter`, `up`, `down` (`:65-68`).
+
+##### Highlighter (`G0/highlighter/`)
+
+- Injection layers (embedded languages such as a Rust fence inside Markdown) are now edited in place with each text edit and reused when the ranges still match (`edit_injection_layers`, `update_edits`, new `combined` flag; hunks in `G0/highlighter/highlighter.rs`). Old layers are moved into `ReusableInjectionLayer`. A test `test_incremental_injection_layers_match_fresh_parse` covers edits inside a Markdown document.
+- `parse_input_bytes` fixes parsing at an offset inside a multibyte character.
+- `LanguageRegistry::generation()` (`G0/highlighter/registry.rs:554`) is a counter bumped on each registration so caches can retry languages that did not resolve before.
+- `input_adapter.rs`: sync parse timeout 2 ms, sync limit 256 KiB, debounce 150 ms are now module constants (`G0/highlighter/input_adapter.rs` top). The logic was split into `finish_update`.
+- Language aliases: `G0/highlighter/language_name.rs` has no diff, so the alias table still applies.
+
+##### Text (`G0/text/`, `B0/text/`)
+
+- Markdown parsing: prose such as "$5 and $10" that parses as inline math and is not claimed by a plugin is re-parsed as ordinary Markdown (`B0/text/format/markdown.rs:40`, `flatten_unclaimed_math`).
+- New `RangeHighlight`, `RangeHighlightError`, `RenderedText` exports (`G0/text/mod.rs:13-14`; new file `B0/text/range_highlight.rs`). New `TextView::on_reveal` (`G0/text/compat.rs` hunk).
+- Code blocks use `shared_code_block_highlighter` instead of `component_code_block_highlighter` (`G0/text/mod.rs:121` and `G0/text/compat.rs` hunk).
+- Stream fade changed from 350 ms per chunk to 280 ms per word with a 10 ms stagger between words (`G0/text/compat.rs` constants `STREAM_FADE`, `STREAM_FADE_STAGGER`).
+- Heading sizes are now set through `with_heading(level -> StyleRefinement)`.
+
+##### Theme (`G0/theme/`, `B0/theme.rs`)
+
+- New `Theme::update(cx, |theme| ..)` (`G0/theme/mod.rs:268`). It reconciles tokens with edited colors, re-applies the light or dark config when the mode changes, resolves fonts and re-syncs the base theme. `Theme::change` and `set_scrollbar_mode` now go through it (`G0/theme/mod.rs:369`). `Theme::sync_base` remains (`:453`) but its doc no longer tells callers to call it after `global_mut`.
+- `default-theme.json` gains a `chart.grid` color: `neutral-200/60` in light (`G0/theme/default-theme.json:28`) and `neutral-800/60` in dark (`:234`).
+- `gpui_base::Theme` gains a `plot: PlotTheme` field (`B0/theme.rs`), filled from the motion tokens (`G0/theme/mod.rs:85-107`, `:432`).
+- Theme files and folder watching are unchanged: `load_themes_from_str` `G0/theme/registry.rs:151`, `watch_dir` `:98`, `sorted_themes` `:126`, `apply_config` `G0/theme/schema.rs:1064`, `sync_system_appearance` `G0/theme/mod.rs:334`.
+
+##### Button (`G0/button/button.rs`)
+
+- New `open` state stored apart from `selected` (`:548-556`), and `prepare_for_toolbar` returns `ghost().compact()` (`:564`). Used by popover triggers, menu bar and the new toolbar. No key-handling or role change found in the diff (search: filtered `diff -u` for `Role::`, `KeyBinding`, `aria`; none).
+
+##### Study statements that are no longer true for 0.7.0
+
+The study was written against 0.6.6.
+
+1. study "### dialog", Structure: "Open dialogs are a stack in `Root.active_dialogs`" (G/root.rs:297-323). It is now `WindowState.active_dialogs` and private to the crate. And study "### root (support code)": "The top view of each window. It owns the dialog, sheet, notification, tooltip and fallback-menu layers" is now stronger: Root mounts them itself and the render-layer functions no longer exist.
+2. study "### dialog", Builder API line for `DialogButtonProps` (`ok_text`, `cancel_text`, `show_cancel`): partly stale. The fields are `Option` and merge; `AlertDialog` also has `ok_text`, `ok_variant`, `cancel_text`, `cancel_variant`. Also the "size is clamped to the window" line (G/dialog/dialog.rs:524-535) now reads `G0/dialog/dialog.rs:575-584` with a different height rule.
+3. study "### popover", "Only ours ... An arrow with three styles": gpui-kit now has `arrow(bool)` and `offset(px)` (`G0/popover.rs:169,177`). Ours still has three arrow styles and the 12 positions; gpui-kit has one arrow style and eight anchors.
+4. study "### popover", Keyboard: "The trigger is only marked 'selected' (B/popover.rs:212-215)". False now. The trigger is told `open(..)`, not `selected(..)`. Still true that no expanded state is set (search above).
+5. study "### notification" placements: `TopCenter` and `BottomCenter` are computed differently now (`G0/notification.rs:1060-1066`). The count of eight anchors is unchanged.
+6. study "### theme", "Builder API": "`Theme::global` and `global_mut` followed by `Theme::sync_base`" is now `Theme::update` (`G0/theme/mod.rs:268`). Also the study line "G/theme/mod.rs:261-347" for `Theme::change` is now `:369`.
+7. study "### highlighter", "Worth adopting: Keeping the parse tree and reparsing with edits (G/highlighter/highlighter.rs:502-600)": gpui-kit now also keeps and edits the embedded-language trees. The rest of that item holds.
+8. Line citations `G/...` for changed files are all shifted by 0.7.0 (see Limits).
+9. Study statements about reactive-tui that are stale at the current code (not gpui-kit changes):
+   - study "Defects found", first bullet (default backend never turns on mouse): commit c01145ea "Turn on terminal mouse and paste input on the default backend". `R/src/backend/suprtui/output.rs:213` now queues `EnableMouseCapture, EnableBracketedPaste`.
+   - study Summary item 4 ("The default backend ... sends no query at all"): `R/src/backend/suprtui.rs:952-977` (`follow_terminal_background`) sets `light_theme()` when the reply to the OSC 11 query has luminance above 0.5 and the app has set no theme. `R/src/backend/suprtui/input_pty.rs:48,628` is the test fixture that counts that query. I did not verify where the query bytes are written for the real backend; I only read the consumer and the fixture.
+
+---
+
+#### Part 2. Family comparison: gpui-kit 0.7.0 against reactive-tui today
+
+Units: gpui-kit uses pixels and rem. reactive-tui uses cells. The utility-class scale in reactive-tui is Tailwind's pixel numbers used as cells: `p-4` is 16 cells, `px-2` is 8 cells, `px-1` is 4 cells (`R/src/layout/css/parsers.rs:27-52`; test `R/src/layout/css/spacing.rs:151-170`). Width and height classes such as `w-1` are cells (`R/src/layout/css/parsers.rs:84-89`). This decides which fixed numbers below are large.
+
+##### 2.1 Dialog and modal
+
+**Who mounts it**
+
+- gpui-kit: Root mounts the layer. The app calls `window.open_dialog(cx, |dialog, ..| ..)` (`G0/window_ext.rs:124`). The app renders nothing for it (release-notes.md "Root layers").
+- reactive-tui `Modal`: the app puts the modal element in its own tree, for example `builder::modal().visible(true).build()` inside a card (`R/examples/widget_catalog/catalog.rs:788-793,853-865`). The modal is a `position: absolute` 0x0 owner node whose viewport is that node's inherited `clip` rectangle (`R/src/widgets/display/modal/live/render.rs:49-62,313-327`), not necessarily the whole screen. I did not run it, so whether that clip equals the screen depends on the ancestors.
+- reactive-tui typed dialogs (confirmation, input, autocomplete, progress, toast, wizard): the app creates a `DialogEngine`, calls `show_*`, and must render `engine.render()` in its tree (`R/src/widgets/dialog/engine.rs:459-463`; the doc says "Produce a keyed App host"). A second mount shows the text "DialogEngine is already mounted" (`R/src/widgets/dialog/engine/live.rs:66-71`). So yes, the app must render the layer itself.
+- The catalog's "Menus and dialogs" page does not use the engine. It builds each dialog element directly (`R/examples/widget_catalog/catalog.rs:756-870`) with `Rect::default()` bounds and inside a card.
+
+**Layout defaults**
+
+| Item | gpui-kit 0.7.0 | reactive-tui |
+|---|---|---|
+| Width | `px(448.)` default, clamped to view minus 2x margin, optional `max_w` (`G0/dialog/dialog.rs:219,466-468,580-582`) | Auto by default: width is the widest of content, title (+2 with close button), footer, buttons, plus insets (`R/src/widgets/display/modal/live/render.rs:79-96`). Only cap is the viewport (`:119-121`). `ModalSize::Auto` without measured content is half the viewport (`R/src/widgets/display/modal.rs:405-410`). |
+| Placement | Centered horizontally; top offset `view.height/10` plus 16px per stacked layer (`G0/dialog/dialog.rs:577-583`) | `ModalPosition::Center` centers both ways (`R/src/widgets/display/modal.rs:433-436`). No margin from the edges in any position (`:432-452`). |
+| Stacking of several | Each layer 16px lower (`G0/dialog/dialog.rs:577`) | z-index only: `base_z_index + rank*2`, base 1000 (`R/src/widgets/dialog/engine/live.rs:105-114`; `R/src/widgets/dialog/mod.rs:247`). No offset. |
+| Padding | 16px each side, `gap` = max(top padding, 8px) (`G0/dialog/dialog.rs:589,676`) | No content padding by default. Border adds a 1-cell inset when a border is on (`R/src/widgets/display/modal/live/render.rs:63-68,240-242`). Header style `border-b font-bold` (`R/src/widgets/display/modal.rs:186`). Engine dialogs use title style `font-bold border-b border-gray-200 px-1` = 4 cells each side (`R/src/widgets/dialog/mod.rs:262`). |
+| Border and radius | 1px border, `radius_lg`, theme colors (`G0/dialog/dialog.rs`, chain in render) | `border border-gray-300 rounded-lg shadow-lg` as literal classes (`R/src/widgets/dialog/mod.rs:261`). |
+| Max height | `view.height - 2*margin - layer_offset` (`G0/dialog/dialog.rs:584`) | Height auto from content, min with viewport (`R/src/widgets/display/modal/live/render.rs:97-121`). |
+| Wide screen (240+ columns) | Fixed 448px wide; does not stretch. Placed in the middle. | Content-sized. A short message gives a narrow box. A long message (text is one unwrapped run: `R/src/widgets/dialog/confirmation/live.rs:139-144`) gives a box as wide as the message up to the viewport, because no maximum width is set on the auto path. I did not run it at 240 columns, so this is from reading the sizing code only. |
+
+**States drawn, colors**
+
+- gpui-kit draws open dialog, layer index, topmost (`B0/dialog.rs`); colors from `cx.theme().tokens.background`, `.border`, `.radius_lg` (`G0/dialog/dialog.rs:670-676`).
+- reactive-tui `Modal` draws hidden, showing, visible, hiding, drag, resize, focused button (study "### dialog", States). Colors are literal class strings, not theme lookups: `bg-white text-black shadow-lg`, backdrop `bg-black/50`, close button `text-gray-500 hover:text-gray-700` (`R/src/widgets/display/modal.rs:184-189`). Engine dialogs use `DialogTheme` strings (`R/src/widgets/dialog/mod.rs:256-282`): `bg-white`, buttons `bg-blue-500 text-white px-1 py-0 rounded`, and so on. Neither reads `Theme::active()`.
+
+**Options each lacks**
+
+- Only gpui-kit: `trigger()` element, controlled `DialogHandle`, `DialogChangeReason`, `AlertDialog` preset with icon and description, merge semantics for button props, `ok_variant`/`cancel_variant` (`G0/dialog/alert_dialog.rs:209-230`).
+- Only reactive-tui: confirmation/input/autocomplete/progress/wizard dialogs, drag and resize, anchored positions (`R/src/widgets/dialog/frame.rs:80-137`), async completion, live update. (From study; not re-verified except frame.rs and engine.rs.)
+
+**Keyboard and screen reader**
+
+- gpui-kit: Escape and Enter bound to Cancel and Confirm in the Dialog context (`B0/dialog.rs:91`); Tab loop through `B0/root.rs:194-260`; `Role::Dialog` (`B0/dialog.rs:428`), `Role::AlertDialog` (`B0/alert_dialog.rs:199`).
+- reactive-tui: Escape closes when `closable && escape_closable && keyboard_navigation`; the handler consumes every Escape press while visible even when it does not close (`R/src/widgets/display/modal/live/events.rs:10-34`). Focus trap via `FocusProps::modal()` (`R/src/widgets/display/modal/live/render.rs:282-287`). Dialog role and label from the title (`:273-280`). Close button labeled "Close" (`:366-368`). Confirmation dialog uses `Role::Dialog`, not `AlertDialog` (`R/src/widgets/dialog/confirmation/live.rs:191-195`). Still open from the study.
+
+##### 2.2 Notification and toast
+
+**Who mounts it**
+
+- gpui-kit: `window.push_notification(note, cx)` (`G0/window_ext.rs:163`). Root mounts the layer. App renders nothing.
+- reactive-tui: two ways. (a) `builder::toast()...build()` returns an element the app must place in its tree (`R/src/builder/widgets/dialog.rs:43,359-395`). (b) `DialogEngine::show_toast` and the app renders `engine.render()` (`R/src/widgets/dialog/engine.rs:584`). Either way the application renders the layer.
+
+**Layout defaults**
+
+| Item | gpui-kit | reactive-tui |
+|---|---|---|
+| Width | fixed `px(382.)`, settable (`G0/notification.rs:33,566`) | Content-sized. Toast is a non-modal `Modal` with `ModalSize::Auto` (`R/src/widgets/dialog/toast/live.rs:156-177`); message is one `Element::text` (`:158-161`). Width follows message length up to the viewport. |
+| Placement | eight anchors; margins 16px, top adds the title bar (`G0/notification.rs:555-568,1058-1068`) | six positions (`R/src/widgets/dialog/toast.rs:75-90`, mapped at `R/src/widgets/dialog/toast/live.rs:139-146`). Corner positions use offset 0 (`R/src/widgets/display/modal.rs:447-452`): no gap to the edge. |
+| Stacking | Several toasts stack; collapsed layers expand; `max_items: 10` (`G0/notification.rs:565`; `B0/toast.rs:22-55`) | None. Engine toasts get `Rect::default()` (`R/src/widgets/dialog/engine/content.rs:130,148`); empty bounds leave position unchanged (`R/src/widgets/dialog/frame.rs:26-33`). Two toasts with the same position use the same corner. |
+| Wide screen | Fixed 382px in the corner | Corner-anchored, content-sized. Long message: see 2.1. |
+| Auto-dismiss | 5s fixed | `Duration` or none, default 3 s (`R/src/widgets/dialog/toast.rs:188-199`); timer starts after the first presented frame (`R/src/widgets/dialog/toast/live.rs:179-187`). |
+
+**States and colors**
+
+- gpui-kit: Starting, Present, Ending; timers pause on hover or focus (`B0/toast.rs`); type colors from theme.
+- reactive-tui: info/success/warning/error and `Custom`. Colors are literals: `bg-green-700 text-white`, `bg-red-700 text-white`, `bg-yellow-700 text-white`, `bg-blue-700 text-white` (`R/src/widgets/dialog/toast/live.rs:147-152`). `Custom` falls into the blue branch (`:151`).
+
+**Options**
+
+- Only gpui-kit: title, icon, custom content, action button, on_click, replace by id, remove by type, clear all, OS delivery (study "### notification").
+- Only reactive-tui: `duration(None)` (persistent), six string positions in the builder. Builder position is a string; an unknown string returns the text "Invalid toast position" (`R/src/builder/widgets/dialog.rs:363-372`).
+
+**Keyboard and screen reader**
+
+- gpui-kit: `Role::Alert` for every toast (`B0/toast.rs:656`); the list is a Tab stop; no key bindings (study).
+- reactive-tui: `Status` for info/success, `Alert` for warning/error, live-region classes on the text (`R/src/widgets/dialog/toast/live.rs:147-161`); no focus (`:163-164`); Escape and close button only when closable (`:166-167`).
+
+##### 2.3 Popover
+
+**Who mounts it**
+
+- gpui-kit: the `Popover` is placed in the parent as a trigger; the content is a deferred overlay through `Popup` and `Positioner` (`B0/popup.rs`). No layer to render.
+- reactive-tui: `popover().trigger(..).content(..).build()` returns an element that holds the trigger and the popup in one container (`R/src/widgets/display/popover/live/render.rs:283-291`). The app places it. No separate layer. Bounds come from the container's `clip` (`:78-86`).
+
+**Layout defaults**
+
+| Item | gpui-kit | reactive-tui |
+|---|---|---|
+| Gap to trigger | `offset` default 0.25rem (`G0/popover.rs:169`, `:330`) | `offset: (0, 8)` (`R/src/widgets/display/popover.rs:241`). `calculate_rect_for_position` adds `offset_y` as rows (`R/src/widgets/display/popover.rs:372-406`). So the default gap below or above the trigger is 8 rows. |
+| Arrow | off by default; 0.375rem deep (`G0/popover.rs:177,318-322`) | on by default: `PopoverArrow { enabled: true, size: 8, .. }` (`R/src/widgets/display/popover.rs:97-105`). The arrow is a filled triangle of `size` rows: `for depth in 0..size` puts `2*depth+1` cells on each row (`R/src/widgets/display/popover/live/render.rs:357-380`). Size 8 = up to 8 rows deep and 15 cells wide. |
+| Padding | `p_3` when appearance is on (`G0/popover.rs:341`) | none: the body node has no padding, border or background (`R/src/widgets/display/popover/live/render.rs:167-175,196-200`). Style comes from the content element. |
+| Width and height | `popover_style` (theme) | max = parent clip unless `Ignore` (`:158-163`), optional min/max props (`R/src/widgets/display/popover.rs:252-255`). |
+| Flip | corner anchoring, no flip ("Legacy anchoring clamps without flipping", `G0/popover.rs` doc) | `BoundaryBehavior::Flip` default (`R/src/widgets/display/popover.rs:242`). |
+| Wide screen | Same 8 anchors in any window | Follows the trigger; the 8-row gap and 8-row arrow do not scale. |
+
+**Colors**: gpui-kit uses `cx.theme().popover` and a ring color (`G0/popover.rs:330-335`). reactive-tui: body has no color of its own; the outside-click shield uses `bg-black/30` when `backdrop_filter` is on (`R/src/widgets/display/popover/live/render.rs:148-151`); the arrow cells carry no color style (`:388-398`), so they take the inherited text color. Error text `text-red-500` (`:21`).
+
+**Options**
+
+- Only gpui-kit: mouse button choice, unstyled mode, focus handle to receive focus, `open` state for the trigger.
+- Only reactive-tui: 12 positions, hover/focus/manual triggers with delays, three arrow styles, four boundary behaviors, min/max size, backdrop, four animations, `on_position_change` (study "### popover"; props at `R/src/widgets/display/popover.rs:230-260`).
+
+**Keyboard and screen reader**
+
+- gpui-kit: Enter/Space toggle from trigger; Escape closes (`B0/popover.rs:19`); focus moves in on open and back on close; content `Role::Dialog` (`B0/popover.rs:356`).
+- reactive-tui: Escape closes by default (`R/src/widgets/display/popover.rs:243`); `focus_trap` and `auto_focus` are both false by default (`:248-249`), so focus does not move into the popover on open. Trigger gets `aria-expanded-true/false` classes (`R/src/widgets/display/popover/live/render.rs:23-27`). Body role is `Dialog` only with `focus_trap`, otherwise `Group` (`:209-215`).
+
+##### 2.4 Menu
+
+**Who mounts it**
+
+- gpui-kit: `PopupMenu` is built with `PopupMenu::build`; `context_menu` and `dropdown_menu` wrap elements; drawn as a deferred overlay (`G0/menu/context_menu.rs:167-270`). No layer to render.
+- reactive-tui: `menubar()`, `context_menu()`, `popup_menu()` return elements the app places (`R/examples/widget_catalog/catalog.rs:777-782`). Panels are `position_absolute` nodes inside that element, with z-index `1000 + depth*2` (`R/src/widgets/menu/panels.rs:168-172`). A popup menu's z-index of 1000 equals the modal default (`R/src/widgets/display/modal.rs:191`), the popover default (`R/src/widgets/display/popover.rs:250`) and the engine base z-index (`R/src/widgets/dialog/mod.rs:247`). I did not check whether that causes a wrong stacking order when a menu opens inside a modal.
+
+**Layout defaults**
+
+- reactive-tui `MenuStyle::default()`: `min_width: 10`, `max_width: Some(50)`, `padding: 1`, border on, shadow on (`R/src/widgets/menu/style.rs:41-53`). Applied in `R/src/widgets/menu/panels.rs:162-190`. So a menu is capped at 50 cells wide unless the caller changes it, on any terminal width. Menu height default `max_visible_items: 10` (`R/src/widgets/menu/popup.rs:105`; `R/src/widgets/menu/context.rs:45`).
+- The shadow is a second node offset by 1 cell with `bg_rgba(0,0,0,0.4)` (`R/src/widgets/menu/panels.rs:262-274`).
+- gpui-kit sets height with `max_h` and `scrollable` (study "### menu"); item sizes come from theme spacing tokens.
+
+**States and colors**
+
+- reactive-tui default menu colors are literal classes: `bg-gray-800 text-white`, selected `bg-blue-600 text-white font-bold`, focused `bg-cyan-500 text-black font-bold`, disabled `text-gray-500`, separator `text-gray-400`, shortcut `text-yellow-400`, icon `text-green-400`, border `border border-gray-600` (`R/src/widgets/menu/style.rs:41-53`). Three preset variants also use literals (`:227-259`).
+- The builder path has a different default. `convert_menu_style` uses `white` background and `black` text when the caller sets none, and `blue-500` for the selected row (`R/src/builder/widgets/menu.rs:913-935`). So `menubar().build()` and `MenuBarProps::default()` do not agree on colors. The builder's own `MenuStyle` struct has string fields for colors, padding and margin (`R/src/builder/widgets/menu.rs:196-212`).
+- Dialog-menu backdrop is `bg_rgba(0,0,0,0.3)` at z-index 998 (`R/src/widgets/menu/dialog_live.rs:395-406`).
+- gpui-kit draws item, hover, selected, disabled, checked with theme colors.
+
+**Options**
+
+- Only gpui-kit: label items, link items, custom-element items, shortcut hint read from the real key binding, check side.
+- Only reactive-tui: radio items, separator styles, visible flag, per-item description, long-press context menu, dialog menus, wheel selection (study "### menu"). `MenuShortcut` keeps `display` and `keys` as two separate strings (`R/src/widgets/menu/item.rs:3-9`).
+
+**Keyboard and screen reader**
+
+- gpui-kit: Enter, Escape, Up, Down, Left, Right (`G0/menu/popup_menu.rs:23-28`); `Role::Menu` (`:1466`); item name from text (`:1244`). No type-ahead, no Home/End (search above).
+- reactive-tui: Up, Down with wrap, PageUp, PageDown, Home, End, Right into submenu, Left or Escape back, Enter or Space activate, item shortcuts (`R/src/widgets/menu/popup_live.rs:289-333`). No type-ahead: the only `Char` match is the space character (`:325`). `Role::Menu` (`:255-256`), items as MenuItem/MenuItemCheckBox/MenuItemRadio with toggled and expanded (study; `R/src/widgets/menu/view.rs:164-196`). Reactive-tui's keyboard handling is fuller than gpui-kit's here.
+
+##### 2.5 Theme
+
+**Color roles**
+
+- gpui-kit: `ColorTokens` has background, foreground, surface, surface_foreground, primary, primary_foreground, secondary, secondary_foreground, muted, muted_foreground, accent, accent_foreground, destructive, destructive_foreground, border, input, ring, selection (`B0/theme_tokens.rs:19-45`). `default-theme.json` has 232 keyed entries for both modes (`G0/theme/default-theme.json`; count from `grep -c '^        "'`), including component keys and `chart.grid` (new, lines 28 and 234).
+- reactive-tui: `--color-primary`, `secondary`, `accent`, `background`, `surface`, `foreground`, `text-muted`, `border`, `success`, `warning`, `error`, `info`, `chart-1` to `chart-5`, `chart-bullish`, `chart-bearish`, and `--spacing-xs` to `2xl` (`R/src/theme/presets.rs:5-43`). No foreground-on-primary, no selection role, no hover role, no input or ring. Unchanged since the study.
+
+**Light and dark**
+
+- gpui-kit: a light and a dark config; `Theme::change(mode)` (`G0/theme/mod.rs:369`); `sync_system_appearance` reads the window appearance (`:334-340`); `Theme::update` re-applies config on a mode change (`:268`).
+- reactive-tui: `Theme` has no mode field (`R/src/theme/mod.rs:46-54`). Five presets: dark, light, high contrast, Solarized Dark, Gruvbox Dark (`R/src/theme/presets.rs:5,45,85,125,165`). The default backend switches to `light_theme()` once, at startup, when the terminal background is light and the app has set no theme (`R/src/backend/suprtui.rs:952-977`). There is no switch back and no dark-variant lookup.
+
+**Loading from a file**
+
+- gpui-kit: `load_themes_from_str` (`G0/theme/registry.rs:151`), `watch_dir` (`:98`), 21 shipped files in `~/workspace2/gpui-kit-0.7.0/themes/`.
+- reactive-tui: code only. Search `grep -rn "serde\|Deserialize\|from_str\|read_to_string\|from_file" R/src/theme` returned nothing. `Theme::new(name).with_variables(..).extend(base)` (`R/src/theme/mod.rs:57-76`).
+- Syntax themes do load from files: `SYNTAX_RESOURCES.load_theme_from_file` (`R/src/syntax/resources.rs`, per study), but `Theme::set_active` does not change the syntax theme (default `onedark`, `R/src/syntax/resources.rs:14-15`).
+
+**Who reads the theme**
+
+- In `R/src/widgets`, I found no class that names a theme role. Search: `grep -rEc '(bg|text|border|ring)-(primary|secondary|accent|surface|foreground|background|muted|success|warning|error|info)\b|var\(--' R/src/widgets` gave zero for every file. The only widget code that reads the active theme is charts (`R/src/widgets/display/charts/live/canvas.rs:221`) and image cells (`R/src/widgets/display/image/live/cells.rs:60-61,184-185`). Theme classes are supported by `Theme::apply_classes` (`R/src/theme/mod.rs:146-153`) and utility classes such as `text-primary` resolve (test at `R/src/theme/mod.rs:184-191`), but no overlay, menu or dialog uses them.
+- gpui-kit widgets read `cx.theme()` roles (for example `G0/dialog/dialog.rs:670-676`, `G0/popover.rs:330-335`).
+
+##### 2.6 Highlighter and Markdown code blocks
+
+- gpui-kit: tree-sitter with a per-language registry, language aliases (`G0/highlighter/language_name.rs:5-37`, unchanged), embedded languages with edit reuse (Part 1), sync parse 2 ms up to 256 KiB, then a 150 ms debounced background parse (`G0/highlighter/input_adapter.rs` constants). Plain text gets a default style so the caller's color applies (study, `G/highlighter/highlighter.rs:1096-1099`; the function is unchanged in structure, I did not re-read it).
+- reactive-tui: Lumis wrapper. Exact, case-sensitive language name match (`R/src/syntax/resources.rs:101-108`). 15 grammars. 1 MiB input limit (study; `R/src/syntax/highlighter.rs:16-17`). Runs carry a transparent background (`:286-291`). The plain fallback is black (Part 4).
+- Colors: gpui-kit `HighlightTheme` is part of each app theme config and follows light or dark (study; `G0/theme/schema.rs`). reactive-tui keeps a separate syntax theme, default `onedark`, not tied to `Theme` mode.
+- Keyboard and roles: none on either side (study).
+
+---
+
+#### Part 3. Clean-up candidates for reactive-tui
+
+Sizes: small under 200 lines, medium, large. These are guesses from reading, not estimates from a trial.
+
+##### A. Fixed numbers that do not fit wide layouts
+
+| # | What | Reference | reactive-tui code | Size |
+|---|---|---|---|---|
+| A1 | Popover default gap is 8 rows, default arrow 8 rows deep | gpui-kit gap 0.25rem, arrow 0.375rem (`G0/popover.rs:169,318-322`) | `R/src/widgets/display/popover.rs:241` (`offset: (0, 8)`), `:97-105` (arrow size 8), `R/src/widgets/display/popover/live/render.rs:357-380` | small: change defaults to 1 row gap and a 1 to 2 row arrow; check tests that assert the numbers |
+| A2 | `DialogThemes::light/dark/...` presets use `px-4 py-2` buttons and `p-4` titles: 16 cells by 8 rows per button, 16 cells on each side of the title | gpui-kit padding 16px (`G0/dialog/dialog.rs:589`) | `R/src/widgets/dialog/dialog_types.rs:199-293` (exported at `R/src/widgets/mod.rs:30`) | small |
+| A3 | Auto-width dialogs and toasts have no maximum width; long single-line messages grow to the viewport | `width.min(view - 2*margin)` and `max_w` (`G0/dialog/dialog.rs:219,466,580-582`); toast `width` 382px (`G0/notification.rs:33`) | `R/src/widgets/display/modal/live/render.rs:79-96,119-121`; `R/src/widgets/dialog/confirmation/live.rs:139-144`; `R/src/widgets/dialog/toast/live.rs:158-161` | small: add a default `max_width` (in cells or as a share of the viewport) and wrap the message text |
+| A4 | Menu width cap of 50 cells and minimum 10 | menu width follows content, `max_h`/scrollable (study) | `R/src/widgets/menu/style.rs:52-53`; `R/src/widgets/menu/panels.rs:162-177` | small: make the cap a share of the viewport or none |
+| A5 | Corner-anchored modals and toasts touch the screen edge (no margin) | notification margins 16px (`G0/notification.rs:555-568`); dialog edge margin `spacing_tokens().lg` (`G0/dialog/dialog.rs:575`) | `R/src/widgets/display/modal.rs:447-452` (`TopLeft` = (0,0) etc.) | small |
+| A6 | Popover and modal `z_index` fixed at 1000, engine base 1000, menu panels `1000 + depth*2`, toast default 2000 | Root layers in one fixed order (`B0/root.rs` plugin order, comment "later plugins appear above earlier ones") | `R/src/widgets/display/modal.rs:191`; `R/src/widgets/display/popover.rs:250`; `R/src/widgets/dialog/mod.rs:247`; `R/src/widgets/menu/panels.rs:171`; `R/src/widgets/dialog/toast/live.rs:171` (overridden for engine toasts by `R/src/widgets/dialog/frame.rs:23`) | medium: define one z-index ladder; unchecked whether a menu opened inside a modal is hidden |
+| A7 | `DialogBounds` default `min_size` 200x100, `margin` 20 each side; typed dialogs set 300x150, 400x200, `max_size` 600x400 or 800x600. These read as pixels | gpui-kit sizes are pixels on a pixel screen | `R/src/widgets/dialog/dialog_component.rs:439-462`; `R/src/widgets/dialog/confirmation.rs:263-270`; `R/src/widgets/dialog/autocomplete.rs:209-215`; `R/src/widgets/dialog/input.rs:280-286` | small, but see C1: they have no effect today |
+| A8 | Stacked engine dialogs are not offset | one layer = 16px lower (`G0/dialog/dialog.rs:577`) | `R/src/widgets/dialog/engine/live.rs:105-114` | small |
+| A9 | `DialogUtils::calculate_size` assumes 60 characters per line and a height `lines*2 + 8` capped at 40 | none | `R/src/widgets/dialog/dialog_types.rs:116-125` (no non-test caller found: `grep -rn calculate_size R/src`) | small: delete or replace |
+
+##### B. Colors written as literals (no theme lookup)
+
+Search: `grep -rEc '(bg|text|border|ring|fg)-(white|black|<palette name>(-NNN)?)\b' R/src/widgets --include=*.rs`, non-zero files only. The counts include test code and tests' expected strings, so treat them as upper bounds. Zero files use a theme role class (Part 2.5).
+
+| File | Count | Lines and notes |
+|---|---|---|
+| `R/src/widgets/menu/style.rs` | 44 | defaults `:41-53`, presets `:227-259`, tests from `:275` |
+| `R/src/widgets/dialog/dialog_types.rs` | 26 | `DialogThemes` presets `:196-293` |
+| `R/src/widgets/dialog/mod.rs` | 7 | `DialogTheme::default` `:259-275` |
+| `R/src/widgets/input/text_input/paint.rs` | 6 | `:275,300,304,306,324,354` |
+| `R/src/widgets/display/progress_bar.rs` | 6 | `:233-234,308-309`, tests `:775-776` |
+| `R/src/widgets/dialog/toast/live.rs` | 5 | `:135,148-151` |
+| `R/src/widgets/display/tree.rs` | 4 | `:431,434,527,530` |
+| `R/src/widgets/layout/tabs.rs` | 3 | `:670-671,776` |
+| `R/src/widgets/display/modal.rs` | 3 | `:184-189` |
+| `R/src/widgets/display/popover/live/render.rs` | 2 | `:21,150` |
+| `R/src/widgets/display/modal/live/render.rs` | 2 | `:41,248` |
+| `R/src/widgets/display/file_explorer/live/paint.rs` | 2 | `:340,358` |
+| `R/src/widgets/display/data_table/live.rs` | 2 | `:685,701` |
+| `R/src/widgets/dialog/input/live.rs` | 2 | `:342,349` |
+| `R/src/widgets/dialog/autocomplete/live.rs` | 2 | `:408,441` |
+| `R/src/widgets/layout/breadcrumb/live.rs` | 1 | `:404` |
+| `R/src/widgets/layout/accordion/live.rs` | 1 | `:113` |
+| `R/src/widgets/display/tree/live/paint.rs` | 1 | `:259` |
+| `R/src/widgets/display/table/live.rs` | 1 | `:372` |
+| `R/src/widgets/display/table.rs` | 1 | `:166` (`bg-blue fg-white`, the selected row) |
+| `R/src/widgets/display/progress_bar/live.rs` | 1 | `:65` |
+| `R/src/widgets/display/image/live/blocks.rs` | 1 | `:188` |
+| `R/src/widgets/display/data_table/filters.rs` | 1 | `:144` |
+| `R/src/widgets/dialog/wizard/live.rs` | 1 | `:223` |
+
+Color-value literals (`Rgba::new`, `Rgba::black()`, `bg_rgba`, `rgb(`), same tool, count per file, non-zero only: `display/image/decoded.rs` 5, `dialog/dialog_buffer.rs` 5, `terminal/paint.rs` 4, `display/image/live/cells.rs` 3 (plus 2 `#` hex hits), `display/image/protocol_renderer.rs` 2, `display/charts/live/canvas/sankey.rs` 2, and 1 each in `menu/panels.rs` (`:270`), `menu/dialog_live.rs` (`:405`), `display/progress_bar/live.rs`, `display/image/sixel_renderer.rs`, `display/image/live/blocks.rs`, `display/image/image_processor.rs`, `display/image/external_renderer.rs`, `display/charts/mask.rs`. Most of the image and terminal ones are pixel data, not styling. The overlay ones are `menu/panels.rs:270` (shadow 0.4 black), `menu/dialog_live.rs:405` (backdrop 0.3 black), `dialog/dialog_buffer.rs`.
+
+Also, `R/src/syntax/highlighter.rs` has 7 `Rgba::black()` uses (`:94,140,177,213,257,327,342,357`), outside `src/widgets`.
+
+| # | Candidate | Reference | reactive-tui | Size |
+|---|---|---|---|---|
+| B1 | Replace overlay literals with theme roles: dialog bg, border, backdrop, toast types, menu states, error text `text-red-500`. Needs class names or variables that resolve through `Theme::active()` | `cx.theme().tokens.background`, `.border`, `.popover` (`G0/dialog/dialog.rs:670-676`, `G0/popover.rs:330-335`) | files in the table above; theme presets `R/src/theme/presets.rs` | medium (many files, one pattern) |
+| B2 | Add foreground-on-fill roles (primary-foreground, error-foreground), selection and hover roles, so `text-white` on `bg-blue-*` can be `text-primary-foreground` on `bg-primary` | `B0/theme_tokens.rs:19-45` | `R/src/theme/presets.rs:5-43` | small |
+| B3 | Progress bar and table selected row: use roles | study "### theme" | `R/src/widgets/display/progress_bar.rs:233-234`; `R/src/widgets/display/table.rs:166` | small |
+| B4 | Make `MenuStyle::default` and the builder default agree | one theme | `R/src/widgets/menu/style.rs:41-53` against `R/src/builder/widgets/menu.rs:913-935` | small |
+| B5 | Popover arrow and body take the popover surface color | `G0/popover.rs:330-335` | `R/src/widgets/display/popover/live/render.rs:167-175,388-398` | small |
+
+##### C. Options with no effect
+
+| # | Option | Evidence | Size |
+|---|---|---|---|
+| C1 | `DialogBounds` fields `size`, `min_size`, `max_size`, `position`, `resizable`, `draggable`, `margin`, and `DialogComponent::get_bounds` | `get_bounds` is defined in the trait (`R/src/widgets/dialog/dialog_component.rs:32`) and in six implementations (`confirmation.rs:577`, `input.rs:598`, `autocomplete.rs:580`, `toast.rs:150`, `progress.rs:125`, `wizard.rs:216`). Search `grep -rn "get_bounds" R/src R/examples R/tests --include=*.rs` found no call other than these definitions. So `min_size`, `max_size`, `margin`, `draggable: true` (`confirmation.rs:269`) and `resizable` are set and never read. Size and position reach the modal through `options.size` and `options.position` in the live files instead (`R/src/widgets/dialog/confirmation/live.rs:162-168`). | small: delete the struct and the trait method, or wire it in |
+| C2 | `Toast` `ToastType::Custom(String)` | it is matched only by the `_` branch, so its string changes nothing about the look (`R/src/widgets/dialog/toast/live.rs:147-152`) | small |
+| C3 | `ToastOptions::on_close` set through the builder | the builder sets `on_close: None` and offers no setter (`R/src/builder/widgets/dialog.rs:387-393`) | small |
+
+I checked every field of `ModalProps` (`R/src/widgets/display/modal.rs:171-205`) and `PopoverProps` (`R/src/widgets/display/popover.rs:230-260`) with `grep -rn "props\.<field>\|config\.<field>"` under the modal, popover and dialog directories. Each field is read at least once. That check shows a reference, not that the effect is correct. `DialogEngineConfig` fields (`R/src/widgets/dialog/mod.rs:242-252`) are each read in `engine.rs` or `engine/live.rs`.
+
+##### D. Behavior gaps found in the comparison (not defects)
+
+| # | Candidate | Reference | reactive-tui | Size |
+|---|---|---|---|---|
+| D1 | Toast stacking with a cap and a gap between toasts | `B0/toast.rs:22-55`, `G0/notification.rs:565` | `R/src/widgets/dialog/engine/content.rs:128-131`; `R/src/widgets/dialog/frame.rs:19-34` | medium |
+| D2 | Replace a toast by id; action button; title | `G0/notification.rs` (study lines 108-112, 229-238, 337-347 in 0.6.6) | `R/src/widgets/dialog/toast.rs:188-199` (no such fields) | small each |
+| D3 | `AlertDialog` role for confirmation dialogs | `B0/alert_dialog.rs:199` | `R/src/widgets/dialog/confirmation/live.rs:191-195` | small |
+| D4 | Popover moves focus in on open and back on close by default | `B0/popover.rs` | `R/src/widgets/display/popover.rs:248-249` | small |
+| D5 | Merge-style options for dialog buttons (unset stays default) | `G0/dialog/dialog.rs:31-140` | `R/src/widgets/dialog/confirmation.rs`/`R/src/widgets/dialog/mod.rs:263-278` (button styles keyed by variant string) | medium |
+| D6 | Language aliases and case-insensitive lookup | `G0/highlighter/language_name.rs:5-37` | `R/src/syntax/resources.rs:106-108` | small (see Part 4) |
+| D7 | Theme file loading | `G0/theme/registry.rs:98,151` | `R/src/theme/mod.rs` | small to load, medium with watching |
+| D8 | Theme mode and dark/light pair with a way to switch after start | `G0/theme/mod.rs:334,369` | `R/src/backend/suprtui.rs:952-977` sets light once | medium |
+| D9 | Label (heading) items in menus | `G0/menu/popup_menu.rs` (study lines 36-37, 117-121) | `R/src/widgets/menu/item.rs:83-103` (five kinds) | small |
+| D10 | Shortcut hint built from the keys that trigger it | `G0/menu/popup_menu.rs` (study 1119-1150) | `R/src/widgets/menu/item.rs:3-9` | small |
+| D11 | Tie syntax theme to `Theme` and use the theme text color for plain text | `G0/theme/schema.rs` (study 1060-1073) | `R/src/syntax/resources.rs:14-15`; `R/src/syntax/highlighter.rs:88-96` | small |
+| D12 | Overlays follow a moving trigger and offset API (`offset`, `on_position`) | `B0/popup.rs`, `B0/positioner.rs` | `R/src/widgets/display/popover.rs` has `offset` and `on_position_change` already (`:241,258`) | none: already present |
+
+---
+
+#### Part 4. Defects
+
+##### 4.1 Study defects: does each still hold at the current code?
+
+1. Markdown fence ```` ```rust ```` is not highlighted. **Still holds.**
+   - `R/src/syntax/resources.rs:106-108`: `Language::iter().find(|language| language.name() == name)`. The doc at `:101-105` says "exact and case-sensitive".
+   - `R/src/syntax/highlighter.rs:48-50`: `SyntaxHighlighter::new` calls `find_language_by_name(language)` and returns `None` when it does not match.
+   - `R/src/markdown/ast_walker.rs:161-166`: passes the first word of the fence info string unchanged. When `new` returns `None`, the code falls to the plain path (`:172-178`).
+   - `R/src/markdown/tests.rs:56-71` (`test_code_block_rendering`) uses a lowercase `rust` fence and only checks that some run has a background. `:76` uses `Rust`.
+   - The file-name path is case-insensitive for extensions (`R/src/syntax/resources.rs:129-138`). `R/src/editor/syntax_editor.rs:97` uses `from_extension`, and `:58,80` use `new(language)` with the caller's string.
+2. Toasts at the same position draw over each other. **Still holds.**
+   - `R/src/widgets/dialog/engine/content.rs:129-130` sets `let bounds = Rect::default();` and passes it at `:133,148` (all six kinds).
+   - `R/src/widgets/dialog/frame.rs:26-33`: `apply_bounds` changes width, height and position only `if !bounds.size.is_empty()`. An empty rectangle changes nothing except `z_index` and `focus_trap` (`:20-25`).
+   - `R/src/widgets/dialog/toast/live.rs:139-146,178` maps the position to a corner and offset 0. Two toasts with the same `ToastPosition` get the same corner.
+   - Search for a fix: `grep -n -i "stack\|toast" R/src/widgets/dialog/engine.rs` shows only `:78` (a priority comment) and `:584` (`show_toast`).
+3. The highlighter's plain fallback text is painted black on a near-black editor background. **Still holds, with a narrower scope than the study states.**
+   - Black is used at `R/src/syntax/highlighter.rs:177` (uncached line in `highlight_lines`), `:327` (`plain_line`), `:342` (`unhighlighted_lines`), `:357` (`fallback_range`). Also `:94,140,213` use black when no theme resolves, and `:257` returns black for a light theme with no `normal` color.
+   - Editor background: `R/src/editor/syntax_editor.rs:201` (`0.05` in `render`) and `:217-221` (`get_styled_lines`); `painting::render` fills every cell with that background (`R/src/editor/painting.rs:116-135`).
+   - Runs from the highlighter carry a transparent background (`R/src/syntax/highlighter.rs:286-291`, per study), so the editor background shows.
+   - When the editor has no highlighter, it uses a `0.9` gray foreground (`R/src/editor/syntax_editor.rs:210-216`, `:238`) and is fine. Black appears only through the highlighter's fallback lines (unknown language for `from_extension`? `find_language_for_file` returns `PlainText`, which does not fall back; the fallback paths are lock failure, over-size input, a failed highlight, or an unresolvable theme). I did not run these paths, so I cannot say how often a user reaches one.
+
+##### 4.2 New items found by reading
+
+1. **`DialogComponent::get_bounds` and `DialogBounds` are dead.** See C1. Options that look like they limit dialog size and margin (`min_size` 300x150, `max_size` 600x400, `margin` 20 each) do nothing. Evidence: `R/src/widgets/dialog/confirmation.rs:263-270`, `R/src/widgets/dialog/dialog_component.rs:439-462`, and the zero-caller search in C1.
+2. **Popover default arrow and gap are large in cells.** `R/src/widgets/display/popover.rs:97-105,241`. With arrow on and size 8, the arrow loop emits `2*depth+1` cells for each of 8 rows (`R/src/widgets/display/popover/live/render.rs:357-380`). Combined with the 8-row default gap, the popover sits 8 rows from the trigger. This is what the code does; whether it is wrong depends on intent. The catalog demo (`R/examples/widget_catalog/catalog.rs:795-798`) uses the defaults.
+3. **`DialogThemes` presets use pixel-scale utility classes.** `px-4 py-2` on buttons is 16 cells by 8 rows (`R/src/widgets/dialog/dialog_types.rs:204-212,231-239,285-293`); `p-4` titles are 16 cells (`:199,226,280`). Basis: `R/src/layout/css/parsers.rs:45-52` and the test at `R/src/layout/css/spacing.rs:151-170`. I did not find a caller that applies these presets (`grep -rn DialogThemes R/src R/examples R/tests` shows only the export at `R/src/widgets/mod.rs:30`), so the defect is in the public preset values only.
+4. **Menu defaults differ between direct and builder use.** `R/src/widgets/menu/style.rs:41-53` (dark `bg-gray-800 text-white`) against `R/src/builder/widgets/menu.rs:913-935` (`white` background, `black` text, `blue-500` selected). `builder::menubar().build()` goes through `convert_menu_style` (called from `:528` per grep).
+5. **Modal Escape handler consumes Escape while visible even when the modal does not close.** `R/src/widgets/display/modal/live/events.rs:20-34` returns `EventResult::Consumed` after the `if`. An outer handler (for example a parent popover) will not see Escape while a non-closable modal is visible. This may be intended. Marked as a read-only observation.
+6. **Toast `ToastType::Custom` has no styling of its own.** `R/src/widgets/dialog/toast/live.rs:147-152` (falls to `bg-blue-700`); the builder turns any unknown type string into `Custom` (`R/src/builder/widgets/dialog.rs:381-386`).
+7. **Confirmation dialogs report `Role::Dialog`** (`R/src/widgets/dialog/confirmation/live.rs:194`). Study lists it as "worth adopting". Still open.
+
+##### 4.3 Things I checked that are fine or unverified
+
+- Fine: the toast auto-dismiss timer starts after the first presented frame (`R/src/widgets/display/modal/live/render.rs:304-316`; `R/src/widgets/dialog/toast/live.rs:179-187`).
+- Fine: the modal position subtraction `(viewport - size)` cannot underflow on the auto path, because `dimensions` are clamped to the viewport first (`R/src/widgets/display/modal/live/render.rs:119-127`). `ModalPosition::Custom` is not clamped inside `calculate_position` but is clamped right after (`:124-127`).
+- Unverified: whether the catalog overlay demos (`R/examples/widget_catalog/catalog.rs:788-865`) are sized against the card or the screen. It depends on the `clip` of the ancestors. I did not run the example.
+- Unverified: the popover arrow's `arrow_position` and the `TopEnd`/`BottomEnd` signs of `offset_x` (`R/src/widgets/display/popover.rs:384-387,402-406`). They subtract the x offset on the End positions. That looks like intentional mirroring; I did not check the tests.
+- Not checked: input, wizard, autocomplete and progress dialogs beyond their default class strings.

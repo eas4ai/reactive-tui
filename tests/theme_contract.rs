@@ -10,10 +10,12 @@ mod common;
 use common::app_input;
 use reactive_tui::{
     app::RootComponent,
+    builder::core::div,
     component::Element,
-    components::{div, text},
-    event::types::{Event, KeyCode, KeyEvent},
-    events::EventResult,
+    event::{
+        router::EventResult,
+        types::{Event, KeyCode, KeyEvent},
+    },
     theme::{
         dark_theme, gruvbox_dark_theme, high_contrast_theme, light_theme, solarized_dark_theme,
         Theme, ThemeVariables,
@@ -156,7 +158,10 @@ fn thm_001_text_contrasts_with_what_it_is_drawn_on_in_every_preset() {
                         ));
                     }
                 }
-                _ => low.push(format!("{}: {text} or {ground} is not defined", preset.name)),
+                _ => low.push(format!(
+                    "{}: {text} or {ground} is not defined",
+                    preset.name
+                )),
             }
         }
     }
@@ -204,13 +209,11 @@ fn thm_002_a_class_that_names_a_role_always_sets_its_color() {
 #[serial_test::serial(theme)]
 fn thm_002_text_on_a_fill_is_black_or_white_whichever_contrasts_more() {
     let mut wrong = Vec::new();
-    for theme in [
-        sparse("#000000", "#e6e6e6"),
-        sparse("#ffffff", "#1e1e1e"),
-    ] {
+    for theme in [sparse("#000000", "#e6e6e6"), sparse("#ffffff", "#1e1e1e")] {
         for fill in FILLS {
             let role = text_role(fill);
-            let (Some(text), Some(ground)) = (theme.resolve_color(&role), theme.resolve_color(fill))
+            let (Some(text), Some(ground)) =
+                (theme.resolve_color(&role), theme.resolve_color(fill))
             else {
                 wrong.push(format!("{role} or {fill} does not resolve"));
                 continue;
@@ -338,8 +341,8 @@ impl RootComponent for Themed {
     fn render(&self) -> Element {
         let line = |classes: &str, label: &str| {
             div()
-                .class(format!("{classes} w-full h-1"))
-                .child(text(label).build())
+                .class(&format!("{classes} w-full h-1"))
+                .text(label)
                 .build()
         };
         div()

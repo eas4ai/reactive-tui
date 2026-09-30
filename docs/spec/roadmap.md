@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: layout-cells
+Current: theme-menus
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -28,6 +28,11 @@ two axes, the radial and flow charts, behavior shared by the widgets
 (change callbacks, screen-reader actions, copying over SSH), and new
 widgets. A widget family is brought to the widget bar in a commitment of
 its own, because BAR-003 asks a reworked widget to meet all of it at once.
+After layout-cells the developer opened the second piece the same day. It
+is cut in two, because the menus and the dialogs are two families of about
+6,000 and 9,000 lines: theme-menus first, which gives the theme its color
+roles and brings the menus to the widget bar, then the dialogs, the modal,
+the popover and the toasts on the same roles.
 
 ## charts-plot-layer
 
@@ -657,3 +662,50 @@ golden that changed is regenerated and looked at; the manual's layout page
 states the unit and the changelog names its change as breaking; and the
 review records screenshots from Kitty of the catalog's Input, Layout and
 Data display pages at 100, 160, 240 and 400 columns.
+
+## theme-menus
+
+Requirements: THM-001, THM-002, THM-003, MNU-001, MNU-002, MNU-003, MNU-004, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010
+
+The second piece of the widget work, first half. In the widget catalog on
+2026-09-29 the menu bar, the context menu and the popup menu were white
+boxes on the dark page, the context menu covered the page's header line,
+and the dialog menu's card was empty, because its demo never opens it. No
+widget under src/widgets named a color of the theme.
+
+The commitment gives the theme the color roles a widget needs beyond the
+twelve it has: the text drawn on each fill, the current row, the row under
+the pointer, a field, the focus border, the veil behind a modal and a
+shadow (THM-001). Every built-in preset defines them, with text that
+contrasts with its fill by at least 4.5 to 1. A theme an application wrote
+before these roles existed still resolves each of them (THM-002), and a
+change of theme shows in the next frame (THM-003). The roles are defined
+once, here, for every later piece of the widget work.
+
+The menu bar, the context menu, the popup menu and the dialog menu are
+brought to the widget bar (BAR-003 to BAR-006): every color from a role,
+one default look for the props and the builder (MNU-001), panels as wide
+and as tall as their rows up to the viewport (MNU-002), opened beside what
+opened them (MNU-003) and painted whole over what was on the screen, also
+inside a modal, a popover or a box that clips (MNU-004), a
+key that opens the context menu, goldens at two sizes, and for each of the
+four a page in the catalog and a heading in the manual. The catalog opens
+its dialog menu and its context menu inside their cards, gets a key that
+changes the theme, so every page can be seen under each preset, and gives
+every card one cell of padding inside its border. The
+widget-bar check learns the palette classes (`bg-gray-800`, `text-white`)
+as color literals and reads the menu code; what it then finds in the
+chart, image and canvas code is fixed here too.
+
+The dialogs, the modal, the popover and the toasts are not part of this
+commitment; they keep their colors until the next one. The spacing
+variables of a theme, loading a theme from a file and the syntax colors
+are not part of it either.
+
+Done when every named requirement passes; the new mechanisms (theme,
+menus) have recorded a fail on a violating example for each of their
+requirements; every golden that changed is regenerated and looked at; the
+manual's theme page lists the roles and what a theme that lacks one gets,
+and the changelog names what changed for an application; and the review
+records screenshots from Kitty of the four menus under each of the five
+presets at 100 and 240 columns.
