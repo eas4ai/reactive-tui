@@ -755,7 +755,8 @@ fn foreign(frame: &Snapshot, skip: &[u16]) -> Vec<String> {
 
 /// Each overlay as the widget catalog builds it, with the text that shows
 /// it is open and the text of the row a widget of another family paints
-/// (a text field, a progress bar), which the color check leaves out.
+/// (a text field), which the color check leaves out. The progress bar
+/// inside the progress dialog is told its roles by the dialog.
 fn overlays() -> Vec<(&'static str, Element, &'static str, Option<&'static str>)> {
     use reactive_tui::{
         builder::specialized::WizardStep,
@@ -841,7 +842,7 @@ fn overlays() -> Vec<(&'static str, Element, &'static str, Option<&'static str>)
                 .progress(0.64)
                 .build(),
             "64.0%",
-            Some("█"),
+            None,
         ),
         (
             "toast",
@@ -872,8 +873,8 @@ fn bar_003_an_overlay_takes_every_color_from_the_active_theme() {
     let mut wrong = Vec::new();
     for (name, root, text, other_family) in overlays() {
         let frame = shown(root, (80, 24), text);
-        // A text field or a progress bar inside a dialog is painted by its
-        // own family, which a later commitment brings to the widget bar.
+        // A text field inside a dialog is painted by its own family, which
+        // a later commitment brings to the widget bar.
         let skip: Vec<u16> = other_family
             .and_then(|glyph| find(&frame, glyph))
             .map(|(_, row)| vec![row])
