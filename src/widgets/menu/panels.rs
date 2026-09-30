@@ -167,6 +167,13 @@ impl MenuView {
                 .any(|token| token == "border-0");
         let depth = parent.len();
         let bounds = self.viewport(root);
+        // A measurement belongs to the rows it was taken for: a panel opened
+        // for another row at this depth starts unmeasured, so it is not
+        // placed or outlined for a frame by the earlier panel's size.
+        if self.opened.lock().unwrap().get(&depth).map(Vec::as_slice) != Some(parent) {
+            self.panels.lock().unwrap().remove(&depth);
+            self.opened.lock().unwrap().insert(depth, parent.to_vec());
+        }
         let measured = self.panels.lock().unwrap().get(&depth).copied();
         let (width, height) = measured.map_or((0.0, 0.0), |layout| layout.size);
         let (x, y) = spot.corner((width, height), bounds);
@@ -502,6 +509,62 @@ mod tests {
             ),
             (Role::Menu, Some("File"), Some("2 of 4 rows"))
         );
+    }
+
+    #[test]
+    fn a_panel_for_another_row_at_the_same_depth_starts_unmeasured() {
+        use crate::component::LayoutInfo;
+        use crate::event::hit::Bounds;
+        let rows = |n: usize| {
+            (1..=n)
+                .map(|i| super::super::MenuItem::new(format!("r{i}"), format!("Row {i}")))
+                .collect::<Vec<_>>()
+        };
+        let menu = MenuModel::new(
+            vec![
+                super::super::MenuItem::submenu("file", "File", rows(6)),
+                super::super::MenuItem::submenu("edit", "Edit", rows(2)),
+            ],
+            vec![0, 0],
+        );
+        let style = super::super::MenuStyle::default();
+        let view = MenuView::default();
+        let root = LayoutInfo::from_bounds(Bounds::new(0.0, 0.0, 40.0, 12.0));
+        let options = || PanelOptions {
+            rows: RowOptions {
+                horizontal: false,
+                style: &style,
+                shortcuts: true,
+                enabled: true,
+                focused: true,
+                selection: &[0, 0],
+            },
+            maximum: usize::MAX,
+            width: None,
+            focus: None,
+            height: None,
+            leading: Vec::new(),
+            trailing: Vec::new(),
+            border: true,
+            shadow: true,
+        };
+        // The File panel was measured six rows tall.
+        view.panel(&menu, &[0], root, Spot::At(0.0, 1.0), options());
+        view.panels
+            .lock()
+            .unwrap()
+            .insert(1, LayoutInfo::from_bounds(Bounds::new(0.0, 1.0, 12.0, 8.0)));
+        let file = view.panel(&menu, &[0], root, Spot::At(0.0, 1.0), options());
+        // The Edit panel at the same depth is not placed by that size: it
+        // starts unmeasured, with no shadow and an outline of no cells.
+        let edit = view.panel(&menu, &[1], root, Spot::At(0.0, 1.0), options());
+        assert_eq!(
+            (file.len(), edit.len()),
+            (2, 1),
+            "shadow and panel, then the panel alone"
+        );
+        assert!(view.panels.lock().unwrap().get(&1).is_none());
+        assert_eq!(view.opened.lock().unwrap().get(&1), Some(&vec![1]));
     }
 
     #[test]
