@@ -403,6 +403,9 @@ impl Popover {
                 } else {
                     "█"
                 };
+                // A cell of the arrow is a piece of the box: filled in
+                // `surface` with its outline in `border`, so it shows on a
+                // page and on a box of the same color alike (OVL-001).
                 cells.push(
                     ElementBuilder::new(ElementType::Text(mark.into()))
                         .styles(
@@ -413,6 +416,7 @@ impl Popover {
                                 .width_px(1.0)
                                 .height_px(1.0),
                         )
+                        .class("bg-surface text-border")
                         .build(),
                 );
             }
@@ -425,9 +429,7 @@ impl Popover {
         let point = global_rect(root, Self::make_rect(x, y, 0.0, 0.0));
         self.state.lock().unwrap().arrow_position = (point.left >= 0.0 && point.top >= 0.0)
             .then_some(Position::cell(point.left as u16, point.top as u16));
-        let mut arrow = node(style, cells)
-            .class("text-surface")
-            .with_key("popover-arrow");
+        let mut arrow = node(style, cells).with_key("popover-arrow");
         arrow.metadata.inert = !visible;
         let owner = self.clone();
         let config = props.clone();

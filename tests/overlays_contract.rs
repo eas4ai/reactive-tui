@@ -230,6 +230,59 @@ fn ovl_001_a_confirmation_dialog_paints_its_box_and_buttons_in_the_roles() {
     );
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn ovl_001_a_popover_box_is_surface_with_a_border_and_its_arrow_a_piece_of_it() {
+    let _theme = Active::set(probe());
+    let frame = app_input::run_until(
+        Control(page(popover_page())),
+        (60, 20),
+        vec![
+            Until {
+                text: "OPEN",
+                cell: None,
+                event: key(KeyCode::Enter),
+            },
+            Until {
+                text: "INNER",
+                cell: None,
+                event: None,
+            },
+        ],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    let (text, fill) = colors(&frame, "INNER");
+    // INNER holds the focus, so its box (with one cell of padding) is in
+    // `selection`; the cell before that, the popover's padding, is the box.
+    let (column, row) = find(&frame, "INNER").unwrap();
+    assert_eq!(
+        (text, fill, background(&frame, column - 2, row)),
+        (
+            Some(role("selection-foreground")),
+            Some(role("selection")),
+            Some(role("surface"))
+        ),
+        "OVL-001: the box in `surface`:\n{}",
+        frame.text
+    );
+    let (border, _) = colors(&frame, "┌");
+    assert_eq!(
+        border,
+        Some(role("border")),
+        "OVL-001: the border in `border`:\n{}",
+        frame.text
+    );
+    let (arrow, arrow_fill) = colors(&frame, "▲");
+    assert_eq!(
+        (arrow, arrow_fill),
+        (Some(role("border")), Some(role("surface"))),
+        "OVL-001: the arrow is a piece of the box, filled in `surface` with its outline in `border`:\n{}",
+        frame.text
+    );
+}
+
 // ---------------------------------------------------------------- OVL-002
 
 #[test]
