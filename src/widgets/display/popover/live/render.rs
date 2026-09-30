@@ -496,6 +496,16 @@ mod tests {
             .expect("the trigger tells its state")
     }
 
+    /// A popover opened by a key remembers it until it closes, so a later
+    /// open by the pointer or the application does not take the focus.
+    #[test]
+    fn a_close_forgets_that_a_key_opened_the_popover() {
+        let popover = Popover::new();
+        popover.state.lock().unwrap().opened_by_key = true;
+        popover.hide();
+        assert!(!popover.state.lock().unwrap().opened_by_key);
+    }
+
     /// OVL-004: the trigger reports whether the popover is open.
     #[test]
     fn ovl_004_the_trigger_tells_the_screen_reader_whether_the_popover_is_open() {

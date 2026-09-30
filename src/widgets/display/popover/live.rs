@@ -111,6 +111,10 @@ impl Runtime {
             if !visible && state.is_focused {
                 data.focus_dismissed = true;
             }
+            if !visible {
+                // The next open decides again whether a key opened it.
+                state.opened_by_key = false;
+            }
             state.visible = visible;
         }
         self.changed

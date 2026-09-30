@@ -39,7 +39,7 @@ impl Runtime {
     pub(super) fn render(
         self: &Arc<Self>,
         props: &ModalProps,
-        role: Role,
+        spoken: &Node,
         escape_closable: bool,
         motion: Option<&Motion>,
         on_presented: Option<&Arc<dyn Fn() + Send + Sync>>,
@@ -318,7 +318,7 @@ impl Runtime {
                     ModalAnimation::None => {}
                 }
             }
-            let mut semantic = Node::new(role);
+            let mut semantic = spoken.clone();
             if let Some(title) = &props.title {
                 semantic.set_label(title);
             }

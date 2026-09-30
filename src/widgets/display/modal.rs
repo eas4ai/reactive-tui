@@ -361,9 +361,11 @@ impl PartialEq for Motion {
 }
 
 impl Modal {
+    /// A modal that tells the screen reader `spoken`: its role, and its
+    /// label and description when the props have no title to label it by.
     pub(in crate::widgets) fn with_presentation(
         props: ModalProps,
-        role: crate::accessibility::Role,
+        spoken: crate::accessibility::Node,
         escape_closable: bool,
         motion: Option<Motion>,
         on_presented: Option<Arc<dyn Fn() + Send + Sync>>,
@@ -371,7 +373,7 @@ impl Modal {
         Element::typed::<live::LiveModal>(live::LiveProps {
             config: props,
             seed: ModalState::default(),
-            role,
+            spoken,
             escape_closable,
             motion,
             on_presented,
@@ -381,9 +383,15 @@ impl Modal {
     /// reader, for the tests of the dialogs that wrap one (OVL-004).
     #[cfg(test)]
     pub(in crate::widgets) fn spoken_role(element: &Element) -> Option<crate::accessibility::Role> {
+        Self::spoken(element).map(|node| node.role())
+    }
+    /// What a modal made by `with_presentation` tells the screen reader,
+    /// for the tests of the dialogs that wrap one (OVL-004).
+    #[cfg(test)]
+    pub(in crate::widgets) fn spoken(element: &Element) -> Option<accesskit::Node> {
         element
             .props_as::<live::LiveProps>()
-            .map(|props| props.role)
+            .map(|props| (*props.spoken.inner).clone())
     }
     /// Create a Modal element with default props
     pub fn element() -> Element {
@@ -573,7 +581,7 @@ impl Component for Modal {
         Element::typed::<live::LiveModal>(live::LiveProps {
             config: props.clone(),
             seed: state.clone(),
-            role: crate::accessibility::Role::Dialog,
+            spoken: crate::accessibility::Node::new(crate::accessibility::Role::Dialog),
             escape_closable: props.keyboard_navigation,
             motion: None,
             on_presented: None,

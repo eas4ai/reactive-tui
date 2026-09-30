@@ -75,13 +75,20 @@ pub(super) fn modal(
     escape_closable: bool,
     role: crate::accessibility::Role,
 ) -> crate::component::Element {
-    modal_with_presented_callback(props, escape_closable, role, None)
+    modal_with_presented_callback(
+        props,
+        escape_closable,
+        crate::accessibility::Node::new(role),
+        None,
+    )
 }
 
+/// `spoken` is what the screen reader hears the box as: its role, and a
+/// label and description when the box has no title.
 pub(super) fn modal_with_presented_callback(
     mut props: ModalProps,
     escape_closable: bool,
-    role: crate::accessibility::Role,
+    spoken: crate::accessibility::Node,
     on_presented: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
 ) -> crate::component::Element {
     use crate::widgets::display::modal::{Modal, ModalAnimation};
@@ -101,7 +108,7 @@ pub(super) fn modal_with_presented_callback(
     );
     Modal::with_presentation(
         props,
-        role,
+        spoken,
         escape_allowed(escape_closable),
         motion,
         on_presented,
