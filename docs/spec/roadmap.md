@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: overlays
+Current: input-widgets
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -756,3 +756,52 @@ golden that changed is regenerated and looked at; the manual has a heading
 for each of the eight and the changelog names what changed for an
 application; and the review records screenshots from Kitty of the eight
 cards under each of the five presets at 100 and 240 columns.
+
+## input-widgets
+
+Requirements: CTL-001, CTL-002, CTL-003, CTL-004, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010
+
+The third piece of the widget work. In the widget catalog on 2026-09-30 the
+TextInput card was empty under every preset, the checkbox, the radio
+button, the select and the slider were text in the page's color with a
+`▶` before the focused one, the slider's value wrapped under its label at
+100 columns, and no control named a role of the theme. `builder::button()`
+painted 16 cells by 8 rows of padding in one blue, the text input's cursor,
+selection, placeholder and error line were palette classes that the input
+and autocomplete dialogs inherited, and a select's open list was drawn
+inside its own box, five rows at most, pushing the page down.
+
+The commitment brings the text input, the checkbox, the radio button, the
+select, the slider and the button (`builder::button()` and
+`builder::primary_button()`) to the widget bar (BAR-003 to BAR-006) on the
+color roles of theme.md: every color from a role, one look for the props
+and either builder, and focus, hover and disabled shown by color alone
+(CTL-001); a field, a select's row and a slider's track that fill the width
+their parent gives, and a select's list that shows every option (CTL-002);
+the select's list and the text input's suggestion list opened as a panel
+over the page, flipped up when there is no room, painted whole inside a
+modal, a popover or a box that clips (CTL-003); a spoken name and state for
+each control, an `aria_label` on the props and the builders, the radio
+group's orientation, the select's name, the error line as an alert, and a
+key for every pointer action (CTL-004). The input and autocomplete dialogs
+take the text input's new field look, and their goldens are regenerated.
+Goldens at 80 by 24 and 400 by 100 for each of the six; a heading of its
+own in the manual for each; the catalog's TextInput card painted and a
+Button card added. The widget-bar, goldens and catalog-manual checks learn
+the input family; nothing in it animates, so the frame-budget check keeps
+holding on the overlays and the charts.
+
+Change callbacks on the builders, copying through OSC 52 and the screen
+reader's SetValue are the eighth piece; the number input, the one-time code
+input, the switch and the rating are the ninth; the text input's
+typing-time mask, its prefix and suffix cells, merged undo steps and
+Alt+arrow word moves are not part of this commitment. The two builders of
+the text input and of the radio button keep their names.
+
+Done when every named requirement passes; the new mechanism
+(input-widgets) has recorded a fail on a violating example for each of its
+requirements; every golden that changed is regenerated and looked at; the
+manual has a heading for each of the six and the changelog names what
+changed for an application; and the review records screenshots from Kitty
+of the catalog's Input page under each of the five presets at 100 and 240
+columns, with a control focused and the select open.

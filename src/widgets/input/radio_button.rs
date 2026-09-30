@@ -432,6 +432,57 @@ mod tests {
     use super::*;
     use crate::event::types::KeyModifiers;
 
+    /// CTL-004: the group's node carries its orientation, and the chosen
+    /// radio is selected as well as toggled.
+    #[test]
+    fn ctl_004_a_radio_group_names_its_orientation_and_marks_its_choice_selected() {
+        let props = RadioButtonProps {
+            options: vec![
+                RadioOption {
+                    value: "balanced".to_string(),
+                    label: "Balanced".to_string(),
+                    disabled: false,
+                },
+                RadioOption {
+                    value: "high".to_string(),
+                    label: "High detail".to_string(),
+                    disabled: false,
+                },
+            ],
+            selected: Some("balanced".to_string()),
+            disabled: false,
+            orientation: RadioOrientation::Horizontal,
+        };
+        let element = RadioButton::new(props.clone()).render(&props, &RadioButtonState::default());
+        let group = element
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the group's node");
+        assert_eq!(
+            group.inner.orientation(),
+            Some(accesskit::Orientation::Horizontal),
+            "the group's node carries its orientation"
+        );
+        let chosen = element.children[0]
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the chosen radio's node");
+        assert_eq!(chosen.inner.toggled(), Some(accesskit::Toggled::True));
+        assert_eq!(
+            chosen.inner.is_selected(),
+            Some(true),
+            "the chosen radio is selected as well as toggled"
+        );
+        let other = element.children[1]
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the other radio's node");
+        assert_ne!(other.inner.is_selected(), Some(true));
+    }
+
     #[test]
     fn test_radio_selection() {
         let mut radio = RadioButton::<String>::new(RadioButtonProps::default());
