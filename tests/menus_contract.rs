@@ -19,6 +19,7 @@ use reactive_tui::{
     event::types::{
         Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, Position,
     },
+    layout::style::StyleBuilder,
     theme::{dark_theme, high_contrast_theme, light_theme, Theme, ThemeVariables},
     widgets::menu::{
         ContextMenu, ContextMenuProps, DialogMenu, DialogMenuBuilder, DialogMenuProps, MenuBar,
@@ -937,6 +938,59 @@ fn mnu_004_a_box_that_clips_its_content_does_not_clip_a_panel() {
         [true, true],
         "MNU-004: whether each row of a panel is painted when its menu bar stands in a box of three rows that clips its content:\n{}",
         frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn mnu_004_an_element_no_ancestor_clips_is_painted_and_clicked_past_the_box_that_holds_it() {
+    let calls = std::sync::Arc::new(std::sync::Mutex::new(0));
+    let tree = |free: bool| {
+        let calls = calls.clone();
+        let style = StyleBuilder::new()
+            .position_absolute()
+            .inset_left(0.0)
+            .inset_top(0.0)
+            .width_px(6.0)
+            .height_px(1.0);
+        let holder = builder::div()
+            .styles(if free { style.unclipped() } else { style })
+            .child(
+                builder::button()
+                    .text("abcdef")
+                    .class("w-6 h-1 p-0")
+                    .on_click(move || *calls.lock().unwrap() += 1)
+                    .build(),
+            )
+            .build();
+        builder::div()
+            .class("relative w-full h-full")
+            .child(
+                builder::div()
+                    .class("absolute left-0 top-0 w-3 h-1 overflow-hidden")
+                    .child(holder)
+                    .build(),
+            )
+            .build()
+    };
+    let steps = || vec![(1, app_input::click(5, 0)), (1, None)];
+    let clipped = app_input::run(Control(tree(false)), (12, 3), steps());
+    assert_eq!(
+        (
+            clipped.last().unwrap().text.trim().to_owned(),
+            *calls.lock().unwrap()
+        ),
+        ("abc".to_owned(), 0),
+        "a box of three cells that clips its content shows three cells of its child and takes no click past them"
+    );
+    let free = app_input::run(Control(tree(true)), (12, 3), steps());
+    assert_eq!(
+        (
+            free.last().unwrap().text.trim().to_owned(),
+            *calls.lock().unwrap()
+        ),
+        ("abcdef".to_owned(), 1),
+        "MNU-004: what is painted of an element that no ancestor clips, and the clicks that reached it at (5, 0)"
     );
 }
 

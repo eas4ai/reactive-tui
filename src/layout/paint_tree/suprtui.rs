@@ -421,6 +421,7 @@ fn lay_out(
                 layer: i32::MIN,
                 opacity: 1.0,
                 origin: (0.0, 0.0),
+                screen,
             },
             &mut nodes,
         )?;
@@ -683,6 +684,8 @@ struct Placement {
     /// Where the parent's box starts in the layout, before rounding: the
     /// sum of the unrounded locations from the root down to it.
     origin: (f32, f32),
+    /// The viewport: what clips a node that no ancestor clips.
+    screen: Rect,
 }
 
 fn collect(
@@ -732,8 +735,16 @@ fn collect(
         bottom,
     };
     let layer = parent.layer.max(paint.z_index);
+    // A node that no ancestor clips leaves their masks and their clip
+    // behind, and so does everything it holds: a panel opened from inside
+    // a box that clips its content is painted whole (MNU-004).
+    let (parent_mask, clip) = if paint.unclipped {
+        (None, parent.screen)
+    } else {
+        (parent.mask, parent.clip)
+    };
     nodes.push(PaintNode {
-        mask: parent.mask.clone(),
+        mask: parent_mask.clone(),
         transform,
         local,
         origin,
@@ -741,10 +752,9 @@ fn collect(
         element_index: nodes.len(),
         id,
         bounds,
-        clip: parent.clip,
+        clip,
         z: layer,
     });
-    let clip = parent.clip;
     let child_clip = Rect {
         left: if paint.overflow_x == Overflow::Hidden && paint.overflow_y == Overflow::Hidden {
             clip.left.max(bounds.left)
@@ -769,14 +779,14 @@ fn collect(
     };
     let mask = if paint.overflow_x == Overflow::Hidden || paint.overflow_y == Overflow::Hidden {
         Some(Arc::new(ClipMask {
-            parent: parent.mask,
+            parent: parent_mask,
             transform,
             local,
             x: paint.overflow_x == Overflow::Hidden,
             y: paint.overflow_y == Overflow::Hidden,
         }))
     } else {
-        parent.mask
+        parent_mask
     };
     for child in tree
         .children(id)
@@ -793,6 +803,7 @@ fn collect(
                 layer,
                 opacity: parent.opacity * paint.opacity,
                 origin,
+                screen: parent.screen,
             },
             nodes,
         )?;
