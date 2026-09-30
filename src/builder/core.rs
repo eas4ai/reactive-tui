@@ -68,7 +68,9 @@ pub fn flex() -> ElementBuilder {
 
 /// Create a button-like element
 pub fn button() -> ElementBuilder {
-    div().class("px-16 py-8 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer")
+    // The secondary look: `secondary` with its text, one cell of padding
+    // at each side, `selection` while it holds the focus (CTL-001).
+    div().class(crate::widgets::input::look::BUTTON)
 }
 
 /// Create an editable single-line input. `text` supplies its initial value.

@@ -1,5 +1,6 @@
 use super::{InputMode, TextInput, TextInputProps, TextInputState};
 use crate::component::{Element, FocusProps, LayoutType};
+use crate::widgets::input::look;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
@@ -54,18 +55,6 @@ impl TextInput {
         };
     }
 
-    fn status<'a>(&self, props: &'a TextInputProps, state: &TextInputState) -> &'a str {
-        if !state.is_valid {
-            "❌ "
-        } else if props.disabled {
-            "🔒 "
-        } else if state.is_focused {
-            "▶ "
-        } else {
-            "  "
-        }
-    }
-
     fn number_width(&self, props: &TextInputProps) -> usize {
         if props.show_line_numbers && matches!(props.mode, InputMode::MultiLine { .. }) {
             props.value.split('\n').count().to_string().len() + 1
@@ -74,21 +63,26 @@ impl TextInput {
         }
     }
 
-    fn prefix_width(&self, props: &TextInputProps, state: &TextInputState) -> usize {
-        UnicodeWidthStr::width(self.status(props, state)) + 1 + self.number_width(props)
+    /// The cells before the field's text: the line numbers and the frame's
+    /// first cell.
+    fn prefix_width(&self, props: &TextInputProps, _state: &TextInputState) -> usize {
+        1 + self.number_width(props)
     }
 
+    /// The field's text width and its rows. A width the props do not set is
+    /// what the parent allots, less the frame and the line numbers
+    /// (CTL-002); before the first layout, 30 cells.
     pub(super) fn view_size(
         &self,
         props: &TextInputProps,
         state: &TextInputState,
     ) -> (usize, usize) {
-        let width = usize::from(props.width.unwrap_or(30));
+        let width = props.width.map_or(usize::MAX, usize::from);
         let height = match props.mode {
             InputMode::MultiLine { height } => usize::from(height).max(1),
             _ => 1,
         };
-        self.viewport.map_or((width, height), |layout| {
+        self.viewport.map_or((width.min(30), height), |layout| {
             let available_width = (layout.content_size().0 as usize)
                 .saturating_sub(self.prefix_width(props, state) + 1);
             let available_height =
@@ -265,17 +259,26 @@ impl TextInput {
             let index = state.scroll_offset_y + visible;
             let row = rows.get(index);
             let mut segments = Vec::new();
-            segment(&mut segments, self.status(props, state), "");
             let number_width = self.number_width(props);
             if number_width > 0 {
                 let number = row.map_or(String::new(), |row| (row.line + 1).to_string());
                 segment(
                     &mut segments,
                     &format!("{number:>digits$} ", digits = number_width - 1),
-                    "text-gray-500",
+                    look::LABEL_DISABLED,
                 );
             }
-            segment(&mut segments, "[", "");
+            // The field is `input` with `foreground` text between the two
+            // cells of its frame, `border` or `ring` while focused; the
+            // cursor cell is the field reversed, the selection `selection`,
+            // the placeholder `text-muted` (CTL-001).
+            let frame = look::field_frame(state.is_focused && !props.disabled);
+            let field = if props.disabled {
+                look::FIELD_DISABLED
+            } else {
+                look::FIELD
+            };
+            segment(&mut segments, "[", frame);
             let mut painted = 0;
             let mut column = 0;
             if let Some(row) = row {
@@ -290,22 +293,22 @@ impl TextInput {
                         break;
                     }
                     if x > painted {
-                        segment(&mut segments, &" ".repeat(x - painted), "");
+                        segment(&mut segments, &" ".repeat(x - painted), field);
                     }
                     let style = if state.is_focused
                         && !props.disabled
                         && index == cursor_row
                         && state.cursor.byte_offset == glyph.start
                     {
-                        "bg-white text-black"
+                        look::CURSOR
                     } else if selection
                         .is_some_and(|(start, end)| glyph.start < end && glyph.end > start)
                     {
-                        "bg-blue-600 text-white"
+                        look::SELECTION
                     } else if props.value.is_empty() {
-                        "text-gray-500"
+                        look::MUTED
                     } else {
-                        ""
+                        field
                     };
                     segment(&mut segments, &glyph.text, style);
                     painted = x + glyph.width;
@@ -320,17 +323,17 @@ impl TextInput {
                     && cursor < width
                     && cursor >= painted
                 {
-                    segment(&mut segments, &" ".repeat(cursor - painted), "");
-                    segment(&mut segments, " ", "bg-white text-black");
+                    segment(&mut segments, &" ".repeat(cursor - painted), field);
+                    segment(&mut segments, " ", look::CURSOR);
                     painted = cursor + 1;
                 }
             }
             segment(
                 &mut segments,
                 &" ".repeat(width.saturating_sub(painted)),
-                "",
+                field,
             );
-            segment(&mut segments, "]", "");
+            segment(&mut segments, "]", frame);
             let mut decoration =
                 crate::accessibility::Node::new(crate::accessibility::Role::GenericContainer);
             decoration.set_hidden();
@@ -351,7 +354,14 @@ impl TextInput {
         }
         if !state.is_valid {
             if let Some(error) = &props.error_message {
-                children.push(Element::text(error).class("text-red-500 whitespace-pre"));
+                // The error line is an alert to the screen reader (CTL-004).
+                children.push(
+                    Element::text(error)
+                        .class("text-error whitespace-pre aria-live-assertive")
+                        .with_accessibility(crate::accessibility::Node::new(
+                            crate::accessibility::Role::Alert,
+                        )),
+                );
             }
         }
         if state.show_suggestions {

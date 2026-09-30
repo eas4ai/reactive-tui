@@ -57,6 +57,7 @@ impl RadioGroups {
 pub(crate) struct NamedRadioProps {
     pub value: String,
     pub label: Option<String>,
+    pub aria_label: Option<String>,
     pub checked: bool,
     pub disabled: bool,
     pub group: Option<String>,
@@ -70,6 +71,7 @@ impl Props for NamedRadioProps {
 #[derive(Default)]
 pub(crate) struct NamedRadioState {
     focused: bool,
+    hover: bool,
 }
 
 pub(crate) struct NamedRadio {
@@ -123,25 +125,38 @@ impl Component for NamedRadio {
         let label = props.label.as_deref().unwrap_or(&props.value);
         use crate::accessibility::{Node, Role, Toggled};
         let mut accessible = Node::new(Role::RadioButton);
-        accessible.set_label(label);
+        accessible.set_label(props.aria_label.as_deref().unwrap_or(label));
         accessible.set_toggled(if selected {
             Toggled::True
         } else {
             Toggled::False
         });
+        accessible.set_selected(selected);
         if props.disabled {
             accessible.set_disabled();
         } else {
             accessible.set_clickable();
         }
-        Element::text(format!(
-            "{}({}) {}",
-            if state.focused { "▶ " } else { "  " },
-            if selected { '●' } else { '○' },
-            label
-        ))
+        // The same row as a `RadioButton` option: frame, dot, label, and
+        // the hover fill (CTL-001).
+        use super::look;
+        let focused = state.focused && !props.disabled;
+        look::row(
+            &[
+                ("(", look::frame(focused)),
+                (if selected { "●" } else { " " }, look::MARK),
+                (")", look::frame(focused)),
+                (" ", look::LABEL),
+                (label, look::label(props.disabled)),
+            ],
+            if state.hover && !props.disabled {
+                look::HOVER
+            } else {
+                ""
+            },
+        )
         .with_accessibility(accessible)
-        .with_class("whitespace-pre overflow-hidden")
+        .with_class("overflow-hidden")
         .with_focus(FocusProps::input())
         .disabled(props.disabled)
     }
@@ -158,6 +173,13 @@ impl Component for NamedRadio {
             }
             state.focused = focus.kind == FocusEventKind::Gained && !props.disabled;
             return EventResult::Consumed;
+        }
+        if let Event::Mouse(mouse) = event {
+            match mouse.kind {
+                MouseEventKind::Enter | MouseEventKind::Move => state.hover = true,
+                MouseEventKind::Leave => state.hover = false,
+                _ => {}
+            }
         }
         if props.disabled {
             return EventResult::Ignored;
@@ -217,6 +239,7 @@ mod tests {
         let props = NamedRadioProps {
             value: "one".into(),
             label: None,
+            aria_label: None,
             checked: true,
             disabled: false,
             group: Some("choice".into()),

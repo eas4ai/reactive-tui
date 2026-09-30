@@ -11,6 +11,7 @@ use unicode_width::UnicodeWidthStr;
 pub struct RadioButtonBuilder<T: Clone + PartialEq + Send + Sync + 'static> {
     options: Vec<RadioOption<T>>,
     selected: Option<T>,
+    aria_label: Option<String>,
     disabled: bool,
     orientation: RadioOrientation,
 }
@@ -20,6 +21,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Default for RadioButtonBuilde
         Self {
             options: Vec::new(),
             selected: None,
+            aria_label: None,
             disabled: false,
             orientation: RadioOrientation::Vertical,
         }
@@ -76,11 +78,18 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButtonBuilder<T> {
         self
     }
 
+    /// Set the name the screen reader hears for the group.
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
     /// Build the RadioButtonProps
     pub fn build(self) -> RadioButtonProps<T> {
         RadioButtonProps {
             options: self.options,
             selected: self.selected,
+            aria_label: self.aria_label,
             disabled: self.disabled,
             orientation: self.orientation,
         }
@@ -120,6 +129,8 @@ pub struct RadioButtonProps<T: Clone + PartialEq + Send + Sync + 'static> {
     pub options: Vec<RadioOption<T>>,
     /// Currently selected value
     pub selected: Option<T>,
+    /// The name the screen reader hears for the group
+    pub aria_label: Option<String>,
     /// Whether the entire radio group is disabled
     pub disabled: bool,
     /// Layout orientation
@@ -131,6 +142,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Default for RadioButtonProps<
         Self {
             options: Vec::new(),
             selected: None,
+            aria_label: None,
             disabled: false,
             orientation: RadioOrientation::default(),
         }
@@ -208,24 +220,40 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
             } else {
                 "flex flex-col overflow-hidden"
             })
-            .with_accessibility(Node::new(Role::RadioGroup))
+            .with_accessibility({
+                // The group's orientation tells the screen reader which
+                // arrows move between the options (CTL-004).
+                let mut group = Node::new(Role::RadioGroup);
+                group.inner.set_orientation(match props.orientation {
+                    RadioOrientation::Horizontal => accesskit::Orientation::Horizontal,
+                    RadioOrientation::Vertical => accesskit::Orientation::Vertical,
+                });
+                if let Some(label) = &props.aria_label {
+                    group.set_label(label.clone());
+                }
+                group
+            })
             .with_focus(crate::component::FocusProps::input())
             .disabled(props.disabled || props.options.iter().all(|o| o.disabled));
         for (index, option) in props.options.iter().enumerate() {
             let disabled = props.disabled || option.disabled;
+            let chosen = props.selected.as_ref() == Some(&option.value);
             let mut node = Node::new(Role::RadioButton);
             node.set_label(option.label.clone());
-            node.set_toggled(if props.selected.as_ref() == Some(&option.value) {
+            // Selected as well as toggled: some screen readers read one
+            // of the two only (CTL-004).
+            node.set_toggled(if chosen {
                 Toggled::True
             } else {
                 Toggled::False
             });
+            node.set_selected(chosen);
             if disabled {
                 node.set_disabled();
             } else {
                 node.set_clickable();
             }
-            let mut child = Element::text(Self::option_text(index, props, state))
+            let mut child = Self::option_row(index, props, state)
                 .with_key(format!("radio:{index}"))
                 .with_class("whitespace-pre shrink-0")
                 .with_accessibility(node);
@@ -294,26 +322,36 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
 }
 
 impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
-    fn option_text(index: usize, props: &RadioButtonProps<T>, state: &RadioButtonState) -> String {
+    /// One option as a row: its circle `( )` is the frame, `border` or
+    /// `ring` while it holds the focus, the dot of the chosen one
+    /// `primary`, its label `foreground` or `text-muted` when disabled,
+    /// and the row under the pointer filled in `hover` (CTL-001).
+    fn option_row(index: usize, props: &RadioButtonProps<T>, state: &RadioButtonState) -> Element {
+        use super::look;
         let option = &props.options[index];
-        let focus = if state.focused_index == Some(index) && !props.disabled && !option.disabled {
-            "▶ "
+        let disabled = props.disabled || option.disabled;
+        let focused = state.focused_index == Some(index) && !disabled;
+        let chosen = props.selected.as_ref() == Some(&option.value);
+        let hover = if state.hover_index == Some(index) && !disabled {
+            look::HOVER
         } else {
-            "  "
+            ""
         };
-        let mark = if props.selected.as_ref() == Some(&option.value) {
-            '●'
-        } else {
-            ' '
-        };
-        let label = if props.disabled || option.disabled {
-            format!("({})", option.label)
-        } else if state.hover_index == Some(index) {
-            format!("_{}_", option.label)
-        } else {
-            option.label.clone()
-        };
-        format!("{focus}({mark}) {label}")
+        look::row(
+            &[
+                ("(", look::frame(focused)),
+                (if chosen { "●" } else { " " }, look::MARK),
+                (")", look::frame(focused)),
+                (" ", look::LABEL),
+                (option.label.as_str(), look::label(disabled)),
+            ],
+            hover,
+        )
+    }
+
+    /// The cells an option's row takes: its circle, a space and its label.
+    fn option_width(index: usize, props: &RadioButtonProps<T>) -> usize {
+        4 + props.options[index].label.width()
     }
 
     fn select(
@@ -367,12 +405,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
         }
     }
 
-    fn option_at(
-        &self,
-        event: &MouseEvent,
-        props: &RadioButtonProps<T>,
-        state: &RadioButtonState,
-    ) -> Option<usize> {
+    fn option_at(&self, event: &MouseEvent, props: &RadioButtonProps<T>) -> Option<usize> {
         let (mut x, mut y) = (event.position.x() as usize, event.position.y() as usize);
         if let Some(layout) = self.viewport {
             x = x.checked_sub(layout.insets[0] as usize)?;
@@ -383,15 +416,14 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
             }
         }
         if props.orientation == RadioOrientation::Vertical {
-            return (y < props.options.len() && x < Self::option_text(y, props, state).width())
-                .then_some(y);
+            return (y < props.options.len() && x < Self::option_width(y, props)).then_some(y);
         }
         if y != 0 {
             return None;
         }
         let mut start = 0;
         for index in 0..props.options.len() {
-            let end = start + Self::option_text(index, props, state).width();
+            let end = start + Self::option_width(index, props);
             if (start..end).contains(&x) {
                 return Some(index);
             }
@@ -408,13 +440,13 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
     ) -> EventResult {
         match event.kind {
             MouseEventKind::Down if event.button == crate::event::types::MouseButton::Left => self
-                .option_at(event, props, state)
+                .option_at(event, props)
                 .map_or(EventResult::Ignored, |index| {
                     self.select(index, props, state)
                 }),
             MouseEventKind::Enter | MouseEventKind::Move => {
                 state.hover_index = self
-                    .option_at(event, props, state)
+                    .option_at(event, props)
                     .filter(|&i| !props.options[i].disabled);
                 EventResult::Ignored
             }
@@ -450,6 +482,7 @@ mod tests {
                 },
             ],
             selected: Some("balanced".to_string()),
+            aria_label: None,
             disabled: false,
             orientation: RadioOrientation::Horizontal,
         };
@@ -500,6 +533,7 @@ mod tests {
                 },
             ],
             selected: None,
+            aria_label: None,
             disabled: false,
             orientation: RadioOrientation::Vertical,
         };
@@ -544,6 +578,7 @@ mod tests {
                 },
             ],
             selected: None,
+            aria_label: None,
             disabled: false,
             orientation: RadioOrientation::Vertical,
         };

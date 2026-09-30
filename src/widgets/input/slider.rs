@@ -16,6 +16,7 @@ pub struct SliderBuilder {
     show_value: bool,
     show_labels: bool,
     disabled: bool,
+    aria_label: Option<String>,
     width: u16,
 }
 
@@ -30,7 +31,8 @@ impl Default for SliderBuilder {
             show_value: true,
             show_labels: false,
             disabled: false,
-            width: 20,
+            aria_label: None,
+            width: 0,
         }
     }
 }
@@ -96,7 +98,15 @@ impl SliderBuilder {
         self
     }
 
-    /// Set the visual width of the slider track
+    /// Set the name the screen reader hears.
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
+    /// Set the track's width in cells; without it the track takes what
+    /// the parent allots, less the label, the value and the end labels
+    /// (CTL-002).
     pub fn width(mut self, width: u16) -> Self {
         self.width = width.max(5); // Minimum width of 5
         self
@@ -113,6 +123,7 @@ impl SliderBuilder {
             show_value: self.show_value,
             show_labels: self.show_labels,
             disabled: self.disabled,
+            aria_label: self.aria_label,
             width: self.width,
         };
         if props.valid() {
@@ -156,7 +167,11 @@ pub struct SliderProps {
     pub show_labels: bool,
     /// Whether the slider is disabled
     pub disabled: bool,
-    /// Visual width of the slider track (for horizontal) or height (for vertical)
+    /// The name the screen reader hears; without it the builder's label
+    pub aria_label: Option<String>,
+    /// The track's width in cells (its height for a vertical slider);
+    /// 0 takes what the parent allots, less the label, the value and the
+    /// end labels (CTL-002)
     pub width: u16,
 }
 
@@ -171,7 +186,8 @@ impl Default for SliderProps {
             show_value: true,
             show_labels: false,
             disabled: false,
-            width: 20,
+            aria_label: None,
+            width: 0,
         }
     }
 }
@@ -233,41 +249,67 @@ impl Slider {
             .map_or(0, |label| label.split('\n').count())
     }
 
-    // Track coordinates are relative to rendered content; padding is handled
-    // once at the mouse boundary. Decorations occupy cells outside the track.
-    fn track(&self, props: &SliderProps) -> (usize, usize, usize) {
-        let labels = if props.show_labels {
+    /// The cells the label takes before a horizontal track: its width and
+    /// one space.
+    fn label_cells(&self) -> usize {
+        use unicode_width::UnicodeWidthStr;
+        self.label
+            .as_ref()
+            .map_or(0, |label| UnicodeWidthStr::width(label.as_str()) + 1)
+    }
+
+    /// The width of the end labels before and after the track.
+    fn end_labels(props: &SliderProps) -> (usize, usize) {
+        if props.show_labels {
             (
                 format!("{:.0} ", props.min).len(),
                 format!(" {:.0}", props.max).len(),
             )
         } else {
             (0, 0)
-        };
-        let value_width = if props.show_value {
+        }
+    }
+
+    /// The cells the value takes after the track.
+    fn value_cells(props: &SliderProps) -> usize {
+        if props.show_value {
             1 + format!("{:.1}", props.min)
                 .len()
                 .max(format!("{:.1}", props.max).len())
         } else {
             0
+        }
+    }
+
+    /// The track's first cell, its row and its length. A horizontal
+    /// slider is one row: the label, the track between its frame cells,
+    /// the end labels and the value; the track takes what the rest leaves
+    /// of the parent's width, or the props' width when set (CTL-002).
+    fn track(&self, props: &SliderProps) -> (usize, usize, usize) {
+        let labels = Self::end_labels(props);
+        let value_width = Self::value_cells(props);
+        let cap = if props.width == 0 {
+            usize::MAX
+        } else {
+            props.width as usize
         };
         match props.orientation {
             SliderOrientation::Horizontal => {
-                let x = 3 + labels.0;
-                let available = self.viewport.map_or(props.width as usize, |bounds| {
+                let x = self.label_cells() + labels.0 + 1;
+                let available = self.viewport.map_or(cap.min(20), |bounds| {
                     (bounds.content_size().0 as usize)
                         .saturating_sub(x + 1 + labels.1 + value_width)
                 });
-                (x, self.label_rows(), available.min(props.width as usize))
+                (x, 0, available.min(cap))
             }
             SliderOrientation::Vertical => {
                 let label_rows = self.label_rows();
                 let y = usize::from(props.show_labels);
-                let available = self.viewport.map_or(props.width as usize, |bounds| {
+                let available = self.viewport.map_or(cap.min(20), |bounds| {
                     (bounds.content_size().1 as usize)
                         .saturating_sub(label_rows + y * 2 + usize::from(props.show_value))
                 });
-                (2, label_rows + y, available.min(props.width as usize))
+                (0, label_rows + y, available.min(cap))
             }
         }
     }
@@ -377,82 +419,103 @@ impl Component for Slider {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        use super::look;
         if !props.valid() {
             return Element::text("Invalid slider range").disabled(true);
         }
         let (_, _, length) = self.track(props);
         let thumb = self.calculate_thumb_position(props);
-        let marker = if props.disabled {
-            '○'
-        } else if state.is_hover {
-            '◉'
+        let focused = state.is_focused && !props.disabled;
+        // The track is `border`, its filled part `primary`, its thumb
+        // `foreground` and `ring` while focused; the label and the value
+        // `foreground`, `text-muted` when disabled (CTL-001).
+        let (fill_look, track_look, thumb_look) = if props.disabled {
+            (
+                look::LABEL_DISABLED,
+                look::LABEL_DISABLED,
+                look::LABEL_DISABLED,
+            )
+        } else if focused {
+            (look::MARK, look::TRACK, look::THUMB_FOCUSED)
         } else {
-            '●'
+            (look::MARK, look::TRACK, look::THUMB)
         };
-        let focus = if state.is_focused && !props.disabled {
-            "▶ "
-        } else {
-            "  "
-        };
+        let text_look = look::label(props.disabled);
         let value = props.bounded_value();
-        let result = match props.orientation {
+        let min_label = format!("{:.0} ", props.min);
+        let max_label = format!(" {:.0}", props.max);
+        // The value takes the cells the widest value needs, so the row
+        // ends where the parent's box does.
+        let value_text = format!(
+            " {value:>width$.1}",
+            width = Self::value_cells(props).saturating_sub(1)
+        );
+        let filled = "═".repeat(thumb.min(length));
+        let rest = "─".repeat(length.saturating_sub(thumb + 1));
+        let element = match props.orientation {
             SliderOrientation::Horizontal => {
-                let mut text = focus.to_owned();
-                if props.show_labels {
-                    text.push_str(&format!("{:.0} ", props.min));
+                let label = self.label.clone().unwrap_or_default();
+                let mut pieces: Vec<(&str, &str)> = Vec::new();
+                if !label.is_empty() {
+                    pieces.push((label.as_str(), text_look));
+                    pieces.push((" ", text_look));
                 }
-                text.push('[');
-                for i in 0..length {
-                    text.push(if i == thumb {
-                        marker
-                    } else if i < thumb {
-                        '═'
-                    } else {
-                        '─'
-                    });
-                }
-                text.push(']');
                 if props.show_labels {
-                    text.push_str(&format!(" {:.0}", props.max));
+                    pieces.push((min_label.as_str(), text_look));
+                }
+                pieces.push(("[", look::frame(focused)));
+                pieces.push((filled.as_str(), fill_look));
+                if length > 0 {
+                    pieces.push(("●", thumb_look));
+                }
+                pieces.push((rest.as_str(), track_look));
+                pieces.push(("]", look::frame(focused)));
+                if props.show_labels {
+                    pieces.push((max_label.as_str(), text_look));
                 }
                 if props.show_value {
-                    text.push_str(&format!(" {value:.1}"));
+                    pieces.push((value_text.as_str(), text_look));
                 }
-                text
+                look::row(&pieces, "w-full")
             }
             SliderOrientation::Vertical => {
                 let mut rows = Vec::new();
+                if let Some(label) = &self.label {
+                    for line in label.split('\n') {
+                        rows.push(look::row(&[(line, text_look)], ""));
+                    }
+                }
+                let max_text = format!("{:.0}", props.max);
+                let min_text = format!("{:.0}", props.min);
+                let value_only = format!("{value:.1}");
                 if props.show_labels {
-                    rows.push(format!("  {:.0}", props.max));
+                    rows.push(look::row(&[(max_text.as_str(), text_look)], ""));
                 }
                 for row in 0..length {
                     let position = length - 1 - row;
-                    let symbol = if position == thumb {
-                        marker
+                    let piece = if position == thumb {
+                        ("●", thumb_look)
                     } else if position < thumb {
-                        '┃'
+                        ("┃", fill_look)
                     } else {
-                        '│'
+                        ("│", track_look)
                     };
-                    rows.push(format!("{}{symbol}", if row == 0 { focus } else { "  " }));
+                    rows.push(look::row(&[piece], ""));
                 }
                 if props.show_labels {
-                    rows.push(format!("  {:.0}", props.min));
+                    rows.push(look::row(&[(min_text.as_str(), text_look)], ""));
                 }
                 if props.show_value {
-                    rows.push(format!("  {value:.1}"));
+                    rows.push(look::row(&[(value_only.as_str(), text_look)], ""));
                 }
-                rows.join("\n")
+                Element::layout(crate::component::LayoutType::Flex)
+                    .class("flex flex-col shrink-0")
+                    .children(rows)
             }
-        };
-        let result = if let Some(label) = &self.label {
-            format!("{label}\n{result}")
-        } else {
-            result
         };
         use crate::accessibility::{Node, Role};
         let mut accessible = Node::new(Role::Slider);
-        if let Some(label) = &self.label {
+        if let Some(label) = props.aria_label.as_ref().or(self.label.as_ref()) {
             accessible.set_label(label.clone());
         }
         accessible.inner.set_numeric_value(value);
@@ -463,9 +526,12 @@ impl Component for Slider {
             SliderOrientation::Horizontal => accesskit::Orientation::Horizontal,
             SliderOrientation::Vertical => accesskit::Orientation::Vertical,
         });
-        Element::text(result)
+        if props.disabled {
+            accessible.set_disabled();
+        }
+        element
             .with_accessibility(accessible)
-            .with_class("whitespace-pre overflow-hidden")
+            .with_class("overflow-hidden")
             .with_focus(crate::component::FocusProps::input())
             .disabled(props.disabled || length == 0)
     }

@@ -3,7 +3,7 @@
 //! This module provides pre-styled components and layout utilities that make it easy
 //! to create common UI patterns with consistent styling.
 
-use super::core::{aside, button, div, grid_builder, input, main, span, ElementBuilder};
+use super::core::{aside, div, grid_builder, input, main, span, ElementBuilder};
 use crate::component::Element;
 
 /// Convenience functions for common layout patterns
@@ -101,8 +101,10 @@ pub fn primary_button<F>(text: &str, onclick: F) -> Element
 where
     F: Fn() + Send + Sync + 'static,
 {
-    button()
-        .class("px-16 py-8 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500")
+    // The primary look: `primary` with its text, one cell of padding at
+    // each side, `selection` while it holds the focus (CTL-001).
+    div()
+        .class(crate::widgets::input::look::PRIMARY_BUTTON)
         .text(text)
         .on_click(Box::new(onclick))
         .build()

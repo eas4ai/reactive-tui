@@ -10,6 +10,7 @@ use std::sync::Arc;
 pub struct CheckboxBuilder {
     checked: bool,
     label: Option<String>,
+    aria_label: Option<String>,
     disabled: bool,
     indeterminate: bool,
 }
@@ -32,6 +33,13 @@ impl CheckboxBuilder {
         self
     }
 
+    /// Set the name the screen reader hears, when the visible label is
+    /// not it ("Agree" shown, "Agree to the terms" read).
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
     /// Set whether the checkbox is disabled
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
@@ -49,6 +57,7 @@ impl CheckboxBuilder {
         CheckboxProps {
             checked: self.checked,
             label: self.label,
+            aria_label: self.aria_label,
             disabled: self.disabled,
             indeterminate: self.indeterminate,
         }
@@ -67,6 +76,8 @@ pub struct CheckboxProps {
     pub checked: bool,
     /// Optional label text for the checkbox
     pub label: Option<String>,
+    /// The name the screen reader hears instead of the visible label
+    pub aria_label: Option<String>,
     /// Whether the checkbox is disabled
     pub disabled: bool,
     /// Whether the checkbox is in indeterminate state (three-state support)
@@ -125,45 +136,36 @@ impl Component for Checkbox {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        let mut result = String::new();
-
-        // Add state indicator
-        if props.disabled {
-            result.push_str("🔒 ");
-        } else if state.is_focused {
-            result.push_str("▶ ");
-        } else {
-            result.push_str("  ");
-        }
-
-        // Render checkbox
-        result.push('[');
-
-        if props.indeterminate {
-            result.push('▬'); // Indeterminate state
+        use super::look;
+        // The box is its frame around a mark: `[✓]`, `[▬]` or `[ ]`. The
+        // frame is `border`, `ring` while focused; the mark `primary`; the
+        // label `foreground`, `text-muted` when disabled; the row under
+        // the pointer `hover` (CTL-001).
+        let frame = look::frame(state.is_focused && !props.disabled);
+        let mark = if props.indeterminate {
+            "▬"
         } else if props.checked {
-            result.push('✓'); // Checked
+            "✓"
         } else {
-            result.push(' '); // Unchecked
-        }
-
-        result.push(']');
-
-        // Add label if provided
-        if let Some(ref label) = props.label {
-            result.push(' ');
-            if props.disabled {
-                result.push_str(&format!("({label})")); // Show disabled state
-            } else if state.is_hover {
-                result.push_str(&format!("_{label}_")); // Show hover state
-            } else {
-                result.push_str(label);
-            }
-        }
+            " "
+        };
+        let label = props.label.as_deref().unwrap_or_default();
+        let pieces = [
+            ("[", frame),
+            (mark, look::MARK),
+            ("]", frame),
+            (if label.is_empty() { "" } else { " " }, look::LABEL),
+            (label, look::label(props.disabled)),
+        ];
+        let hover = if state.is_hover && !props.disabled {
+            look::HOVER
+        } else {
+            ""
+        };
 
         use crate::accessibility::{Node, Role, Toggled};
         let mut accessible = Node::new(Role::CheckBox);
-        if let Some(label) = &props.label {
+        if let Some(label) = props.aria_label.as_ref().or(props.label.as_ref()) {
             accessible.set_label(label.clone());
         }
         accessible.set_toggled(if props.indeterminate {
@@ -178,7 +180,7 @@ impl Component for Checkbox {
         } else {
             accessible.set_clickable();
         }
-        Element::text(result)
+        look::row(&pieces, hover)
             .with_accessibility(accessible)
             .with_focus(crate::component::FocusProps::input())
             .disabled(props.disabled)

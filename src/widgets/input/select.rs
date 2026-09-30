@@ -11,6 +11,7 @@ pub struct SelectBuilder<T: Clone + PartialEq + Send + Sync + 'static> {
     options: Vec<SelectOption<T>>,
     selected: Option<T>,
     placeholder: Option<String>,
+    aria_label: Option<String>,
     disabled: bool,
     width: Option<u16>,
     max_visible_items: usize,
@@ -23,9 +24,10 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> SelectBuilder<T> {
             options: Vec::new(),
             selected: None,
             placeholder: Some("Select an option...".to_string()),
+            aria_label: None,
             disabled: false,
-            width: Some(30),
-            max_visible_items: 5,
+            width: None,
+            max_visible_items: usize::MAX,
         }
     }
 
@@ -59,6 +61,12 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> SelectBuilder<T> {
         self
     }
 
+    /// Set the name the screen reader hears, apart from the value.
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
     /// Set whether the select is disabled
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
@@ -83,6 +91,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> SelectBuilder<T> {
             options: self.options,
             selected: self.selected,
             placeholder: self.placeholder,
+            aria_label: self.aria_label,
             disabled: self.disabled,
             width: self.width,
             max_visible_items: self.max_visible_items,
@@ -151,11 +160,16 @@ pub struct SelectProps<T: Clone + PartialEq + Send + Sync + 'static> {
     pub selected: Option<T>,
     /// Placeholder text when no option is selected
     pub placeholder: Option<String>,
+    /// The name the screen reader hears, apart from the value; without
+    /// it the placeholder names the select
+    pub aria_label: Option<String>,
     /// Whether the select is disabled
     pub disabled: bool,
-    /// Maximum number of visible items in dropdown
+    /// The most rows the open list shows; by default every option, as far
+    /// as the screen holds them (CTL-002)
     pub max_visible_items: usize,
-    /// Fixed width of the select component
+    /// The row's width in cells; `None` takes the width the parent allots
+    /// (CTL-002)
     pub width: Option<u16>,
 }
 
@@ -165,9 +179,10 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Default for SelectProps<T> {
             options: Vec::new(),
             selected: None,
             placeholder: Some("Select an option...".to_string()),
+            aria_label: None,
             disabled: false,
-            max_visible_items: 5,
-            width: Some(30),
+            max_visible_items: usize::MAX,
+            width: None,
         }
     }
 }
@@ -194,6 +209,10 @@ pub struct SelectState {
 /// Select dropdown component with full keyboard navigation
 pub struct Select<T: Clone + PartialEq + Send + Sync + 'static> {
     viewport: Option<crate::component::LayoutInfo>,
+    /// The row's width while the list is closed: the root's content width.
+    field_width: Option<usize>,
+    /// The screen the open list was laid out on, for its placement.
+    measured: Arc<super::panel::Measured>,
     search: String,
     search_updated: Option<std::time::Instant>,
     _phantom: std::marker::PhantomData<T>,
@@ -210,62 +229,78 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
         state: &SelectState,
         multiple: Option<&[T]>,
     ) -> Element {
-        let width = self.view_width(props);
-
-        // Get display text for selected value
-        let display_text = if let Some(selected) = multiple.filter(|values| !values.is_empty()) {
-            props
-                .options
-                .iter()
-                .filter(|option| selected.contains(&option.value))
-                .map(|option| option.label.as_str())
-                .collect::<Vec<_>>()
-                .join(", ")
-        } else if let Some(selected) = props.selected.as_ref().filter(|_| multiple.is_none()) {
-            props
-                .options
-                .iter()
-                .find(|opt| opt.value == *selected)
-                .map(|opt| opt.label.clone())
-                .unwrap_or_else(|| "Unknown".to_string())
-        } else if let Some(ref placeholder) = props.placeholder {
-            placeholder.clone()
-        } else {
-            String::new()
-        };
-
-        let mut result = String::new();
-
-        // Add state indicator
-        if props.disabled {
-            result.push_str("🔒 ");
-        } else if state.is_open {
-            result.push_str("▼ ");
-        } else if state.is_focused {
-            result.push_str("▶ ");
-        } else {
-            result.push_str("  ");
-        }
-
-        // Truncate display text if needed
+        use super::{look, panel};
         use unicode_segmentation::UnicodeSegmentation;
         use unicode_width::UnicodeWidthStr;
-        let available = width.saturating_sub(4);
+
+        let field_width = self.field_width(props);
+        let chosen_text = if let Some(selected) = multiple.filter(|values| !values.is_empty()) {
+            Some(
+                props
+                    .options
+                    .iter()
+                    .filter(|option| selected.contains(&option.value))
+                    .map(|option| option.label.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )
+        } else {
+            props
+                .selected
+                .as_ref()
+                .filter(|_| multiple.is_none())
+                .map(|selected| {
+                    props
+                        .options
+                        .iter()
+                        .find(|opt| opt.value == *selected)
+                        .map_or_else(|| "Unknown".to_string(), |opt| opt.label.clone())
+                })
+        };
+        let placeholder = chosen_text.is_none();
+        let display_text = chosen_text
+            .or_else(|| props.placeholder.clone())
+            .unwrap_or_default();
+
+        // The row is a field: `[value          ▾]` on `input`, its frame
+        // `border` or `ring` while focused, its placeholder and its caret
+        // `text-muted` (CTL-001), as wide as the parent allots (CTL-002).
+        let text_room = field_width.saturating_sub(4);
         let mut used = 0;
         let display: String = display_text
             .graphemes(true)
             .take_while(|part| {
                 used += UnicodeWidthStr::width(*part);
-                used <= available
+                used <= text_room
             })
             .collect();
-
-        result.push('[');
-        result.push_str(&display);
-        result.push(']');
+        let padding =
+            " ".repeat(text_room.saturating_sub(UnicodeWidthStr::width(display.as_str())));
+        let frame = look::field_frame(state.is_focused && !props.disabled);
+        let text_look = if props.disabled {
+            look::FIELD_DISABLED
+        } else if placeholder {
+            look::MUTED
+        } else {
+            look::FIELD
+        };
+        let field = look::row(
+            &[
+                ("[", frame),
+                (display.as_str(), text_look),
+                (padding.as_str(), look::FIELD),
+                (" ▾", look::MUTED),
+                ("]", frame),
+            ],
+            "",
+        )
+        .with_key("select-field");
 
         use crate::accessibility::{Node, Role};
         let mut semantic = Node::new(Role::ComboBox);
+        if let Some(label) = props.aria_label.as_ref().or(props.placeholder.as_ref()) {
+            semantic.set_label(label.clone());
+        }
         semantic.set_value(display_text);
         semantic.set_expanded(state.is_open);
         if multiple.is_some() {
@@ -277,14 +312,9 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             semantic.set_clickable();
         }
         let mut root = Element::layout(crate::component::LayoutType::Flex)
-            .class(format!(
-                "flex flex-col w-{} max-w-full overflow-hidden whitespace-pre",
-                props.width.unwrap_or(30)
-            ))
             .with_focus(crate::component::FocusProps::input())
             .disabled(props.disabled)
-            .with_accessibility(semantic)
-            .with_child(Element::text(result).class("shrink-0 aria-hidden"));
+            .with_accessibility(semantic);
         root.metadata
             .accessibility_options
             .get_or_insert_default()
@@ -293,81 +323,137 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
             Vec::new(),
         ));
 
-        // Show dropdown if open
-        if state.is_open && !props.options.is_empty() {
-            let mut list_semantic = Node::new(Role::ListBox);
-            if multiple.is_some() {
-                list_semantic.inner.set_multiselectable();
-            }
-            let mut list = Element::layout(crate::component::LayoutType::Flex)
-                .class("flex flex-col shrink-0")
-                .with_accessibility(list_semantic);
-            // Every option occupies one row below the header.
-            let visible_end = state
-                .scroll_offset
-                .saturating_add(self.visible_items(props))
-                .min(props.options.len());
-
-            // Render visible options
-            for i in state.scroll_offset..visible_end {
-                let option = &props.options[i];
-                let is_selected = multiple.map_or_else(
-                    || props.selected.as_ref() == Some(&option.value),
-                    |selected| selected.contains(&option.value),
-                );
-                let is_highlighted = i == state.highlighted_index;
-                let mut result = String::from("  ");
-
-                // Add selection/highlight markers
-                if is_highlighted && is_selected {
-                    result.push_str("▶●");
-                } else if is_highlighted {
-                    result.push_str("▶ ");
-                } else if is_selected {
-                    result.push_str(" ●");
-                } else {
-                    result.push_str("  ");
-                }
-
-                // Add option label
-                if multiple.is_some() {
-                    result.push_str(if is_selected { "[✓] " } else { "[ ] " });
-                }
-                if option.disabled {
-                    result.push_str(&format!("({})", option.label));
-                } else {
-                    result.push_str(&option.label);
-                }
-
-                let disabled = props.disabled || option.disabled;
-                let mut semantic = Node::new(Role::ListBoxOption);
-                semantic.set_label(option.label.clone());
-                semantic.set_selected(is_selected);
-                if disabled {
-                    semantic.set_disabled();
-                } else {
-                    semantic.set_clickable();
-                }
-                let mut child = Element::text(result)
-                    .with_key(format!("select:{i}"))
-                    .class("shrink-0")
-                    .with_accessibility(semantic);
-                if !disabled {
-                    let options = child.metadata.accessibility_options.get_or_insert_default();
-                    options.focus = state.is_focused && is_highlighted;
-                    options.focus_event = Some(crate::event::CustomEvent::new(
-                        "reactive_tui.select.focus",
-                        i.to_string().into_bytes(),
-                    ));
-                }
-                list = list.with_child(child);
-            }
-            root = root.with_child(list);
+        let open = state.is_open && !props.options.is_empty();
+        if !open {
+            return root
+                .class(match props.width {
+                    Some(width) => format!("flex flex-col w-{width} max-w-full shrink-0"),
+                    None => "flex flex-col w-full shrink-0".to_string(),
+                })
+                .with_child(field);
         }
 
-        root
+        // The open list: a panel under the row, or above it when only the
+        // space above holds it (CTL-003), with every option as far as the
+        // screen holds them (CTL-002), in `surface` with a border in
+        // `border`, its current row in `selection` (CTL-001).
+        let placement = self.placement(props);
+        let mark_width = if multiple.is_some() { 4 } else { 2 };
+        let widest = props
+            .options
+            .iter()
+            .map(|option| UnicodeWidthStr::width(option.label.as_str()))
+            .max()
+            .unwrap_or(0);
+        let panel_width = field_width.max(widest + mark_width + 2);
+        let row_width = panel_width - 2;
+        let mut list_semantic = Node::new(Role::ListBox);
+        if multiple.is_some() {
+            list_semantic.inner.set_multiselectable();
+        }
+        let visible_end = state
+            .scroll_offset
+            .saturating_add(placement.rows)
+            .min(props.options.len());
+        let mut rows = Vec::new();
+        for i in state.scroll_offset..visible_end {
+            let option = &props.options[i];
+            let is_selected = multiple.map_or_else(
+                || props.selected.as_ref() == Some(&option.value),
+                |selected| selected.contains(&option.value),
+            );
+            let is_highlighted = i == state.highlighted_index;
+            let disabled = props.disabled || option.disabled;
+            let mark = if multiple.is_some() {
+                if is_selected {
+                    "[✓] "
+                } else {
+                    "[ ] "
+                }
+            } else if is_selected {
+                "● "
+            } else {
+                "  "
+            };
+            let label_width = UnicodeWidthStr::width(option.label.as_str());
+            let padding = " ".repeat(row_width.saturating_sub(mark_width + label_width));
+            let (mark_look, label_look, row_look) = if is_highlighted && !disabled {
+                (look::CURRENT_ROW, look::CURRENT_ROW, look::CURRENT_ROW)
+            } else {
+                (look::MARK, look::label(disabled), "")
+            };
+            let mut semantic = Node::new(Role::ListBoxOption);
+            semantic.set_label(option.label.clone());
+            semantic.set_selected(is_selected);
+            if disabled {
+                semantic.set_disabled();
+            } else {
+                semantic.set_clickable();
+            }
+            let mut child = look::row(
+                &[
+                    (mark, mark_look),
+                    (option.label.as_str(), label_look),
+                    (padding.as_str(), row_look),
+                ],
+                row_look,
+            )
+            .with_key(format!("select:{i}"))
+            .with_accessibility(semantic);
+            if !disabled {
+                let options = child.metadata.accessibility_options.get_or_insert_default();
+                options.focus = state.is_focused && is_highlighted;
+                options.focus_event = Some(crate::event::CustomEvent::new(
+                    "reactive_tui.select.focus",
+                    i.to_string().into_bytes(),
+                ));
+            }
+            rows.push(child);
+        }
+        let list = panel::element(placement, panel_width, rows, &self.measured)
+            .with_accessibility(list_semantic)
+            .with_key("select-list");
+        root = root.class("flex flex-col shrink-0");
+        root.metadata.styles = Some(Arc::new(
+            panel::host_style(placement, field_width, panel_width).snapshot(),
+        ));
+        if placement.above {
+            root.with_child(list).with_child(field)
+        } else {
+            root.with_child(field).with_child(list)
+        }
     }
 
+    /// The row's width: the parent's content width measured while the
+    /// list was closed, or the props' width; 30 cells before any layout.
+    fn field_width(&self, props: &SelectProps<T>) -> usize {
+        self.field_width
+            .or_else(|| props.width.map(usize::from))
+            .unwrap_or(30)
+            .max(4)
+    }
+
+    /// Where the open list stands and how many rows it shows.
+    fn placement(&self, props: &SelectProps<T>) -> super::panel::Placement {
+        super::panel::place(
+            self.viewport,
+            self.measured.screen(),
+            props.options.len().min(props.max_visible_items.max(1)),
+        )
+    }
+
+    /// The row the field takes in the root's box while the list is open:
+    /// after the panel when the panel stands above.
+    fn field_row(&self, props: &SelectProps<T>, state: &SelectState) -> usize {
+        let placement = self.placement(props);
+        if state.is_open && !props.options.is_empty() && placement.above {
+            placement.height()
+        } else {
+            0
+        }
+    }
+
+    /// The row of the root's box a pointer position is in.
     fn content_row(&self, position: crate::event::types::Position) -> Option<usize> {
         let (x, y) = (position.x() as usize, position.y() as usize);
         let Some(layout) = self.viewport else {
@@ -379,33 +465,37 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
         (x < width as usize && y < height as usize).then_some(y)
     }
 
+    /// Whether a pointer position is on the field's row.
+    fn on_field(
+        &self,
+        position: crate::event::types::Position,
+        props: &SelectProps<T>,
+        state: &SelectState,
+    ) -> bool {
+        self.content_row(position) == Some(self.field_row(props, state))
+    }
+
+    /// The option under a pointer position in the open list.
     pub(crate) fn option_at(
         &self,
         position: crate::event::types::Position,
         props: &SelectProps<T>,
         state: &SelectState,
     ) -> Option<usize> {
-        let row = self.content_row(position)?.checked_sub(1)?;
+        if !state.is_open || props.options.is_empty() {
+            return None;
+        }
+        let placement = self.placement(props);
+        let panel_top = if placement.above { 0 } else { 1 };
+        // The panel's border takes its first row.
+        let row = self.content_row(position)?.checked_sub(panel_top + 1)?;
         let index = state.scroll_offset.saturating_add(row);
-        (state.is_open && row < self.visible_items(props) && index < props.options.len())
-            .then_some(index)
+        (row < placement.rows && index < props.options.len()).then_some(index)
     }
 
+    /// The rows the open list shows.
     fn visible_items(&self, props: &SelectProps<T>) -> usize {
-        let room = self
-            .viewport
-            .map_or(props.max_visible_items.max(1), |layout| {
-                (layout.clip.y + layout.clip.height - layout.transform[5] - layout.insets[1] - 1.0)
-                    .max(1.0) as usize
-            });
-        props.max_visible_items.max(1).min(room)
-    }
-
-    fn view_width(&self, props: &SelectProps<T>) -> usize {
-        self.viewport
-            .map_or(usize::from(props.width.unwrap_or(30)), |layout| {
-                layout.content_size().0 as usize
-            })
+        self.placement(props).rows
     }
 
     /// Set the onChange callback for when the selection changes
@@ -489,6 +579,8 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
     fn new(_props: Self::Props) -> Self {
         Self {
             viewport: None,
+            field_width: None,
+            measured: Arc::default(),
             search: String::new(),
             search_updated: None,
             _phantom: std::marker::PhantomData,
@@ -510,9 +602,12 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
         props: &mut Self::Props,
         state: &mut Self::State,
     ) -> bool {
-        let previous = (self.view_width(props), self.visible_items(props));
+        let previous = (self.field_width(props), self.visible_items(props));
         self.viewport = Some(layout);
-        let current = (self.view_width(props), self.visible_items(props));
+        if !state.is_open {
+            self.field_width = Some(layout.content_size().0 as usize);
+        }
+        let current = (self.field_width(props), self.visible_items(props));
         state.highlighted_index = state
             .highlighted_index
             .min(props.options.len().saturating_sub(1));
@@ -770,11 +865,11 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
     ) -> EventResult {
         match event.kind {
             MouseEventKind::Down if event.button == crate::event::types::MouseButton::Left => {
-                let Some(click_y) = self.content_row(event.position) else {
+                if self.content_row(event.position).is_none() {
                     return EventResult::Ignored;
-                };
+                }
 
-                if click_y == 0 {
+                if self.on_field(event.position, props, state) {
                     if state.is_open {
                         self.set_open(false, state);
                     } else {

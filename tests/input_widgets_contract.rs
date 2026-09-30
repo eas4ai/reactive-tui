@@ -291,16 +291,16 @@ fn ctl_001_a_text_input_paints_its_field_in_input_and_its_cursor_reversed() {
         "Type here",
     );
     let (column, row) = at(&frame, "Reactive");
+    // The cursor stands on the first glyph until the user moves it.
     assert_eq!(
-        cell_colors(&frame, column, row),
+        cell_colors(&frame, column + 1, row),
         (Some(role("foreground")), Some(role("input"))),
         "the field is input with foreground text:\n{}",
         frame.text
     );
-    let cursor = cell_colors(&frame, column + 8, row);
     assert_eq!(
-        cursor.1,
-        Some(role("foreground")),
+        cell_colors(&frame, column, row),
+        (Some(role("input")), Some(role("foreground"))),
         "the cursor cell is the field reversed:\n{}",
         frame.text
     );
@@ -351,8 +351,14 @@ fn ctl_001_a_button_takes_the_primary_or_the_secondary_look() {
         "one cell of padding before the label:\n{}",
         frame.text
     );
+    assert_eq!(
+        cell_colors(&frame, column + 4, row).1,
+        Some(role("primary")),
+        "one cell of padding after the label:\n{}",
+        frame.text
+    );
     assert_ne!(
-        cell_colors(&frame, column - 2, row).1,
+        cell_colors(&frame, column + 5, row).1,
         Some(role("primary")),
         "one cell of padding, not more:\n{}",
         frame.text
@@ -450,10 +456,14 @@ fn ctl_001_a_select_paints_its_field_and_its_open_list_in_the_roles() {
         "a row of the list is surface:\n{}",
         open.text
     );
-    let (column, row) = at(open, "Cyan");
-    let current = (0..row + 4)
-        .find(|r| *r != row && glyph(open, column, *r) == "C")
-        .expect("the list's Cyan row");
+    let (field_column, field_row) = at(open, "Cyan");
+    let (column, current) = (field_row + 1..field_row + 5)
+        .find_map(|r| {
+            (0..field_column + 6)
+                .find(|c| glyph(open, *c, r) == "C" && glyph(open, c + 1, r) == "y")
+                .map(|c| (c, r))
+        })
+        .unwrap_or_else(|| panic!("the list's Cyan row:\n{}", open.text));
     assert_eq!(
         cell_colors(open, column, current),
         (Some(role("selection-foreground")), Some(role("selection"))),
@@ -650,36 +660,41 @@ fn ctl_002_a_select_of_thirty_options_paints_every_row_when_opened() {
 #[serial_test::serial(theme)]
 fn ctl_003_opening_a_select_moves_nothing_under_it() {
     let _theme = Active::set(probe());
+    let mut page = builder::div().class("flex-col").child(
+        builder::select()
+            .option("cyan", "Cyan")
+            .option("violet", "Violet")
+            .selected("cyan")
+            .build()
+            .auto_focus(),
+    );
+    for n in 1..=6 {
+        page = page.child(Element::text(format!("LINE {n} UNDER THE SELECT")));
+    }
     let frames = shown_after(
-        builder::div()
-            .class("flex-col")
-            .child(
-                builder::select()
-                    .option("cyan", "Cyan")
-                    .option("violet", "Violet")
-                    .selected("cyan")
-                    .build()
-                    .auto_focus(),
-            )
-            .child(Element::text("BELOW THE SELECT"))
-            .build(),
+        page.build(),
         (80, 12),
-        vec![("BELOW THE SELECT", key(KeyCode::Enter)), ("Violet", None)],
+        vec![("LINE 6 UNDER", key(KeyCode::Enter)), ("Violet", None)],
     );
-    let before = at(first_with(&frames, "BELOW THE SELECT"), "BELOW THE SELECT");
+    let before = first_with(&frames, "LINE 6 UNDER");
     let open = last(&frames);
-    let after = find(open, "BELOW THE SELECT").unwrap_or(before);
-    assert_eq!(
-        after, before,
-        "the element under the select keeps its place:\n{}",
-        open.text
-    );
-    let (_, row) = at(open, "Violet");
-    assert!(
-        row <= before.1,
-        "the list is painted over what was under the select:\n{}",
-        open.text
-    );
+    // The panel of two options takes four rows: it covers lines 1 to 4,
+    // which are painted over, not moved; lines 5 and 6 keep their rows.
+    for n in 1..=4 {
+        assert!(
+            find(open, &format!("LINE {n} UNDER")).is_none(),
+            "line {n} is painted over, not moved:\n{}",
+            open.text
+        );
+    }
+    for n in 5..=6 {
+        assert_eq!(
+            find(open, &format!("LINE {n} UNDER")),
+            find(before, &format!("LINE {n} UNDER")),
+            "line {n} keeps its row:\n{}",
+            open.text
+        );
+    }
 }
 
 #[test]

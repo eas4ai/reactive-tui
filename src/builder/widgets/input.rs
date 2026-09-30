@@ -95,6 +95,7 @@ pub fn slider() -> SliderBuilder {
 pub struct TextInputBuilder {
     value: String,
     placeholder: Option<String>,
+    aria_label: Option<String>,
     disabled: bool,
     readonly: bool,
     max_length: Option<usize>,
@@ -108,6 +109,7 @@ impl TextInputBuilder {
         Self {
             value: String::new(),
             placeholder: None,
+            aria_label: None,
             disabled: false,
             readonly: false,
             max_length: None,
@@ -131,6 +133,13 @@ impl TextInputBuilder {
     /// * `placeholder` - Text to show when the input is empty
     pub fn placeholder(mut self, placeholder: &str) -> Self {
         self.placeholder = Some(placeholder.to_string());
+        self
+    }
+
+    /// Set the name the screen reader hears for the field; without it
+    /// the placeholder names the field.
+    pub fn aria_label(mut self, label: &str) -> Self {
+        self.aria_label = Some(label.to_string());
         self
     }
 
@@ -208,6 +217,7 @@ impl TextInputBuilder {
         crate::widgets::TextInputProps {
             value: self.value.clone(),
             placeholder: self.placeholder.clone(),
+            aria_label: self.aria_label.clone(),
             disabled: self.disabled,
             max_length: self.max_length,
             mode: match self.input_type.as_str() {
@@ -319,6 +329,7 @@ impl From<TextInputBuilder> for Element {
 pub struct CheckboxBuilder {
     checked: bool,
     label: Option<String>,
+    aria_label: Option<String>,
     disabled: bool,
     indeterminate: bool,
     class: Option<String>,
@@ -330,6 +341,7 @@ impl CheckboxBuilder {
         Self {
             checked: false,
             label: None,
+            aria_label: None,
             disabled: false,
             indeterminate: false,
             class: None,
@@ -351,6 +363,13 @@ impl CheckboxBuilder {
     /// * `label` - Text label to display next to the checkbox
     pub fn label(mut self, label: &str) -> Self {
         self.label = Some(label.to_string());
+        self
+    }
+
+    /// Set the name the screen reader hears, when the visible label is
+    /// not it ("Agree" shown, "Agree to the terms" read).
+    pub fn aria_label(mut self, label: &str) -> Self {
+        self.aria_label = Some(label.to_string());
         self
     }
 
@@ -392,6 +411,7 @@ impl CheckboxBuilder {
             Element::typed::<crate::widgets::Checkbox>(crate::widgets::CheckboxProps {
                 checked: self.checked,
                 label: self.label,
+                aria_label: self.aria_label,
                 disabled: self.disabled,
                 indeterminate: self.indeterminate,
             });
