@@ -64,12 +64,12 @@ fn axis_rectangle(polygons: &[Polygon]) -> Option<[f32; 4]> {
     (across_first || down_first).then(|| [a.0.min(c.0), a.1.min(c.1), a.0.max(c.0), a.1.max(c.1)])
 }
 
-/// The color of a cell that names none: `theme`'s text color, and the
-/// default theme's where `theme` has none.
+/// The color of a cell that names none: `theme`'s text color, which a
+/// theme that leaves it out takes from the light or the dark preset
+/// (THM-002).
 fn cell_foreground(theme: &crate::theme::Theme) -> Premul {
     theme
         .resolve_color("foreground")
-        .or_else(|| crate::theme::dark_theme().resolve_color("foreground"))
         .map_or([0.0; 4], |(r, g, b, a)| premultiply([r, g, b, a]))
 }
 
@@ -225,12 +225,13 @@ mod tests {
         let own = Theme::new("own")
             .with_variables(ThemeVariables::new().set("--color-foreground", "#102030"));
         assert_eq!(channels(cell_foreground(&own)), [16, 32, 48, 255]);
-        // A theme with no text color and no theme below it.
+        // A theme with no text color and no theme below it takes the dark
+        // preset's (THM-002).
         let bare = Theme::new("bare");
         let (r, g, b, a) = dark_theme()
             .resolve_color("foreground")
             .expect("the default theme has a text color");
-        assert_eq!(bare.resolve_color("foreground"), None);
+        assert_eq!(bare.resolve_color("foreground"), Some((r, g, b, a)));
         assert_eq!(cell_foreground(&bare), premultiply([r, g, b, a]));
         // Not the white the canvas once drew such a cell in.
         assert!(a > 0.0 && [r, g, b] != [1.0; 3]);
