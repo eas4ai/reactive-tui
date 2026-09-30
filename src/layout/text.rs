@@ -171,18 +171,39 @@ fn wrap_line(text: &str, width: usize, mode: WordBreak, collapse: bool) -> Vec<S
         text.graphemes(true).collect()
     } else {
         // A word and the punctuation that follows it without a space stay
-        // on one line: a line breaks at whitespace only.
-        let mut tokens: Vec<&str> = Vec::new();
-        for token in text.split_word_bounds() {
-            let blank = token.chars().all(char::is_whitespace);
-            match tokens.last_mut() {
-                Some(last) if !blank && !last.chars().all(char::is_whitespace) => {
-                    let start = last.as_ptr() as usize - text.as_ptr() as usize;
-                    *last = &text[start..start + last.len() + token.len()];
-                }
-                _ => tokens.push(token),
+        // on one line: a line breaks at whitespace first. A run without a
+        // space that is wider than the line (Han or Kana text, a path, a
+        // URL) keeps its word boundaries, so it breaks there.
+        fn flush<'a>(
+            text: &'a str,
+            run: &mut Vec<&'a str>,
+            tokens: &mut Vec<&'a str>,
+            width: usize,
+        ) {
+            if run.is_empty() {
+                return;
+            }
+            let start = run[0].as_ptr() as usize - text.as_ptr() as usize;
+            let length: usize = run.iter().map(|piece| piece.len()).sum();
+            let joined = &text[start..start + length];
+            if UnicodeWidthStr::width(joined) > width {
+                tokens.extend(run.drain(..));
+            } else {
+                tokens.push(joined);
+                run.clear();
             }
         }
+        let mut tokens: Vec<&str> = Vec::new();
+        let mut run: Vec<&str> = Vec::new();
+        for token in text.split_word_bounds() {
+            if token.chars().all(char::is_whitespace) {
+                flush(text, &mut run, &mut tokens, width);
+                tokens.push(token);
+            } else {
+                run.push(token);
+            }
+        }
+        flush(text, &mut run, &mut tokens, width);
         tokens
     };
     let mut lines = Vec::new();
@@ -300,6 +321,27 @@ mod tests {
             kept.lines("? Are you sure?", 14),
             vec!["? Are you ".to_string(), "sure?".to_string()],
             "pre-wrap keeps the space a line ends with"
+        );
+        // A run without a space that is wider than the line breaks at its
+        // word boundaries: Han text between its words, a path at its
+        // punctuation.
+        assert_eq!(
+            style.lines("日本語のテキストは長い", 8),
+            vec![
+                "日本語の".to_string(),
+                "テキスト".to_string(),
+                "は長い".to_string()
+            ],
+            "Han and Kana text wraps at its word boundaries"
+        );
+        assert_eq!(
+            style.lines("see /usr/share/doc/reactive-tui/manual.md now", 20),
+            vec![
+                "see /usr/share/doc/".to_string(),
+                "reactive-tui/".to_string(),
+                "manual.md now".to_string()
+            ],
+            "a path wider than the line breaks at its punctuation"
         );
     }
 }
