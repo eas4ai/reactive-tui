@@ -1,6 +1,10 @@
+use super::look;
 use crate::component::{Component, Element, ElementType, LayoutInfo, LayoutType, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{FocusEventKind, KeyCode, KeyEventKind, MouseEventKind, WheelDelta};
+use crate::event::types::{
+    FocusEventKind, KeyCode, KeyEventKind, MouseButton, MouseEvent, MouseEventKind, Position,
+    WheelDelta,
+};
 use crate::event::Event;
 use crate::layout::style::{Direction, StyleBuilder};
 use std::sync::{Arc, Mutex};
@@ -19,6 +23,7 @@ pub struct ScrollViewBuilder {
     show_scrollbars: bool,
     smooth_scroll: bool,
     scroll_speed: usize,
+    aria_label: Option<String>,
 }
 
 impl ScrollViewBuilder {
@@ -28,11 +33,12 @@ impl ScrollViewBuilder {
             content,
             scroll_x: true,
             scroll_y: true,
-            viewport_width: 80,
-            viewport_height: 24,
+            viewport_width: 0,
+            viewport_height: 0,
             show_scrollbars: true,
             smooth_scroll: false,
             scroll_speed: 3,
+            aria_label: None,
         }
     }
 
@@ -54,19 +60,19 @@ impl ScrollViewBuilder {
         self
     }
 
-    /// Set the viewport width
+    /// Set the viewport width; zero fills the parent.
     pub fn viewport_width(mut self, width: usize) -> Self {
         self.viewport_width = width;
         self
     }
 
-    /// Set the viewport height
+    /// Set the viewport height; zero fills the parent.
     pub fn viewport_height(mut self, height: usize) -> Self {
         self.viewport_height = height;
         self
     }
 
-    /// Set the viewport size
+    /// Set the viewport size; zero fills that parent axis.
     pub fn viewport_size(mut self, width: usize, height: usize) -> Self {
         self.viewport_width = width;
         self.viewport_height = height;
@@ -91,6 +97,12 @@ impl ScrollViewBuilder {
         self
     }
 
+    /// Set the accessible name of the scroll view.
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
     /// Build the ScrollViewProps
     pub fn build(self) -> ScrollViewProps {
         ScrollViewProps {
@@ -102,6 +114,7 @@ impl ScrollViewBuilder {
             show_scrollbars: self.show_scrollbars,
             smooth_scroll: self.smooth_scroll,
             scroll_speed: self.scroll_speed,
+            aria_label: self.aria_label,
         }
     }
 
@@ -126,9 +139,9 @@ pub struct ScrollViewProps {
     pub scroll_x: bool,
     /// Whether vertical scrolling is enabled
     pub scroll_y: bool,
-    /// Width of the viewport
+    /// Width of the viewport; zero fills the parent.
     pub viewport_width: usize,
-    /// Height of the viewport
+    /// Height of the viewport; zero fills the parent.
     pub viewport_height: usize,
     /// Whether to show scrollbars
     pub show_scrollbars: bool,
@@ -136,6 +149,8 @@ pub struct ScrollViewProps {
     pub smooth_scroll: bool,
     /// Scroll speed multiplier
     pub scroll_speed: usize,
+    /// Accessible name; absent when the application supplies none.
+    pub aria_label: Option<String>,
 }
 
 impl Default for ScrollViewProps {
@@ -144,11 +159,12 @@ impl Default for ScrollViewProps {
             content: Element::text(""),
             scroll_x: true,
             scroll_y: true,
-            viewport_width: 80,
-            viewport_height: 24,
+            viewport_width: 0,
+            viewport_height: 0,
             show_scrollbars: true,
             smooth_scroll: false,
             scroll_speed: 3,
+            aria_label: None,
         }
     }
 }
@@ -179,17 +195,42 @@ pub struct ScrollView {
     viewport: Option<LayoutInfo>,
     content_size: Arc<Mutex<(usize, usize)>>,
     motion: motion::ScrollMotion,
+    drag: Option<ThumbDrag>,
+}
+
+struct ThumbDrag {
+    horizontal: bool,
+    pointer: f32,
+    offset: usize,
+    travel: usize,
+    limit: usize,
 }
 
 impl ScrollView {
-    fn visible_size(&self, props: &ScrollViewProps) -> (usize, usize) {
+    fn full_size(&self, props: &ScrollViewProps) -> (usize, usize) {
         let (width, height) = self
             .viewport
             .map(|v| v.content_size())
             .unwrap_or((props.viewport_width as f32, props.viewport_height as f32));
+        (width as usize, height as usize)
+    }
+
+    fn bars(&self, props: &ScrollViewProps) -> (bool, bool) {
+        let full = self.full_size(props);
+        let content = *self.content_size.lock().unwrap();
+        // Decide against the full box, before either bar takes layout space.
         (
-            (width as usize).saturating_sub(usize::from(props.show_scrollbars && props.scroll_y)),
-            (height as usize).saturating_sub(usize::from(props.show_scrollbars && props.scroll_x)),
+            props.show_scrollbars && props.scroll_x && content.0 > full.0,
+            props.show_scrollbars && props.scroll_y && content.1 > full.1,
+        )
+    }
+
+    fn visible_size(&self, props: &ScrollViewProps) -> (usize, usize) {
+        let (width, height) = self.full_size(props);
+        let (horizontal, vertical) = self.bars(props);
+        (
+            width.saturating_sub(usize::from(vertical)),
+            height.saturating_sub(usize::from(horizontal)),
         )
     }
 
@@ -218,6 +259,125 @@ impl ScrollView {
         (state.content_width, state.content_height) = *self.content_size.lock().unwrap();
         old != (state.scroll_x, state.scroll_y)
     }
+
+    fn handle_pointer(
+        &mut self,
+        mouse: &MouseEvent,
+        props: &ScrollViewProps,
+        state: &mut ScrollViewState,
+    ) -> EventResult {
+        if mouse.kind == MouseEventKind::Up && self.drag.is_some() {
+            self.motion
+                .position((state.scroll_x, state.scroll_y), false);
+            self.drag = None;
+            return EventResult::Consumed;
+        }
+        if mouse.button != MouseButton::Left {
+            return EventResult::Ignored;
+        }
+        let Position::Cell { x, y } = mouse.position else {
+            return EventResult::Ignored;
+        };
+        if mouse.kind == MouseEventKind::Drag {
+            let Some(drag) = &self.drag else {
+                return EventResult::Ignored;
+            };
+            if drag.travel == 0 {
+                return EventResult::Consumed;
+            }
+            let pointer = f32::from(if drag.horizontal { x } else { y });
+            let offset = (drag.offset as f64
+                + f64::from(pointer - drag.pointer) * drag.limit as f64 / drag.travel as f64)
+                .round()
+                .clamp(0.0, drag.limit as f64) as usize;
+            if drag.horizontal {
+                state.scroll_x = offset;
+            } else {
+                state.scroll_y = offset;
+            }
+            self.clamp(props, state);
+            return EventResult::Consumed;
+        }
+        if mouse.kind != MouseEventKind::Down {
+            return EventResult::Ignored;
+        }
+        self.drag = None;
+        let Some(viewport) = self.viewport else {
+            return EventResult::Ignored;
+        };
+        let (width, height) = self.visible_size(props);
+        let (horizontal, vertical) = self.bars(props);
+        let local_x = f32::from(x) - viewport.insets[0];
+        let local_y = f32::from(y) - viewport.insets[1];
+        let axis = if vertical
+            && height > 0
+            && local_x == width as f32
+            && local_y >= 0.0
+            && local_y < height as f32
+        {
+            false
+        } else if horizontal
+            && width > 0
+            && local_y == height as f32
+            && local_x >= 0.0
+            && local_x < width as f32
+        {
+            true
+        } else {
+            return EventResult::Ignored;
+        };
+        let limits = self.limits(props);
+        let painted = self.motion.position(
+            (state.scroll_x.min(limits.0), state.scroll_y.min(limits.1)),
+            props.smooth_scroll,
+        );
+        let content = *self.content_size.lock().unwrap();
+        let (visible, total, offset, limit, cell, pointer) = if axis {
+            (
+                width,
+                content.0,
+                painted.0,
+                limits.0,
+                local_x as usize,
+                f32::from(x),
+            )
+        } else {
+            (
+                height,
+                content.1,
+                painted.1,
+                limits.1,
+                local_y as usize,
+                f32::from(y),
+            )
+        };
+        let (start, thumb) = thumb_geometry(visible, total, offset);
+        if cell >= start && cell < start + thumb {
+            state.scroll_x = painted.0;
+            state.scroll_y = painted.1;
+            self.motion.position(painted, false);
+            self.drag = Some(ThumbDrag {
+                horizontal: axis,
+                pointer,
+                offset,
+                travel: visible.saturating_sub(thumb),
+                limit,
+            });
+        } else {
+            let next = if cell < start {
+                offset.saturating_sub(visible)
+            } else {
+                offset.saturating_add(visible)
+            };
+            if axis {
+                state.scroll_x = next;
+            } else {
+                state.scroll_y = next;
+            }
+            self.clamp(props, state);
+        }
+        EventResult::Consumed
+    }
 }
 
 impl Component for ScrollView {
@@ -229,6 +389,7 @@ impl Component for ScrollView {
             viewport: None,
             content_size: Arc::new(Mutex::new((0, 0))),
             motion: motion::ScrollMotion::new(),
+            drag: None,
         }
     }
 
@@ -253,7 +414,7 @@ impl Component for ScrollView {
         let limits = self.limits(props);
         let offset = self.motion.position(
             (state.scroll_x.min(limits.0), state.scroll_y.min(limits.1)),
-            props.smooth_scroll,
+            props.smooth_scroll && self.drag.is_none(),
         );
         let offset = (offset.0.min(limits.0), offset.1.min(limits.1));
         let mut content_style = StyleBuilder::new()
@@ -303,60 +464,56 @@ impl Component for ScrollView {
         let mut children = vec![viewport];
         let measured = *self.content_size.lock().unwrap();
         let insets = self.viewport.map(|v| v.insets).unwrap_or([0.0; 4]);
-        if props.show_scrollbars && props.scroll_y && limits.1 > 0 && height > 0 {
-            let bar = scrollbar(height, measured.1, offset.1);
-            children.push(
-                crate::builder::ElementBuilder::new(ElementType::Text(
-                    bar.chars()
-                        .map(|c| c.to_string())
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                ))
-                .styles(
-                    StyleBuilder::new()
-                        .position_absolute()
-                        .inset_left(width as f32 + insets[0])
-                        .inset_top(insets[1])
-                        .size_px(Some(1.0), Some(height as f32)),
-                )
-                .class("whitespace-pre")
-                .build(),
-            );
+        let (horizontal, vertical) = self.bars(props);
+        if vertical && height > 0 {
+            children.push(scrollbar(
+                height,
+                measured.1,
+                offset.1,
+                false,
+                (insets[0] + width as f32, insets[1]),
+            ));
         }
-        if props.show_scrollbars && props.scroll_x && limits.0 > 0 && width > 0 {
-            children.push(
-                crate::builder::ElementBuilder::new(ElementType::Text(scrollbar(
-                    width, measured.0, offset.0,
-                )))
-                .styles(
-                    StyleBuilder::new()
-                        .position_absolute()
-                        .inset_left(insets[0])
-                        .inset_top(height as f32 + insets[1])
-                        .size_px(Some(width as f32), Some(1.0)),
-                )
-                .class("whitespace-pre")
-                .build(),
-            );
+        if horizontal && width > 0 {
+            children.push(scrollbar(
+                width,
+                measured.0,
+                offset.0,
+                true,
+                (insets[0], insets[1] + height as f32),
+            ));
+        }
+        let mut style = StyleBuilder::new()
+            .display_flex()
+            .direction(Direction::Column)
+            .max_width_percent(100.0)
+            .max_height_percent(100.0)
+            .overflow_hidden();
+        style = if props.viewport_width == 0 {
+            style.width_percent(100.0).min_width_px(0.0)
+        } else {
+            style.width_px(props.viewport_width as f32)
+        };
+        style = if props.viewport_height == 0 {
+            style.height_percent(100.0).min_height_px(0.0)
+        } else {
+            style.height_px(props.viewport_height as f32)
+        };
+        let mut node = crate::accessibility::Node::new(crate::accessibility::Role::ScrollView);
+        node.inner.set_scroll_x(offset.0 as f64);
+        node.inner.set_scroll_x_min(0.0);
+        node.inner.set_scroll_x_max(limits.0 as f64);
+        node.inner.set_scroll_y(offset.1 as f64);
+        node.inner.set_scroll_y_min(0.0);
+        node.inner.set_scroll_y_max(limits.1 as f64);
+        if let Some(label) = &props.aria_label {
+            node.inner.set_label(label.clone());
         }
         crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
-            .styles(
-                StyleBuilder::new()
-                    .display_flex()
-                    .direction(Direction::Column)
-                    .size_px(
-                        Some(props.viewport_width as f32),
-                        Some(props.viewport_height as f32),
-                    )
-                    .max_width_percent(100.0)
-                    .max_height_percent(100.0)
-                    .overflow_hidden(),
-            )
+            .styles(style)
             .children(children)
             .build()
-            .with_accessibility(crate::accessibility::Node::new(
-                crate::accessibility::Role::ScrollView,
-            ))
+            .with_accessibility(node)
             .with_focus(crate::component::FocusProps::input())
     }
 
@@ -434,6 +591,7 @@ impl Component for ScrollView {
                 }
                 return EventResult::Consumed;
             }
+            Event::Mouse(mouse) => return self.handle_pointer(mouse, props, state),
             _ => return EventResult::Ignored,
         }
         self.clamp(props, state);
@@ -442,6 +600,7 @@ impl Component for ScrollView {
 
     fn on_lifecycle(&mut self, event: crate::component::LifecycleEvent, _state: &mut Self::State) {
         if matches!(event, crate::component::LifecycleEvent::Unmount) {
+            self.drag = None;
             self.motion.cancel();
         }
     }
@@ -459,19 +618,188 @@ pub(super) fn shifted(value: usize, delta: f64, speed: usize) -> usize {
     }
 }
 
-fn scrollbar(visible: usize, total: usize, offset: usize) -> String {
+fn scrollbar(
+    visible: usize,
+    total: usize,
+    offset: usize,
+    horizontal: bool,
+    origin: (f32, f32),
+) -> Element {
+    let (start, thumb) = thumb_geometry(visible, total, offset);
+    let cells = (0..visible)
+        .map(|cell| {
+            let is_thumb = cell >= start && cell < start + thumb;
+            crate::builder::ElementBuilder::new(ElementType::Text(
+                if is_thumb { "█" } else { "░" }.into(),
+            ))
+            .styles(
+                StyleBuilder::new()
+                    .size_px(Some(1.0), Some(1.0))
+                    .flex_shrink(0.0),
+            )
+            .class(if is_thumb { look::THUMB } else { look::TRACK })
+            .build()
+        })
+        .collect();
+    let (width, height, direction) = if horizontal {
+        (visible as f32, 1.0, Direction::Row)
+    } else {
+        (1.0, visible as f32, Direction::Column)
+    };
+    crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+        .styles(
+            StyleBuilder::new()
+                .display_flex()
+                .direction(direction)
+                .position_absolute()
+                .inset_left(origin.0)
+                .inset_top(origin.1)
+                .size_px(Some(width), Some(height)),
+        )
+        .children(cells)
+        .build()
+}
+
+fn thumb_geometry(visible: usize, total: usize, offset: usize) -> (usize, usize) {
     let thumb = ((visible as f64 / total.max(1) as f64) * visible as f64).ceil() as usize;
     let thumb = thumb.clamp(1, visible.max(1));
     let travel = visible.saturating_sub(thumb);
     let start = ((offset as f64 / total.saturating_sub(visible).max(1) as f64) * travel as f64)
         .round() as usize;
-    (0..visible)
-        .map(|i| {
-            if i >= start && i < start + thumb {
-                '█'
-            } else {
-                '░'
+    (start.min(travel), thumb)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nav_004_scroll_view_offsets_and_ranges() {
+        let props = ScrollViewBuilder::default().viewport_size(20, 10).build();
+        let mut view = ScrollView::new(props.clone());
+        *view.content_size.lock().unwrap() = (60, 40);
+        let mut state = ScrollViewState {
+            scroll_x: 7,
+            scroll_y: 12,
+            ..Default::default()
+        };
+        view.layout(
+            LayoutInfo::from_bounds(crate::event::hit::Bounds::new(0.0, 0.0, 20.0, 10.0)),
+            &mut props.clone(),
+            &mut state,
+        );
+        let element = view.render(&props, &state);
+        let node = &element.metadata.accessibility.as_ref().unwrap().inner;
+        assert_eq!(node.scroll_x(), Some(7.0));
+        assert_eq!(node.scroll_x_min(), Some(0.0));
+        assert_eq!(node.scroll_x_max(), Some(41.0));
+        assert_eq!(node.scroll_y(), Some(12.0));
+        assert_eq!(node.scroll_y_min(), Some(0.0));
+        assert_eq!(node.scroll_y_max(), Some(31.0));
+    }
+
+    #[test]
+    fn nav_004_scroll_view_has_no_default_label() {
+        let props = ScrollViewProps::default();
+        let element = ScrollView::new(props.clone()).render(&props, &ScrollViewState::default());
+        assert_eq!(
+            element
+                .metadata
+                .accessibility
+                .as_ref()
+                .unwrap()
+                .inner
+                .label(),
+            None
+        );
+    }
+
+    #[test]
+    fn nav_004_scroll_view_label_from_both_builders() {
+        let props = ScrollViewBuilder::default().aria_label("Log").build();
+        let element = ScrollView::new(props.clone()).render(&props, &ScrollViewState::default());
+        assert_eq!(
+            element
+                .metadata
+                .accessibility
+                .as_ref()
+                .unwrap()
+                .inner
+                .label(),
+            Some("Log")
+        );
+        let element = crate::builder::scroll_view().aria_label("History").build();
+        let props = element.props_as::<ScrollViewProps>().unwrap();
+        assert_eq!(props.aria_label.as_deref(), Some("History"));
+        let rendered = ScrollView::new(props.clone()).render(props, &ScrollViewState::default());
+        assert_eq!(
+            rendered
+                .metadata
+                .accessibility
+                .as_ref()
+                .unwrap()
+                .inner
+                .label(),
+            Some("History")
+        );
+    }
+
+    #[test]
+    fn scroll_view_thumb_without_travel_does_not_move() {
+        let mut props = ScrollViewBuilder::default()
+            .viewport_size(20, 5)
+            .scroll_x(false)
+            .build();
+        let mut view = ScrollView::new(props.clone());
+        *view.content_size.lock().unwrap() = (6, 60);
+        let mut state = ScrollViewState::default();
+        let mut layout =
+            LayoutInfo::from_bounds(crate::event::hit::Bounds::new(0.0, 0.0, 20.0, 5.0));
+        layout.insets = [0.0, 2.0, 0.0, 2.0];
+        view.layout(layout, &mut props, &mut state);
+        for (kind, y) in [(MouseEventKind::Down, 2), (MouseEventKind::Drag, 4)] {
+            assert_eq!(
+                view.handle_event(
+                    &Event::Mouse(
+                        MouseEvent::new(kind, Position::cell(19, y)).with_button(MouseButton::Left)
+                    ),
+                    &mut props,
+                    &mut state
+                ),
+                EventResult::Consumed
+            );
+        }
+        assert_eq!(state.scroll_y, 0, "a one-cell thumb has no travel");
+    }
+
+    #[test]
+    fn nav_004_scroll_view_fitting_and_disabled_axes_have_zero_ranges() {
+        for props in [
+            ScrollViewProps::default(),
+            ScrollViewProps {
+                scroll_x: false,
+                scroll_y: false,
+                ..Default::default()
+            },
+        ] {
+            let view = ScrollView::new(props.clone());
+            if !props.scroll_x {
+                *view.content_size.lock().unwrap() = (100, 100);
             }
-        })
-        .collect()
+            let element = view.render(
+                &props,
+                &ScrollViewState {
+                    scroll_x: 50,
+                    scroll_y: 50,
+                    ..Default::default()
+                },
+            );
+            let node = &element.metadata.accessibility.as_ref().unwrap().inner;
+            assert_eq!((node.scroll_x(), node.scroll_y()), (Some(0.0), Some(0.0)));
+            assert_eq!(
+                (node.scroll_x_max(), node.scroll_y_max()),
+                (Some(0.0), Some(0.0))
+            );
+        }
+    }
 }

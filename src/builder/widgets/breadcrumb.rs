@@ -21,6 +21,7 @@ use crate::widgets::layout::{BreadcrumbBuilder, BreadcrumbSegment, OverflowStrat
 ///     .segment(BreadcrumbSegment::new("docs", "Documentation", "/docs"))
 ///     .segment(BreadcrumbSegment::new("api", "API Reference", "/docs/api")
 ///         .current(true))
+///     .aria_label("Documentation trail")
 ///     .separator(" > ")
 ///     .max_width(80)
 ///     .build();
@@ -280,6 +281,23 @@ fn title_case(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::widgets::BreadcrumbSegment;
+
+    #[test]
+    fn nav_004_breadcrumb_builder_exposes_aria_label() {
+        let element = breadcrumb().aria_label("Documentation trail").build();
+        let props = element
+            .props
+            .downcast_ref::<crate::widgets::layout::BreadcrumbProps>()
+            .unwrap();
+        assert_eq!(props.aria_label.as_deref(), Some("Documentation trail"));
+        let default = breadcrumb().build();
+        assert!(default
+            .props
+            .downcast_ref::<crate::widgets::layout::BreadcrumbProps>()
+            .unwrap()
+            .aria_label
+            .is_none());
+    }
 
     #[test]
     fn test_breadcrumb_builder() {

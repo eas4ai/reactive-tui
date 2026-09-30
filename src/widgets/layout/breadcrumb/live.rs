@@ -1,4 +1,5 @@
 use super::*;
+use crate::widgets::layout::look;
 use crate::{
     accessibility::{Node, Role},
     builder::ElementBuilder,
@@ -41,11 +42,8 @@ pub(super) struct LiveBreadcrumb {
 }
 
 fn separator(props: &BreadcrumbProps) -> String {
-    if props.compact {
-        props.separator.clone()
-    } else {
-        format!(" {} ", props.separator)
-    }
+    // Segment padding supplies the spaces around each separator.
+    props.separator.clone()
 }
 
 impl LiveBreadcrumb {
@@ -153,7 +151,7 @@ impl LiveBreadcrumb {
             .class(if props.compact {
                 "flex flex-row shrink-0"
             } else {
-                "flex flex-row shrink-0 px-4"
+                "flex flex-row shrink-0 px-1"
             })
             .children(children)
             .build()
@@ -188,6 +186,8 @@ impl LiveBreadcrumb {
                 .unwrap_or(&segment.label)
                 .clone(),
         );
+        node.inner.set_position_in_set(index + 1);
+        node.inner.set_size_of_set(props.segments.len());
         if enabled {
             node.set_clickable();
         }
@@ -200,25 +200,27 @@ impl LiveBreadcrumb {
         if let Some(tooltip) = &segment.tooltip {
             node.set_description(tooltip.clone());
         }
+        let text = if segment.current {
+            look::TEXT
+        } else if enabled {
+            look::LINK
+        } else {
+            look::DISABLED
+        };
+        let fill = if self.focused && state.focused_segment.as_ref() == Some(&segment.id) {
+            look::FOCUSED
+        } else if self.hovered.as_ref() == Some(&segment.id) {
+            look::HOVER
+        } else {
+            ""
+        };
         let mut result = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
             .styles(style)
-            .class(if segment.current {
-                "font-bold"
-            } else if enabled {
-                "underline"
-            } else {
-                "opacity-50"
-            })
+            .class(&format!("{text} {fill}"))
             .child(natural)
             .build()
             .with_key(format!("segment:{}", segment.id))
             .with_accessibility(node);
-        if self.focused && state.focused_segment.as_ref() == Some(&segment.id) {
-            result.class = Some(format!(
-                "{} reverse",
-                result.class.as_deref().unwrap_or_default()
-            ));
-        }
         if enabled {
             let options = result
                 .metadata
@@ -328,7 +330,7 @@ impl Component for LiveBreadcrumb {
                 }
                 ElementBuilder::new(ElementType::Text("...".into()))
                     .styles(style)
-                    .class("shrink-0 whitespace-pre")
+                    .class(&format!("shrink-0 whitespace-pre {}", look::MUTED))
                     .build()
                     .with_accessibility(node)
             };
@@ -338,7 +340,7 @@ impl Component for LiveBreadcrumb {
                 node.set_hidden();
                 children.push(
                     Element::text(&separator)
-                        .with_class("shrink-0 whitespace-pre")
+                        .with_class(format!("shrink-0 whitespace-pre {}", look::MUTED))
                         .with_accessibility(node),
                 );
             }
@@ -401,7 +403,7 @@ impl Component for LiveBreadcrumb {
                 children.push(
                     Element::text(tooltip)
                         .with_key("tooltip")
-                        .with_class("whitespace-pre bg-gray-800 text-white"),
+                        .with_class(format!("whitespace-pre {}", look::TOOLTIP)),
                 );
             }
         }
@@ -411,12 +413,16 @@ impl Component for LiveBreadcrumb {
         if let Some(width) = props.max_width {
             style = style.max_width_px(width as f32);
         }
+        let mut node = Node::new(Role::Navigation);
+        if let Some(label) = &props.aria_label {
+            node.set_label(label.clone());
+        }
         let root = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
             .styles(style)
-            .class("flex flex-col min-w-0 w-full")
+            .class(&format!("flex flex-col min-w-0 w-full {}", look::MUTED))
             .children(children)
             .build()
-            .with_accessibility(Node::new(Role::Navigation));
+            .with_accessibility(node);
         let mut root = if props
             .segments
             .iter()
@@ -564,5 +570,123 @@ impl Component for LiveBreadcrumb {
             _ => return EventResult::Ignored,
         }
         EventResult::Consumed
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture() -> (LiveBreadcrumb, BreadcrumbProps, BreadcrumbState) {
+        let props = BreadcrumbProps {
+            segments: (0..5)
+                .map(|index| {
+                    BreadcrumbSegment::new(index.to_string(), format!("Segment{index}"), "/")
+                        .clickable(index != 1)
+                        .current(index == 4)
+                })
+                .collect(),
+            ..Default::default()
+        };
+        let state = BreadcrumbState::default();
+        let live = LiveBreadcrumb::new(LiveProps {
+            config: props.clone(),
+            seed: state.clone(),
+        });
+        (live, props, state)
+    }
+
+    #[test]
+    fn nav_004_breadcrumb_positions_include_hidden_segments() {
+        let (live, mut config, seed) = fixture();
+        config.max_width = Some(25);
+        config.show_icons = false;
+        for segment in &config.segments {
+            live.geometry
+                .lock()
+                .unwrap()
+                .sizes
+                .insert(segment.id.clone(), (10, 1));
+        }
+        let props = LiveProps {
+            config,
+            seed: seed.clone(),
+        };
+        let root = live.render(&props, &Arc::new(Mutex::new(seed)));
+        let units = &root.children[0].children[0].children;
+        assert_eq!(units.len(), 3, "middle segments are hidden by the ellipsis");
+        for (unit, index) in [(0, 0), (2, 4)] {
+            let node = &units[unit].children[0]
+                .metadata
+                .accessibility
+                .as_ref()
+                .unwrap()
+                .inner;
+            assert_eq!(node.position_in_set(), Some(index + 1));
+            assert_eq!(node.size_of_set(), Some(5));
+            assert_eq!(node.role(), Role::Link);
+            assert_eq!(node.label(), Some(format!("Segment{index}").as_str()));
+        }
+    }
+
+    #[test]
+    fn nav_004_breadcrumb_set_size_and_link_states() {
+        let (live, props, state) = fixture();
+        for index in 0..props.segments.len() {
+            let element = live.segment(&props, &state, index, None);
+            let node = &element.metadata.accessibility.as_ref().unwrap().inner;
+            assert_eq!(node.size_of_set(), Some(5));
+            assert_eq!(node.is_disabled(), index == 1);
+            assert_eq!(
+                node.aria_current(),
+                if index == 4 {
+                    Some(accesskit::AriaCurrent::Page)
+                } else {
+                    None
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn nav_004_breadcrumb_default_has_no_fixed_label() {
+        let (live, config, seed) = fixture();
+        let props = LiveProps {
+            config,
+            seed: seed.clone(),
+        };
+        let root = live.render(&props, &Arc::new(Mutex::new(seed)));
+        let node = &root.metadata.accessibility.as_ref().unwrap().inner;
+        assert_eq!(node.role(), Role::Navigation);
+        assert_eq!(node.label(), None);
+    }
+
+    #[test]
+    fn nav_004_breadcrumb_label_comes_from_props_or_builder() {
+        for config in [
+            BreadcrumbProps {
+                aria_label: Some("Project trail".into()),
+                ..Default::default()
+            },
+            crate::builder::breadcrumb()
+                .aria_label("Project trail")
+                .build()
+                .props
+                .downcast_ref::<BreadcrumbProps>()
+                .unwrap()
+                .clone(),
+        ] {
+            let props = LiveProps {
+                config,
+                seed: BreadcrumbState::default(),
+            };
+            let mut live = LiveBreadcrumb::new(props.clone());
+            let state = live.initial_state(&props);
+            let root = live.render(&props, &state);
+            assert_eq!(
+                root.metadata.accessibility.as_ref().unwrap().inner.label(),
+                Some("Project trail")
+            );
+        }
     }
 }

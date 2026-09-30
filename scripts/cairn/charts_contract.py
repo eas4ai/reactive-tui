@@ -18,11 +18,14 @@ and its screen-reader unit test in src/widgets/display/image/live.rs), the
 graphics canvas (tests/canvas_widget.rs, built with wgpu-graphics), the
 menu family (tests/menus_contract.rs), the overlay family: the modal,
 the popover, the toast and the five dialogs (tests/overlays_contract.rs),
-and the input family: the text input, checkbox, radio button, select,
-slider and button (tests/input_widgets_contract.rs).
+the input family: the text input, checkbox, radio button, select,
+slider and button (tests/input_widgets_contract.rs), and the layout
+family: the tabs, accordion, breadcrumb, scroll view and stack
+(tests/layout_widgets_contract.rs).
 frame-budget also measures an animating canvas (tests/canvas_widget.rs), a
 dialog fading in and a progress dialog whose bar moves
-(tests/overlays_contract.rs).
+(tests/overlays_contract.rs), and an accordion whose section opens
+(tests/layout_widgets_contract.rs).
 
 Its color check reads the production code of both widgets and of their
 builders, with comments and test items removed, and reports every color
@@ -102,6 +105,11 @@ WIDGET_CODE = {
     "input": (("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/specialized.rs",
                "src/builder/core.rs"),
               r"(?:TextInput|Checkbox|RadioButton|Select|Slider)Builder"),
+    # The layout family: the tabs, the accordion, the breadcrumb, the scroll
+    # view and the stack, and their builders (layout-widgets.md).
+    "layout": (("src/widgets/layout", "src/builder/widgets/layout.rs", "src/builder/widgets/accordion.rs",
+                "src/builder/widgets/breadcrumb.rs", "src/builder/specialized.rs"),
+               r"(?:Tabs|Accordion|Breadcrumb|ScrollView|Stack)Builder"),
 }
 BUILDERS = "src/builder"
 # The kernel's list of performance cores on a hybrid CPU.
@@ -219,8 +227,10 @@ def main() -> int:
         ok, why = results["BAR-005"]
         canvas = cargo_test_filtered("canvas_widget", "bar_005_", features=["wgpu-graphics"], release=True)
         overlays = cargo_test_filtered("overlays_contract", "bar_005_", release=True)
-        results["BAR-005"] = (ok and canvas[0] and overlays[0],
-                              f"charts and image: {why}; canvas: {canvas[1]}; overlays: {overlays[1]}")
+        layout = cargo_test_filtered("layout_widgets_contract", "bar_005_", release=True)
+        results["BAR-005"] = (ok and canvas[0] and overlays[0] and layout[0],
+                              f"charts and image: {why}; canvas: {canvas[1]}; overlays: {overlays[1]}; "
+                              f"layout widgets: {layout[1]}")
     if group == "widget-bar":
         ok, why = results["BAR-003"]
         problems = [] if ok else [f"charts: {why}"]
@@ -230,6 +240,7 @@ def main() -> int:
             ("canvas", cargo_test_filtered("canvas_widget", "bar_003_", features=["wgpu-graphics"])),
             ("menus", cargo_test_filtered("menus_contract", "bar_003_")),
             ("overlays", cargo_test_filtered("overlays_contract", "bar_003_")),
+            ("layout", cargo_test_filtered("layout_widgets_contract", "bar_003_")),
             ("input widgets", cargo_test_filtered("input_widgets_contract", "bar_003_")),
         ):
             if not passed:

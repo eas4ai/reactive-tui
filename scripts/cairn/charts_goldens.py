@@ -48,6 +48,10 @@ OVERLAY_GOLDENS = tuple(f"{overlay}_{size}" for overlay in OVERLAYS for size in 
 # golden is 400 columns of controls.
 INPUT_WIDGETS = ("text_input", "checkbox", "radio_button", "select", "slider", "button")
 INPUT_GOLDENS = tuple(f"{widget}_{size}" for widget in INPUT_WIDGETS for size in ("80x24", "400x100"))
+# The layout widgets (tests/layout_widgets_goldens.rs): each fills the
+# width the page allots, so the wide golden is 400 columns.
+LAYOUT_WIDGETS = ("tabs", "accordion", "breadcrumb", "scroll_view", "stack")
+LAYOUT_GOLDENS = tuple(f"{widget}_{size}" for widget in LAYOUT_WIDGETS for size in ("80x24", "400x100"))
 
 
 GOLDEN_TESTS = ("tests/charts_goldens.rs", "tests/api_widget_behavior/image.rs")
@@ -235,12 +239,22 @@ def wide_problems() -> list[str]:
             columns = max((display_width(row) for row in grid.split("\n")), default=0)
             if columns < 400:
                 problems.append(f"input widget golden {name}.ansi is {columns} columns wide, under 400")
+    for name in LAYOUT_GOLDENS:
+        path = SNAPSHOTS / "layout_widgets" / f"{name}.ansi"
+        if not path.is_file():
+            problems.append(f"missing layout widget golden {name}.ansi")
+        elif name.endswith("_400x100"):
+            grid = path.read_text(errors="replace").rsplit("\ncolors: ", 1)[0]
+            columns = max((display_width(row) for row in grid.split("\n")), default=0)
+            if columns < 400:
+                problems.append(f"layout widget golden {name}.ansi is {columns} columns wide, under 400")
     for src, test in (("tests/charts_goldens.rs", "cht_023_"),
                       ("tests/api_widget_behavior/image.rs", "bar_004_"),
                       ("tests/canvas_goldens.rs", "bar_004_"),
                       ("tests/menus_goldens.rs", "bar_004_"),
                       ("tests/overlays_goldens.rs", "bar_004_"),
-                      ("tests/input_widgets_goldens.rs", "bar_004_")):
+                      ("tests/input_widgets_goldens.rs", "bar_004_"),
+                      ("tests/layout_widgets_goldens.rs", "bar_004_")):
         path = ROOT / src
         text = path.read_text(errors="replace") if path.is_file() else ""
         body = re.search(rf"fn {test}\w*\(\)\s*\{{(.*?)\n\}}", text, re.S)
@@ -253,6 +267,7 @@ def wide_problems() -> list[str]:
     problems.extend(regeneration_problems("tests/menus_goldens.rs"))
     problems.extend(regeneration_problems("tests/overlays_goldens.rs"))
     problems.extend(regeneration_problems("tests/input_widgets_goldens.rs"))
+    problems.extend(regeneration_problems("tests/layout_widgets_goldens.rs"))
     return problems
 
 

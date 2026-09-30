@@ -231,8 +231,8 @@ fn tabs_eager_panels_retain_input_state_and_hidden_controls_ignore_clicks() {
                 (1, key(KeyCode::Tab)),
                 (1, key(KeyCode::End)),
                 (1, key(KeyCode::Char('X'))),
-                (2, click(13, 0)),
-                (3, click(3, 0)),
+                (2, click(7, 0)),
+                (3, click(2, 0)),
                 (5, None),
             ],
         );

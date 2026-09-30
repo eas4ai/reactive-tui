@@ -1,4 +1,5 @@
 use super::*;
+use crate::widgets::layout::look;
 use crate::{
     builder::ElementBuilder,
     component::{ElementType, FocusProps, LayoutInfo, LayoutType, LifecycleEvent},
@@ -40,7 +41,32 @@ pub(super) struct LiveAccordion {
     heights: Arc<Mutex<HashMap<String, f32>>>,
     seed: AccordionState,
     focused: bool,
+    /// The section whose header is under the pointer.
+    hovered: Option<String>,
     motion: motion::AccordionMotion,
+}
+
+impl LiveAccordion {
+    /// The section whose header the pointer is on.
+    fn header_at(&self, mouse: &crate::event::MouseEvent) -> Option<String> {
+        let root = self.viewport?;
+        let [a, b, c, d, tx, ty] = root.transform;
+        let (x, y) = (mouse.position.x() as f32, mouse.position.y() as f32);
+        let (x, y) = (a * x + c * y + tx, b * x + d * y + ty);
+        self.headers
+            .lock()
+            .unwrap()
+            .iter()
+            .find_map(|(id, layout)| {
+                let clip = layout.clip;
+                (x >= clip.x
+                    && y >= clip.y
+                    && x < clip.x + clip.width
+                    && y < clip.y + clip.height
+                    && layout.local_cell(x, y).is_some())
+                .then(|| id.clone())
+            })
+    }
 }
 
 impl Component for LiveAccordion {
@@ -54,6 +80,7 @@ impl Component for LiveAccordion {
             heights: Arc::default(),
             seed: props.seed,
             focused: false,
+            hovered: None,
             motion: motion::AccordionMotion::new(),
         }
     }
@@ -91,12 +118,30 @@ impl Component for LiveAccordion {
         self.headers.lock().unwrap().clear();
         let fractions = self.motion.fractions(config, state);
         let mut sections = Vec::new();
-        for section in &config.sections {
+        let count = config.sections.len();
+        for (index, section) in config.sections.iter().enumerate() {
             let mut decoration = crate::accessibility::Node::new(crate::accessibility::Role::Label);
             decoration.set_hidden();
             let expanded = state.expanded_sections.get(&section.id) == Some(&true);
             let focused = self.focused && state.focused_section.as_ref() == Some(&section.id);
-            let mut header = if let Some(custom) = &section.custom_header {
+            // The header's row: `selection` while it holds the focus, `hover`
+            // under the pointer; its title `foreground` (`text-muted` when
+            // disabled) and its glyph `text-muted` (NAV-001).
+            let fill = if focused {
+                look::FOCUSED
+            } else if self.hovered.as_ref() == Some(&section.id) {
+                look::HOVER
+            } else {
+                ""
+            };
+            let (title_classes, glyph_classes) = if focused {
+                ("", "")
+            } else if section.disabled {
+                (look::DISABLED, look::DISABLED)
+            } else {
+                (look::TEXT, look::MUTED)
+            };
+            let header = if let Some(custom) = &section.custom_header {
                 custom.clone()
             } else {
                 let mut label = String::new();
@@ -106,18 +151,10 @@ impl Component for LiveAccordion {
                 }
                 label.push_str(&section.title);
                 Element::text(label)
-                    .with_class("whitespace-pre shrink-0")
+                    .with_class(format!("whitespace-pre shrink-0 {title_classes}"))
                     .with_accessibility(decoration.clone())
             };
-            if section.disabled {
-                header = header.with_class("text-gray-500");
-            }
-            let mut header_children = vec![
-                Element::text(if focused { "▶ " } else { "  " })
-                    .with_class("whitespace-pre shrink-0")
-                    .with_accessibility(decoration.clone()),
-                header,
-            ];
+            let mut header_children = vec![header];
             if config.show_icons {
                 header_children.push(
                     Element::text(format!(
@@ -128,13 +165,13 @@ impl Component for LiveAccordion {
                             &config.expand_icon
                         }
                     ))
-                    .with_class("whitespace-pre shrink-0")
+                    .with_class(format!("whitespace-pre shrink-0 {glyph_classes}"))
                     .with_accessibility(decoration.clone()),
                 );
             }
             let mut header = Element::layout(LayoutType::Flex)
                 .with_key("header")
-                .with_class("flex flex-row shrink-0 min-w-0")
+                .with_class(format!("flex flex-row shrink-0 min-w-0 w-full {fill}"))
                 .with_children(header_children);
             let mut accessible =
                 crate::accessibility::Node::new(crate::accessibility::Role::Button);
@@ -147,6 +184,8 @@ impl Component for LiveAccordion {
             }
             accessible.set_expanded(expanded);
             accessible.set_clickable();
+            accessible.inner.set_position_in_set(index + 1);
+            accessible.inner.set_size_of_set(count);
             if section.disabled {
                 accessible.set_disabled();
             }
@@ -224,13 +263,18 @@ impl Component for LiveAccordion {
         }
         let mut focus = FocusProps::input();
         focus.focusable = config.sections.iter().any(|s| !s.disabled);
+        let mut group = crate::accessibility::Node::new(crate::accessibility::Role::Group);
+        if let Some(label) = &config.aria_label {
+            group.set_label(label.clone());
+        }
         Element::layout(LayoutType::Flex)
             .with_class(format!(
-                "flex flex-col min-w-0 {}",
+                "flex flex-col w-full min-w-0 {}",
                 config.class.as_deref().unwrap_or("")
             ))
             .with_focus(focus)
             .with_children(sections)
+            .with_accessibility(group)
     }
 
     fn handle_event(
@@ -267,29 +311,19 @@ impl Component for LiveAccordion {
                 Accordion.handle_keyboard_event(key, &props.config, state)
             }
             Event::Mouse(mouse)
+                if matches!(mouse.kind, MouseEventKind::Move | MouseEventKind::Enter) =>
+            {
+                self.hovered = self.header_at(mouse);
+                EventResult::Ignored
+            }
+            Event::Mouse(mouse) if mouse.kind == MouseEventKind::Leave => {
+                self.hovered = None;
+                EventResult::Ignored
+            }
+            Event::Mouse(mouse)
                 if mouse.kind == MouseEventKind::Down && mouse.button == MouseButton::Left =>
             {
-                let Some(root) = self.viewport else {
-                    return EventResult::Ignored;
-                };
-                let [a, b, c, d, tx, ty] = root.transform;
-                let (x, y) = (mouse.position.x() as f32, mouse.position.y() as f32);
-                let (x, y) = (a * x + c * y + tx, b * x + d * y + ty);
-                let id = self
-                    .headers
-                    .lock()
-                    .unwrap()
-                    .iter()
-                    .find_map(|(id, layout)| {
-                        let clip = layout.clip;
-                        (x >= clip.x
-                            && y >= clip.y
-                            && x < clip.x + clip.width
-                            && y < clip.y + clip.height
-                            && layout.local_cell(x, y).is_some())
-                        .then(|| id.clone())
-                    });
-                let Some(id) = id.filter(|id| {
+                let Some(id) = self.header_at(mouse).filter(|id| {
                     props
                         .config
                         .sections
@@ -310,5 +344,54 @@ impl Component for LiveAccordion {
         if event == LifecycleEvent::Unmount {
             self.motion.cancel();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// NAV-004: an accordion header's node tells its label, whether it is
+    /// expanded, its position and the count of sections; the accordion's
+    /// own node is named only by `aria_label`.
+    #[test]
+    fn nav_004_an_accordion_header_tells_its_position_and_the_count_of_sections() {
+        let config = AccordionBuilder::new()
+            .section(AccordionSection::new("one", "Focused demo").expanded(true))
+            .section(AccordionSection::new("two", "Variants"))
+            .props;
+        let props = LiveProps {
+            config,
+            seed: AccordionState::default(),
+        };
+        let mut live = LiveAccordion::new(props.clone());
+        let state = live.initial_state(&props);
+        let element = live.render(&props, &state);
+        assert_eq!(
+            element
+                .metadata
+                .accessibility
+                .as_ref()
+                .and_then(|node| node.inner.label()),
+            None,
+            "the accordion has no name when the props set none"
+        );
+        let headers: Vec<_> = element
+            .children
+            .iter()
+            .map(|section| {
+                section.children[0]
+                    .metadata
+                    .accessibility
+                    .as_ref()
+                    .expect("a header's node")
+            })
+            .collect();
+        assert_eq!(headers[0].inner.label(), Some("Focused demo"));
+        assert_eq!(headers[0].inner.is_expanded(), Some(true));
+        assert_eq!(headers[1].inner.is_expanded(), Some(false));
+        assert_eq!(headers[0].inner.position_in_set(), Some(1));
+        assert_eq!(headers[1].inner.position_in_set(), Some(2));
+        assert_eq!(headers[1].inner.size_of_set(), Some(2));
     }
 }

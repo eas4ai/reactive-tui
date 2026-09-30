@@ -693,3 +693,376 @@ fn breadcrumb_empty_keyboard_disabled_and_release_inputs_do_not_activate() {
         assert!(events.lock().unwrap().is_empty());
     }
 }
+
+#[test]
+fn breadcrumb_nav_002_one_cell_padding() {
+    for compact in [false, true] {
+        let frames = super::app_input::run_until(
+            Control(
+                reactive_tui::builder::breadcrumb()
+                    .show_icons(false)
+                    .compact(compact)
+                    .segment(BreadcrumbSegment::new("root", "Root", "/").current(true))
+                    .build(),
+            ),
+            (50, 6),
+            vec![super::app_input::Until {
+                text: "Root",
+                cell: None,
+                event: None,
+            }],
+            std::time::Duration::from_secs(5),
+        );
+        let screen = &frames.last().unwrap().screen;
+        assert_eq!(
+            screen.cell(0, u16::from(!compact)).unwrap().contents(),
+            "R",
+            "the label must start after exactly one padding cell (none when compact)"
+        );
+    }
+}
+
+#[test]
+fn breadcrumb_nav_003_catalog_path_fits_fifty_cells() {
+    let frames = super::app_input::run_until(
+        Control(
+            Element::layout(LayoutType::Flex)
+                .with_class("w-50 flex flex-col")
+                .with_child(reactive_tui::builder::path_breadcrumb(
+                    "/catalog/layout/widgets",
+                )),
+        ),
+        (80, 6),
+        vec![super::app_input::Until {
+            text: "Root",
+            cell: None,
+            event: None,
+        }],
+        std::time::Duration::from_secs(5),
+    );
+    let text = &frames.last().unwrap().text;
+    for label in ["🏠 Root", "📁 catalog", "📁 layout", "📁 widgets"] {
+        assert!(
+            text.contains(label),
+            "missing whole segment {label:?}: {text:?}"
+        );
+    }
+    assert_eq!(
+        frames
+            .last()
+            .unwrap()
+            .geometry
+            .iter()
+            .find(|node| node.element_index == 1)
+            .unwrap()
+            .bounds
+            .width,
+        50.0,
+        "the trail fills the parent width"
+    );
+    assert!(
+        !text.contains("..."),
+        "a fitting path must not collapse: {text:?}"
+    );
+}
+
+#[test]
+fn breadcrumb_nav_003_middle_ellipsis_keeps_endpoints_whole() {
+    let labels = [
+        "FirstSegment",
+        "SecondLabel!",
+        "MiddleLabel!",
+        "FourthLabel!",
+        "LastSegment!",
+    ];
+    let frames = super::app_input::run_until(
+        Control(
+            Element::layout(LayoutType::Flex)
+                .with_class("w-40 flex flex-col")
+                .with_child(Element::typed::<Breadcrumb>(BreadcrumbProps {
+                    segments: labels
+                        .iter()
+                        .enumerate()
+                        .map(|(index, label)| {
+                            BreadcrumbSegment::new(index.to_string(), *label, "/")
+                                .current(index == 4)
+                        })
+                        .collect(),
+                    show_icons: false,
+                    ..Default::default()
+                })),
+        ),
+        (80, 6),
+        vec![super::app_input::Until {
+            text: "First",
+            cell: None,
+            event: None,
+        }],
+        std::time::Duration::from_secs(5),
+    );
+    let text = &frames.last().unwrap().text;
+    assert!(
+        text.contains(labels[0]),
+        "first segment must remain whole: {text:?}"
+    );
+    assert!(
+        text.contains(labels[4]),
+        "last segment must remain whole: {text:?}"
+    );
+    assert!(
+        text.contains("..."),
+        "middle segments must collapse: {text:?}"
+    );
+}
+
+struct BreadcrumbTheme(Arc<reactive_tui::theme::Theme>);
+impl Drop for BreadcrumbTheme {
+    fn drop(&mut self) {
+        reactive_tui::theme::Theme::set_active((*self.0).clone());
+    }
+}
+
+fn color(index: usize) -> vt100::Color {
+    vt100::Color::Rgb(
+        30 + 8 * index as u8,
+        200 - 6 * index as u8,
+        90 + 5 * index as u8,
+    )
+}
+
+/// Distinct role colors let rendered cells identify the role they use.
+fn breadcrumb_probe() -> BreadcrumbTheme {
+    use reactive_tui::theme::{Theme, ThemeVariables};
+    let roles = [
+        "background",
+        "surface",
+        "foreground",
+        "text-muted",
+        "hover",
+        "selection",
+        "selection-foreground",
+        "border",
+        "input",
+        "ring",
+        "primary",
+        "primary-foreground",
+        "secondary",
+        "secondary-foreground",
+        "accent",
+        "accent-foreground",
+        "success",
+        "success-foreground",
+        "warning",
+        "warning-foreground",
+        "error",
+        "error-foreground",
+        "info",
+        "info-foreground",
+        "overlay",
+        "shadow",
+    ];
+
+    let restore = BreadcrumbTheme(Theme::active());
+    let mut variables = ThemeVariables::new();
+    for (index, role) in roles.iter().enumerate() {
+        let vt100::Color::Rgb(r, g, b) = color(index) else {
+            unreachable!()
+        };
+        variables = variables.set(
+            Theme::color_variable(role),
+            format!("#{r:02x}{g:02x}{b:02x}"),
+        );
+    }
+    Theme::set_active(Theme::new("breadcrumb-probe").with_variables(variables));
+    restore
+}
+
+#[test]
+#[serial_test::serial]
+fn breadcrumb_nav_001_theme_colors_and_focus() {
+    let _theme = breadcrumb_probe();
+    let element = reactive_tui::builder::breadcrumb()
+        .show_icons(false)
+        .compact(true)
+        .segment(BreadcrumbSegment::new("root", "Root", "/"))
+        .segment(BreadcrumbSegment::new("docs", "Docs", "/docs").tooltip("Go docs"))
+        .segment(BreadcrumbSegment::new("current", "Current", "/docs/current").current(true))
+        .build();
+    // On a page in the theme's background: the trail takes its parent's
+    // fill and paints none of its own.
+    let page = Element::layout(LayoutType::Flex)
+        .with_class("flex flex-col w-full h-full bg-background text-foreground")
+        .with_child(element.clone().auto_focus());
+    let frames = super::app_input::run_until(
+        Control(page),
+        (50, 6),
+        vec![
+            super::app_input::Until {
+                text: "Root/Docs/Current",
+                cell: None,
+                event: key(KeyCode::Home),
+            },
+            super::app_input::Until {
+                text: "Root/Docs/Current",
+                cell: None,
+                event: None,
+            },
+        ],
+        std::time::Duration::from_secs(5),
+    );
+    let screen = &frames.last().unwrap().screen;
+    assert_eq!(
+        screen.cell(0, 10).unwrap().fgcolor(),
+        color(2),
+        "current segment uses foreground"
+    );
+    assert_eq!(
+        screen.cell(0, 5).unwrap().fgcolor(),
+        color(3),
+        "earlier clickable segment uses text-muted"
+    );
+    assert_eq!(
+        screen.cell(0, 0).unwrap().fgcolor(),
+        color(6),
+        "focused segment uses selection-foreground"
+    );
+    assert_eq!(
+        screen.cell(0, 0).unwrap().bgcolor(),
+        color(5),
+        "focused segment uses selection"
+    );
+    for column in 0..17 {
+        let cell = screen.cell(0, column).unwrap();
+        for painted in [cell.fgcolor(), cell.bgcolor()] {
+            assert!(
+                painted == vt100::Color::Default || (0..26).any(|index| color(index) == painted),
+                "painted color outside the theme: {painted:?}"
+            );
+        }
+    }
+    assert!(frames.last().unwrap().text.contains("Root/Docs/Current"));
+    // Moving focus to another widget leaves the trail in its ordinary colors.
+    let config = element
+        .props
+        .downcast_ref::<BreadcrumbProps>()
+        .unwrap()
+        .clone();
+    let mut ordinary = Vec::new();
+    for trail in [element, Element::typed::<Breadcrumb>(config)] {
+        let root = Element::layout(LayoutType::Flex)
+            .with_class("flex flex-col w-full h-full bg-background text-foreground")
+            .with_child(trail)
+            .with_child(
+                reactive_tui::builder::button()
+                    .text("Elsewhere")
+                    .build()
+                    .auto_focus(),
+            );
+        let frames = super::app_input::run_until(
+            Control(root),
+            (50, 6),
+            vec![super::app_input::Until {
+                text: "Elsewhere",
+                cell: None,
+                event: None,
+            }],
+            std::time::Duration::from_secs(5),
+        );
+        let screen = &frames.last().unwrap().screen;
+        assert_eq!(screen.cell(0, 0).unwrap().fgcolor(), color(3));
+        assert_eq!(screen.cell(0, 0).unwrap().bgcolor(), color(0));
+        assert_eq!(
+            screen.cell(0, 4).unwrap().fgcolor(),
+            color(3),
+            "separator uses text-muted"
+        );
+        ordinary.push(
+            (0..17)
+                .map(|column| {
+                    let cell = screen.cell(0, column).unwrap();
+                    (cell.contents().to_owned(), cell.fgcolor(), cell.bgcolor())
+                })
+                .collect::<Vec<_>>(),
+        );
+    }
+    assert_eq!(
+        ordinary[0], ordinary[1],
+        "props and builder paint the same trail"
+    );
+}
+
+#[test]
+#[serial_test::serial]
+fn breadcrumb_nav_001_hover_disabled_icons_and_tooltip_colors() {
+    let _theme = breadcrumb_probe();
+    use reactive_tui::event::types::{MouseEvent, MouseEventKind, Position};
+    let trail = reactive_tui::builder::breadcrumb()
+        .compact(true)
+        .home_icon("H")
+        .segment(BreadcrumbSegment::new("root", "Root", "/"))
+        .segment(
+            BreadcrumbSegment::new("locked", "Locked", "/locked")
+                .clickable(false)
+                .tooltip("Unavailable"),
+        )
+        .build();
+    let root = Element::layout(LayoutType::Flex)
+        .with_class("flex flex-col")
+        .with_child(trail)
+        .with_child(
+            reactive_tui::builder::button()
+                .text("Elsewhere")
+                .build()
+                .auto_focus(),
+        );
+    let frames = super::app_input::run_until(
+        Control(root),
+        (50, 6),
+        vec![
+            super::app_input::Until {
+                text: "H Root/Locked",
+                cell: None,
+                event: Some(Event::Mouse(MouseEvent::new(
+                    MouseEventKind::Move,
+                    Position::cell(7, 0),
+                ))),
+            },
+            super::app_input::Until {
+                text: "Unavailable",
+                cell: None,
+                event: None,
+            },
+        ],
+        std::time::Duration::from_secs(5),
+    );
+    let screen = &frames.last().unwrap().screen;
+    assert_eq!(
+        screen.cell(0, 0).unwrap().fgcolor(),
+        color(3),
+        "icon inherits its segment color"
+    );
+    assert_eq!(
+        screen.cell(0, 7).unwrap().fgcolor(),
+        color(3),
+        "disabled segment uses text-muted"
+    );
+    assert_eq!(
+        screen.cell(0, 7).unwrap().bgcolor(),
+        color(4),
+        "hover uses hover fill"
+    );
+    assert_eq!(
+        screen.cell(1, 0).unwrap().fgcolor(),
+        color(2),
+        "tooltip uses foreground"
+    );
+    assert_eq!(
+        screen.cell(1, 0).unwrap().bgcolor(),
+        color(1),
+        "tooltip uses surface"
+    );
+    assert!(
+        frames.last().unwrap().text.contains("H Root/Locked"),
+        "hover adds no glyph or label decoration"
+    );
+}
