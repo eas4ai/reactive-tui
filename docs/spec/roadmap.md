@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: input-widgets
+Current: layout-widgets
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -33,6 +33,12 @@ is cut in two, because the menus and the dialogs are two families of about
 6,000 and 9,000 lines: theme-menus first, which gives the theme its color
 roles and brings the menus to the widget bar, then the dialogs, the modal,
 the popover and the toasts on the same roles.
+After input-widgets the developer opened the fourth piece, the layout and
+data widgets, and confirmed its cut in two on 2026-09-30: layout-widgets
+first (the tabs, the accordion, the breadcrumb, the scroll view and the
+stack), then data-widgets (the table, the data table, the tree, the file
+explorer and the progress bar), each with its own review, adversary and
+goldens.
 
 ## charts-plot-layer
 
@@ -805,3 +811,56 @@ manual has a heading for each of the six and the changelog names what
 changed for an application; and the review records screenshots from Kitty
 of the catalog's Input page under each of the five presets at 100 and 240
 columns, with a control focused and the select open.
+
+## layout-widgets
+
+Requirements: NAV-001, NAV-002, NAV-003, NAV-004, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010
+
+The fourth piece of the widget work, first half. In the widget catalog on
+2026-09-30 the tab with the focus carried a `▶`, a disabled tab was written
+`~label~`, the selected tab of two variants and every tooltip were palette
+colors, the accordion's focused header carried a `▶ ` and a disabled one
+was grey, the breadcrumb gave each segment four cells of padding at each
+side, so `/catalog/layout/widgets` showed as `Root / … / widgets` in a card
+of 85 cells and cut `Root` to `Ro` in one of 36, the scroll view was 80 by
+24 cells unless the application sized it, gave up a column to its bar
+whether or not the content overflowed and took no click or drag on it, and
+a tab bar wider than its parent was cut at the edge while the arrow keys
+still reached the tabs outside it.
+
+The commitment brings the tabs, the accordion, the breadcrumb, the scroll
+view and the stack (`widgets::layout`, `builder::tabs()`,
+`builder::accordion()`, `builder::simple_accordion()`,
+`builder::breadcrumb()`, `builder::path_breadcrumb()`,
+`builder::scroll_view()` and `builder::stack()`) to the widget bar (BAR-003
+to BAR-006) on the color roles of theme.md: every color from a role, one
+look for the props and either builder, the tab variants on `surface`,
+`secondary` and `primary`, and focus, hover and disabled shown by color
+alone (NAV-001); the widgets fill the width their parent gives and the
+scroll view its height too, one cell of padding on a tab's label and a
+segment, and a bar column only while the content overflows (NAV-002); a
+tab bar that scrolls to keep the focused or selected tab in view, a
+breadcrumb that keeps its first and last segments whole, and a scroll view
+that scrolls on the wheel, on a click on its track and on a drag of its
+thumb (NAV-003); a name from `aria_label` on the props and the builders, a
+tab's, a header's and a segment's position and count, the scroll view's
+offsets, and a key for every pointer action (NAV-004). Goldens at 80 by 24
+and 400 by 100 for each of the five; a heading of its own in the manual
+for each. The widget-bar, goldens and catalog-manual checks learn the
+layout family; the accordion animates its body, so the frame-budget check
+measures it.
+
+The data widgets are the next commitment. Change callbacks on the builders,
+copying through OSC 52 and the screen reader's actions beyond focus and
+click are the eighth piece; new widgets are the ninth.
+The tabs' overflow menu, a tab's `max_width`, the breadcrumb's overflow
+strategies other than the default, and the stack's alignment options are
+not changed by this commitment.
+
+Done when every named requirement passes; the new mechanism
+(layout-widgets) has recorded a fail on a violating example for each of its
+requirements; every golden that changed is regenerated and looked at; the
+manual has a heading for each of the five and the changelog names what
+changed for an application; and the review records screenshots from Kitty
+of the catalog's Layout page under each of the five presets at 100 and 240
+columns, with a tab focused and the accordion's first section open.

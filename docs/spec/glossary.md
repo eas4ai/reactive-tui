@@ -94,6 +94,18 @@ Terms as the code uses them. Each names where it is defined.
 - **Frame.** The first and the last cell of a field, of a checkbox's box
   and of a radio's ring (`[` and `]`, `(` and `)`), painted in `border`,
   and in `ring` while the control holds the focus.
+- **Layout widget.** A widget that arranges other content and moves
+  through it: the tabs, the accordion, the breadcrumb, the scroll view
+  and the stack (layout-widgets.md). It shows a set of places, panels or
+  rows, moves the current one on a key or a click, and reports the move
+  through a callback.
+- **Tab bar.** The row (or, for tabs at the left or the right, the
+  column) of a tabs widget's labels, one per tab, which scrolls when the
+  labels do not fit.
+- **Trail.** A breadcrumb's row of segments and separators, from the
+  first segment to the current one.
+- **Thumb.** The cells of a scroll bar that mark the part of the content
+  in view, which a drag moves; the rest of the bar is its track.
 - **Kitty keyboard protocol.** Progressive keyboard enhancement flags a
   terminal accepts with `CSI > flags u` and drops with `CSI < u`; with them
   it reports keys as `CSI code ; modifiers ; text u`, so keys that legacy

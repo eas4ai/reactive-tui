@@ -932,6 +932,40 @@ mod tests {
     use super::*;
     use crate::event::types::{KeyEvent, KeyModifiers};
 
+    /// NAV-004: a tab's node tells its position and the count of tabs, and
+    /// the tab list carries no fixed English name.
+    #[test]
+    fn nav_004_a_tab_tells_its_position_and_the_count_of_tabs() {
+        let props = TabsBuilder::new()
+            .add_tab("Preview", Element::text("Live preview"))
+            .add_tab("Source", Element::text("Public builder API"))
+            .build();
+        let element = Tabs::new(props.clone()).render(&props, &TabsState::default());
+        let bar = &element.children[0];
+        let nodes: Vec<_> = bar
+            .children
+            .iter()
+            .map(|header| {
+                header
+                    .metadata
+                    .accessibility
+                    .as_ref()
+                    .expect("a tab's node")
+            })
+            .collect();
+        assert_eq!(nodes[0].inner.position_in_set(), Some(1));
+        assert_eq!(nodes[1].inner.position_in_set(), Some(2));
+        assert_eq!(nodes[0].inner.size_of_set(), Some(2));
+        assert_eq!(
+            bar.metadata
+                .accessibility_options
+                .as_ref()
+                .and_then(|options| options.label.clone()),
+            None,
+            "the tab list has no name when the props set none"
+        );
+    }
+
     #[test]
     fn authored_updates_preserve_keyed_choice_and_replace_content() {
         let mut props = TabsProps {
