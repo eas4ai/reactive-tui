@@ -115,16 +115,21 @@ impl Component for LiveConfirmation {
                 action: ModalButtonAction::Custom(button.id.clone()),
                 disabled: !button.enabled,
                 autofocus: focused == Some(button.id.as_str()),
-                style: Some(format!(
-                    "{} {} {}",
-                    props
-                        .theme
-                        .button_styles
-                        .get(&button.variant.to_string())
-                        .map_or("", String::as_str),
-                    options.css_classes.get("button").map_or("", String::as_str),
-                    button.css_class.as_deref().unwrap_or("")
-                )),
+                style: Some(
+                    [
+                        super::super::frame::button_look(&props.theme, &button.variant.to_string()),
+                        options
+                            .css_classes
+                            .get("button")
+                            .cloned()
+                            .unwrap_or_default(),
+                        button.css_class.clone().unwrap_or_default(),
+                    ]
+                    .into_iter()
+                    .filter(|part| !part.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                ),
             })
             .collect();
         let icon = match options.icon.as_ref() {

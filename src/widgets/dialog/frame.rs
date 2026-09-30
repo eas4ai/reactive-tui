@@ -35,16 +35,32 @@ pub(super) fn apply_bounds(modal: &mut ModalProps, bounds: Rect) {
     }
 }
 
-/// `button` in the look the dialog theme gives `variant` (`primary`,
-/// `secondary` or `danger`), or its own look when the theme has none.
+/// The look the dialog theme gives a button variant, or, when the theme
+/// has no entry for it, the fill of the role the variant names (`warning`,
+/// `success`, `info`), the primary look for `primary`, the danger look for
+/// `danger` and the secondary look for the rest (OVL-001).
+pub(super) fn button_look(theme: &super::DialogTheme, variant: &str) -> String {
+    use crate::widgets::display::modal::{DANGER_BUTTON, PRIMARY_BUTTON, SECONDARY_BUTTON};
+    if let Some(look) = theme.button_styles.get(variant) {
+        return look.clone();
+    }
+    match variant {
+        "primary" => PRIMARY_BUTTON.to_string(),
+        "danger" => DANGER_BUTTON.to_string(),
+        "warning" | "success" | "info" => format!(
+            "px-1 bg-{variant} text-{variant}-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground"
+        ),
+        _ => SECONDARY_BUTTON.to_string(),
+    }
+}
+
+/// `button` in the look `button_look` gives `variant`.
 pub(super) fn styled(
     mut button: crate::widgets::display::modal::ModalButton,
     theme: &super::DialogTheme,
     variant: &str,
 ) -> crate::widgets::display::modal::ModalButton {
-    if let Some(style) = theme.button_styles.get(variant) {
-        button.style = Some(style.clone());
-    }
+    button.style = Some(button_look(theme, variant));
     button
 }
 
