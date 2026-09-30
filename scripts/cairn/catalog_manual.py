@@ -372,6 +372,49 @@ INPUT_CODE = ("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/
               "src/builder/core.rs")
 
 
+LAYOUT_MANUAL = ROOT / "manual/layout-widgets.md"
+# Each layout widget: its card's title on the catalog's Layout widgets
+# page, what builds it there, and the heading of its section in the manual.
+LAYOUT_WIDGETS = (
+    ("Breadcrumb", r"\bpath_breadcrumb\(", "Breadcrumb"),
+    ("Accordion", r"\bsimple_accordion\(", "Accordion"),
+    ("Tabs", r"(?<![\w.])tabs\(\)", "Tabs"),
+    ("ScrollView", r"\bscroll_view\(\)", "Scroll view"),
+    ("Stack", r"(?<![\w.])stack\(\)", "Stack"),
+)
+LAYOUT_CODE = ("src/widgets/layout", "src/builder/widgets/layout.rs", "src/builder/widgets/accordion.rs",
+               "src/builder/widgets/breadcrumb.rs", "src/builder/specialized.rs")
+
+
+def layout_docs_problems() -> list[str]:
+    """The layout family: the catalog's Layout widgets page builds each of
+    the five widgets in a card of its name, the manual has a heading for
+    each, and every method the manual's sections cite is a pub fn in the
+    layout code or its builders."""
+    problems = []
+    code, prose, pages = catalog_pages()
+    page = pages.get("Layout")
+    if page is None:
+        problems.append("catalog lists no Layout widgets page")
+    for card, built, _ in LAYOUT_WIDGETS:
+        if page is not None and not (re.search(rf'"{card}"', prose[page[0]:page[1]])
+                                     and re.search(built, code[page[0]:page[1]])):
+            problems.append(f"catalog's Layout widgets page has no {card} card built with {built}")
+    methods = set()
+    for f in rust_sources(*LAYOUT_CODE):
+        methods |= set(re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", strip_test_modules(f.read_text(errors="replace"))))
+    manual = LAYOUT_MANUAL.read_text(errors="replace") if LAYOUT_MANUAL.exists() else ""
+    for _, _, heading in LAYOUT_WIDGETS:
+        if heading not in [title for _, title in headings(manual)]:
+            problems.append(f"{LAYOUT_MANUAL.relative_to(ROOT)} has no {heading} heading")
+            continue
+        for piece in citations(section(manual, heading) or ""):
+            for name in METHOD_CALL.findall(piece):
+                if name not in methods:
+                    problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn in layout code")
+    return problems
+
+
 def input_docs_problems() -> list[str]:
     """The input family: the catalog's Input widgets page builds each of the
     six controls in a card of its name, the manual has a heading for each,
@@ -403,13 +446,14 @@ def input_docs_problems() -> list[str]:
 
 def main() -> int:
     problems = (chart_docs_problems() + image_docs_problems() + canvas_docs_problems() + menu_docs_problems()
-                + overlay_docs_problems() + input_docs_problems())
+                + overlay_docs_problems() + input_docs_problems() + layout_docs_problems())
     if problems:
         print("BAR-006 violated:")
         for p in problems:
             print("  " + p)
         return 1
-    print("BAR-006 holds for the chart family, the image widget, the graphics canvas, the menus, the overlays and the input widgets")
+    print("BAR-006 holds for the chart family, the image widget, the graphics canvas, the menus, the overlays, "
+          "the input widgets and the layout widgets")
     return 0
 
 

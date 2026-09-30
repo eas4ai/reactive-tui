@@ -134,6 +134,8 @@ pub struct BreadcrumbProps {
     pub show_home_icon: bool,
     /// Custom home icon
     pub home_icon: String,
+    /// Accessible name of the navigation trail.
+    pub aria_label: Option<String>,
     /// Whether to use compact mode (smaller spacing)
     pub compact: bool,
 }
@@ -153,6 +155,7 @@ impl Default for BreadcrumbProps {
             show_home_icon: true,
             home_icon: "🏠".to_string(),
             compact: false,
+            aria_label: None,
         }
     }
 }
@@ -383,6 +386,12 @@ impl BreadcrumbBuilder {
     /// Show the home icon on the original first segment.
     pub fn show_home_icon(mut self, show: bool) -> Self {
         self.props.show_home_icon = show;
+        self
+    }
+
+    /// Name the navigation trail for screen readers.
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.props.aria_label = Some(label.into());
         self
     }
 

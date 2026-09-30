@@ -479,6 +479,9 @@ pub struct ScrollViewBuilder {
     horizontal_scroll: bool,
     vertical_scroll: bool,
     show_scrollbars: bool,
+    viewport_width: usize,
+    viewport_height: usize,
+    aria_label: Option<String>,
 }
 
 impl Default for ScrollViewBuilder {
@@ -496,6 +499,9 @@ impl ScrollViewBuilder {
             horizontal_scroll: false,
             vertical_scroll: true,
             show_scrollbars: true,
+            viewport_width: 0,
+            viewport_height: 0,
+            aria_label: None,
         }
     }
 
@@ -529,6 +535,31 @@ impl ScrollViewBuilder {
         self
     }
 
+    /// Set the viewport width; zero fills the parent.
+    pub fn viewport_width(mut self, width: usize) -> Self {
+        self.viewport_width = width;
+        self
+    }
+
+    /// Set the viewport height; zero fills the parent.
+    pub fn viewport_height(mut self, height: usize) -> Self {
+        self.viewport_height = height;
+        self
+    }
+
+    /// Set both viewport dimensions; zero fills that parent axis.
+    pub fn viewport_size(mut self, width: usize, height: usize) -> Self {
+        self.viewport_width = width;
+        self.viewport_height = height;
+        self
+    }
+
+    /// Set the accessible name of the scroll view.
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
     /// Set CSS classes for styling
     pub fn class(mut self, class: &str) -> Self {
         self.class.push(' ');
@@ -538,7 +569,7 @@ impl ScrollViewBuilder {
 
     /// Build the ScrollView element
     pub fn build(self) -> Element {
-        crate::widgets::layout::ScrollViewBuilder::new(
+        let mut builder = crate::widgets::layout::ScrollViewBuilder::new(
             crate::widgets::layout::StackBuilder::vertical()
                 .children(self.content)
                 .render(),
@@ -546,8 +577,11 @@ impl ScrollViewBuilder {
         .scroll_x(self.horizontal_scroll)
         .scroll_y(self.vertical_scroll)
         .show_scrollbars(self.show_scrollbars)
-        .render()
-        .with_class(self.class)
+        .viewport_size(self.viewport_width, self.viewport_height);
+        if let Some(label) = self.aria_label {
+            builder = builder.aria_label(label);
+        }
+        builder.render().with_class(self.class)
     }
 }
 
