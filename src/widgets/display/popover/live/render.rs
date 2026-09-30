@@ -105,6 +105,7 @@ impl Popover {
                     props.position,
                     trigger_local,
                     content_size,
+                    props.gap,
                     props.offset,
                 );
                 let (placed, position) = self.adjust_for_boundaries(
@@ -128,6 +129,7 @@ impl Popover {
                                 props.position,
                                 trigger_local,
                                 content_size,
+                                props.gap,
                                 props.offset,
                             );
                     }

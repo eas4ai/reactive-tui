@@ -152,7 +152,11 @@ pub struct PopoverProps {
     pub trigger_element: Element,
     /// Arrow configuration
     pub arrow: PopoverArrow,
-    /// Offset from default position
+    /// Cells between the box and its trigger along the placement's axis:
+    /// rows under or over it, cells beside it. The arrow stands in them.
+    pub gap: u16,
+    /// Cells the box is moved from its place: away from the trigger along
+    /// the placement's axis, and along the trigger across it.
     pub offset: (i16, i16),
     /// Behavior when hitting boundaries
     pub boundary_behavior: BoundaryBehavior,
@@ -238,7 +242,8 @@ impl Default for PopoverProps {
             content: Element::empty(),
             trigger_element: Element::empty(),
             arrow: PopoverArrow::default(),
-            offset: (0, 1),
+            gap: 1,
+            offset: (0, 0),
             boundary_behavior: BoundaryBehavior::Flip,
             close_on_escape: true,
             close_on_outside_click: true,
@@ -365,10 +370,12 @@ impl Popover {
         position: PopoverPosition,
         trigger_rect: Rect<f32>,
         content_size: (u16, u16),
+        gap: u16,
         offset: (i16, i16),
     ) -> Rect<f32> {
         let (content_width, content_height) = (content_size.0 as f32, content_size.1 as f32);
         let (offset_x, offset_y) = (offset.0 as f32, offset.1 as f32);
+        let gap = f32::from(gap);
 
         let trigger_x = trigger_rect.left;
         let trigger_y = trigger_rect.top;
@@ -378,72 +385,72 @@ impl Popover {
         match position {
             PopoverPosition::Top => Self::make_rect(
                 trigger_x + (trigger_width - content_width) / 2.0 + offset_x,
-                trigger_y - content_height - offset_y,
+                trigger_y - content_height - gap - offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::TopStart => Self::make_rect(
                 trigger_x + offset_x,
-                trigger_y - content_height - offset_y,
+                trigger_y - content_height - gap - offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::TopEnd => Self::make_rect(
                 trigger_x + trigger_width - content_width - offset_x,
-                trigger_y - content_height - offset_y,
+                trigger_y - content_height - gap - offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::Bottom => Self::make_rect(
                 trigger_x + (trigger_width - content_width) / 2.0 + offset_x,
-                trigger_y + trigger_height + offset_y,
+                trigger_y + trigger_height + gap + offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::BottomStart => Self::make_rect(
                 trigger_x + offset_x,
-                trigger_y + trigger_height + offset_y,
+                trigger_y + trigger_height + gap + offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::BottomEnd => Self::make_rect(
                 trigger_x + trigger_width - content_width - offset_x,
-                trigger_y + trigger_height + offset_y,
+                trigger_y + trigger_height + gap + offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::Left => Self::make_rect(
-                trigger_x - content_width - offset_x,
+                trigger_x - content_width - gap - offset_x,
                 trigger_y + (trigger_height - content_height) / 2.0 + offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::LeftStart => Self::make_rect(
-                trigger_x - content_width - offset_x,
+                trigger_x - content_width - gap - offset_x,
                 trigger_y + offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::LeftEnd => Self::make_rect(
-                trigger_x - content_width - offset_x,
+                trigger_x - content_width - gap - offset_x,
                 trigger_y + trigger_height - content_height - offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::Right => Self::make_rect(
-                trigger_x + trigger_width + offset_x,
+                trigger_x + trigger_width + gap + offset_x,
                 trigger_y + (trigger_height - content_height) / 2.0 + offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::RightStart => Self::make_rect(
-                trigger_x + trigger_width + offset_x,
+                trigger_x + trigger_width + gap + offset_x,
                 trigger_y + offset_y,
                 content_width,
                 content_height,
             ),
             PopoverPosition::RightEnd => Self::make_rect(
-                trigger_x + trigger_width + offset_x,
+                trigger_x + trigger_width + gap + offset_x,
                 trigger_y + trigger_height - content_height - offset_y,
                 content_width,
                 content_height,
@@ -476,6 +483,7 @@ impl Popover {
                         flipped_position,
                         trigger_rect,
                         content_size,
+                        props.gap,
                         props.offset,
                     );
                     let overflow = |candidate: Rect<f32>| {
@@ -749,6 +757,13 @@ impl PopoverBuilder {
         self
     }
 
+    /// Set the cells between the box and its trigger along the placement's
+    /// axis (one by default; the arrow stands in them).
+    pub fn gap(mut self, gap: u16) -> Self {
+        self.props.gap = gap;
+        self
+    }
+
     /// Set the boundary behavior when the popover would overflow
     ///
     /// # Arguments
@@ -928,6 +943,7 @@ mod tests {
             PopoverPosition::Bottom,
             trigger_rect,
             content_size,
+            0,
             offset,
         );
 
@@ -948,11 +964,13 @@ mod tests {
             PopoverPosition::Right,
             trigger_rect,
             content_size,
+            0,
             (8, 0),
         );
 
         let props = PopoverProps {
             boundary_behavior: BoundaryBehavior::Flip,
+            gap: 0,
             offset: (8, 0),
             ..PopoverProps::default()
         };

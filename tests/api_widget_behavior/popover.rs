@@ -726,6 +726,9 @@ fn props() -> PopoverProps {
             enabled: false,
             ..Default::default()
         },
+        // These tests place the box against its trigger and give the gap
+        // themselves through `offset` where they want one.
+        gap: 0,
         offset: (0, 0),
         position: PopoverPosition::BottomStart,
         ..Default::default()
