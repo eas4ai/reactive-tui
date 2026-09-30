@@ -133,7 +133,7 @@ impl Component for LiveToast {
         }
         if self.invalid_duration {
             return Element::text("Toast duration exceeds the supported clock range")
-                .class("text-red-500");
+                .class("text-error");
         }
         let options = &props.options;
         let position = match options.position {
@@ -144,12 +144,7 @@ impl Component for LiveToast {
             ToastPosition::BottomCenter => ModalPosition::Bottom,
             ToastPosition::BottomRight => ModalPosition::BottomRight,
         };
-        let (style, role) = match options.toast_type {
-            ToastType::Success => ("bg-green-700 text-white", Role::Status),
-            ToastType::Error => ("bg-red-700 text-white", Role::Alert),
-            ToastType::Warning => ("bg-yellow-700 text-white", Role::Alert),
-            _ => ("bg-blue-700 text-white", Role::Status),
-        };
+        let (style, role) = (options.toast_type.classes(), options.toast_type.role());
         let visible = self.visible.clone();
         let config = self.options.clone();
         let lifetime = self.lifetime.clone();

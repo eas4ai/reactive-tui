@@ -113,17 +113,6 @@ impl DialogBuilder {
 pub struct DialogUtils;
 
 impl DialogUtils {
-    /// Calculate optimal dialog size based on content
-    pub fn calculate_size(content_length: usize, min_width: u16, max_width: u16) -> (u16, u16) {
-        let chars_per_line = 60; // Approximate characters per line
-        let lines = (content_length / chars_per_line as usize).max(1);
-
-        let width = (content_length as u16 / lines as u16).clamp(min_width, max_width);
-        let height = (lines as u16 * 2 + 8).min(40); // Account for padding and buttons
-
-        (width, height)
-    }
-
     /// Create CSS classes string from map
     pub fn build_css_classes(
         base_classes: &[&str],
@@ -186,115 +175,54 @@ impl DialogUtils {
     }
 }
 
-/// Dialog theme presets
+/// Dialog theme presets: the looks `light`, `dark` and `high_contrast`
+/// take their colors from the built-in preset of that name (OVL-001), and
+/// `minimal` draws its buttons as text in the active theme's roles.
 pub struct DialogThemes;
 
 impl DialogThemes {
-    /// Default light theme
+    /// The light preset's colors, whatever theme the application uses.
     pub fn light() -> super::DialogTheme {
         super::DialogTheme {
-            backdrop_color: "bg-black bg-opacity-50".to_string(),
-            dialog_bg: "bg-white".to_string(),
-            border_style: "border border-gray-300 rounded-lg shadow-lg".to_string(),
-            title_style: "font-bold text-lg border-b border-gray-200 p-16".to_string(),
-            button_styles: {
-                let mut styles = HashMap::new();
-                styles.insert(
-                    "primary".to_string(),
-                    "bg-blue-500 text-white px-16 py-8 rounded hover:bg-blue-600".to_string(),
-                );
-                styles.insert(
-                    "secondary".to_string(),
-                    "bg-gray-200 text-gray-800 px-16 py-8 rounded hover:bg-gray-300".to_string(),
-                );
-                styles.insert(
-                    "danger".to_string(),
-                    "bg-red-500 text-white px-16 py-8 rounded hover:bg-red-600".to_string(),
-                );
-                styles
-            },
             animation: super::DialogAnimation::Fade,
+            ..super::DialogTheme::of(&crate::theme::light_theme())
         }
     }
 
-    /// Dark theme
+    /// The dark preset's colors, whatever theme the application uses.
     pub fn dark() -> super::DialogTheme {
         super::DialogTheme {
-            backdrop_color: "bg-black bg-opacity-70".to_string(),
-            dialog_bg: "bg-gray-800 text-white".to_string(),
-            border_style: "border border-gray-600 rounded-lg shadow-xl".to_string(),
-            title_style: "font-bold text-lg border-b border-gray-600 p-16".to_string(),
-            button_styles: {
-                let mut styles = HashMap::new();
-                styles.insert(
-                    "primary".to_string(),
-                    "bg-blue-600 text-white px-16 py-8 rounded hover:bg-blue-700".to_string(),
-                );
-                styles.insert(
-                    "secondary".to_string(),
-                    "bg-gray-600 text-white px-16 py-8 rounded hover:bg-gray-700".to_string(),
-                );
-                styles.insert(
-                    "danger".to_string(),
-                    "bg-red-600 text-white px-16 py-8 rounded hover:bg-red-700".to_string(),
-                );
-                styles
-            },
             animation: super::DialogAnimation::Slide(super::SlideDirection::Up),
+            ..super::DialogTheme::of(&crate::theme::dark_theme())
         }
     }
 
-    /// Minimal theme
+    /// No border, buttons as text: the primary one in `primary`, a danger
+    /// one in `error`, the rest in `text-muted`; the focused one in the
+    /// `selection` roles.
     pub fn minimal() -> super::DialogTheme {
+        let button = |text: &str| {
+            format!("px-1 text-{text} cursor-pointer focus:bg-selection focus:text-selection-foreground")
+        };
         super::DialogTheme {
-            backdrop_color: "bg-gray-900 bg-opacity-30".to_string(),
-            dialog_bg: "bg-white".to_string(),
-            border_style: "border-0 rounded-none shadow-none".to_string(),
-            title_style: "font-medium text-base p-12".to_string(),
-            button_styles: {
-                let mut styles = HashMap::new();
-                styles.insert(
-                    "primary".to_string(),
-                    "text-blue-600 px-12 py-4 hover:bg-blue-50".to_string(),
-                );
-                styles.insert(
-                    "secondary".to_string(),
-                    "text-gray-600 px-12 py-4 hover:bg-gray-50".to_string(),
-                );
-                styles.insert(
-                    "danger".to_string(),
-                    "text-red-600 px-12 py-4 hover:bg-red-50".to_string(),
-                );
-                styles
-            },
+            border_style: String::new(),
+            title_style: "font-medium px-1".to_string(),
+            button_styles: HashMap::from([
+                ("primary".to_string(), button("primary")),
+                ("secondary".to_string(), button("text-muted")),
+                ("danger".to_string(), button("error")),
+            ]),
             animation: super::DialogAnimation::Scale,
+            ..super::DialogTheme::default()
         }
     }
 
-    /// High contrast theme for accessibility
+    /// The high contrast preset's colors, whatever theme the application
+    /// uses.
     pub fn high_contrast() -> super::DialogTheme {
         super::DialogTheme {
-            backdrop_color: "bg-black".to_string(),
-            dialog_bg: "bg-white text-black".to_string(),
-            border_style: "border-4 border-black rounded-none".to_string(),
-            title_style: "font-bold text-xl border-b-4 border-black p-16".to_string(),
-            button_styles: {
-                let mut styles = HashMap::new();
-                styles.insert(
-                    "primary".to_string(),
-                    "bg-black text-white px-24 py-12 border-2 border-black".to_string(),
-                );
-                styles.insert(
-                    "secondary".to_string(),
-                    "bg-white text-black px-24 py-12 border-2 border-black".to_string(),
-                );
-                styles.insert(
-                    "danger".to_string(),
-                    "bg-red-700 text-white px-24 py-12 border-2 border-black".to_string(),
-                );
-                styles
-            },
             animation: super::DialogAnimation::None,
+            ..super::DialogTheme::of(&crate::theme::high_contrast_theme())
         }
     }
 }
@@ -430,24 +358,6 @@ mod tests {
         assert_eq!(dialog.message, "Process completed successfully.");
         assert!(matches!(dialog.icon, Some(ConfirmationIcon::Info)));
         assert!(matches!(dialog.buttons, ConfirmationButtons::Ok));
-    }
-
-    #[test]
-    fn test_dialog_utils_calculate_size() {
-        // Test small content
-        let (width, height) = DialogUtils::calculate_size(30, 20, 100);
-        assert!((20..=100).contains(&width));
-        assert!(height >= 8);
-
-        // Test large content
-        let (width, height) = DialogUtils::calculate_size(500, 40, 120);
-        assert!((40..=120).contains(&width));
-        assert!(height <= 40);
-
-        // Test minimum constraints
-        let (width, height) = DialogUtils::calculate_size(5, 50, 100);
-        assert_eq!(width, 50); // Should use minimum width
-        assert!(height >= 8);
     }
 
     #[test]

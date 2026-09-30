@@ -188,10 +188,11 @@ impl Component for LiveConfirmation {
             ..Default::default()
         };
         super::super::frame::apply_bounds(&mut modal, props.bounds);
+        // A question that needs an answer is an alert dialog (OVL-004).
         let mut element = super::super::frame::modal(
             modal,
             options.escape_closable,
-            crate::accessibility::Role::Dialog,
+            crate::accessibility::Role::AlertDialog,
         );
         let visible = self.visible.clone();
         let config = options.clone();

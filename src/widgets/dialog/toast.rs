@@ -26,8 +26,32 @@ pub enum ToastType {
     Warning,
     /// Error toast
     Error,
-    /// Custom toast type
+    /// A toast painted in the classes its string names, such as
+    /// `bg-accent text-accent-foreground`.
     Custom(String),
+}
+
+impl ToastType {
+    /// The classes the toast is painted with (OVL-001): the fill of its
+    /// kind with that fill's text role, or its own classes when custom.
+    pub fn classes(&self) -> &str {
+        match self {
+            Self::Info => "bg-info text-info-foreground",
+            Self::Success => "bg-success text-success-foreground",
+            Self::Warning => "bg-warning text-warning-foreground",
+            Self::Error => "bg-error text-error-foreground",
+            Self::Custom(classes) => classes,
+        }
+    }
+
+    /// What the screen reader is told: a warning or an error is an alert,
+    /// the rest a status.
+    pub fn role(&self) -> crate::accessibility::Role {
+        match self {
+            Self::Warning | Self::Error => crate::accessibility::Role::Alert,
+            _ => crate::accessibility::Role::Status,
+        }
+    }
 }
 
 /// Configuration options for toast notifications
@@ -73,7 +97,7 @@ impl std::fmt::Debug for ToastOptions {
 }
 
 /// Toast positioning options
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ToastPosition {
     /// Position toast at top-left corner
     TopLeft,

@@ -138,21 +138,7 @@ impl MenuStyle {
     /// the active theme: the menu keeps these colors when the application
     /// changes its theme.
     pub fn of(theme: &Theme) -> Self {
-        let color = |role: &str| {
-            let (r, g, b, a) = theme.resolve_variable(role).unwrap_or_default();
-            let byte = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
-            if a < 1.0 {
-                format!(
-                    "#{:02x}{:02x}{:02x}{:02x}",
-                    byte(r),
-                    byte(g),
-                    byte(b),
-                    byte(a)
-                )
-            } else {
-                format!("#{:02x}{:02x}{:02x}", byte(r), byte(g), byte(b))
-            }
-        };
+        let color = |role: &str| theme.hex(role);
         Self {
             base_classes: format!("bg-{} text-{}", color("surface"), color("foreground")),
             selected_classes: format!("bg-{} text-{}", color("hover"), color("foreground")),

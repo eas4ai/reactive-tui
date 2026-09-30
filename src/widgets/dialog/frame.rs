@@ -22,6 +22,8 @@ pub(super) fn apply_bounds(modal: &mut ModalProps, bounds: Rect) {
     {
         modal.z_index = presentation.z_index;
         modal.focus_trap &= presentation.focus_trap;
+        modal.offset = presentation.offset;
+        modal.on_placed = presentation.placed.clone();
     }
     if !bounds.size.is_empty() {
         modal.width = ModalSize::Fixed(cell(bounds.size.width));

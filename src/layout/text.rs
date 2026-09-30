@@ -170,7 +170,20 @@ fn wrap_line(text: &str, width: usize, mode: WordBreak, collapse: bool) -> Vec<S
     let tokens: Vec<&str> = if mode == WordBreak::All {
         text.graphemes(true).collect()
     } else {
-        text.split_word_bounds().collect()
+        // A word and the punctuation that follows it without a space stay
+        // on one line: a line breaks at whitespace only.
+        let mut tokens: Vec<&str> = Vec::new();
+        for token in text.split_word_bounds() {
+            let blank = token.chars().all(char::is_whitespace);
+            match tokens.last_mut() {
+                Some(last) if !blank && !last.chars().all(char::is_whitespace) => {
+                    let start = last.as_ptr() as usize - text.as_ptr() as usize;
+                    *last = &text[start..start + last.len() + token.len()];
+                }
+                _ => tokens.push(token),
+            }
+        }
+        tokens
     };
     let mut lines = Vec::new();
     let mut line = String::new();
@@ -253,4 +266,31 @@ fn justify(line: &str, spare: usize) -> String {
         }
     }
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A word keeps the punctuation that follows it when a line breaks,
+    /// so "sure?" is never split into "sure" and "?".
+    #[test]
+    fn a_line_breaks_at_a_space_and_keeps_punctuation_with_its_word() {
+        let style = TextStyle {
+            whitespace: Some(WhiteSpace::Normal),
+            ..TextStyle::default()
+        };
+        assert_eq!(
+            style.lines("? Are you sure?", 14),
+            vec!["? Are you".to_string(), "sure?".to_string()]
+        );
+        assert_eq!(
+            style.lines("Ready to record? Yes, now.", 12),
+            vec![
+                "Ready to".to_string(),
+                "record? Yes,".to_string(),
+                "now.".to_string()
+            ]
+        );
+    }
 }

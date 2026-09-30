@@ -405,7 +405,7 @@ impl Component for LiveAutocomplete {
         if let Some(error) = self.runtime.error.get() {
             content.push(
                 Element::text(error)
-                    .class("text-red-500 whitespace-pre-wrap w-full")
+                    .class("text-error whitespace-pre-wrap w-full")
                     .with_accessibility(Node::new(Role::Alert)),
             );
         }
@@ -438,7 +438,7 @@ impl Component for LiveAutocomplete {
                 accessible.set_clickable();
                 let mut row = crate::builder::div()
                     .class(if selected {
-                        "flex-col w-full bg-blue-700 text-white"
+                        "flex-col w-full bg-selection text-selection-foreground"
                     } else {
                         "flex-col w-full"
                     })

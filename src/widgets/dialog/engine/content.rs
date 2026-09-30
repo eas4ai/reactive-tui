@@ -126,6 +126,13 @@ impl Content {
             }
         }
     }
+    /// Where a toast is placed, for the toasts that stack there.
+    pub(super) fn toast_position(&self) -> Option<ToastPosition> {
+        match self {
+            Self::Toast(options) => Some(options.position),
+            _ => None,
+        }
+    }
     pub(super) fn render(&self, id: DialogId, theme: &DialogTheme) -> Element {
         let bounds = Rect::default();
         match self {

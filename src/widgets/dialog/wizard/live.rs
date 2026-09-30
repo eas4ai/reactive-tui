@@ -220,7 +220,7 @@ impl Component for LiveWizard {
             content.push(
                 Element::text(error)
                     .with_key(format!("error-{index}"))
-                    .with_class("text-red-500 aria-live-assertive")
+                    .with_class("text-error aria-live-assertive")
                     .with_accessibility(crate::accessibility::Node::new(
                         crate::accessibility::Role::Alert,
                     )),

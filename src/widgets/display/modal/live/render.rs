@@ -5,7 +5,7 @@ use crate::{
     component::{ElementType, FocusProps, LayoutType},
     layout::style::{Direction, StyleBuilder},
     widgets::{
-        display::{overlay::local_rect, table::border},
+        display::{overlay::local_rect, table::border, Border},
         layout::ScrollViewBuilder,
     },
 };
@@ -18,6 +18,14 @@ fn node(style: StyleBuilder, children: Vec<Element>) -> Element {
 }
 fn size(layout: Option<LayoutInfo>) -> (f32, f32) {
     layout.map_or((0.0, 0.0), |layout| layout.size)
+}
+/// The width the content's lines need and the rows they take: the content
+/// is laid out at the box's width, so its lines wrap there (OVL-002), and
+/// its extent is what the box has to hold.
+fn content_size(layout: Option<LayoutInfo>) -> (f32, f32) {
+    layout.map_or((0.0, 0.0), |layout| {
+        (layout.content_extent.0, layout.size.1)
+    })
 }
 
 impl Runtime {
@@ -38,7 +46,7 @@ impl Runtime {
     ) -> Element {
         if let Some(error) = validation_error(props) {
             self.cancel();
-            return Element::text(error).class("text-red-500");
+            return Element::text(error).class("text-error");
         }
         let (visible, progress, measured) = self.sample_with_duration(
             props,
@@ -76,22 +84,30 @@ impl Runtime {
             } else {
                 0.0
             };
-            let natural_width = size(measured.content)
+            let natural_width = content_size(measured.content)
                 .0
                 .max(size(measured.title).0 + if props.closable { 2.0 } else { 0.0 })
                 .max(size(measured.footer).0)
                 .max(size(measured.buttons).0)
                 + insets[0]
                 + insets[2];
-            let natural_height =
-                size(measured.content).1 + header_height + footer_height + insets[1] + insets[3];
+            let natural_height = content_size(measured.content).1
+                + header_height
+                + footer_height
+                + insets[1]
+                + insets[3];
+            // A box whose width the application did not set is as wide as
+            // its content needs and at most half the viewport (OVL-002).
+            // Until the content is measured, the box takes that limit, so
+            // the content is measured wrapped at the widest it can be.
+            let widest = (viewport.0 / 2).max(1);
             let mut config = props.clone();
             if config.width == ModalSize::Auto {
                 config.width =
                     ModalSize::Fixed(if measured.content.is_some() || props.content.is_none() {
-                        natural_width.ceil().max(1.0) as u16
+                        (natural_width.ceil().max(1.0) as u16).min(widest)
                     } else {
-                        viewport.0
+                        widest
                     });
             }
             if config.height == ModalSize::Auto {
@@ -100,7 +116,7 @@ impl Runtime {
                     .0;
                 let content_width = (f32::from(width) - insets[0] - insets[2]).max(0.0);
                 let scrollbar_height =
-                    if props.scrollable && size(measured.content).0 > content_width {
+                    if props.scrollable && content_size(measured.content).0 > content_width {
                         1.0
                     } else {
                         0.0
@@ -129,7 +145,7 @@ impl Runtime {
                 bounds.left + f32::from(position.0),
                 bounds.top + f32::from(position.1),
             );
-            {
+            let placed = {
                 let mut data = self.data.lock().unwrap();
                 data.rect = Rect {
                     left,
@@ -138,8 +154,15 @@ impl Runtime {
                     bottom: top + f32::from(dimensions.1),
                 };
                 data.bounds = bounds;
+                let placed = (data.observed.position, data.observed.size) != (position, dimensions);
                 data.observed.position = position;
                 data.observed.size = dimensions;
+                placed
+            };
+            if placed {
+                if let Some(callback) = &props.on_placed {
+                    callback(position, dimensions);
+                }
             }
             let ready = measured.body.is_some() && dimensions.0 > 0 && dimensions.1 > 0;
             let owner = self.clone();
@@ -183,16 +206,25 @@ impl Runtime {
             let mut class = content.class.take().unwrap_or_default();
             class.push_str(" self-start");
             content.class = Some(class);
+            // The content's lines wrap at the box's width; a scroll view
+            // keeps its lines on one line (`whitespace-pre`), so the wrap
+            // is asked for again inside it.
+            let mut content = node(
+                StyleBuilder::new()
+                    .direction(Direction::Column)
+                    .width_px(available.0)
+                    .flex_shrink(0.0),
+                vec![content],
+            )
+            .class("whitespace-normal px-1")
+            .with_key("modal-lines");
             self.measure(&mut content, Part::Content);
             let content = if props.scrollable {
                 ScrollViewBuilder::new(content)
                     .viewport_size(available.0 as usize, available.1 as usize)
-                    .scroll_x(true)
+                    .scroll_x(false)
                     .scroll_y(true)
-                    .show_scrollbars(
-                        size(measured.content).0 > available.0
-                            || size(measured.content).1 > available.1,
-                    )
+                    .show_scrollbars(content_size(measured.content).1 > available.1)
                     .render()
             } else {
                 content
@@ -221,8 +253,14 @@ impl Runtime {
             if !props.buttons.is_empty() {
                 body_children.push(self.buttons(props));
             }
+            // The border in the theme's `border` role unless the props
+            // name a color (OVL-001).
+            let frame = Border {
+                color: props.border.color.clone().or_else(|| Some("border".into())),
+                ..props.border.clone()
+            };
             body_children.extend(border::elements(
-                &props.border,
+                &frame,
                 dimensions.0 as usize,
                 dimensions.1 as usize,
             ));
@@ -245,7 +283,7 @@ impl Runtime {
             } else if let Some(motion) = motion {
                 if let Err(error) = (motion.apply)(progress, &mut style) {
                     self.cancel();
-                    return Element::text(error).class("text-red-500");
+                    return Element::text(error).class("text-error");
                 }
             } else {
                 match props.animation {
@@ -273,6 +311,10 @@ impl Runtime {
             let mut semantic = Node::new(role);
             if let Some(title) = &props.title {
                 semantic.set_label(title);
+            }
+            // While the box fades or slides in, what it shows is on its way.
+            if progress < 1.0 {
+                semantic.set_busy();
             }
             let mut body = node(style, body_children)
                 .class(props.modal_style.clone().unwrap_or_default())
@@ -315,11 +357,15 @@ impl Runtime {
             }
             children.push(body);
         }
+        // The owner leaves the clip of its parents: its clip is the screen,
+        // which is where the box and the veil are placed and painted whole
+        // (OVL-003), also inside a box that clips its content.
         let mut root = node(
             StyleBuilder::new()
                 .position_absolute()
                 .width_px(0.0)
-                .height_px(0.0),
+                .height_px(0.0)
+                .unclipped(),
             children,
         )
         .with_key("modal-owner");
@@ -350,10 +396,10 @@ impl Runtime {
         if props.closable {
             let owner = self.clone();
             let config = props.clone();
-            let mut close = builder::button()
+            let mut close = builder::div()
                 .text("✕")
                 .class(&format!(
-                    "absolute right-0 top-0 w-1 h-1 p-0 {}",
+                    "absolute right-0 top-0 w-1 h-1 {}",
                     props.close_button_style.as_deref().unwrap_or("")
                 ))
                 .on_click(move || owner.close(&config, ModalCloseReason::CloseButton))
@@ -398,12 +444,9 @@ impl Runtime {
                 let owner = self.clone();
                 let config = props.clone();
                 let action = button.clone();
-                let mut node = builder::button()
+                let mut node = builder::div()
                     .text(&button.label)
-                    .class(&format!(
-                        "h-1 p-0 {}",
-                        button.style.as_deref().unwrap_or("")
-                    ))
+                    .class(&format!("h-1 {}", button.classes()))
                     .on_click(move || owner.button(&config, &action))
                     .build()
                     .with_key(&button.id);

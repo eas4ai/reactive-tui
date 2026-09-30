@@ -234,6 +234,43 @@ fn ovl_001_a_confirmation_dialog_paints_its_box_and_buttons_in_the_roles() {
 
 #[test]
 #[serial_test::serial(theme)]
+fn ovl_002_a_dialog_is_as_wide_as_its_message_with_one_cell_of_padding() {
+    let _theme = Active::set(probe());
+    // 30 cells of message: the box is 30 + 2 of padding + 2 of border.
+    let frame = shown(
+        builder::confirmation_dialog()
+            .title("T")
+            .message("abcdefghij abcdefghij abcdefgh")
+            .confirm_text("Y")
+            .cancel_text("N")
+            .build(),
+        (240, 60),
+        "abcdefghij",
+    );
+    let (left, top) = find(&frame, "┌").unwrap();
+    let right = (left..240)
+        .find(|column| frame.screen.cell(top, *column).unwrap().contents() == "┐")
+        .unwrap();
+    assert_eq!(
+        right - left + 1,
+        34,
+        "OVL-002: a 30-cell message makes a box of 34 cells:\n{}",
+        frame.text
+    );
+    let (column, row) = find(&frame, "abcdefghij").unwrap();
+    assert_eq!(
+        (
+            column - left,
+            frame.screen.cell(row, left + 1).unwrap().contents()
+        ),
+        (2, " "),
+        "OVL-002: one cell of padding between the border and the message:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
 fn ovl_002_a_dialog_with_a_long_message_is_at_most_half_the_viewport_wide() {
     let _theme = Active::set(probe());
     let size = (240, 60);
@@ -318,17 +355,47 @@ fn focusable(text: &str) -> Element {
         .with_focus(FocusProps::button())
 }
 
+/// A page with a popover whose trigger holds the focus and whose content
+/// holds a button; both show in `selection` while focused.
+fn popover_page() -> Element {
+    builder::popover()
+        .trigger(focusable("OPEN").auto_focus())
+        .content(focusable("INNER"))
+        .build()
+}
+
 #[test]
 #[serial_test::serial(theme)]
 fn ovl_004_a_popover_opened_by_a_key_takes_the_focus_and_gives_it_back() {
     let _theme = Active::set(probe());
-    let frames = app_input::run_until(
-        Control(page(
-            builder::popover()
-                .trigger(focusable("OPEN").auto_focus())
-                .content(focusable("INNER"))
-                .build(),
-        )),
+    let opened = app_input::run_until(
+        Control(page(popover_page())),
+        (60, 20),
+        vec![
+            Until {
+                text: "OPEN",
+                cell: None,
+                event: key(KeyCode::Enter),
+            },
+            Until {
+                text: "INNER",
+                cell: None,
+                event: None,
+            },
+        ],
+        WAIT,
+    )
+    .pop()
+    .unwrap();
+    let (_, inner) = colors(&opened, "INNER");
+    assert_eq!(
+        inner,
+        Some(role("selection")),
+        "OVL-004: after Enter on the trigger the focus is inside the popover:\n{}",
+        opened.text
+    );
+    let closed = app_input::run_until(
+        Control(page(popover_page())),
         (60, 20),
         vec![
             Until {
@@ -341,28 +408,18 @@ fn ovl_004_a_popover_opened_by_a_key_takes_the_focus_and_gives_it_back() {
                 cell: None,
                 event: key(KeyCode::Escape),
             },
+            // The box's first corner is gone once the popover has closed.
             Until {
                 text: "OPEN",
-                cell: None,
+                cell: Some((0, 2, " ")),
                 event: None,
             },
         ],
         WAIT,
-    );
-    let opened = frames
-        .iter()
-        .rev()
-        .find(|frame| find(frame, "INNER").is_some())
-        .expect("the popover opened");
-    let (_, inner) = colors(opened, "INNER");
-    assert_eq!(
-        inner,
-        Some(role("selection")),
-        "OVL-004: after Enter on the trigger the focus is inside the popover:\n{}",
-        opened.text
-    );
-    let closed = frames.last().unwrap();
-    let (_, open) = colors(closed, "OPEN");
+    )
+    .pop()
+    .unwrap();
+    let (_, open) = colors(&closed, "OPEN");
     assert_eq!(
         open,
         Some(role("selection")),

@@ -113,7 +113,7 @@ impl Default for PopoverArrow {
     fn default() -> Self {
         Self {
             enabled: true,
-            size: 8,
+            size: 1,
             offset: 0,
             style: ArrowStyle::Solid,
         }
@@ -238,7 +238,7 @@ impl Default for PopoverProps {
             content: Element::empty(),
             trigger_element: Element::empty(),
             arrow: PopoverArrow::default(),
-            offset: (0, 8),
+            offset: (0, 1),
             boundary_behavior: BoundaryBehavior::Flip,
             close_on_escape: true,
             close_on_outside_click: true,
@@ -293,6 +293,10 @@ pub struct PopoverState {
     pub boundary_adjusted: bool,
     /// Last recorded mouse position
     pub last_mouse_pos: Option<Position>,
+    /// Whether a key on the trigger opened the popover: the focus then
+    /// moves into its content and back to the trigger when it closes
+    /// (OVL-004).
+    pub opened_by_key: bool,
 }
 
 impl Default for PopoverState {
@@ -313,6 +317,7 @@ impl Default for PopoverState {
             focusable_elements: Vec::new(),
             boundary_adjusted: false,
             last_mouse_pos: None,
+            opened_by_key: false,
         }
     }
 }

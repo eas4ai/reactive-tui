@@ -51,7 +51,7 @@ fn engine_confirmation_callback_and_close_event_fire_once() {
         let calls = Arc::new(Mutex::new(Vec::new()));
         let observed = calls.clone();
         let id = engine.show_confirmation(ConfirmationDialogOptions {
-            title: "CONFIRM ENGINE".into(),
+            title: "CONFIRM".into(),
             on_close: Some(Arc::new(move |result| {
                 observed.lock().unwrap().push(result)
             })),
@@ -60,8 +60,8 @@ fn engine_confirmation_callback_and_close_event_fire_once() {
         app_input::run_actions_until_hidden(
             engine.clone(),
             size,
-            vec![("CONFIRM ENGINE", Action::ClickText("OK", 0))],
-            "CONFIRM ENGINE",
+            vec![("CONFIRM", Action::ClickText("OK", 0))],
+            "CONFIRM",
         );
         assert!(matches!(
             calls.lock().unwrap().as_slice(),

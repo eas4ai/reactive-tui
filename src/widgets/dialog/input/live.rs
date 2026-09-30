@@ -339,14 +339,14 @@ impl Component for LiveInput {
         if let Some(error) = self.runtime.error.get() {
             content.push(
                 Element::text(error)
-                    .class("text-red-500 whitespace-pre-wrap w-full aria-live-assertive")
+                    .class("text-error whitespace-pre-wrap w-full aria-live-assertive")
                     .with_accessibility(Node::new(Role::Alert)),
             );
         }
         for warning in self.runtime.warnings.get() {
             content.push(
                 Element::text(warning)
-                    .class("text-yellow-500 whitespace-pre-wrap w-full aria-live-polite")
+                    .class("text-warning whitespace-pre-wrap w-full aria-live-polite")
                     .with_accessibility(Node::new(Role::Status)),
             );
         }

@@ -676,7 +676,9 @@ impl Default for ConfirmationDialogOptions {
             title: "Confirm".to_string(),
             message: "Are you sure?".to_string(),
             description: None,
-            icon: Some(ConfirmationIcon::Question),
+            // No icon unless the application asks for one: the box is the
+            // message plus one cell of padding at each side (OVL-002).
+            icon: None,
             buttons: ConfirmationButtons::OkCancel,
             default_button: Some("ok".to_string()),
             size: None,
