@@ -81,18 +81,6 @@ fn page(child: Element) -> Element {
         .build()
 }
 
-/// A directory of four fixed names for the file explorer's golden, made
-/// fresh for each run: the catalog reads the manual directory, whose
-/// files, sizes and dates change with the manual and with every clone.
-fn explorer_fixture() -> tempfile::TempDir {
-    let dir = tempfile::tempdir().expect("a fixture directory");
-    for name in ["alpha.md", "beta.md", "gamma.md"] {
-        std::fs::write(dir.path().join(name), name).expect("a fixture file");
-    }
-    std::fs::create_dir(dir.path().join("notes")).expect("a fixture directory");
-    dir
-}
-
 /// Each widget by name, as the widget catalog builds it, with the steps
 /// that show it: the table focused, the tree with a selected node.
 fn widgets(fixture: &std::path::Path) -> Vec<(&'static str, Element, Vec<Until>)> {
@@ -183,7 +171,9 @@ fn bar_004_data_widget_goldens_at_80_by_24_and_400_by_100() {
     let before = Theme::active();
     Theme::set_active(dark_theme());
     let mut mismatches = Vec::new();
-    let fixture = explorer_fixture();
+    // The explorer lists a directory of fixed names made for the run
+    // (`common::fixtures::explorer_dir`), not one of the repository.
+    let fixture = common::fixtures::explorer_dir();
     for size in [(80u16, 24u16), (400u16, 100u16)] {
         for (widget, root, steps) in widgets(fixture.path()) {
             let frame = app_input::run_until_on_debug(
