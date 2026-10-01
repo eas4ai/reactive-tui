@@ -357,8 +357,8 @@ impl SuprTuiBackend {
     }
 
     /// Wait at most `settle` in `sync` for the canvas pictures being made
-    /// ready.
-    #[cfg(test)]
+    /// ready; only canvases make pictures ready apart.
+    #[cfg(all(test, feature = "wgpu-graphics"))]
     pub(crate) fn set_picture_settle(&mut self, settle: Duration) {
         self.picture_settle = settle;
     }
