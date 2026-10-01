@@ -85,6 +85,13 @@ backends default to shutdown and logging rather than writing to process streams.
   geometry; from then on it reports the geometry of the last frame whose
   flush was acknowledged, so the failed frame is never used as the fallback
   for a later failure.
+- On a terminal that takes pixels, `present` does not wait for a canvas's
+  picture either. The picture is made ready on a thread of its own and the
+  render worker writes it between frames when it is ready; until then the
+  terminal keeps the canvas's last picture (GFX-009). `sync` waits for the
+  pictures being made ready as well, so a caller that reads the output
+  after it sees them; the App never calls it. `picture_threads` counts the
+  pictures each thread has made ready.
 - Debug backend dimensions are limited to 65,535 cells per axis and 262,144
   total cells.
 - Capability detection can be incomplete in redirected, remote, or unusual

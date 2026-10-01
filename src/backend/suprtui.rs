@@ -358,9 +358,11 @@ impl SuprTuiBackend {
         &self.picture_threads
     }
 
-    /// Wait until every frame presented so far has been written and flushed.
-    /// `present` returns before its frame's write (PIP-001); a caller that
-    /// reads the output afterwards, such as a test, calls this first. A flush
+    /// Wait until every frame presented so far has been written and flushed,
+    /// with the canvas pictures being made ready for them (GFX-009).
+    /// `present` returns before its frame's write (PIP-001) and before its
+    /// canvas pictures are ready; a caller that reads the output afterwards,
+    /// such as a test, calls this first. The App never does. A flush
     /// failure is reported here as it would be by the next present, and the
     /// geometry falls back the same way (PIP-002).
     pub fn sync(&mut self) -> Result<()> {
@@ -759,12 +761,45 @@ fn run_worker<W: Write>(
         return;
     }
     let mut force = true;
-    let mut graphics = graphics::Graphics::default();
+    // Canvas pictures are made ready on the picture thread, which the App
+    // does not wait for (GFX-009).
+    let made_apart = || {
+        let mut graphics = graphics::Graphics::default();
+        graphics.make_pictures_apart();
+        graphics
+    };
+    let mut graphics = made_apart();
     let mut layout_cache = crate::layout::paint_tree::suprtui::LayoutCache::default();
     // A flush failure from the previous frame, reported by the next present
     // or by shutdown (PIP-002).
     let mut deferred: Option<ReactiveError> = None;
-    while let Ok(command) = receiver.recv() {
+    loop {
+        // Canvas pictures made ready since the last command are written at
+        // once, between frames; while one waits or is being made, the
+        // worker looks again after PICTURE_POLL (GFX-009). The question
+        // comes before the pictures are taken: one made after them was
+        // waiting or being made when it was asked.
+        let making = graphics.making();
+        let (pictures, again) = graphics.take_made(images.cell_pixels);
+        if !pictures.is_empty() && deferred.is_none() {
+            if let Err(error) = renderer.backend_mut().write_pictures(&pictures) {
+                deferred = Some(error.into());
+                renderer.flush_failed();
+                force = true;
+            }
+        }
+        let command = if making || again {
+            match receiver.recv_timeout(PICTURE_POLL) {
+                Ok(command) => command,
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        } else {
+            match receiver.recv() {
+                Ok(command) => command,
+                Err(_) => break,
+            }
+        };
         match command {
             Command::Present(spec, size, current_images, options, reply) => {
                 if let Some(error) = deferred.take() {
@@ -915,6 +950,24 @@ fn run_worker<W: Write>(
                 }));
             }
             Command::Sync(reply) => {
+                // The pictures being made ready are written before the
+                // reply, or given up on after PICTURE_SETTLE.
+                let deadline = std::time::Instant::now() + PICTURE_SETTLE;
+                while deferred.is_none() && std::time::Instant::now() < deadline {
+                    let making = graphics.making();
+                    let (pictures, again) = graphics.take_made(images.cell_pixels);
+                    if !pictures.is_empty() {
+                        if let Err(error) = renderer.backend_mut().write_pictures(&pictures) {
+                            deferred = Some(error.into());
+                            renderer.flush_failed();
+                            force = true;
+                        }
+                    }
+                    if !making && !again {
+                        break;
+                    }
+                    std::thread::sleep(PICTURE_POLL);
+                }
                 let outcome = match deferred.take() {
                     Some(error) => {
                         force = true;
@@ -927,7 +980,7 @@ fn run_worker<W: Write>(
             #[cfg(unix)]
             Command::Suspend(reply) => {
                 let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
-                graphics = graphics::Graphics::default();
+                graphics = made_apart();
                 let _ = reply.send(cleanup.and(session.restore()));
             }
             #[cfg(unix)]
@@ -953,6 +1006,13 @@ fn run_worker<W: Write>(
         log::warn!("Image output cleanup failed: {error}");
     }
 }
+
+/// How often the worker looks for a canvas picture while one is being made
+/// ready (GFX-009).
+const PICTURE_POLL: Duration = Duration::from_millis(2);
+
+/// How long `sync` waits for the canvas pictures being made ready.
+const PICTURE_SETTLE: Duration = Duration::from_secs(30);
 
 /// How long the startup queries wait for their replies (INP-011).
 #[cfg(unix)]

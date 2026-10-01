@@ -131,6 +131,20 @@ clear the screen and writes no cell outside its area. The App writes one
 frame at a time, so when the terminal is slower than the renderer, the
 pictures in between are dropped and none waits in a queue.
 
+The App does not wait for a picture to be made ready for the terminal. The
+backend copies it out of the canvas's frame, writes it to shared memory, or
+encodes it as base64 or Sixel on a thread of its own, named `rtui-picture-`
+and a number, and writes it between frames when it is ready. Until then the
+terminal keeps the canvas's last picture; a canvas that is new, or that
+moved, shows its picture once it is ready. A picture that comes while
+another of the same canvas waits replaces it, so at most one waits. A
+picture made for cells that the canvas no longer shows, because it moved or
+something now covers it, is not written, and the newest is made again for
+the cells as they are. A slow encoder therefore costs pictures, not frames:
+on the Windows test tablet a Sixel picture of 240 by 60 cells takes about
+half a second to encode, so the canvas shows about two new pictures a
+second while keys and the rest of the screen keep the frame rate.
+
 To choose the output yourself, set `GraphicsOptions::output` to
 `CanvasOutput::Kitty`, `CanvasOutput::Sixel` or `CanvasOutput::Blocks`. The
 environment variable `REACTIVE_TUI_CANVAS` (`kitty`, `sixel` or `blocks`)
@@ -183,8 +197,9 @@ A scene submitted while the worker draws replaces the scene that still
 waits. The worker waits for nothing between pictures: it draws as fast as
 scenes arrive. When a picture is finished, the worker wakes the App.
 
-On Windows the thread that makes a renderer asks the system not to slow it
-down to save power. Windows otherwise moves a thread that waits for the GPU
+On Windows the thread that makes a renderer, and the thread that makes the
+pictures ready for the terminal, ask the system not to slow them down to
+save power. Windows otherwise moves a thread that waits for the GPU
 to the processor's efficiency cores, where a picture takes more than twice
 as long. A canvas that animates therefore keeps one thread on the
 performance cores; a canvas that does not animate draws nothing.
@@ -238,7 +253,11 @@ One worker serves one canvas. Both demos start theirs this way.
   of five seconds. A driver call that hangs inside the operating system
   cannot be interrupted safely.
 - Sixel has no partial transparency. The canvas blends its picture with the
-  background color of the cells below it.
+  background color of the cells below it. An image drawn over a canvas on a
+  Sixel or iTerm2 terminal blends with the cells' background, not with the
+  canvas's picture, which is made ready apart.
+- `SuprTuiBackend::sync` waits for the pictures being made ready as well, so
+  a test that reads the output after it sees them. The App never calls it.
 - A terminal can show less of a Sixel picture than it is sent. xterm cuts a
   picture at its `maxGraphicSize`, which is 1000 by 1000 pixels unless the
   resource is set, for example with
@@ -294,8 +313,12 @@ right.
 - Fonts and glyphs: [`src/graphics/fonts.rs`](../src/graphics/fonts.rs),
   [`src/graphics/glyphs.rs`](../src/graphics/glyphs.rs)
 - Output choice: [`src/graphics/output.rs`](../src/graphics/output.rs)
+- Pictures made ready for the terminal:
+  [`src/backend/suprtui/graphics.rs`](../src/backend/suprtui/graphics.rs),
+  [`src/backend/suprtui/graphics/maker.rs`](../src/backend/suprtui/graphics/maker.rs)
 - Scene, worker and fault tests: [`tests/canvas_scenes.rs`](../tests/canvas_scenes.rs)
 - Output tests: [`tests/canvas_output.rs`](../tests/canvas_output.rs)
+- The App's wait for a picture: [`tests/canvas_pictures.rs`](../tests/canvas_pictures.rs)
 - Renderer comparison on each host: [`tests/canvas_hosts.rs`](../tests/canvas_hosts.rs)
 - Gallery of the reference scenes: [`examples/canvas_gallery.rs`](../examples/canvas_gallery.rs)
 - Measurement command: [`examples/wgpu_benchmark.rs`](../examples/wgpu_benchmark.rs)

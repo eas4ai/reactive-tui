@@ -18,6 +18,14 @@ impl Coverage {
         }
         Self { origin, size, bits }
     }
+    /// No cell: a picture not yet made ready (GFX-009).
+    pub fn empty(origin: (u32, u32)) -> Self {
+        Self {
+            origin,
+            size: (0, 0),
+            bits: Vec::new(),
+        }
+    }
     pub fn contains(&self, x: u32, y: u32) -> bool {
         let (Some(x), Some(y)) = (x.checked_sub(self.origin.0), y.checked_sub(self.origin.1))
         else {

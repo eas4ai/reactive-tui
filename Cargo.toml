@@ -236,6 +236,7 @@ wgpu-graphics = ["dep:wgpu", "dep:skrifa"]
 
 [dev-dependencies]
 futures-lite = "2.3"
+memchr = "2.7"
 criterion = "0.5"
 proptest = "1.4"
 serial_test = "3.0"

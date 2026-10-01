@@ -247,11 +247,25 @@ fn moving_square(frame: usize) -> Scene {
     scene
 }
 
-/// A root that draws the scene of each frame beside a fixed label, and
-/// stops after `frames`.
+/// How long a root holds its last frame before it stops, so the canvas
+/// pictures still being made ready reach the terminal (GFX-009).
+const HOLD: Duration = Duration::from_secs(1);
+
+/// Once a root has shown its last frame: hold it, then stop.
+fn hold(held: &mut Option<std::time::Instant>) -> RootUpdate {
+    if held.get_or_insert_with(std::time::Instant::now).elapsed() >= HOLD {
+        RootUpdate::Exit
+    } else {
+        RootUpdate::Unchanged
+    }
+}
+
+/// A root that draws the scene of each frame beside a fixed label for
+/// `frames` frames, holds the last, and stops.
 struct Spinner {
     frame: usize,
     frames: usize,
+    held: Option<std::time::Instant>,
     options: GraphicsOptions,
     scene: fn(usize) -> Scene,
 }
@@ -270,12 +284,11 @@ impl RootComponent for Spinner {
             .build()
     }
     fn update(&mut self) -> Result<RootUpdate> {
-        self.frame += 1;
-        Ok(if self.frame >= self.frames {
-            RootUpdate::Exit
-        } else {
-            RootUpdate::Redraw
-        })
+        if self.frame + 1 < self.frames {
+            self.frame += 1;
+            return Ok(RootUpdate::Redraw);
+        }
+        Ok(hold(&mut self.held))
     }
     /// The backend writes to memory and has no terminal to read keys from.
     fn accepts_input(&self) -> bool {
@@ -322,6 +335,7 @@ fn run_spinner(
         .root(Spinner {
             frame: 0,
             frames,
+            held: None,
             options: reference_options(true),
             scene,
         })
@@ -337,11 +351,12 @@ fn run_spinner(
 }
 
 /// A root that draws `canvases` canvases side by side, each a new cube
-/// angle every frame, and stops after `frames`.
+/// angle every frame for `frames` frames, holds the last, and stops.
 #[cfg(target_os = "linux")]
 struct Row {
     frame: usize,
     frames: usize,
+    held: Option<std::time::Instant>,
     canvases: usize,
 }
 #[cfg(target_os = "linux")]
@@ -367,12 +382,11 @@ impl RootComponent for Row {
             .build()
     }
     fn update(&mut self) -> Result<RootUpdate> {
-        self.frame += 1;
-        Ok(if self.frame >= self.frames {
-            RootUpdate::Exit
-        } else {
-            RootUpdate::Redraw
-        })
+        if self.frame + 1 < self.frames {
+            self.frame += 1;
+            return Ok(RootUpdate::Redraw);
+        }
+        Ok(hold(&mut self.held))
     }
     /// The backend writes to memory and has no terminal to read keys from.
     fn accepts_input(&self) -> bool {
@@ -386,8 +400,9 @@ impl RootComponent for Row {
 #[derive(Clone, Default)]
 struct SharedReader {
     pending: Arc<Mutex<Vec<u8>>>,
-    /// For each flush that held pictures, whether each picture's object was there.
-    found: Arc<Mutex<Vec<Vec<bool>>>>,
+    /// For each picture, in the order they came, its image id and whether
+    /// its object was there.
+    found: Arc<Mutex<Vec<(String, bool)>>>,
 }
 #[cfg(target_os = "linux")]
 impl Write for SharedReader {
@@ -399,26 +414,27 @@ impl Write for SharedReader {
         use base64::Engine;
         let chunk = std::mem::take(&mut *self.pending.lock().unwrap());
         let chunk = String::from_utf8_lossy(&chunk);
-        let found: Vec<bool> = chunk
+        let found = chunk
             .split(KITTY)
             .skip(1)
             .filter(|command| command.contains("a=T") && command.contains("t=s"))
             .filter_map(|command| {
-                let name = command.split_once(';')?.1.split_once('\x1b')?.0;
+                let (control, rest) = command.split_once(';')?;
+                let id = control
+                    .split(',')
+                    .find_map(|key| key.strip_prefix("i="))?
+                    .to_owned();
+                let name = rest.split_once('\x1b')?.0;
                 let name = base64::engine::general_purpose::STANDARD
                     .decode(name)
                     .ok()?;
                 let name = String::from_utf8(name).ok()?;
-                Some(
-                    std::path::Path::new("/dev/shm")
-                        .join(name.trim_start_matches('/'))
-                        .exists(),
-                )
-            })
-            .collect();
-        if !found.is_empty() {
-            self.found.lock().unwrap().push(found);
-        }
+                let there = std::path::Path::new("/dev/shm")
+                    .join(name.trim_start_matches('/'))
+                    .exists();
+                Some((id, there))
+            });
+        self.found.lock().unwrap().extend(found);
         Ok(())
     }
 }
@@ -440,23 +456,25 @@ fn gfx_005_every_canvas_of_a_frame_keeps_its_shared_picture() {
         .root(Row {
             frame: 0,
             frames: 12,
+            held: None,
             canvases: CANVASES,
         })
         .build()
         .unwrap()
         .run()
         .unwrap();
+    // Each canvas's pictures are written as they are made ready
+    // (GFX-009), so the pictures of all six are made while the objects of
+    // the others still wait to be read.
     let found = terminal.found.lock().unwrap();
-    let full: Vec<&Vec<bool>> = found
-        .iter()
-        .filter(|frame| frame.len() == CANVASES)
-        .collect();
+    let canvases: std::collections::BTreeSet<&String> = found.iter().map(|(id, _)| id).collect();
+    let missing: Vec<&(String, bool)> = found.iter().filter(|(_, there)| !there).collect();
     assert!(
-        !full.is_empty() && found.iter().all(|frame| frame.iter().all(|there| *there)),
-        "GFX-005: of {} frames with pictures, {} held all {CANVASES} canvases; whether each picture's shared memory was there when its frame was written: {:?}",
+        canvases.len() == CANVASES && missing.is_empty(),
+        "GFX-005: of {} pictures for {} canvases of {CANVASES}, these had no shared memory when they were written: {:?}",
         found.len(),
-        full.len(),
-        &found[..found.len().min(6)]
+        canvases.len(),
+        &missing[..missing.len().min(6)]
     );
 }
 

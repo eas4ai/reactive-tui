@@ -57,6 +57,19 @@ impl<W: Write> CheckedOutput<W> {
         self.flush_pending().map_err(Into::into)
     }
 
+    /// Write and flush canvas pictures made ready between frames, as one
+    /// synchronized update that changes no cell (GFX-009).
+    pub(super) fn write_pictures(&mut self, pictures: &[u8]) -> io::Result<()> {
+        // The pictures are written as they are, not copied into `pending`:
+        // a Kitty picture sent in the command is megabytes.
+        let mut writer = self.writer.borrow_mut();
+        writer
+            .write_all(b"\x1b\\\x1b[?2026l\x1b[?2026h")
+            .and_then(|()| writer.write_all(pictures))
+            .and_then(|()| writer.write_all(b"\x1b[?2026l"))
+            .and_then(|()| writer.flush())
+    }
+
     pub(super) fn take_error(&mut self) -> Option<io::Error> {
         self.error.take()
     }

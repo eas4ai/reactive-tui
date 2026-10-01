@@ -5,6 +5,20 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- On a terminal that takes pixels, `present` no longer waits while a
+  canvas's picture is made ready (docs/spec/canvas.md, GFX-009). The
+  backend copies the picture, writes it to shared memory or encodes it as
+  base64 or Sixel on a thread of its own, `rtui-picture-` and a number, and
+  writes it between frames when it is ready; the terminal keeps the last
+  picture until then, and at most one picture of a canvas waits. With a
+  new picture of 1920 by 960 pixels every frame, the App's wait in
+  `present` at the 95th percentile fell from 38 ms with Kitty graphics
+  sent in the command and 80 ms with Sixel to under 5 ms on the Linux
+  development host, and on the Windows test tablet the App waited a median
+  129 ms with Kitty and 482 ms with Sixel before. A slow encoder now costs
+  pictures, not frames. `SuprTuiBackend::sync` waits for the pictures being
+  made ready as well, and `SuprTuiBackend::picture_threads` counts the
+  pictures each thread has made ready.
 - **Breaking:** the table, the data table, the tree, the file explorer
   and the progress bar take every color from the active theme
   (docs/spec/data-widgets.md). A box sits on its parent's background with
