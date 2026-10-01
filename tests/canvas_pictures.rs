@@ -81,10 +81,13 @@ impl Write for Terminal {
         // device control string the crate writes. A picture is megabytes,
         // so the marks are found the fast way: this terminal is the App's
         // memory, not a slow link.
-        let pictures = [&b"\x1b_Ga=T"[..], SIXEL.as_bytes()]
-            .iter()
-            .map(|mark| memchr::memmem::find_iter(bytes, mark).count())
-            .sum::<usize>();
+        let pictures = memchr::memchr_iter(0x1b, bytes)
+            .filter(|&at| {
+                [&b"\x1b_Ga=T"[..], SIXEL.as_bytes()]
+                    .iter()
+                    .any(|mark| bytes[at..].starts_with(mark))
+            })
+            .count();
         self.pictures.fetch_add(pictures, Ordering::SeqCst);
         if let Some(kept) = &self.kept {
             kept.lock().unwrap().extend_from_slice(bytes);
@@ -96,9 +99,11 @@ impl Write for Terminal {
     }
 }
 
-/// One present: how long the App waited in it, the pictures the terminal
-/// had been sent when it returned, and the frame the root had rendered.
+/// One present: when it began, how long the App waited in it, the pictures
+/// the terminal had been sent when it returned, and the frame the root had
+/// rendered.
 struct Present {
+    began: Instant,
     waited: Duration,
     pictures: usize,
     frame: usize,
@@ -153,6 +158,7 @@ impl Backend for Timed {
         // App never does.
         let mut log = self.log.lock().unwrap();
         log.presents.push(Present {
+            began: started,
             waited,
             pictures: self.pictures.load(Ordering::SeqCst),
             frame: self.frame.load(Ordering::SeqCst),
@@ -473,11 +479,16 @@ fn gfx_009_the_apps_wait_stays_within_a_frame_with_a_new_picture_every_frame() {
         }
         let waits: Vec<Duration> = measured.iter().map(|present| present.waited).collect();
         let worst = p95(waits.clone());
+        let span = measured
+            .last()
+            .zip(measured.first())
+            .map_or(Duration::ZERO, |(last, first)| last.began - first.began);
         println!(
-            "GFX-009 the App's wait in present with a new picture of 1920 by 960 pixels every frame, as {name}: median {:.2} ms, p95 {:.2} ms over {} presents and {sent} pictures",
+            "GFX-009 the App's wait in present with a new picture of 1920 by 960 pixels every frame, as {name}: median {:.2} ms, p95 {:.2} ms over {} presents and {sent} pictures in {:.2} s",
             median(waits.clone()),
             worst.as_secs_f64() * 1e3,
-            waits.len()
+            waits.len(),
+            span.as_secs_f64()
         );
         if worst > BOUND {
             failures.push(format!("{name}: p95 {:.2} ms", worst.as_secs_f64() * 1e3));

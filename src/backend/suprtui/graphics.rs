@@ -339,7 +339,8 @@ impl<P: RasterPlane> Graphics<P> {
         self.maker.as_ref().is_some_and(maker::Maker::making)
     }
     /// What shows each canvas picture the picture thread has made ready
-    /// since the last call, one picture-only update each. A picture made for cells its canvas no longer shows, because
+    /// since the last call, one picture-only update each, from a cursor
+    /// move to its corner; the caller saves and restores the cursor. A picture made for cells its canvas no longer shows, because
     /// the canvas moved, went, or has other cells over it, is not written,
     /// and when no newer picture of the canvas waits, the canvas's picture
     /// is made ready again for the cells as they are (GFX-009). The flag
@@ -379,11 +380,7 @@ impl<P: RasterPlane> Graphics<P> {
                 *covered = made.covered;
             }
             self.made_on.push(made.thread);
-            let mut bytes = Vec::with_capacity(made.bytes.len() + 4);
-            bytes.extend_from_slice(b"\x1b7");
-            bytes.extend_from_slice(&made.bytes);
-            bytes.extend_from_slice(b"\x1b8");
-            pictures.push(bytes);
+            pictures.push(made.bytes);
         }
         (pictures, again)
     }
