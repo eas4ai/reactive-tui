@@ -8,3 +8,5 @@
 pub mod app_input;
 #[allow(dead_code)]
 pub mod digest;
+#[allow(dead_code)]
+pub mod fixtures;
