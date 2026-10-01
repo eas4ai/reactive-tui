@@ -5,9 +5,9 @@ Usage: canvas.py <group>
 scenes (canvas-scenes): GFX-001, GFX-003, GFX-007 and GFX-008 through
     tests/canvas_scenes.rs, and GFX-008's demo tests in
     tests/widget_catalog_behavior.rs and tests/animation_showcase_behavior.rs.
-output (canvas-output): GFX-005 through tests/canvas_output.rs and GFX-006
-    through the library's pseudo-terminal tests
-    (src/backend/suprtui/input_pty.rs).
+output (canvas-output): GFX-005 through tests/canvas_output.rs and the
+    picture thread's unit tests, and GFX-006 through the library's
+    pseudo-terminal tests (src/backend/suprtui/input_pty.rs).
 hosts (canvas-hosts): GFX-002 through tests/canvas_hosts.rs on this host, the
     macOS host and the Windows tablet, each of which has a hardware adapter,
     and GFX-004 through tests/canvas_speed.rs in a release build on the
@@ -61,8 +61,13 @@ def scenes() -> int:
 
 
 def output() -> int:
+    # The picture thread's own GFX-005 rule, that a picture a newer one of
+    # its canvas followed is never written, is in the library's tests.
+    binary_ok, binary_why = test_group(["canvas_output"], "gfx_005_")
+    lib_ok, lib_why = cargo_test_filtered(
+        None, "backend::suprtui::graphics::maker::tests::gfx_005_", features=FEATURE, package=PACKAGE)
     return finish({
-        "GFX-005": test_group(["canvas_output"], "gfx_005_"),
+        "GFX-005": (binary_ok and lib_ok, f"{binary_why}; picture thread: {lib_why}"),
         "GFX-006": cargo_test_filtered(None, "backend::suprtui::input_pty::gfx_006_", package=PACKAGE),
     })
 
