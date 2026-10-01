@@ -42,7 +42,18 @@ impl Layers {
         let index = self.planes.len();
         for y in plane.bounds.top..plane.bounds.bottom {
             for x in plane.bounds.left..plane.bounds.right {
-                cells[y as usize * self.width + x as usize].push(index);
+                let under = &mut cells[y as usize * self.width + x as usize];
+                // A canvas drawn over cells (Sixel, iTerm2) leaves the cells
+                // a plane above it covers to that plane: its picture is made
+                // ready apart and written when it is ready, which may be
+                // after the plane above it is (GFX-009).
+                for &lower in under.iter() {
+                    let lower = &mut self.planes[lower];
+                    if lower.image.canvas.is_some() && lower.protocol != ImageProtocol::Kitty {
+                        lower.hide(x, y);
+                    }
+                }
+                under.push(index);
             }
         }
         self.planes.push(plane);
@@ -271,6 +282,21 @@ impl Plane {
             (self.bounds.right - self.bounds.left) as u32,
             (self.bounds.bottom - self.bounds.top) as u32,
         )
+    }
+    /// The cell at `x`, `y` shows another plane above this one, which takes
+    /// it whole.
+    fn hide(&mut self, x: i32, y: i32) {
+        if x < self.bounds.left
+            || x >= self.bounds.right
+            || y < self.bounds.top
+            || y >= self.bounds.bottom
+        {
+            return;
+        }
+        let index = (y - self.bounds.top) as usize
+            * (self.bounds.right - self.bounds.left) as usize
+            + (x - self.bounds.left) as usize;
+        self.cover[index].visible = false;
     }
     pub(super) fn cover(&mut self, x: i32, y: i32, source: ansi::Rgba) {
         if x < self.bounds.left
