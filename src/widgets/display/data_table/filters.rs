@@ -141,7 +141,7 @@ pub(super) fn panel(props: &DataTableProps, model: &Model, shared: &Arc<Mutex<Mo
         if let Some(error) = model.errors.get(&column.key) {
             children.push(
                 Element::text(error)
-                    .with_class("text-red-500")
+                    .with_class(crate::widgets::display::look::ERROR)
                     .with_key(format!("error:{}", column.key)),
             );
         }

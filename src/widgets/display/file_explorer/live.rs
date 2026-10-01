@@ -91,6 +91,8 @@ struct Explorer {
     preview: Option<(PathBuf, String)>,
     search_edit: bool,
     focused: bool,
+    /// The entry under the pointer.
+    hover: Option<PathBuf>,
 }
 
 impl Explorer {
@@ -870,6 +872,7 @@ impl Explorer {
             preview: None,
             search_edit: false,
             focused: false,
+            hover: None,
         }
     }
     fn update(&mut self, props: &FileExplorerProps) -> bool {
@@ -896,7 +899,10 @@ impl Explorer {
                 on_select,
                 on_activate,
                 on_navigate,
-                max_visible_items
+                max_visible_items,
+                aria_label,
+                width,
+                height
             );
             self.previous = props.clone();
             if changed_path {
@@ -1000,6 +1006,20 @@ impl Explorer {
                         return EventResult::Consumed;
                     }
                 }
+                match mouse.kind {
+                    MouseEventKind::Move | MouseEventKind::Enter => {
+                        self.hover = match self.target(mouse) {
+                            Some(Target::Entry(path)) => Some(path),
+                            _ => None,
+                        };
+                        return EventResult::Ignored;
+                    }
+                    MouseEventKind::Leave => {
+                        self.hover = None;
+                        return EventResult::Ignored;
+                    }
+                    _ => {}
+                }
                 if mouse.button != MouseButton::Left {
                     return EventResult::Ignored;
                 }
@@ -1082,5 +1102,80 @@ impl Component for LiveExplorer {
         _state: &mut (),
     ) -> EventResult {
         self.inner.get_mut().unwrap().handle_event(event)
+    }
+}
+
+#[cfg(test)]
+mod dat_tests {
+    use super::*;
+
+    fn entry(name: &str) -> FileEntry {
+        FileEntry {
+            name: name.into(),
+            path: PathBuf::from("/fixture").join(name),
+            file_type: FileType::File,
+            size: Some(1),
+            modified: None,
+            hidden: false,
+            extension: None,
+            icon: "F".into(),
+            selected: false,
+            focused: false,
+        }
+    }
+
+    fn painted(aria_label: Option<&str>) -> Element {
+        let mut explorer = Explorer::new(FileExplorerProps {
+            root_path: PathBuf::from("/fixture"),
+            current_path: PathBuf::from("/fixture"),
+            aria_label: aria_label.map(str::to_string),
+            ..Default::default()
+        });
+        explorer.apply_seed(&FileExplorerState {
+            entries: vec![entry("alpha"), entry("beta")],
+            initialized: true,
+            ..Default::default()
+        });
+        explorer.layout(LayoutInfo::from_bounds(crate::event::hit::Bounds {
+            x: 0.0,
+            y: 0.0,
+            width: 40.0,
+            height: 12.0,
+        }));
+        explorer.paint()
+    }
+
+    fn node(element: &Element) -> accesskit::Node {
+        (*element
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("a node")
+            .inner)
+            .clone()
+    }
+
+    /// DAT-004: the explorer is named by `aria_label` alone, and each row
+    /// tells its label, its position and the count of entries.
+    #[test]
+    fn dat_004_a_file_explorer_is_named_by_its_aria_label_and_tells_each_row_its_place() {
+        assert_eq!(node(&painted(None)).label(), None);
+        let element = painted(Some("Project files"));
+        assert_eq!(node(&element).label(), Some("Project files"));
+        let rows: Vec<_> = element.children[0]
+            .children
+            .iter()
+            .filter(|child| {
+                child
+                    .key
+                    .as_deref()
+                    .is_some_and(|key| key.starts_with("entry:"))
+            })
+            .collect();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(node(rows[0]).label(), Some("alpha"));
+        assert_eq!(node(rows[0]).position_in_set(), Some(1));
+        assert_eq!(node(rows[1]).position_in_set(), Some(2));
+        assert_eq!(node(rows[1]).size_of_set(), Some(2));
     }
 }

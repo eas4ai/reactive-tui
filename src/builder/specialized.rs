@@ -82,6 +82,13 @@ impl TreeBuilder {
         self
     }
 
+    /// The name the screen reader is told; without one the tree has no
+    /// name (docs/spec/data-widgets.md, DAT-004)
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.props.aria_label = Some(label.into());
+        self
+    }
+
     /// Set CSS classes for styling
     pub fn class(mut self, class: &str) -> Self {
         self.class.push(' ');

@@ -6,6 +6,8 @@ pub mod data_table;
 pub mod file_explorer;
 /// Image display widgets for terminal graphics
 pub mod image;
+/// The look the data widgets share: the classes that name each part's role
+pub mod look;
 /// Modal dialog components
 pub mod modal;
 pub(super) mod overlay;

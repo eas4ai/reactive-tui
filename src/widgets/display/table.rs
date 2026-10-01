@@ -74,7 +74,8 @@ pub struct TableProps {
     pub header_style: Option<String>,
     /// CSS style for rows
     pub row_style: Option<String>,
-    /// CSS style for selected rows
+    /// CSS style for selected rows; none paints a selected row in `accent`
+    /// and the cursor row in `selection` (docs/spec/data-widgets.md, DAT-001)
     pub selected_style: Option<String>,
     /// CSS style for alternate rows
     pub alternate_row_style: Option<String>,
@@ -96,6 +97,15 @@ pub struct TableProps {
     pub on_sort: Option<Arc<dyn Fn(usize, bool) + Send + Sync>>,
     /// Callback for row actions
     pub on_row_action: Option<Arc<RowActionCallback>>,
+    /// The name the screen reader is told; none leaves the table unnamed
+    /// (DAT-004)
+    pub aria_label: Option<String>,
+    /// The table's width in cells; none fills the width its parent allots
+    /// (DAT-002)
+    pub width: Option<u16>,
+    /// The table's height in rows; none fills the height its parent allots
+    /// (DAT-002)
+    pub height: Option<u16>,
 }
 
 /// Table column definition
@@ -163,7 +173,7 @@ impl Default for TableProps {
             border: Border::default(),
             header_style: None,
             row_style: None,
-            selected_style: Some("bg-blue fg-white".to_string()),
+            selected_style: None,
             alternate_row_style: None,
             scrollable: true,
             max_height: None,
@@ -174,6 +184,9 @@ impl Default for TableProps {
             on_multi_select: None,
             on_sort: None,
             on_row_action: None,
+            aria_label: None,
+            width: None,
+            height: None,
         }
     }
 }
@@ -198,6 +211,9 @@ impl PartialEq for TableProps {
             && self.resizable_columns == other.resizable_columns
             && self.show_header == other.show_header
             && self.zebra_striping == other.zebra_striping
+            && self.aria_label == other.aria_label
+            && self.width == other.width
+            && self.height == other.height
         // Skip callback comparisons as they can't be compared
     }
 }
@@ -215,6 +231,11 @@ pub struct TableState {
     pub selected_rows: Vec<usize>,
     /// Selected row index for single selection
     pub selected_row: Option<usize>,
+    /// The row the keys act on, painted in `selection` while the table
+    /// holds the focus (docs/spec/data-widgets.md, DAT-001); it starts on
+    /// the selected row, or on the first row when the table takes the
+    /// focus with nothing selected, and moves with the arrows
+    pub cursor_row: Option<usize>,
     /// Selected column index for cell selection
     pub selected_column: Option<usize>,
     /// Scroll state for the table
@@ -242,6 +263,7 @@ impl Default for TableState {
         Self {
             selected_rows: Vec::new(),
             selected_row: None,
+            cursor_row: None,
             selected_column: None,
             scroll_state: ScrollState::new(),
             column_widths: Vec::new(),
@@ -299,11 +321,24 @@ impl Table {
         props
     }
 
+    /// The least width a column takes: its own minimum, or its title with
+    /// room for the sort mark when the table shows a header (DAT-002).
+    fn column_floor(props: &TableProps, column: &TableColumn) -> u16 {
+        let title = if props.show_header {
+            let mark = usize::from(props.sortable && column.sortable) * 2;
+            u16::try_from(UnicodeWidthStr::width(column.title.as_str()) + mark).unwrap_or(u16::MAX)
+        } else {
+            0
+        };
+        column.min_width.max(title)
+    }
+
     fn calculate_column_widths(&self, props: &TableProps, available_width: u16) -> Vec<u16> {
         let mut widths = Vec::with_capacity(props.columns.len());
         let mut flexible = Vec::new();
         let mut weight = 0.0f64;
         for (index, column) in props.columns.iter().enumerate() {
+            let floor = Self::column_floor(props, column);
             let requested = match column.width {
                 DisplaySize::Fixed(width) => width,
                 DisplaySize::Percent(percent) => {
@@ -315,13 +350,13 @@ impl Table {
                         flexible.push((index, factor as f64));
                         weight += factor as f64;
                     }
-                    column.min_width
+                    floor
                 }
             };
             widths.push(
                 requested
-                    .max(column.min_width)
-                    .min(column.max_width.unwrap_or(u16::MAX).max(column.min_width)),
+                    .max(floor)
+                    .min(column.max_width.unwrap_or(u16::MAX).max(floor)),
             );
         }
         let occupied: usize = widths.iter().map(|&width| width as usize).sum();
@@ -331,7 +366,7 @@ impl Table {
             let cap = props.columns[index]
                 .max_width
                 .unwrap_or(u16::MAX)
-                .max(props.columns[index].min_width);
+                .max(Self::column_floor(props, &props.columns[index]));
             let added = share.min(cap.saturating_sub(widths[index]) as usize);
             widths[index] = widths[index].saturating_add(added as u16);
             extra -= added;
@@ -346,6 +381,7 @@ impl Table {
         if let Some(sort_col) = state.sort_column {
             if sort_col < props.columns.len() {
                 let column = &props.columns[sort_col];
+                let numeric = numeric_column(&props.rows, &column.key);
                 indices.sort_by(|&a, &b| {
                     let cell_a = props.rows[a].cells.get(&column.key);
                     let cell_b = props.rows[b].cells.get(&column.key);
@@ -353,7 +389,7 @@ impl Table {
                     let content_a = cell_a.map(|c| c.content.as_str()).unwrap_or("");
                     let content_b = cell_b.map(|c| c.content.as_str()).unwrap_or("");
 
-                    let cmp = content_a.cmp(content_b);
+                    let cmp = compare_cells(content_a, content_b, numeric);
                     if state.sort_ascending {
                         cmp
                     } else {
@@ -386,7 +422,8 @@ impl Table {
             return EventResult::Ignored;
         }
         let current = state
-            .selected_row
+            .cursor_row
+            .or(state.selected_row)
             .or_else(|| state.selected_rows.first().copied());
         let position = current.and_then(|row| order.iter().position(|&index| index == row));
         let last = order.len() - 1;
@@ -418,6 +455,14 @@ impl Table {
                 self.toggle_row_selection(props, state, row);
                 return EventResult::Consumed;
             }
+            // A click on a row selects it; Space is its key (DAT-004).
+            KeyCode::Char(' ') => {
+                let Some(row) = position.map(|index| order[index]) else {
+                    return EventResult::Ignored;
+                };
+                self.select_row(props, state, row, false);
+                return EventResult::Consumed;
+            }
             KeyCode::Char('a') if modifiers.ctrl && props.multi_select => {
                 let previous = state.selected_rows.clone();
                 state.selected_rows = order;
@@ -445,6 +490,7 @@ impl Table {
         let previous = state.selected_rows.clone();
         let previous_row = state.selected_row;
         state.selected_row = Some(row);
+        state.cursor_row = Some(row);
         if props.multi_select && extend {
             if !state.selected_rows.contains(&row) {
                 state.selected_rows.push(row);
@@ -485,6 +531,7 @@ impl Table {
             return;
         }
         state.selected_row = Some(row);
+        state.cursor_row = Some(row);
         if let Some(pos) = state.selected_rows.iter().position(|&r| r == row) {
             state.selected_rows.remove(pos);
         } else {
@@ -551,6 +598,7 @@ impl Component for Table {
             ..Default::default()
         };
         state.selected_rows = state.selected_row.into_iter().collect();
+        state.cursor_row = state.selected_row;
         self.update(props, &mut state);
         state
     }
@@ -600,6 +648,9 @@ impl Component for Table {
         state.selected_row = state
             .selected_row
             .filter(|&i| props.selectable && props.rows.get(i).is_some_and(|row| row.selectable));
+        state.cursor_row = state
+            .cursor_row
+            .filter(|&i| props.selectable && props.rows.get(i).is_some_and(|row| row.selectable));
         if state.column_widths.len() != props.columns.len() {
             state.column_widths =
                 self.calculate_column_widths(props, state.scroll_state.viewport_width);
@@ -640,6 +691,45 @@ pub(super) fn data_view(
     })
 }
 
+/// Whether every cell a column has is a number, so the column sorts by
+/// its numbers (DAT-003). A row without the cell, or with an empty one,
+/// has no value there and sorts before every number.
+pub(super) fn numeric_column(rows: &[TableRow], key: &str) -> bool {
+    let mut seen = false;
+    for cell in rows.iter().filter_map(|row| row.cells.get(key)) {
+        let text = cell.content.trim();
+        if text.is_empty() {
+            continue;
+        }
+        if !text.parse::<f64>().is_ok_and(|value| value.is_finite()) {
+            return false;
+        }
+        seen = true;
+    }
+    seen
+}
+
+/// The order of two cells of one column: by their numbers when the column
+/// is numeric, else by their text.
+pub(super) fn compare_cells(a: &str, b: &str, numeric: bool) -> std::cmp::Ordering {
+    use std::cmp::Ordering::{Equal, Greater, Less};
+    if !numeric {
+        return a.cmp(b);
+    }
+    let number = |text: &str| {
+        text.trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|value| value.is_finite())
+    };
+    match (number(a), number(b)) {
+        (Some(a), Some(b)) => a.partial_cmp(&b).unwrap_or(Equal),
+        (Some(_), None) => Greater,
+        (None, Some(_)) => Less,
+        (None, None) => a.cmp(b),
+    }
+}
+
 // Helper implementations
 impl TableColumn {
     /// Create a new table column
@@ -649,16 +739,18 @@ impl TableColumn {
     /// * `key` - Data key to access values in table rows
     ///
     /// # Returns
-    /// A new `TableColumn` with default settings
+    /// A new `TableColumn` that shares the table's width with the other
+    /// columns by weight (`DisplaySize::Flex(1.0)`), at least as wide as its
+    /// title and its sort mark (docs/spec/data-widgets.md, DAT-002)
     pub fn new(title: &str, key: &str) -> Self {
         Self {
             title: title.to_string(),
             key: key.to_string(),
-            width: DisplaySize::Auto,
+            width: DisplaySize::Flex(1.0),
             alignment: Alignment::Start,
             sortable: true,
             resizable: true,
-            min_width: 50,
+            min_width: 0,
             max_width: None,
         }
     }

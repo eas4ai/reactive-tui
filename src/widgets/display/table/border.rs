@@ -23,10 +23,11 @@ pub(in crate::widgets) fn elements(border: &Border, width: usize, height: usize)
         _ => ('┌', '┐', '└', '┘', '─', '│'),
     };
     let line = h.to_string().repeat(width);
-    let class = border
-        .color
-        .as_ref()
-        .map_or_else(String::new, |color| format!("text-{color}"));
+    // A border the application did not color is `border` (DAT-001).
+    let class = border.color.as_ref().map_or_else(
+        || crate::widgets::display::look::BORDER.to_string(),
+        |color| format!("text-{color}"),
+    );
     let text = |text: String, x: f32, y: f32, width: usize, height: usize| {
         let mut node = Node::new(Role::Label);
         node.set_hidden();

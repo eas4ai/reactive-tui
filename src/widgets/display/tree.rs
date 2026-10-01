@@ -185,6 +185,7 @@ pub struct TreeBuilder {
     on_check: Option<Arc<dyn Fn(String, bool) + Send + Sync>>,
     on_node_action: Option<Arc<NodeActionCallback>>,
     on_load_children: Option<Arc<dyn Fn(String) -> Vec<TreeNode> + Send + Sync>>,
+    aria_label: Option<String>,
 }
 
 impl TreeBuilder {
@@ -313,6 +314,13 @@ impl TreeBuilder {
         self
     }
 
+    /// The name the screen reader is told; without one the tree has no
+    /// name (docs/spec/data-widgets.md, DAT-004)
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
     /// Enable scrolling
     pub fn scrollable(mut self, scroll: bool) -> Self {
         self.scrollable = scroll;
@@ -401,6 +409,9 @@ impl TreeBuilder {
             on_check: self.on_check,
             on_node_action: self.on_node_action,
             on_load_children: self.on_load_children,
+            aria_label: self.aria_label,
+            width: None,
+            height: None,
         }
     }
 
@@ -428,10 +439,10 @@ impl Default for TreeBuilder {
             filter_visible: false,
             border: Border::default(),
             node_style: None,
-            selected_style: Some("bg-blue fg-white".to_string()),
+            selected_style: None,
             expanded_style: None,
             leaf_style: None,
-            line_style: Some("fg-gray".to_string()),
+            line_style: None,
             scrollable: true,
             max_height: None,
             virtual_scrolling: false,
@@ -441,6 +452,7 @@ impl Default for TreeBuilder {
             on_check: None,
             on_node_action: None,
             on_load_children: None,
+            aria_label: None,
         }
     }
 }
@@ -478,13 +490,15 @@ pub struct TreeProps {
     pub border: Border,
     /// Style for regular nodes
     pub node_style: Option<String>,
-    /// Style for selected nodes
+    /// Style for selected nodes; none paints a selected node in `accent`
+    /// and the cursor's node in `selection` (docs/spec/data-widgets.md,
+    /// DAT-001)
     pub selected_style: Option<String>,
     /// Style for expanded nodes
     pub expanded_style: Option<String>,
     /// Style for leaf nodes
     pub leaf_style: Option<String>,
-    /// Style for tree lines
+    /// Style for tree lines; none paints them in `text-muted` (DAT-001)
     pub line_style: Option<String>,
     /// Whether the tree is scrollable
     pub scrollable: bool,
@@ -504,6 +518,15 @@ pub struct TreeProps {
     pub on_node_action: Option<Arc<NodeActionCallback>>,
     /// Callback for lazy loading children
     pub on_load_children: Option<Arc<dyn Fn(String) -> Vec<TreeNode> + Send + Sync>>,
+    /// The name the screen reader is told; none leaves the tree unnamed
+    /// (DAT-004)
+    pub aria_label: Option<String>,
+    /// The tree's width in cells; none fills the width its parent allots
+    /// (DAT-002)
+    pub width: Option<u16>,
+    /// The tree's height in rows; none fills the height its parent allots
+    /// (DAT-002)
+    pub height: Option<u16>,
 }
 
 impl Default for TreeProps {
@@ -524,10 +547,10 @@ impl Default for TreeProps {
             filter_visible: false,
             border: Border::default(),
             node_style: None,
-            selected_style: Some("bg-blue fg-white".to_string()),
+            selected_style: None,
             expanded_style: None,
             leaf_style: None,
-            line_style: Some("fg-gray".to_string()),
+            line_style: None,
             scrollable: true,
             max_height: None,
             virtual_scrolling: false,
@@ -537,6 +560,9 @@ impl Default for TreeProps {
             on_check: None,
             on_node_action: None,
             on_load_children: None,
+            aria_label: None,
+            width: None,
+            height: None,
         }
     }
 }
@@ -565,6 +591,9 @@ impl PartialEq for TreeProps {
             && self.scrollable == other.scrollable
             && self.max_height == other.max_height
             && self.virtual_scrolling == other.virtual_scrolling
+            && self.aria_label == other.aria_label
+            && self.width == other.width
+            && self.height == other.height
         // Skip callback comparisons as they can't be compared
     }
 }

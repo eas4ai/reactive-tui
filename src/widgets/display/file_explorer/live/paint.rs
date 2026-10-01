@@ -3,7 +3,8 @@ use crate::{
     accessibility::{Node, Role},
     builder::ElementBuilder,
     component::{ElementType, FocusProps, LayoutType},
-    layout::style::StyleBuilder,
+    layout::style::{Direction, StyleBuilder},
+    widgets::display::look,
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -14,13 +15,16 @@ fn safe_text(text: &str) -> String {
 }
 
 impl Explorer {
-    fn text(
+    /// A line of text in `class`, at a cell of the explorer; a target makes
+    /// it a button the pointer can press.
+    fn styled(
         &self,
         text: String,
         x: usize,
         y: usize,
         width: usize,
         target: Option<Target>,
+        class: &str,
     ) -> Element {
         let mut element = ElementBuilder::new(ElementType::Text(safe_text(&text)))
             .styles(
@@ -32,19 +36,11 @@ impl Explorer {
                     .height_px(1.0)
                     .overflow_hidden(),
             )
-            .class("whitespace-pre truncate")
+            .class(&format!("whitespace-pre truncate {class}"))
             .build();
         if let Some(target) = target {
             let targets = self.targets.clone();
-            let mut node = Node::new(if matches!(target, Target::Entry(_)) {
-                if self.config.view_mode == ViewMode::Tree {
-                    Role::TreeItem
-                } else {
-                    Role::ListBoxOption
-                }
-            } else {
-                Role::Button
-            });
+            let mut node = Node::new(Role::Button);
             node.set_label(match &target {
                 Target::View => format!("Change view: {:?}", self.config.view_mode),
                 Target::Sort => format!("Sort files by {:?}", self.config.sort_criteria),
@@ -66,32 +62,7 @@ impl Explorer {
                 _ => safe_text(&text),
             });
             node.set_clickable();
-            if let Target::Entry(path) = &target {
-                if let Some(row) = self.rows.iter().find(|row| &row.entry.path == path) {
-                    node.set_label(safe_text(&row.entry.name));
-                }
-                node.set_selected(self.selected.contains(path));
-                if self.config.view_mode == ViewMode::Tree
-                    && self.rows.iter().any(|row| {
-                        &row.entry.path == path && row.entry.file_type == FileType::Directory
-                    })
-                {
-                    node.set_expanded(self.expanded.contains(path));
-                }
-                let options = element
-                    .metadata
-                    .accessibility_options
-                    .get_or_insert_default();
-                options.focus = self.focused
-                    && self.prompt.is_none()
-                    && !self.search_edit
-                    && self.cursor.as_ref() == Some(path);
-                options.focus_event = Some(CustomEvent::new(
-                    "reactive_tui.file_explorer.focus",
-                    path_key(path).into_bytes(),
-                ));
-                element.key = Some(format!("entry:{}", path_key(path)));
-            } else if let Target::Expand(path) = &target {
+            if let Target::Expand(path) = &target {
                 element.key = Some(format!("expand:{}", path_key(path)));
                 node.set_label(if self.expanded.contains(path) {
                     "Collapse directory"
@@ -109,6 +80,101 @@ impl Explorer {
                 false
             }));
         }
+        element
+    }
+
+    /// One entry's row: its icon and name, then its size and date in
+    /// `text-muted` when details are on. The row is `selection` while it
+    /// holds the cursor and the list the focus, `accent` when selected,
+    /// `hover` under the pointer (DAT-001); it tells the screen reader its
+    /// name, its position and the count of entries (DAT-004).
+    fn entry(
+        &self,
+        row: &Row,
+        x: usize,
+        y: usize,
+        width: usize,
+        position: usize,
+        count: usize,
+    ) -> Element {
+        let path = &row.entry.path;
+        let listing = self.prompt.is_none() && !self.search_edit;
+        let cursor = self.focused && listing && self.cursor.as_ref() == Some(path);
+        let selected = self.selected.contains(path);
+        let hovered = self.hover.as_ref() == Some(path);
+        let mut pieces = vec![ElementBuilder::new(ElementType::Text(format!(
+            "{} {}",
+            row.entry.icon,
+            safe_text(&row.entry.name)
+        )))
+        .styles(StyleBuilder::new().height_px(1.0).flex_shrink(0.0))
+        .class("whitespace-pre")
+        .build()];
+        // The details give way before the name when the row is narrow.
+        if self.config.show_details && self.config.view_mode != ViewMode::Grid {
+            pieces.push(
+                ElementBuilder::new(ElementType::Text(format!(
+                    "  {}  {}",
+                    row.entry.format_size(),
+                    row.entry.format_modified()
+                )))
+                .styles(
+                    StyleBuilder::new()
+                        .height_px(1.0)
+                        .flex_shrink(1.0)
+                        .min_width_px(0.0)
+                        .overflow_hidden(),
+                )
+                .class(&format!("whitespace-pre truncate {}", look::MUTED))
+                .build(),
+            );
+        }
+        let tree = self.config.view_mode == ViewMode::Tree;
+        let mut node = Node::new(if tree {
+            Role::TreeItem
+        } else {
+            Role::ListBoxOption
+        });
+        node.set_label(safe_text(&row.entry.name));
+        node.set_selected(selected);
+        node.set_clickable();
+        node.inner.set_position_in_set(position);
+        node.inner.set_size_of_set(count);
+        if tree && row.entry.file_type == FileType::Directory {
+            node.set_expanded(self.expanded.contains(path));
+        }
+        let mut element = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+            .styles(
+                StyleBuilder::new()
+                    .display_flex()
+                    .direction(Direction::Row)
+                    .position_absolute()
+                    .inset_left(x as f32)
+                    .inset_top(y as f32)
+                    .width_px(width as f32)
+                    .height_px(1.0)
+                    .overflow_hidden(),
+            )
+            .class(look::row(cursor, selected, hovered, false))
+            .children(pieces)
+            .build()
+            .with_accessibility(node);
+        element.key = Some(format!("entry:{}", path_key(path)));
+        let options = element
+            .metadata
+            .accessibility_options
+            .get_or_insert_default();
+        options.focus = cursor;
+        options.focus_event = Some(CustomEvent::new(
+            "reactive_tui.file_explorer.focus",
+            path_key(path).into_bytes(),
+        ));
+        let targets = self.targets.clone();
+        let target = Target::Entry(path.clone());
+        element.metadata.layout.push(Arc::new(move |layout| {
+            targets.lock().unwrap().push((target.clone(), layout));
+            false
+        }));
         element
     }
 
@@ -130,47 +196,29 @@ impl Explorer {
         }
         let mut x = 0;
         let mut output = Vec::new();
-        for (label, path) in segments {
+        let last = segments.len().saturating_sub(1);
+        for (index, (label, path)) in segments.into_iter().enumerate() {
             let width = UnicodeWidthStr::width(label.as_str()) + 2;
             if x >= self.width() {
                 break;
             }
-            output.push(self.text(
+            // Earlier directories are hints; the current one is text.
+            let class = if index == last {
+                look::TEXT
+            } else {
+                look::MUTED
+            };
+            output.push(self.styled(
                 format!("{label}/ "),
                 x,
                 y,
                 width.min(self.width() - x),
                 Some(Target::Navigate(path)),
+                class,
             ));
             x += width;
         }
         output
-    }
-
-    fn row_text(&self, row: &Row) -> String {
-        let selected = if self.selected.contains(&row.entry.path) {
-            "*"
-        } else {
-            " "
-        };
-        let cursor = if self.cursor.as_ref() == Some(&row.entry.path) {
-            ">"
-        } else {
-            " "
-        };
-        let details = if self.config.show_details && self.config.view_mode != ViewMode::Grid {
-            format!(
-                "  {}  {}",
-                row.entry.format_size(),
-                row.entry.format_modified()
-            )
-        } else {
-            String::new()
-        };
-        format!(
-            "{cursor}{selected}{} {}{details}",
-            row.entry.icon, row.entry.name
-        )
     }
 
     pub(super) fn paint(&self) -> Element {
@@ -210,7 +258,7 @@ impl Explorer {
         let mut x = 0;
         for (label, target) in controls {
             let size = UnicodeWidthStr::width(label.as_str()) + 1;
-            children.push(self.text(label, x, toolbar, size, Some(target)));
+            children.push(self.styled(label, x, toolbar, size, Some(target), look::MUTED));
             x += size;
         }
         let mut x = 0;
@@ -220,12 +268,13 @@ impl Explorer {
             ("Ren", worker::Operation::Rename),
             ("Del", worker::Operation::Delete),
         ] {
-            children.push(self.text(
+            children.push(self.styled(
                 label.into(),
                 x,
                 toolbar + 1,
                 label.len() + 1,
                 Some(Target::Operation(operation)),
+                look::MUTED,
             ));
             x += label.len() + 1;
         }
@@ -236,7 +285,7 @@ impl Explorer {
                 .as_ref()
                 .is_some_and(|s| !s.is_empty())
         {
-            let mut search = self.text(
+            let mut search = self.styled(
                 format!(
                     "/{}{}",
                     self.config.search_query.as_deref().unwrap_or(""),
@@ -246,6 +295,7 @@ impl Explorer {
                 toolbar + 2,
                 width,
                 Some(Target::Search),
+                look::TEXT,
             );
             let mut node = Node::new(Role::TextInput);
             node.set_label("Filter files");
@@ -266,7 +316,7 @@ impl Explorer {
                 format!("{:?}: {}▏", prompt.operation, prompt.destination)
             };
             let y = self.header_rows().saturating_sub(2);
-            let mut input = self.text(label.clone(), 0, y, width, None);
+            let mut input = self.styled(label.clone(), 0, y, width, None, look::TEXT);
             let mut node = Node::new(if prompt.operation == worker::Operation::Delete {
                 Role::AlertDialog
             } else {
@@ -288,8 +338,22 @@ impl Explorer {
                 .focus = self.focused;
             input.key = Some("operation-input".into());
             children.push(input);
-            children.push(self.text("Confirm".into(), 0, y + 1, 8, Some(Target::Confirm)));
-            children.push(self.text("Cancel".into(), 8, y + 1, 7, Some(Target::Cancel)));
+            children.push(self.styled(
+                "Confirm".into(),
+                0,
+                y + 1,
+                8,
+                Some(Target::Confirm),
+                look::TEXT,
+            ));
+            children.push(self.styled(
+                "Cancel".into(),
+                8,
+                y + 1,
+                7,
+                Some(Target::Cancel),
+                look::TEXT,
+            ));
         }
         let columns = self.columns();
         let cell_width = width / columns;
@@ -298,6 +362,7 @@ impl Explorer {
             .visible_rows()
             .saturating_mul(columns)
             .min(self.config.max_visible_items.max(1));
+        let total = self.rows.len();
         for (index, row) in self.rows.iter().enumerate().skip(start).take(
             if self.error.is_none() && self.config.max_visible_items > 0 {
                 count
@@ -315,7 +380,7 @@ impl Explorer {
             let marker = usize::from(self.config.view_mode == ViewMode::Tree) * 2;
             if marker > 0 && row.entry.file_type == FileType::Directory {
                 children.push(
-                    self.text(
+                    self.styled(
                         (if self.expanded.contains(&row.entry.path) {
                             "▼ "
                         } else {
@@ -326,20 +391,18 @@ impl Explorer {
                         y,
                         marker,
                         Some(Target::Expand(row.entry.path.clone())),
+                        look::MUTED,
                     ),
                 );
             }
-            let mut entry = self.text(
-                self.row_text(row),
+            children.push(self.entry(
+                row,
                 x + indent + marker,
                 y,
                 cell_width.saturating_sub(indent + marker),
-                Some(Target::Entry(row.entry.path.clone())),
-            );
-            if self.selected.contains(&row.entry.path) {
-                entry.class = Some("whitespace-pre truncate bg-blue-600 text-white".into());
-            }
-            children.push(entry);
+                index + 1,
+                total,
+            ));
         }
         let validation = (self.config.max_visible_items == 0)
             .then_some("max_visible_items must be greater than zero");
@@ -355,13 +418,13 @@ impl Explorer {
                             .height_px(self.visible_rows().max(1) as f32)
                             .overflow_hidden(),
                     )
-                    .class("whitespace-normal break-words bg-black text-red-400")
+                    .class(&format!("whitespace-normal break-words {}", look::ERROR))
                     .build(),
             );
         }
         if self.rows.is_empty() && self.error.is_none() && self.config.max_visible_items > 0 {
             children.push(
-                self.text(
+                self.styled(
                     (if self.pending.is_some() {
                         "Loading…"
                     } else {
@@ -372,6 +435,7 @@ impl Explorer {
                     self.header_rows(),
                     width,
                     None,
+                    look::MUTED,
                 ),
             );
         }
@@ -390,7 +454,7 @@ impl Explorer {
                     |(_, text)| text.as_str(),
                 );
             for (line, text) in preview.lines().take(3).enumerate() {
-                children.push(self.text(text.into(), 0, y + line, width, None));
+                children.push(self.styled(text.into(), 0, y + line, width, None, look::TEXT));
             }
         }
         let status = self.error.clone().unwrap_or_else(|| {
@@ -408,20 +472,22 @@ impl Explorer {
                 )
             }
         });
-        children.push(self.text(
+        children.push(self.styled(
             status,
             0,
             height.saturating_sub(1),
             width.saturating_sub(usize::from(self.pending_operation) * 7),
             None,
+            look::MUTED,
         ));
         if self.pending_operation {
-            children.push(self.text(
+            children.push(self.styled(
                 "Cancel".into(),
                 width.saturating_sub(7),
                 height.saturating_sub(1),
                 7,
                 Some(Target::Cancel),
+                look::TEXT,
             ));
         }
         let insets = self.viewport.map_or([0.0; 4], |layout| layout.insets);
@@ -445,7 +511,11 @@ impl Explorer {
         } else {
             Role::ListBox
         });
-        node.set_label("File explorer");
+        // Named by `aria_label` alone; without one it has no fixed English
+        // name (DAT-004).
+        if let Some(label) = &self.config.aria_label {
+            node.set_label(label.clone());
+        }
         let natural_height = self.header_rows()
             + 1
             + usize::from(self.config.show_preview) * 3
@@ -455,15 +525,23 @@ impl Explorer {
                 .max(1)
                 .div_ceil(columns)
                 .min((self.config.max_visible_items / columns).max(1));
+        // The explorer fills the width and the height its parent allots
+        // unless the props set a size (DAT-002).
+        let mut style = StyleBuilder::new()
+            .max_height_percent(100.0)
+            .overflow_hidden();
+        style = match self.config.height {
+            Some(height) => style.height_px(height as f32),
+            None => style
+                .height_percent(100.0)
+                .min_height_px(natural_height.min(u16::MAX as usize) as f32),
+        };
+        style = match self.config.width {
+            Some(width) => style.width_px(width as f32),
+            None => style.width_percent(100.0),
+        };
         ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
-            .styles(
-                StyleBuilder::new()
-                    .width_percent(100.0)
-                    .height_px(natural_height.min(u16::MAX as usize) as f32)
-                    .max_height_percent(100.0)
-                    .min_height_px(1.0)
-                    .overflow_hidden(),
-            )
+            .styles(style)
             .class(self.config.class.as_deref().unwrap_or(""))
             .children(vec![content, intrinsic])
             .build()

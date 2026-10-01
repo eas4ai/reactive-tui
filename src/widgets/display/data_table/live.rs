@@ -4,6 +4,8 @@ use crate::{
     component::{ElementType, LayoutInfo, LayoutType},
     layout::style::StyleBuilder,
     widgets::{
+        display::look,
+        display::table::{compare_cells, numeric_column},
         input::{TextInput, TextInputProps},
         layout::ScrollViewBuilder,
     },
@@ -142,8 +144,14 @@ impl Model {
             })
             .collect();
         if !self.sorts.is_empty() {
+            // A column of numbers sorts by its numbers (DAT-003).
+            let numeric: Vec<bool> = self
+                .sorts
+                .iter()
+                .map(|(column, _)| numeric_column(&props.table_props.rows, column))
+                .collect();
             rows.sort_by(|&a, &b| {
-                for (column, ascending) in &self.sorts {
+                for ((column, ascending), &numeric) in self.sorts.iter().zip(&numeric) {
                     let a = props.table_props.rows[a]
                         .cells
                         .get(column)
@@ -152,7 +160,11 @@ impl Model {
                         .cells
                         .get(column)
                         .map_or("", |cell| cell.content.as_str());
-                    let order = if *ascending { a.cmp(b) } else { b.cmp(a) };
+                    let order = if *ascending {
+                        compare_cells(a, b, numeric)
+                    } else {
+                        compare_cells(b, a, numeric)
+                    };
                     if order != std::cmp::Ordering::Equal {
                         return order;
                     }
@@ -362,7 +374,8 @@ impl LiveDataTable {
             );
         }
         children.push(
-            Element::text(format!("{}/{} ({count})", current + 1, total)).with_class("shrink-0"),
+            Element::text(format!("{}/{} ({count})", current + 1, total))
+                .with_class(format!("shrink-0 {}", look::MUTED)),
         );
         row(children).with_key("pagination")
     }
@@ -525,7 +538,8 @@ impl LiveDataTable {
             },
             model.view_revision,
         ));
-        if props.virtual_scroll.enabled {
+        // A viewport height of 0 takes the table's own height (DAT-002).
+        if props.virtual_scroll.enabled && props.virtual_scroll.viewport_height > 0 {
             let rows = props
                 .virtual_scroll
                 .viewport_height
@@ -685,7 +699,7 @@ impl Component for LiveDataTable {
         if let Some(error) = &props.seed.error_message {
             children.push(
                 Element::text(error)
-                    .with_class("text-red-500")
+                    .with_class(look::ERROR)
                     .with_key("error"),
             );
         }
@@ -701,7 +715,7 @@ impl Component for LiveDataTable {
         if let Some(error) = error {
             children.push(
                 Element::text(error)
-                    .with_class("text-red-500")
+                    .with_class(look::ERROR)
                     .with_key("configuration-error"),
             );
         } else {
