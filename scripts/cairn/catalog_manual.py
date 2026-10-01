@@ -490,7 +490,7 @@ DATA_WIDGETS = (
     ("FileExplorer", r"\bfile_explorer\(\)", "File explorer"),
     ("ProgressBar", r"\bprogress_bar\(\)", "Progress bar"),
 )
-DATA_CODE = ("src/widgets/display/table.rs", "src/widgets/display/table",
+DATA_CODE = ("src/widgets/display/look.rs", "src/widgets/display/table.rs", "src/widgets/display/table",
              "src/widgets/display/data_table.rs", "src/widgets/display/data_table",
              "src/widgets/display/tree.rs", "src/widgets/display/tree",
              "src/widgets/display/file_explorer.rs", "src/widgets/display/file_explorer",

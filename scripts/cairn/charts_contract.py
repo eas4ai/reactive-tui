@@ -114,7 +114,8 @@ WIDGET_CODE = {
                r"(?:Tabs|Accordion|Breadcrumb|ScrollView|Stack)Builder"),
     # The data family: the table, the data table, the tree, the file
     # explorer and the progress bar, and their builders (data-widgets.md).
-    "data": (("src/widgets/display/table.rs", "src/widgets/display/table",
+    "data": (("src/widgets/display/look.rs",
+              "src/widgets/display/table.rs", "src/widgets/display/table",
               "src/widgets/display/data_table.rs", "src/widgets/display/data_table",
               "src/widgets/display/tree.rs", "src/widgets/display/tree",
               "src/widgets/display/file_explorer.rs", "src/widgets/display/file_explorer",
@@ -200,16 +201,35 @@ def literals_in(path, text: str, spans: list[tuple[int, int]] | None = None) -> 
     return found
 
 
+def test_only(path: Path) -> bool:
+    """Whether `path` is an out-of-line module its parent file declares under
+    #[cfg(test)] (`#[cfg(test)] mod tests;`, with or without a #[path]
+    attribute), so the scan reads production code only, as it does for an
+    inline test module: the declaration is there in the parent's code and
+    gone once its test items are blanked."""
+    declaration = re.compile(rf"\bmod\s+{re.escape(path.stem)}\s*;")
+    for parent in (path.parent / "mod.rs", path.parent.with_suffix(".rs")):
+        if parent == path or not parent.is_file():
+            continue
+        text = parent.read_text(errors="replace")
+        if declaration.search(mask(text)[0]) and not declaration.search(mask(strip_test_modules(text))[0]):
+            return True
+    return False
+
+
 def color_literals(family: tuple[tuple[str, ...], str]) -> list[str]:
     """`path:line kind` for every color literal in a family's production code:
-    its files, read whole, and its builder items under src/builder."""
+    its files, read whole, and its builder items under src/builder. A file
+    that is a test module is not production code."""
     dirs, types = family
     whole = rust_sources(*dirs)
     found = []
     for f in whole:
+        if test_only(f):
+            continue
         found += literals_in(f, strip_test_modules(f.read_text(errors="replace")))
     for f in rust_sources(BUILDERS):
-        if f in whole:
+        if f in whole or test_only(f):
             continue
         text = strip_test_modules(f.read_text(errors="replace"))
         code = mask(text)[0]
