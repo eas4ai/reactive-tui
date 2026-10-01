@@ -374,4 +374,93 @@ mod tests {
             "GFX-005: of two pictures of one canvas both ready when the worker looked, these were handed back to be written: {made:?}"
         );
     }
+
+    /// A canvas's Sixel picture that tells why it was refused.
+    #[derive(Clone)]
+    struct Told {
+        frame: u32,
+        refused: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    }
+    impl PartialEq for Told {
+        fn eq(&self, other: &Self) -> bool {
+            self.frame == other.frame
+        }
+    }
+    impl RasterPlane for Told {
+        fn id(&self) -> u32 {
+            9
+        }
+        fn protocol(&self) -> ImageProtocol {
+            ImageProtocol::Sixel
+        }
+        fn quality(&self) -> crate::widgets::ImageQuality {
+            crate::widgets::ImageQuality::Fast
+        }
+        fn position(&self) -> (u32, u32) {
+            (0, 0)
+        }
+        fn raster(&self, _: (u16, u16)) -> Result<image::RgbaImage> {
+            Ok(image::RgbaImage::from_pixel(
+                6,
+                6,
+                image::Rgba([9, 9, 9, 255]),
+            ))
+        }
+        fn background(&self, _: u32, _: u32, _: (u16, u16)) -> image::Rgba<u8> {
+            image::Rgba([0, 0, 0, 255])
+        }
+        fn cells(&self) -> (u32, u32) {
+            (6, 6)
+        }
+        fn canvas(&self) -> Option<crate::widgets::display::image::paint::CanvasPicture> {
+            Some(crate::widgets::display::image::paint::CanvasPicture {
+                shared_memory: false,
+            })
+        }
+        fn refuse(&self, reason: &str) {
+            self.refused.lock().unwrap().push(reason.to_owned());
+        }
+    }
+
+    #[test]
+    fn gfx_009_a_picture_thread_that_cannot_start_refuses_the_picture_and_is_tried_again() {
+        use crate::backend::suprtui::graphics::Graphics;
+        let refused = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let picture = |frame| Told {
+            frame,
+            refused: refused.clone(),
+        };
+        let mut graphics = Graphics::<Told>::default();
+        graphics.make_pictures_apart();
+        graphics.fail_start = true;
+        let (_, first) = graphics
+            .prepare(&[picture(0)], (1, 1), false)
+            .expect("a frame")
+            .expect("its graphics");
+        graphics.acknowledge(vec![picture(0)]);
+        let told = refused.lock().unwrap().clone();
+        // The thread can start again: the next picture is made on it.
+        graphics.fail_start = false;
+        graphics
+            .prepare(&[picture(1)], (1, 1), false)
+            .expect("a frame");
+        graphics.acknowledge(vec![picture(1)]);
+        let started = Instant::now();
+        let mut written = Vec::new();
+        while written.is_empty() && started.elapsed() < Duration::from_secs(5) {
+            written = graphics.take_made((1, 1)).0;
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let made_on = graphics.take_made_on();
+        assert!(
+            told.len() == 1
+                && told[0].contains("cannot be made ready")
+                && !String::from_utf8_lossy(&first).contains("\x1bP")
+                && written.len() == 1
+                && made_on.iter().all(|thread| thread.starts_with("rtui-picture-")),
+            "GFX-009: with the picture thread unable to start the canvas was told {told:?} and the frame sent {:?}; once it could start, {} pictures were written, made on {made_on:?}",
+            String::from_utf8_lossy(&first),
+            written.len()
+        );
+    }
 }

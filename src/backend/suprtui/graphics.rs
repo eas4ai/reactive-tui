@@ -33,6 +33,10 @@ pub(crate) struct Graphics<P = Plane> {
     apart: bool,
     /// The picture thread, once a canvas's picture has been made ready.
     maker: Option<maker::Maker<P>>,
+    /// Make the picture thread fail to start, as a system out of threads
+    /// would.
+    #[cfg(test)]
+    pub(super) fail_start: bool,
     /// The thread that made each canvas picture written since the last
     /// `take_made_on` ready, one name per picture (GFX-009).
     made_on: Vec<String>,
@@ -50,6 +54,8 @@ impl<P> Default for Graphics<P> {
             shared: shared::Pictures::default(),
             apart: false,
             maker: None,
+            #[cfg(test)]
+            fail_start: false,
             made_on: Vec::new(),
         }
     }
@@ -152,22 +158,25 @@ impl<P: RasterPlane> Graphics<P> {
         self.apart = true;
     }
     /// The picture thread, started when the first canvas picture is made
-    /// ready on it; `None` when pictures are made where `prepare` runs.
-    fn maker(&mut self) -> Option<&maker::Maker<P>> {
-        if !self.apart {
-            return None;
-        }
+    /// ready on it. A thread that cannot start now is started again for the
+    /// next picture; pictures are never made where `prepare` runs instead
+    /// (GFX-009).
+    fn maker(&mut self) -> std::io::Result<&maker::Maker<P>> {
         if self.maker.is_none() {
-            match maker::Maker::start() {
-                Ok(maker) => self.maker = Some(maker),
-                Err(error) => {
-                    log::warn!("canvas pictures are made ready before present returns: {error}");
-                    self.apart = false;
-                    return None;
-                }
-            }
+            #[cfg(test)]
+            let started = if self.fail_start {
+                Err(std::io::Error::other("the system has no thread to give"))
+            } else {
+                maker::Maker::start()
+            };
+            #[cfg(not(test))]
+            let started = maker::Maker::start();
+            self.maker = Some(started?);
         }
-        self.maker.as_ref()
+        Ok(self
+            .maker
+            .as_ref()
+            .expect("the picture thread was just started"))
     }
     pub fn prepare(
         &mut self,
@@ -246,8 +255,19 @@ impl<P: RasterPlane> Graphics<P> {
                         blend_legacy,
                         below: below.clone(),
                     };
-                    if let Some(maker) = self.maker() {
-                        maker.submit(job);
+                    match self.maker() {
+                        Ok(maker) => maker.submit(job),
+                        // The canvas is told why it shows no picture
+                        // (GFX-007), and its next picture starts the
+                        // thread again.
+                        Err(error) => {
+                            log::warn!("the canvas picture thread did not start: {error}");
+                            plane.refuse(&format!(
+                                "canvas pictures cannot be made ready: the picture thread did not start: {error}"
+                            ));
+                            coverage.push(coverage::Coverage::empty(plane.position()));
+                            continue;
+                        }
                     }
                 }
                 coverage.push(shown.unwrap_or_else(|| coverage::Coverage::empty(plane.position())));
