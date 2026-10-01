@@ -915,3 +915,44 @@ manual has a heading for each of the five and the changelog names what
 changed for an application; and the review records screenshots from Kitty
 of the catalog's Data display page under each of the five presets at 100
 and 240 columns, with a row of the table focused and a tree node selected.
+
+## pixel-output-holds-the-app
+
+Requirements: GFX-003, GFX-005, GFX-009, PIP-001, PIP-002, BAR-001, BAR-002, BAR-007, BAR-008, BAR-009, BAR-010
+
+The fifth piece of the widget work: canvas pictures made ready off the
+App's wait. Promoted from the backlog item pixel-output-holds-the-app
+(9daf165b) by the developer's ok on 2026-10-01 (escalation b91a6900), with
+GFX-009 agreed the same day, since no agreed requirement caught the wait.
+Measured on 2026-09-29 and again on 2026-10-01: on a terminal that takes
+pixels the backend's worker copies a canvas's picture, finds the cells it
+covers and writes it to shared memory or encodes it as base64 or Sixel
+before it answers `present` (Graphics::prepare and draw in
+src/backend/suprtui/graphics.rs), so with a picture of 1920 by 960 pixels
+every frame the App waited a median 129 ms with Kitty and 479 ms with Sixel
+on the Windows tablet, and at the 95th percentile 25 ms with Kitty in the
+command and 103 ms with Sixel on the Linux development host.
+
+The commitment makes a canvas's picture ready on a picture thread or on
+the canvas's worker, which the App does not wait for; the terminal keeps
+the last picture until the next is ready, at most one picture of a canvas
+waits, and a picture made ready for cells that something now covers is
+made ready again rather than written (GFX-009). The canvas worker keeps
+its scene rule (GFX-003), frames still drop rather than queue on a slow
+terminal (GFX-005), and `present` keeps one frame in flight and reports a
+failed flush next (PIP-001, PIP-002). On Windows the picture thread asks
+the system not to slow it down, as the canvas's drawing thread does
+(decision 01M3NFWY). The Sixel encoder is not made faster here, so a full
+screen Sixel canvas on the tablet shows as many new pictures as the
+encoder makes, and the rest drop; the canvas's scenes, its renderers, its
+choice of output and the block glyphs keep their behavior. The macOS test
+hang and the Windows startup queries stay in the backlog by the
+developer's ok.
+
+Done when every named requirement passes; the new mechanism
+(canvas-pictures) has recorded a fail on a violating example, the code as
+it is at the start of this commitment; the manual's chapters on the canvas
+and on rendering and the changelog say where a picture is made ready and
+what an application sees; and the review records the App's wait printed by
+canvas-pictures on the three hosts and screenshots of the widget catalog's
+Motion page in Kitty and in a Sixel terminal on a private display.

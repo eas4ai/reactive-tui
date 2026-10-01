@@ -647,6 +647,7 @@ pub(crate) fn paint_frame(
         layout_nodes_built: cache.nodes_built,
         layout_measured_elements: cache.measured.clone(),
         inverse_cells,
+        pictures_made_on: Vec::new(),
     })
 }
 

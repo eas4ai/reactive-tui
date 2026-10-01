@@ -599,3 +599,70 @@ pub fn check_reference(name: &str, frame: &GraphicsFrame) -> Option<String> {
         GraphicsFrame::from_rgba(reference.width(), reference.height(), pixels).unwrap();
     difference(frame, &reference)
 }
+
+/// The size a Sixel picture states for itself and which of its pixels its
+/// data sets, row by row; a terminal shows an unset pixel as it was before.
+/// `picture` is what follows the device control string that starts it.
+pub fn sixel_pixels(picture: &str) -> ((usize, usize), Vec<bool>) {
+    let body = picture.split('\x1b').next().unwrap_or("");
+    let mut size = (0, 0);
+    let mut data = body;
+    if let Some(rest) = body.strip_prefix('"') {
+        let end = rest
+            .find(|c: char| !(c.is_ascii_digit() || c == ';'))
+            .unwrap_or(rest.len());
+        let numbers: Vec<usize> = rest[..end]
+            .split(';')
+            .filter_map(|n| n.parse().ok())
+            .collect();
+        size = (
+            numbers.get(2).copied().unwrap_or(0),
+            numbers.get(3).copied().unwrap_or(0),
+        );
+        data = &rest[end..];
+    }
+    let mut set = vec![false; size.0 * size.1];
+    let (mut x, mut row, mut repeat) = (0usize, 0usize, 1usize);
+    let mut bytes = data.bytes().peekable();
+    while let Some(byte) = bytes.next() {
+        match byte {
+            // A color: its number, and its definition when one follows.
+            b'#' => {
+                while bytes
+                    .peek()
+                    .is_some_and(|b| b.is_ascii_digit() || *b == b';')
+                {
+                    bytes.next();
+                }
+            }
+            b'!' => {
+                let mut count = 0;
+                while let Some(digit) = bytes.peek().filter(|b| b.is_ascii_digit()) {
+                    count = count * 10 + usize::from(digit - b'0');
+                    bytes.next();
+                }
+                repeat = count.max(1);
+            }
+            b'$' => x = 0,
+            b'-' => {
+                x = 0;
+                row += 6;
+            }
+            b'?'..=b'~' => {
+                let bits = byte - b'?';
+                for column in x..x + repeat {
+                    for bit in 0..6 {
+                        let y = row + bit;
+                        if bits & (1 << bit) != 0 && column < size.0 && y < size.1 {
+                            set[y * size.0 + column] = true;
+                        }
+                    }
+                }
+                x += repeat;
+                repeat = 1;
+            }
+            _ => {}
+        }
+    }
+    (size, set)
+}

@@ -13,6 +13,10 @@ hosts (canvas-hosts): GFX-002 through tests/canvas_hosts.rs on this host, the
     and GFX-004 through tests/canvas_speed.rs in a release build on the
     tablet, whose 95th percentiles it prints. A failure on any host it
     reached decides GFX-002.
+pictures (canvas-pictures): GFX-009 through tests/canvas_pictures.rs, every
+    test, the ignored ones too, in a release build on this host, the macOS
+    host and the Windows tablet, with the App's wait in present printed for
+    each pixel output. A failure on any host it reached decides GFX-009.
 gates (canvas-gates): BAR-010: cargo build, clippy -D warnings, doc and test
     of reactive-tui with the wgpu-graphics feature here, then the host build
     with the feature on both test hosts, failing on any warning.
@@ -119,6 +123,50 @@ def hosts() -> int:
     return 0 if not failed and not missing and speed and speed[0] else 1
 
 
+def picture_summary(output: str) -> tuple[bool, str]:
+    """Whether one run of tests/canvas_pictures.rs passed, with the App's
+    wait in present it measured for each output."""
+    ok, why = test_summary(output)
+    waits = re.findall(r"GFX-009 the App's wait in present .*? as (.+?): median ([\d.]+) ms, p95 ([\d.]+) ms",
+                       output)
+    measured = ", ".join(f"{name} p95 {p95} ms" for name, _, p95 in waits)
+    return ok, f"{why}; {measured}" if measured else why
+
+
+def pictures() -> int:
+    args = (f"test --locked -p {PACKAGE} --features wgpu-graphics --jobs {JOBS} --release "
+            "--test canvas_pictures -- --include-ignored --nocapture --test-threads=1")
+    local = run(["cargo", *args.split()], timeout=3600, interleave=True)
+    print(local.stdout[-6000:])
+    results = {"linux": picture_summary(local.stdout)}
+    missing = []
+    try:
+        config = json.loads(CONFIG.read_text())
+    except (OSError, ValueError) as error:
+        print(f"no readable test host file at {CONFIG} ({error})")
+        config = {}
+    with tempfile.TemporaryDirectory(prefix="canvas-pictures-") as scratch:
+        commit, bundle = snapshot(Path(scratch))
+        for name in HOSTS:
+            try:
+                _, out = run_on(name, config[name], commit, bundle, args)
+                results[name] = picture_summary(out)
+            except (Unreachable, KeyError) as error:
+                print(f"{name} not reached: {error}")
+                missing.append(name)
+    failed = [f"{name}: {why}" for name, (ok, why) in results.items() if not ok]
+    # A failure on any host it reached decides GFX-009; a host it could not
+    # reach leaves it unverified only while every reached host passed.
+    if failed:
+        report("GFX-009", False, "; ".join(failed))
+        return 1
+    if missing:
+        print(f"GFX-009 unverified: not reached: {', '.join(missing)}")
+        return 1
+    report("GFX-009", True, "; ".join(f"{name}: {why}" for name, (_, why) in results.items()))
+    return 0
+
+
 def gates() -> int:
     feature = ["-p", PACKAGE, "--features", "wgpu-graphics", "--jobs", JOBS]
     commands = [
@@ -152,7 +200,7 @@ def gates() -> int:
     return finish({"BAR-010": (ok, "Linux: build, clippy, doc and test pass; " + "; ".join(why for _, why in built))})
 
 
-GROUPS = {"scenes": scenes, "output": output, "hosts": hosts, "gates": gates}
+GROUPS = {"scenes": scenes, "output": output, "hosts": hosts, "pictures": pictures, "gates": gates}
 
 
 if __name__ == "__main__":

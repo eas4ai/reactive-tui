@@ -153,6 +153,11 @@ path = "tests/canvas_output.rs"
 required-features = ["wgpu-graphics"]
 
 [[test]]
+name = "canvas_pictures"
+path = "tests/canvas_pictures.rs"
+required-features = ["wgpu-graphics"]
+
+[[test]]
 name = "canvas_goldens"
 path = "tests/canvas_goldens.rs"
 required-features = ["wgpu-graphics"]
