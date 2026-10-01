@@ -480,6 +480,49 @@ def layout_docs_problems() -> list[str]:
     return problems
 
 
+DATA_MANUAL = ROOT / "manual/data-widgets.md"
+# Each data widget: its card's title on the catalog's Data display page,
+# what builds it there, and the heading of its section in the manual.
+DATA_WIDGETS = (
+    ("Table", r"\bTable::with_props\(", "Table"),
+    ("DataTable", r"\bdata_table\(\)", "Data table"),
+    ("Tree", r"(?<![\w.])tree\(\)", "Tree"),
+    ("FileExplorer", r"\bfile_explorer\(\)", "File explorer"),
+    ("ProgressBar", r"\bprogress_bar\(\)", "Progress bar"),
+)
+DATA_CODE = ("src/widgets/display/table.rs", "src/widgets/display/table",
+             "src/widgets/display/data_table.rs", "src/widgets/display/data_table",
+             "src/widgets/display/tree.rs", "src/widgets/display/tree",
+             "src/widgets/display/file_explorer.rs", "src/widgets/display/file_explorer",
+             "src/widgets/display/progress_bar.rs", "src/widgets/display/progress_bar",
+             "src/builder/widgets/table.rs", "src/builder/widgets/display.rs",
+             "src/builder/widgets/file_explorer.rs", "src/builder/specialized.rs")
+
+
+def data_docs_problems() -> list[str]:
+    """The data family: the catalog's Data display page builds each of the
+    five widgets in a card of its name, the manual has a heading for each,
+    and every method the manual's sections cite is a pub fn of the builder
+    or type the section names in the data code."""
+    problems = []
+    code, prose, pages = catalog_pages()
+    page = pages.get("Data")
+    if page is None:
+        problems.append("catalog lists no Data display page")
+    for card, built, _ in DATA_WIDGETS:
+        if page is not None and not (re.search(rf'"{card}"', prose[page[0]:page[1]])
+                                     and re.search(built, code[page[0]:page[1]])):
+            problems.append(f"catalog's Data display page has no {card} card built with {built}")
+    sources = {f: strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(*DATA_CODE)}
+    manual = DATA_MANUAL.read_text(errors="replace") if DATA_MANUAL.exists() else ""
+    for _, _, heading in DATA_WIDGETS:
+        if heading not in [title for _, title in headings(manual)]:
+            problems.append(f"{DATA_MANUAL.relative_to(ROOT)} has no {heading} heading")
+            continue
+        problems.extend(receiver_problems(section(manual, heading) or "", heading, sources, "data"))
+    return problems
+
+
 def input_docs_problems() -> list[str]:
     """The input family: the catalog's Input widgets page builds each of the
     six controls in a card of its name, the manual has a heading for each,
@@ -511,14 +554,15 @@ def input_docs_problems() -> list[str]:
 
 def main() -> int:
     problems = (chart_docs_problems() + image_docs_problems() + canvas_docs_problems() + menu_docs_problems()
-                + overlay_docs_problems() + input_docs_problems() + layout_docs_problems())
+                + overlay_docs_problems() + input_docs_problems() + layout_docs_problems()
+                + data_docs_problems())
     if problems:
         print("BAR-006 violated:")
         for p in problems:
             print("  " + p)
         return 1
     print("BAR-006 holds for the chart family, the image widget, the graphics canvas, the menus, the overlays, "
-          "the input widgets and the layout widgets")
+          "the input, layout and data widgets")
     return 0
 
 

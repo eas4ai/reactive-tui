@@ -21,11 +21,13 @@ the popover, the toast and the five dialogs (tests/overlays_contract.rs),
 the input family: the text input, checkbox, radio button, select,
 slider and button (tests/input_widgets_contract.rs), and the layout
 family: the tabs, accordion, breadcrumb, scroll view and stack
-(tests/layout_widgets_contract.rs).
+(tests/layout_widgets_contract.rs), and the data family: the table, data
+table, tree, file explorer and progress bar (tests/data_widgets_contract.rs).
 frame-budget also measures an animating canvas (tests/canvas_widget.rs), a
 dialog fading in and a progress dialog whose bar moves
-(tests/overlays_contract.rs), and an accordion whose section opens
-(tests/layout_widgets_contract.rs).
+(tests/overlays_contract.rs), an accordion whose section opens
+(tests/layout_widgets_contract.rs) and an indeterminate progress bar
+(tests/data_widgets_contract.rs).
 
 Its color check reads the production code of both widgets and of their
 builders, with comments and test items removed, and reports every color
@@ -110,6 +112,16 @@ WIDGET_CODE = {
     "layout": (("src/widgets/layout", "src/builder/widgets/layout.rs", "src/builder/widgets/accordion.rs",
                 "src/builder/widgets/breadcrumb.rs", "src/builder/specialized.rs"),
                r"(?:Tabs|Accordion|Breadcrumb|ScrollView|Stack)Builder"),
+    # The data family: the table, the data table, the tree, the file
+    # explorer and the progress bar, and their builders (data-widgets.md).
+    "data": (("src/widgets/display/table.rs", "src/widgets/display/table",
+              "src/widgets/display/data_table.rs", "src/widgets/display/data_table",
+              "src/widgets/display/tree.rs", "src/widgets/display/tree",
+              "src/widgets/display/file_explorer.rs", "src/widgets/display/file_explorer",
+              "src/widgets/display/progress_bar.rs", "src/widgets/display/progress_bar",
+              "src/builder/widgets/table.rs", "src/builder/widgets/display.rs",
+              "src/builder/widgets/file_explorer.rs", "src/builder/specialized.rs"),
+             r"(?:Table|DataTable|Tree|FileExplorer|ProgressBar)Builder"),
 }
 BUILDERS = "src/builder"
 # The kernel's list of performance cores on a hybrid CPU.
@@ -228,9 +240,10 @@ def main() -> int:
         canvas = cargo_test_filtered("canvas_widget", "bar_005_", features=["wgpu-graphics"], release=True)
         overlays = cargo_test_filtered("overlays_contract", "bar_005_", release=True)
         layout = cargo_test_filtered("layout_widgets_contract", "bar_005_", release=True)
-        results["BAR-005"] = (ok and canvas[0] and overlays[0] and layout[0],
+        data = cargo_test_filtered("data_widgets_contract", "bar_005_", release=True)
+        results["BAR-005"] = (ok and canvas[0] and overlays[0] and layout[0] and data[0],
                               f"charts and image: {why}; canvas: {canvas[1]}; overlays: {overlays[1]}; "
-                              f"layout widgets: {layout[1]}")
+                              f"layout widgets: {layout[1]}; data widgets: {data[1]}")
     if group == "widget-bar":
         ok, why = results["BAR-003"]
         problems = [] if ok else [f"charts: {why}"]
@@ -241,6 +254,7 @@ def main() -> int:
             ("menus", cargo_test_filtered("menus_contract", "bar_003_")),
             ("overlays", cargo_test_filtered("overlays_contract", "bar_003_")),
             ("layout", cargo_test_filtered("layout_widgets_contract", "bar_003_")),
+            ("data", cargo_test_filtered("data_widgets_contract", "bar_003_")),
             ("input widgets", cargo_test_filtered("input_widgets_contract", "bar_003_")),
         ):
             if not passed:
@@ -249,7 +263,7 @@ def main() -> int:
             literals = color_literals(code)
             if literals:
                 problems.append(f"{len(literals)} hard-coded colors in {family} code: {', '.join(literals[:4])}")
-        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus, overlays, input widgets and layout widgets: {why}")
+        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus, overlays, input, layout and data widgets: {why}")
     return finish(results)
 
 
