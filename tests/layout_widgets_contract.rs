@@ -326,6 +326,78 @@ fn nav_001_an_accordion_paints_its_title_glyph_and_focused_header_by_role() {
     );
 }
 
+#[test]
+#[serial_test::serial(theme)]
+fn nav_001_a_disabled_tab_bar_paints_its_selected_label_muted_without_the_variant_fill() {
+    use reactive_tui::widgets::layout::{Tab, TabVariant, TabsBuilder};
+    let _theme = Active::set(probe());
+    let frame = shown(
+        TabsBuilder::new()
+            .tab(Tab::new("Summary", Element::text("Totals")))
+            .tab(Tab::new("Details", Element::text("Every row")))
+            .variant(TabVariant::Solid)
+            .disabled(true)
+            .render(),
+        (80, 8),
+        "Totals",
+    );
+    assert_eq!(
+        colors(&frame, "Summary").0,
+        Some(role("text-muted")),
+        "the selected tab of disabled tabs is text-muted (finding 1):\n{}",
+        frame.text
+    );
+    assert_ne!(
+        colors(&frame, "Summary").1,
+        Some(role("primary")),
+        "disabled tabs paint no variant fill (finding 1):\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn nav_001_a_scroll_view_looks_the_same_from_its_props_and_its_builder() {
+    use reactive_tui::widgets::layout::{ScrollView, ScrollViewProps};
+    let _theme = Active::set(probe());
+    let wide = || {
+        Element::text("A row of fifty cells that is wider than the box holds")
+            .with_class("whitespace-pre")
+    };
+    let from_props = shown(
+        boxed(
+            20,
+            4,
+            Element::typed::<ScrollView>(ScrollViewProps {
+                content: wide(),
+                ..Default::default()
+            }),
+        ),
+        (80, 8),
+        "A row of",
+    );
+    let from_builder = shown(
+        boxed(20, 4, builder::scroll_view().content(wide()).build()),
+        (80, 8),
+        "A row of",
+    );
+    assert_eq!(
+        from_props.text, from_builder.text,
+        "a default scroll view paints the same from its props and its builder (finding 2)"
+    );
+    for row in 0..4 {
+        for column in 0..20 {
+            assert_eq!(
+                cell_colors(&from_props, column, row),
+                cell_colors(&from_builder, column, row),
+                "cell ({column}, {row}) differs between the props and the builder (finding 2):\n{}\n{}",
+                from_props.text,
+                from_builder.text
+            );
+        }
+    }
+}
+
 // ---------------------------------------------------------------- NAV-002
 
 #[test]
@@ -373,6 +445,36 @@ fn nav_002_a_default_scroll_view_fills_its_box_and_a_segment_has_one_cell_of_pad
     assert_eq!(
         column, 4,
         "a segment has one cell of padding before its icon:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn nav_002_a_stack_fills_a_row_box_of_100_cells() {
+    let _theme = Active::set(probe());
+    let frame = shown(
+        builder::div()
+            .class("flex-row w-100 h-3")
+            .child(
+                builder::stack()
+                    .child(
+                        builder::div()
+                            .class("w-full h-1 bg-primary")
+                            .text("Layer one")
+                            .build(),
+                    )
+                    .build(),
+            )
+            .build(),
+        (240, 60),
+        "Layer one",
+    );
+    let (_, row) = at(&frame, "Layer one");
+    assert_eq!(
+        cell_colors(&frame, 99, row).1,
+        Some(role("primary")),
+        "a stack in a row box fills its 100 cells (finding 3):\n{}",
         frame.text
     );
 }
@@ -470,6 +572,39 @@ fn nav_003_a_scroll_view_follows_the_wheel_a_click_on_its_track_and_a_drag_of_it
     assert!(
         ["█", "░"].contains(&glyph(end, 64, 2).as_str()),
         "the bar stands in the box's last column:\n{}",
+        end.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn nav_003_a_vertical_tab_bar_scrolls_to_keep_the_focused_tab_in_view() {
+    use reactive_tui::widgets::layout::{Tab, TabOrientation, TabsBuilder};
+    let _theme = Active::set(probe());
+    // A vertical bar above its panel: the root is a column, so nothing
+    // stretches the bar to the box's height.
+    let mut tabs = TabsBuilder::new().orientation(TabOrientation::Vertical);
+    for n in 1..=10 {
+        tabs = tabs.tab(Tab::new(
+            format!("Tab {n:02}"),
+            Element::text(format!("Panel {n:02}")),
+        ));
+    }
+    let frames = shown_after(
+        boxed(40, 5, tabs.render().auto_focus()),
+        (240, 60),
+        vec![("Tab 01", key(KeyCode::End)), ("Tab 10", None)],
+    );
+    let end = last(&frames);
+    let (_, row) = at(end, "Tab 10");
+    assert!(
+        row < 5,
+        "End brings the last tab of a vertical bar into the box's five rows (finding 4):\n{}",
+        end.text
+    );
+    assert!(
+        find(end, "Tab 01").is_none(),
+        "the bar scrolled, so the first tab left the view (finding 4):\n{}",
         end.text
     );
 }

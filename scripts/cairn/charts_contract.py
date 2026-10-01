@@ -249,7 +249,7 @@ def main() -> int:
             literals = color_literals(code)
             if literals:
                 problems.append(f"{len(literals)} hard-coded colors in {family} code: {', '.join(literals[:4])}")
-        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus, overlays and input widgets: {why}")
+        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus, overlays, input widgets and layout widgets: {why}")
     return finish(results)
 
 

@@ -24,10 +24,22 @@ This file records user-visible changes to Reactive TUI. The project follows
   parent allots: `ScrollViewProps::viewport_width` and `viewport_height`
   default to 0, which means the parent's size (they were 80 and 24), and
   `builder::scroll_view()` gained `viewport_size()`, `viewport_width()`
-  and `viewport_height()`. The bar takes a column or a row only while the
-  content overflows in that direction; it took one whenever bars were on.
-  A click on the bar's track scrolls one page toward the click and a drag
-  of the thumb scrolls with it.
+  and `viewport_height()`. `ScrollViewProps::scroll_x` and the widget-level
+  `ScrollViewBuilder` default to `false`, as `builder::scroll_view()` always
+  did, so a scroll view looks the same from its props and either builder and
+  its content wraps to the view's width unless horizontal scrolling is
+  asked for. The bar takes a column or a row only while the content
+  overflows in that direction; it took one whenever bars were on. A click on
+  the bar's track scrolls one page toward the click and a drag of the thumb
+  scrolls with it.
+- **Breaking:** a stack fills the width its parent allots in a row parent
+  too (`stack_element` sets 100% width); it took its children's width.
+  `StackProps::aria_label` and `.aria_label(..)` on both stack builders name
+  the stack for the screen reader; without it the stack has no name.
+- A disabled tab bar (`TabsProps::disabled`) paints its selected tab's label
+  `text-muted` with no variant fill, like its other tabs; a vertical tab bar
+  in a column that is shorter than its tabs scrolls to the focused tab as a
+  horizontal bar does.
 - **Breaking:** a `Medium` tab's label has one cell of padding at each
   side (it had two; `Small` none, `Large` two, it had four) and a
   breadcrumb's segment one cell (it had four; none when compact), with the

@@ -549,10 +549,11 @@ impl Tabs {
     /// role, else `text-muted`, `foreground` for the selected tab (underlined
     /// in the `Line` variant) and `text-muted` when disabled (NAV-001).
     fn text_classes(tab: &Tab, selected: bool, filled: bool, props: &TabsProps) -> &'static str {
-        if filled {
-            ""
-        } else if props.disabled || tab.disabled {
+        if props.disabled || tab.disabled {
+            // Disabled comes first: a disabled row carries no fill.
             look::DISABLED
+        } else if filled {
+            ""
         } else if selected {
             match props.variant {
                 TabVariant::Line => look::TAB_LINE,
@@ -572,7 +573,9 @@ impl Tabs {
         props: &TabsProps,
         state: &TabsState,
     ) -> &'static str {
-        if state.is_focused && state.focused_tab == Some(index) {
+        if props.disabled || props.tabs.get(index).is_some_and(|tab| tab.disabled) {
+            ""
+        } else if state.is_focused && state.focused_tab == Some(index) {
             look::FOCUSED
         } else if state.hover_tab == Some(index) {
             look::HOVER
@@ -666,8 +669,13 @@ impl Bar {
                 layout.size.1
             }
         };
-        let view_start = view.transform[4 + axis] + view.insets[axis];
-        let view_length = length(view);
+        // The box the row is seen through is the bar's clip: a bar taller than
+        // the column it stands in is cut by its parent, not by its own size.
+        let (view_start, view_length) = if axis == 0 {
+            (view.clip.x, view.clip.width)
+        } else {
+            (view.clip.y, view.clip.height)
+        };
         let mut offset = bar.offset;
         let keep = bar
             .keep
@@ -740,11 +748,18 @@ impl Component for Tabs {
         let active = Self::active(props);
         let vertical = props.orientation == TabOrientation::Vertical
             || matches!(props.position, TabPosition::Left | TabPosition::Right);
-        let offset = {
+        let (offset, bar_height) = {
             let mut bar = self.bar.lock().unwrap();
             bar.keep = state.focused_tab.filter(|_| state.is_focused).or(active);
             bar.vertical = vertical;
-            bar.offset
+            // A vertical bar takes a definite height, the row's or what its
+            // clip shows of it: with the row shifted by a negative margin,
+            // an auto height collapses to nothing.
+            let height = match (vertical, bar.viewport, bar.row) {
+                (true, Some(view), Some(row)) => Some(row.size.1.min(view.clip.height).max(1.0)),
+                _ => None,
+            };
+            (bar.offset, height)
         };
         let padding = match props.size {
             TabSize::Small => "px-0",
@@ -862,14 +877,20 @@ impl Component for Tabs {
         if let Some(label) = &props.aria_label {
             semantic.set_label(label.clone());
         }
-        let mut header = Element::layout(LayoutType::Flex)
-            .with_key("bar")
-            .with_class(if vertical {
+        let mut bar_style = crate::layout::style::StyleBuilder::new();
+        if let Some(height) = bar_height {
+            bar_style = bar_style.height_px(height);
+        }
+        let mut header = crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+            .styles(bar_style)
+            .class(if vertical {
                 "flex flex-col shrink-0 min-h-0 overflow-hidden"
             } else {
                 "flex flex-row shrink-0 min-w-0 w-full overflow-hidden"
             })
-            .with_child(row)
+            .child(row)
+            .build()
+            .with_key("bar")
             .with_accessibility(semantic);
         let measured_bar = self.bar.clone();
         let targets = self.targets.clone();
