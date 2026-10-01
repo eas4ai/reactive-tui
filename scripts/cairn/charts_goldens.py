@@ -105,12 +105,14 @@ SNAPSHOTS_ENV = "REACTIVE_TUI_SNAPSHOTS"
 GOLDEN_RUNS = (("charts_goldens", "cht_023_", "charts", None), ("api_widget_behavior", "bar_004_", "image", None),
                ("canvas_goldens", "bar_004_", "canvas", CANVAS), ("menus_goldens", "bar_004_", "menus", None),
                ("overlays_goldens", "bar_004_", "overlays", None),
-               ("input_widgets_goldens", "bar_004_", "input_widgets", None))
+               ("input_widgets_goldens", "bar_004_", "input_widgets", None),
+               ("layout_widgets_goldens", "bar_004_", "layout_widgets", None))
 
 
 def checked_in() -> dict[Path, bytes]:
     """Every file of the golden families as it is now."""
-    return {p: p.read_bytes() for family in ("charts", "image", "canvas", "menus", "overlays", "input_widgets")
+    return {p: p.read_bytes() for family in ("charts", "image", "canvas", "menus", "overlays", "input_widgets",
+                                             "layout_widgets")
             for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
 
 
@@ -324,19 +326,22 @@ def main() -> int:
     ok_menus, why_menus = cargo_test_filtered("menus_goldens", "bar_004_")
     ok_overlays, why_overlays = cargo_test_filtered("overlays_goldens", "bar_004_")
     ok_inputs, why_inputs = cargo_test_filtered("input_widgets_goldens", "bar_004_")
+    ok_layout, why_layout = cargo_test_filtered("layout_widgets_goldens", "bar_004_")
     problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"]) + (
         [] if ok_image else [f"image golden comparison failed: {why_image}"]) + (
         [] if ok_canvas else [f"canvas golden comparison failed: {why_canvas}"]) + (
         [] if ok_menus else [f"menu golden comparison failed: {why_menus}"]) + (
         [] if ok_overlays else [f"overlay golden comparison failed: {why_overlays}"]) + (
-        [] if ok_inputs else [f"input widget golden comparison failed: {why_inputs}"])
-    if ok_023 and ok_image and ok_canvas and ok_menus and ok_overlays and ok_inputs:
+        [] if ok_inputs else [f"input widget golden comparison failed: {why_inputs}"]) + (
+        [] if ok_layout else [f"layout widget golden comparison failed: {why_layout}"])
+    if ok_023 and ok_image and ok_canvas and ok_menus and ok_overlays and ok_inputs and ok_layout:
         problems_004 += altered_golden_problems(before)
     after = checked_in()
     rewritten = sorted(str(p.relative_to(ROOT)) for p in before.keys() | after.keys() if before.get(p) != after.get(p))
     if rewritten:
         problems_004.append(f"a test run changed checked-in goldens: {', '.join(rewritten[:4])}")
-    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart, image, canvas, menu, overlay and input widget goldens on the debug backend compare equal; wide ones 400+ columns")
+    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart, image, canvas, menu, overlay, input widget and layout widget goldens on the debug backend compare equal; "
+                                                                   "wide ones 400+ columns")
     return finish(results)
 
 
