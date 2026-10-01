@@ -13,10 +13,11 @@ This file records user-visible changes to Reactive TUI. The project follows
   picture until then, and at most one picture of a canvas waits. With a
   new picture of 1920 by 960 pixels every frame, the App's wait in
   `present` at the 95th percentile fell from 38 ms with Kitty graphics
-  sent in the command and 80 ms with Sixel to under 5 ms on the Linux
-  development host, and on the Windows test tablet the App waited a median
-  129 ms with Kitty and 482 ms with Sixel before. A slow encoder now costs
-  pictures, not frames. `SuprTuiBackend::sync` waits for the pictures being
+  sent in the command and 80 ms with Sixel to about 2 ms on the Linux
+  development host, from 18 and 64 ms to under 1 ms on the Mac, and from
+  133 and 487 ms to 8 and 6 ms on the Windows test tablet, where Sixel
+  pictures now reach the terminal at about 13 a second. A slow encoder
+  now costs pictures, not frames. `SuprTuiBackend::sync` waits for the pictures being
   made ready as well, and `SuprTuiBackend::picture_threads` counts the
   pictures each thread has made ready.
 - **Breaking:** the table, the data table, the tree, the file explorer
