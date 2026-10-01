@@ -137,10 +137,16 @@ encodes it as base64 or Sixel on a thread of its own, named `rtui-picture-`
 and a number, and writes it between frames when it is ready. Until then the
 terminal keeps the canvas's last picture; a canvas that is new, or that
 moved, shows its picture once it is ready. A picture that comes while
-another of the same canvas waits replaces it, so at most one waits. A
-picture made for cells that the canvas no longer shows, because it moved or
-something now covers it, is not written, and the newest is made again for
-the cells as they are. A slow encoder therefore costs pictures, not frames.
+another of the same canvas waits replaces it, so at most one waits, and of
+the pictures of a canvas finished before the backend writes one, only the
+newest is written. A picture made for cells that the canvas no longer
+shows, because it moved or something now covers it, is not written, and
+the newest is made again for the cells as they are. Through shared memory,
+the object of a written picture stays until two newer pictures of its
+canvas are written, so a slow terminal still finds it; the object of a
+picture that is never written is removed at once. When the system gives no
+thread to make pictures ready, the canvas shows the reason in its own area
+and its next picture tries again. A slow encoder therefore costs pictures, not frames.
 On the Windows test tablet, with a new picture of 240 by 60 cells every
 frame, the App waited in `present` at most 8 ms at the 95th percentile,
 and the terminal was sent 32 new pictures in one second with Kitty and in
@@ -254,11 +260,15 @@ One worker serves one canvas. Both demos start theirs this way.
   of five seconds. A driver call that hangs inside the operating system
   cannot be interrupted safely.
 - Sixel has no partial transparency. The canvas blends its picture with the
-  background color of the cells below it. An image drawn over a canvas on a
-  Sixel or iTerm2 terminal blends with the cells' background, not with the
-  canvas's picture, which is made ready apart.
-- `SuprTuiBackend::sync` waits for the pictures being made ready as well, so
-  a test that reads the output after it sees them. The App never calls it.
+  background color of the cells below it.
+- On a Sixel or iTerm2 terminal a canvas leaves the cells that an image or
+  another canvas above it covers to that plane, since its own picture is
+  made ready apart and may be written after the plane above. Where the
+  plane above is transparent, the screen keeps what it showed there.
+- `SuprTuiBackend::sync` waits up to 30 seconds for the pictures being made
+  ready as well, so a test that reads the output after it sees them, and
+  returns an error when some are still being made then. The App never
+  calls it.
 - A terminal can show less of a Sixel picture than it is sent. xterm cuts a
   picture at its `maxGraphicSize`, which is 1000 by 1000 pixels unless the
   resource is set, for example with

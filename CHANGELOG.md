@@ -17,9 +17,16 @@ This file records user-visible changes to Reactive TUI. The project follows
   development host, from 18 and 64 ms to under 1 ms on the Mac, and from
   133 and 487 ms to 8 and 6 ms on the Windows test tablet, where Sixel
   pictures now reach the terminal at about 13 a second. A slow encoder
-  now costs pictures, not frames. `SuprTuiBackend::sync` waits for the pictures being
-  made ready as well, and `SuprTuiBackend::picture_threads` counts the
-  pictures each thread has made ready.
+  now costs pictures, not frames. `SuprTuiBackend::sync` waits up to 30
+  seconds for the pictures being made ready as well and returns an error
+  when some are still being made then, and
+  `SuprTuiBackend::picture_threads` counts the pictures each thread has
+  made ready. Of the pictures of a canvas finished before the backend
+  writes one, only the newest is written; a picture sent through shared
+  memory keeps its object until two newer ones of its canvas are written;
+  on a Sixel or iTerm2 terminal a canvas leaves the cells an image or
+  canvas above it covers to that plane; and a picture thread that cannot
+  start makes the canvas show the reason and is tried again.
 - **Breaking:** the table, the data table, the tree, the file explorer
   and the progress bar take every color from the active theme
   (docs/spec/data-widgets.md). A box sits on its parent's background with
