@@ -31,7 +31,7 @@ impl ScrollViewBuilder {
     pub fn new(content: Element) -> Self {
         Self {
             content,
-            scroll_x: true,
+            scroll_x: false,
             scroll_y: true,
             viewport_width: 0,
             viewport_height: 0,
@@ -135,7 +135,8 @@ impl Default for ScrollViewBuilder {
 pub struct ScrollViewProps {
     /// Content element to scroll
     pub content: Element,
-    /// Whether horizontal scrolling is enabled
+    /// Whether horizontal scrolling is enabled; off by default, as in
+    /// `builder::scroll_view()`, so the content wraps to the view's width.
     pub scroll_x: bool,
     /// Whether vertical scrolling is enabled
     pub scroll_y: bool,
@@ -157,7 +158,7 @@ impl Default for ScrollViewProps {
     fn default() -> Self {
         Self {
             content: Element::text(""),
-            scroll_x: true,
+            scroll_x: false,
             scroll_y: true,
             viewport_width: 0,
             viewport_height: 0,
@@ -675,7 +676,10 @@ mod tests {
 
     #[test]
     fn nav_004_scroll_view_offsets_and_ranges() {
-        let props = ScrollViewBuilder::default().viewport_size(20, 10).build();
+        let props = ScrollViewBuilder::default()
+            .viewport_size(20, 10)
+            .scroll_x(true)
+            .build();
         let mut view = ScrollView::new(props.clone());
         *view.content_size.lock().unwrap() = (60, 40);
         let mut state = ScrollViewState {
@@ -775,7 +779,12 @@ mod tests {
     #[test]
     fn nav_004_scroll_view_fitting_and_disabled_axes_have_zero_ranges() {
         for props in [
-            ScrollViewProps::default(),
+            // Fitting content on both axes.
+            ScrollViewProps {
+                scroll_x: true,
+                ..Default::default()
+            },
+            // Both axes off, with content that overflows.
             ScrollViewProps {
                 scroll_x: false,
                 scroll_y: false,
@@ -783,7 +792,7 @@ mod tests {
             },
         ] {
             let view = ScrollView::new(props.clone());
-            if !props.scroll_x {
+            if !props.scroll_y {
                 *view.content_size.lock().unwrap() = (100, 100);
             }
             let element = view.render(
