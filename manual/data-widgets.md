@@ -45,12 +45,17 @@ width (DAT-003).
 
 Up and Down move the cursor row and select it, Home and End reach the
 ends, Page Up and Page Down move by a page; Enter reports the cursor row
-through `on_row_action`, Space selects it (in `multi_select` it toggles
-the row, and Ctrl+A selects every row). Left and Right move the column
-cursor and bring its column into view; `s` sorts by that column, as a
-click on its header does, and a second `s` reverses the order. A column
+through `on_row_action` with `select`, or with a clickable cell's own
+action when the column cursor is on one (`.clickable(action)`), as a click
+on the cell does; Space selects the row (in `multi_select` it toggles the
+row, and Ctrl+A selects every row). Left and Right move the column cursor
+and bring its column into view; `s` sorts by that column, as a click on
+its header does, and a second `s` reverses the order; with
+`resizable_columns` set, Shift with Left or Right narrows or widens the
+cursor's column by a cell, as a drag of its header's edge does. A column
 whose every cell is a number sorts by its numbers, so 2, 9 and 10 keep
-that order; other columns sort by their text (DAT-003). The cursor starts
+that order, and integers compare exactly however long they are; other
+columns sort by their text (DAT-003). The cursor starts
 on the first row when the table takes the focus with nothing selected. The
 screen reader is told the table's name, its row and column counts, each
 row's index, each cell's column index and the sorted column's direction
@@ -61,14 +66,15 @@ row's index, each cell's column index and the sorted column's direction
 `builder::data_table()` wraps a table in a search field, a toolbar and
 page controls: `.column(title, key)` or `.column_with_config(..)` for each
 column, `.simple_row(vec![(key, text)])`, `.row(..)` or `.rows(..)` for the
-rows, `.pagination(enabled, page_size)`, `.virtual_scroll(enabled,
-row_height, viewport_height)` (a viewport height of 0, the default, is the
-table's own height, so no default caps the rows it shows),
+rows, `.pagination(enabled, page_size)` (pages are off unless asked for,
+and a viewport height of 0, the default of `.virtual_scroll(enabled,
+row_height, viewport_height)`, is the table's own height, so no default
+caps the rows it shows),
 `.features(searchable, filterable, exportable)`, `.hide_columns(..)`,
 `.filter(key, filter_type)`, `.class(..)` and `.aria_label(..)`. Its table
 sorts and colors as the table does; Shift with a click on a header, or
-with `s`, adds a secondary sort; the page count under the table is
-`text-muted`. The filter and column panels and the export buttons keep
+with `s`, adds a secondary sort, and each mark then carries its priority;
+the page count under the table, when pages are on, is `text-muted`. The filter and column panels and the export buttons keep
 their behavior.
 
 ## Tree
@@ -93,9 +99,9 @@ Up and Page Down move by a page; Right expands the cursor's node or moves
 to its first child, Left collapses it or moves to its parent, `+` and `-`
 expand and collapse, `*` expands every node at the cursor's level, Enter
 toggles and reports the node, Space checks a checkable node. A node the
-application selects under a collapsed parent is revealed: the ancestors
-that hide it open; collapsing the parent of the cursor's node moves the
-cursor to that parent (DAT-003). Each row tells the screen reader its
+application selects, at first or later, is revealed: the ancestors that
+hide it open, it takes the cursor and scrolls into view; collapsing the
+parent of the cursor's node moves the cursor to that parent (DAT-003). Each row tells the screen reader its
 label, its level, its position among its siblings and their count, whether
 it is expanded and whether it is selected (DAT-004).
 
@@ -112,7 +118,8 @@ it is expanded and whether it is selected (DAT-004).
 presets start from common settings. A row shows an entry's icon and name
 in `foreground` and, with details on, its size and date in `text-muted`;
 the toolbar's words, the status line and the earlier directories of the
-breadcrumb are `text-muted` too.
+breadcrumb are `text-muted` too, and the status line is `text-error` while
+it carries an error.
 
 Up and Down move the cursor and select, Home, End, Page Up and Page Down
 as in the tree, Enter opens the entry, Space toggles it in the selection,
@@ -137,7 +144,8 @@ the explorer's name and each row's name, position and count (DAT-004).
 track `border`; the label and the value are `foreground`. The bar fills
 the width its parent allots unless `.width(..)` sets one. The screen
 reader is told its name (`aria_label`, else the label), its value, its
-minimum and its maximum (DAT-004). An indeterminate bar's marker moves
+minimum and its maximum; an indeterminate bar keeps its range and has no
+value (DAT-004). An indeterminate bar's marker moves
 every frame within the frame budget (BAR-005).
 
 ## Source map

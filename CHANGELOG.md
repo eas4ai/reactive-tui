@@ -32,12 +32,18 @@ This file records user-visible changes to Reactive TUI. The project follows
   when its columns' minimums exceed its width. A data table's
   `VirtualScrollConfig` defaults to a row height of 1 and a viewport
   height of 0, which means the table's own height (they were 32 and 400,
-  which capped a data table at thirteen rows).
+  which capped a data table at thirteen rows), and its pages are off
+  unless `with_pagination(true, size)` or the builder's
+  `.pagination(true, size)` turns them on (`DataTableProps::new` paged
+  more than 25 rows and `builder::data_table()` always paged, 25 a page).
 - A column whose every cell is a number sorts by its numbers in the table
-  and the data table ("10" no longer sorts before "9"). A tree reveals a
-  node the application selects under a collapsed parent by expanding its
-  ancestors, and collapsing the parent of the cursor's node moves the
-  cursor to that parent instead of the first row.
+  and the data table ("10" no longer sorts before "9"), integers exactly
+  however long. A tree reveals a node the application selects, at first or
+  later, by expanding its ancestors, giving it the cursor and scrolling it
+  into view; collapsing the parent of the cursor's node moves the cursor
+  to that parent instead of the first row. A data table's sort marks are
+  painted in `primary` and tell the screen reader their direction, as the
+  table's do (the wrapper had appended the arrow to the title).
 - `aria_label` on `TableProps`, `TreeProps`, `FileExplorerProps` and
   `ProgressBarProps`, and `.aria_label(..)` on `builder::data_table()`,
   `builder::tree()`, `builder::file_explorer()`, `builder::progress_bar()`
@@ -47,13 +53,18 @@ This file records user-visible changes to Reactive TUI. The project follows
   "Progress" are gone). A table tells its row and column counts, each row
   its index, each cell its column index and a sorted header its direction;
   a tree row its level, position and count; an explorer row its position
-  and count.
+  and count; an indeterminate progress bar keeps its minimum and maximum
+  and leaves only its value unknown. The file explorer's status line is
+  `text-error` while it carries an error.
 - A table's Left and Right move the column cursor and bring its column
   into view (they scrolled sideways by one cell), `s` sorts by that column
-  as a click on its header does, and Space selects the cursor row. The
-  cursor is kept apart from the selection (`TableState::cursor_row`): a
-  table that takes the focus with nothing selected shows its cursor on
-  the first row, and the first Down moves to the second.
+  as a click on its header does, Shift with Left or Right narrows or
+  widens the cursor's column by a cell when `resizable_columns` is set,
+  Enter on a clickable cell reports the cell's own action (it reported
+  `select`), and Space selects the cursor row. The cursor is kept apart
+  from the selection (`TableState::cursor_row`): a table that takes the
+  focus with nothing selected shows its cursor on the first row, and the
+  first Down moves to the second.
 - **Breaking:** the tabs, the accordion, the breadcrumb, the scroll view
   and the stack take every color from the active theme
   (docs/spec/layout-widgets.md). A tab's label is `text-muted` and the
