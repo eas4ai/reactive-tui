@@ -128,9 +128,17 @@ impl<P: RasterPlane> Maker<P> {
         queue.working || !queue.waiting.is_empty()
     }
 
-    /// The pictures made ready since the last call, oldest first.
+    /// The newest picture of each canvas made ready since the last call, in
+    /// the order they were made. A picture that a newer one of its canvas
+    /// followed before the worker looked is dropped, never written, so
+    /// pictures never queue (GFX-005).
     pub fn made(&self) -> Vec<Made<P>> {
-        self.made.try_iter().collect()
+        let mut newest: Vec<Made<P>> = Vec::new();
+        for made in self.made.try_iter() {
+            newest.retain(|kept| kept.plane.id() != made.plane.id());
+            newest.push(made);
+        }
+        newest
     }
 
     /// How many pictures wait, not counting the one being made ready.
@@ -309,7 +317,9 @@ mod tests {
         let waiting = maker.waiting();
         let mut made = Vec::new();
         let started = Instant::now();
-        while made.len() < 2 && started.elapsed() < Duration::from_secs(5) {
+        while !made.iter().any(|(frame, _, _)| *frame == 3)
+            && started.elapsed() < Duration::from_secs(5)
+        {
             made.extend(
                 maker
                     .made()
@@ -318,12 +328,50 @@ mod tests {
             );
             std::thread::sleep(Duration::from_millis(5));
         }
+        // The first picture comes back on its own, or is left out for the
+        // last when both were ready as the test looked; the two replaced
+        // pictures are never made.
         assert!(
             waiting == 1
-                && made.iter().map(|(frame, _, _)| *frame).collect::<Vec<_>>() == [0, 3]
-                && made.iter().map(|(_, latest, _)| *latest).collect::<Vec<_>>() == [false, true]
+                && made.iter().all(|(frame, _, _)| *frame == 0 || *frame == 3)
+                && made
+                    .last()
+                    .is_some_and(|(frame, latest, _)| *frame == 3 && *latest)
                 && made.iter().all(|(_, _, thread)| thread.starts_with("rtui-picture-")),
             "GFX-009: with three pictures handed over while one was made ready, {waiting} waited, and the pictures made (frame, latest, thread) were {made:?}"
+        );
+    }
+
+    #[test]
+    fn gfx_005_a_picture_made_ready_after_another_of_its_canvas_leaves_that_one_unwritten() {
+        let maker = Maker::start().expect("the picture thread");
+        // The first picture is made while the second waits; both are ready
+        // before the worker looks, as when it is busy writing a frame.
+        maker.submit(job(0, Duration::from_millis(200)));
+        let started = Instant::now();
+        while !maker.making() || maker.waiting() > 0 {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "the thread took no picture"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        maker.submit(job(1, Duration::ZERO));
+        while maker.making() {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "the pictures were not made"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let made: Vec<u32> = maker
+            .made()
+            .into_iter()
+            .map(|made| made.plane.frame)
+            .collect();
+        assert!(
+            made == [1],
+            "GFX-005: of two pictures of one canvas both ready when the worker looked, these were handed back to be written: {made:?}"
         );
     }
 }
