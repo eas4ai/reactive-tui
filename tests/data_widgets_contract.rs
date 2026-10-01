@@ -312,6 +312,54 @@ fn dat_001_a_table_paints_its_box_border_header_and_cursor_row_by_role() {
     );
 }
 
+/// DAT-001: a data table paints the sorted column's mark in `primary`, as
+/// the table does (its wrapper owns the sort).
+#[test]
+#[serial_test::serial(theme)]
+fn dat_001_a_data_tables_sort_mark_is_primary() {
+    use reactive_tui::widgets::display::DataTableProps;
+    let _theme = Active::set(probe());
+    let mut props = DataTableProps::new(
+        vec![
+            TableColumn::new("Name", "name"),
+            TableColumn::new("Count", "count"),
+        ],
+        vec![
+            TableRow::new("c")
+                .with_cell("name", "gamma")
+                .with_cell("count", "2"),
+            TableRow::new("a")
+                .with_cell("name", "alpha")
+                .with_cell("count", "9"),
+        ],
+    );
+    props.table_props.sort_column = Some(0);
+    props.table_props.sort_ascending = true;
+    let frame = shown(
+        Element::typed::<reactive_tui::widgets::display::DataTable>(props),
+        (80, 12),
+        "gamma",
+    );
+    assert_eq!(
+        colors(&frame, "↑").0,
+        Some(role("primary")),
+        "the sort mark is primary:\n{}",
+        frame.text
+    );
+    assert_eq!(
+        colors(&frame, "Name").0,
+        Some(role("foreground")),
+        "the sorted column's title is foreground:\n{}",
+        frame.text
+    );
+    let rows = painted_order(&frame, &["alpha", "gamma"]);
+    assert!(
+        rows[0] < rows[1],
+        "sorted ascending by name:\n{}",
+        frame.text
+    );
+}
+
 // ---------------------------------------------------------------- DAT-002
 
 /// A table of three columns with short titles and cells.
@@ -350,6 +398,26 @@ fn dat_002_a_default_table_of_three_columns_fits_a_box_of_100_cells() {
     assert!(
         !glyph(&frame, 99, row).trim().is_empty(),
         "the row ends at the box's last cell (its border):\n{}",
+        frame.text
+    );
+}
+
+/// DAT-002: no default caps a data table's rows: forty rows in a box tall
+/// enough for them all are all painted, with no page controls.
+#[test]
+#[serial_test::serial(theme)]
+fn dat_002_a_default_data_table_of_40_rows_shows_them_all_in_a_box_of_60_rows() {
+    let _theme = Active::set(probe());
+    let mut table = builder::data_table().column("Name", "name");
+    for i in 0..40 {
+        let name = format!("Row{i:02}");
+        table = table.simple_row(vec![("name", name.as_str())]);
+    }
+    let frame = shown(boxed(100, 60, table.build()), (240, 70), "Row39");
+    assert!(find(&frame, "Row00").is_some() && find(&frame, "Row39").is_some());
+    assert!(
+        find(&frame, "Prev").is_none(),
+        "no page controls by default:\n{}",
         frame.text
     );
 }

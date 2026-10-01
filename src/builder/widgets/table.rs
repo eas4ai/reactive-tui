@@ -36,7 +36,7 @@ impl DataTableBuilder {
         Self {
             columns: Vec::new(),
             rows: Vec::new(),
-            pagination_enabled: true,
+            pagination_enabled: false,
             page_size: 25,
             virtual_scroll_enabled: false,
             row_height: 1,
@@ -118,7 +118,8 @@ impl DataTableBuilder {
         self
     }
 
-    /// Configure pagination
+    /// Configure pagination; off unless asked for, so no default caps the
+    /// rows the table shows (docs/spec/data-widgets.md, DAT-002)
     pub fn pagination(mut self, enabled: bool, page_size: usize) -> Self {
         self.pagination_enabled = enabled;
         self.page_size = page_size;

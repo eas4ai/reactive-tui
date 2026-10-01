@@ -19,6 +19,10 @@ pub(super) struct LiveProps {
     pub cursor_change: Option<Arc<dyn Fn(Option<usize>) + Send + Sync>>,
     pub controlled_selection: bool,
     pub window: Option<(usize, usize, u64)>,
+    /// The sorts a data view applied, by column index and direction in
+    /// priority order, for the header's marks and the screen reader; empty
+    /// when the table sorts its own rows.
+    pub sorts: Vec<(usize, bool)>,
 }
 
 impl PartialEq for LiveProps {
@@ -30,6 +34,7 @@ impl PartialEq for LiveProps {
             && self.seed.sort_ascending == other.seed.sort_ascending
             && self.window == other.window
             && self.controlled_selection == other.controlled_selection
+            && self.sorts == other.sorts
     }
 }
 
@@ -499,6 +504,16 @@ impl Component for LiveTable {
                 look::ERROR
             ));
         }
+        // The sorts to show: a data view's, by priority, else the table's own.
+        let shown: Vec<(usize, bool)> = if props.sorts.is_empty() {
+            state
+                .sort_column
+                .map(|column| (column, state.sort_ascending))
+                .into_iter()
+                .collect()
+        } else {
+            props.sorts.clone()
+        };
         let props = &props.config;
         self.targets.lock().unwrap().clear();
         let widths = self.widths(props);
@@ -513,13 +528,21 @@ impl Component for LiveTable {
                 .iter()
                 .enumerate()
                 .map(|(i, column)| {
-                    let sorted = state.sort_column == Some(i);
-                    let mark = sorted.then_some(if state.sort_ascending { " ↑" } else { " ↓" });
+                    let sorted = shown.iter().position(|&(column, _)| column == i);
+                    // The mark carries its priority when several columns sort.
+                    let mark = sorted.map(|priority| {
+                        let arrow = if shown[priority].1 { " ↑" } else { " ↓" };
+                        if shown.len() > 1 {
+                            format!("{arrow}{}", priority + 1)
+                        } else {
+                            arrow.to_string()
+                        }
+                    });
                     let mut node = Node::new(Role::ColumnHeader);
                     node.set_label(column.title.clone());
                     node.inner.set_column_index(i);
-                    if sorted {
-                        node.inner.set_sort_direction(if state.sort_ascending {
+                    if let Some(priority) = sorted {
+                        node.inner.set_sort_direction(if shown[priority].1 {
                             accesskit::SortDirection::Ascending
                         } else {
                             accesskit::SortDirection::Descending
@@ -527,7 +550,7 @@ impl Component for LiveTable {
                     }
                     self.header(
                         &column.title,
-                        mark,
+                        mark.as_deref(),
                         widths[i],
                         i,
                         &column.alignment,
@@ -787,7 +810,36 @@ impl Component for LiveTable {
                 match key.code {
                     // Left and Right move the column cursor and bring its
                     // column into view; `s` sorts by it (DAT-004).
-                    KeyCode::Left | KeyCode::Right if !config.columns.is_empty() => {
+                    // Shift with Left or Right narrows or widens the cursor's
+                    // column by a cell, as a drag of its header's edge does
+                    // (DAT-004).
+                    KeyCode::Left | KeyCode::Right
+                        if key.modifiers.shift
+                            && config.resizable_columns
+                            && !config.columns.is_empty() =>
+                    {
+                        let column = state
+                            .selected_column
+                            .unwrap_or(0)
+                            .min(config.columns.len() - 1);
+                        let spec = &config.columns[column];
+                        if !spec.resizable {
+                            return EventResult::Ignored;
+                        }
+                        let current = state.column_widths.get(column).copied().unwrap_or(0);
+                        let floor = Table::column_floor(config, spec);
+                        let width = if key.code == KeyCode::Left {
+                            current.saturating_sub(1)
+                        } else {
+                            current.saturating_add(1)
+                        }
+                        .clamp(floor, spec.max_width.unwrap_or(u16::MAX).max(floor));
+                        self.resized.insert(spec.key.clone(), width);
+                        EventResult::Consumed
+                    }
+                    KeyCode::Left | KeyCode::Right
+                        if !key.modifiers.shift && !config.columns.is_empty() =>
+                    {
                         let last = config.columns.len() - 1;
                         let current = state.selected_column.unwrap_or(0).min(last);
                         let column = if key.code == KeyCode::Left {
@@ -968,6 +1020,7 @@ mod tests {
             cursor_change: None,
             controlled_selection: false,
             window: None,
+            sorts: Vec::new(),
         };
         let live = LiveTable::new(props.clone());
         let element = live.render(&props, &TableState::default());
@@ -1020,6 +1073,7 @@ mod tests {
             cursor_change: None,
             controlled_selection: false,
             window: None,
+            sorts: Vec::new(),
         };
         let mut live = LiveTable::new(props.clone());
         let mut state = live.initial_state(&props);
@@ -1061,6 +1115,111 @@ mod tests {
         assert_eq!(node(&rows.children[0].children[1]).row_index(), Some(1));
     }
 
+    fn laid_out(config: TableProps) -> (LiveTable, LiveProps, TableState) {
+        let mut props = LiveProps {
+            config,
+            seed: TableState::default(),
+            sort_request: None,
+            cursor_change: None,
+            controlled_selection: false,
+            window: None,
+            sorts: Vec::new(),
+        };
+        let mut live = LiveTable::new(props.clone());
+        let mut state = live.initial_state(&props);
+        // As the Focus event leaves it: focused, the cursor on the first row.
+        state.focused = true;
+        state.cursor_row = Some(0);
+        live.layout(
+            LayoutInfo::from_bounds(crate::event::hit::Bounds {
+                x: 0.0,
+                y: 0.0,
+                width: 40.0,
+                height: 7.0,
+            }),
+            &mut props,
+            &mut state,
+        );
+        (live, props, state)
+    }
+
+    fn press(code: KeyCode, shift: bool) -> Event {
+        let mut key = crate::event::types::KeyEvent::new(code);
+        key.modifiers.shift = shift;
+        Event::Key(key)
+    }
+
+    /// DAT-004: Shift with Right and Left resizes the cursor's column, as a
+    /// drag of its header's edge does, when the table lets columns resize.
+    #[test]
+    fn dat_004_shift_with_left_and_right_resizes_the_cursor_column() {
+        let config = TableProps {
+            columns: vec![
+                TableColumn::new("Name", "name"),
+                TableColumn::new("Count", "count"),
+            ],
+            rows: vec![TableRow::new("a").with_cell("name", "alpha")],
+            resizable_columns: true,
+            ..Default::default()
+        };
+        let (mut live, mut props, mut state) = laid_out(config);
+        let before = state.column_widths[0];
+        assert_eq!(
+            live.handle_event(&press(KeyCode::Right, true), &mut props, &mut state),
+            EventResult::Consumed
+        );
+        assert_eq!(live.resized.get("name"), Some(&(before + 1)));
+        assert_eq!(state.column_widths[0], before + 1);
+        live.handle_event(&press(KeyCode::Left, true), &mut props, &mut state);
+        live.handle_event(&press(KeyCode::Left, true), &mut props, &mut state);
+        assert_eq!(state.column_widths[0], before - 1);
+        let fixed = TableProps {
+            resizable_columns: false,
+            ..props.config.clone()
+        };
+        let (mut live, mut props, mut state) = laid_out(fixed);
+        live.handle_event(&press(KeyCode::Right, true), &mut props, &mut state);
+        assert!(
+            live.resized.is_empty(),
+            "a table that does not resize keeps its widths"
+        );
+        assert_eq!(
+            state.selected_column, None,
+            "Shift does not move the column cursor"
+        );
+    }
+
+    /// DAT-004: Enter on a clickable cell takes the cell's own action, as a
+    /// click on it does; on any other cell it reports "select".
+    #[test]
+    fn dat_004_enter_takes_a_clickable_cells_action() {
+        use std::sync::Mutex;
+        let actions = Arc::new(Mutex::new(Vec::new()));
+        let sink = actions.clone();
+        let mut row = TableRow::new("a").with_cell("name", "alpha");
+        row.cells
+            .insert("open".into(), TableCell::new("Open").clickable("open"));
+        let config = TableProps {
+            columns: vec![
+                TableColumn::new("Name", "name"),
+                TableColumn::new("Open", "open"),
+            ],
+            rows: vec![row],
+            on_row_action: Some(Arc::new(move |row, action| {
+                sink.lock().unwrap().push((row, action.to_string()))
+            })),
+            ..Default::default()
+        };
+        let (mut live, mut props, mut state) = laid_out(config);
+        live.handle_event(&press(KeyCode::Enter, false), &mut props, &mut state);
+        live.handle_event(&press(KeyCode::Right, false), &mut props, &mut state);
+        live.handle_event(&press(KeyCode::Enter, false), &mut props, &mut state);
+        assert_eq!(
+            *actions.lock().unwrap(),
+            vec![(0, "select".to_string()), (0, "open".to_string())]
+        );
+    }
+
     #[test]
     fn large_table_navigation_retains_full_row_offset() {
         let config = TableProps {
@@ -1075,6 +1234,7 @@ mod tests {
             cursor_change: None,
             controlled_selection: false,
             window: None,
+            sorts: Vec::new(),
         };
         let mut live = LiveTable::new(props.clone());
         let mut state = TableState {
