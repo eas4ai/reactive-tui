@@ -444,7 +444,17 @@ impl Table {
                     return EventResult::Ignored;
                 };
                 if let Some(callback) = &props.on_row_action {
-                    callback(row, "select");
+                    // Enter does what a click on the cursor's cell does: a
+                    // clickable cell's own action, else "select" (DAT-004).
+                    let column = state.selected_column.unwrap_or(0);
+                    let action = props
+                        .columns
+                        .get(column)
+                        .and_then(|column| props.rows[row].cells.get(&column.key))
+                        .filter(|cell| cell.clickable)
+                        .and_then(|cell| cell.action.as_deref())
+                        .unwrap_or("select");
+                    callback(row, action);
                 }
                 return EventResult::Consumed;
             }
@@ -611,6 +621,7 @@ impl Component for Table {
             cursor_change: None,
             controlled_selection: false,
             window: None,
+            sorts: Vec::new(),
         })
     }
 
@@ -680,6 +691,7 @@ pub(super) fn data_view(
     sort_request: Arc<dyn Fn(usize, bool) + Send + Sync>,
     cursor_change: Arc<dyn Fn(Option<usize>) + Send + Sync>,
     window: Option<(usize, usize, u64)>,
+    sorts: Vec<(usize, bool)>,
 ) -> Element {
     Element::typed::<live::LiveTable>(live::LiveProps {
         config,
@@ -688,7 +700,46 @@ pub(super) fn data_view(
         cursor_change: Some(cursor_change),
         controlled_selection: true,
         window,
+        sorts,
     })
+}
+
+/// A cell's number: an integer kept exact (a float would merge integers
+/// past 2^53), else a finite float.
+#[derive(Clone, Copy)]
+enum Number {
+    Integer(i128),
+    Float(f64),
+}
+
+impl Number {
+    fn parse(text: &str) -> Option<Self> {
+        let text = text.trim();
+        if let Ok(integer) = text.parse::<i128>() {
+            return Some(Self::Integer(integer));
+        }
+        text.parse::<f64>()
+            .ok()
+            .filter(|value| value.is_finite())
+            .map(Self::Float)
+    }
+
+    fn float(self) -> f64 {
+        match self {
+            Self::Integer(integer) => integer as f64,
+            Self::Float(float) => float,
+        }
+    }
+
+    fn compare(self, other: Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Self::Integer(a), Self::Integer(b)) => a.cmp(&b),
+            _ => self
+                .float()
+                .partial_cmp(&other.float())
+                .unwrap_or(std::cmp::Ordering::Equal),
+        }
+    }
 }
 
 /// Whether every cell a column has is a number, so the column sorts by
@@ -701,7 +752,7 @@ pub(super) fn numeric_column(rows: &[TableRow], key: &str) -> bool {
         if text.is_empty() {
             continue;
         }
-        if !text.parse::<f64>().is_ok_and(|value| value.is_finite()) {
+        if Number::parse(text).is_none() {
             return false;
         }
         seen = true;
@@ -712,18 +763,12 @@ pub(super) fn numeric_column(rows: &[TableRow], key: &str) -> bool {
 /// The order of two cells of one column: by their numbers when the column
 /// is numeric, else by their text.
 pub(super) fn compare_cells(a: &str, b: &str, numeric: bool) -> std::cmp::Ordering {
-    use std::cmp::Ordering::{Equal, Greater, Less};
+    use std::cmp::Ordering::{Greater, Less};
     if !numeric {
         return a.cmp(b);
     }
-    let number = |text: &str| {
-        text.trim()
-            .parse::<f64>()
-            .ok()
-            .filter(|value| value.is_finite())
-    };
-    match (number(a), number(b)) {
-        (Some(a), Some(b)) => a.partial_cmp(&b).unwrap_or(Equal),
+    match (Number::parse(a), Number::parse(b)) {
+        (Some(a), Some(b)) => a.compare(b),
         (Some(_), None) => Greater,
         (None, Some(_)) => Less,
         (None, None) => a.cmp(b),
@@ -1117,6 +1162,33 @@ mod tests {
             table.handle_key_navigation(KeyCode::Down, KeyModifiers::empty(), &props, &mut state),
             EventResult::Ignored
         );
+    }
+
+    /// DAT-003: integers past 2^53 keep their order; a float cell still
+    /// compares with an integer cell.
+    #[test]
+    fn dat_003_integers_beyond_float_precision_sort_exactly() {
+        use std::cmp::Ordering::{Equal, Greater, Less};
+        assert_eq!(
+            compare_cells("9007199254740993", "9007199254740992", true),
+            Greater
+        );
+        assert_eq!(
+            compare_cells("9007199254740992", "9007199254740993", true),
+            Less
+        );
+        assert_eq!(compare_cells("2.5", "2", true), Greater);
+        assert_eq!(compare_cells(" 7 ", "7", true), Equal);
+        assert_eq!(compare_cells("", "0", true), Less);
+        let rows = vec![
+            TableRow::new("a").with_cell("n", "170141183460469231731687303715884105727"),
+            TableRow::new("b").with_cell("n", "1e3"),
+        ];
+        assert!(numeric_column(&rows, "n"));
+        assert!(!numeric_column(
+            &[TableRow::new("c").with_cell("n", "12 KB")],
+            "n"
+        ));
     }
 
     #[test]

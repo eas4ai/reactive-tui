@@ -201,11 +201,14 @@ impl Component for LiveProgress {
             node.set_label(label);
         }
         node.set_value(error.map_or_else(|| text.clone(), str::to_owned));
-        if error.is_none() && !config.indeterminate {
-            node.inner
-                .set_numeric_value(config.value.clamp(config.min_value, config.max_value));
+        if error.is_none() {
+            // The range is known even while the value is not (DAT-004).
             node.inner.set_min_numeric_value(config.min_value);
             node.inner.set_max_numeric_value(config.max_value);
+            if !config.indeterminate {
+                node.inner
+                    .set_numeric_value(config.value.clamp(config.min_value, config.max_value));
+            }
         }
         ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
             .styles(style)
@@ -378,8 +381,19 @@ mod dat_tests {
         assert_eq!(named.label(), Some("Upload"));
         let unnamed = node(ProgressBarProps {
             label: None,
-            ..config
+            ..config.clone()
         });
         assert_eq!(unnamed.label(), None, "no fixed English name");
+        let busy = node(ProgressBarProps {
+            indeterminate: true,
+            ..config
+        });
+        assert_eq!(
+            busy.numeric_value(),
+            None,
+            "an indeterminate bar has no value"
+        );
+        assert_eq!(busy.min_numeric_value(), Some(0.0));
+        assert_eq!(busy.max_numeric_value(), Some(100.0));
     }
 }

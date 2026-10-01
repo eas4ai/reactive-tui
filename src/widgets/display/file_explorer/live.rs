@@ -1155,6 +1155,47 @@ mod dat_tests {
             .clone()
     }
 
+    /// DAT-001: the status line carries an error in `text-error`, and a
+    /// count in `text-muted`.
+    #[test]
+    fn dat_001_the_status_line_is_text_error_while_it_carries_the_error() {
+        let status_class = |explorer: &mut Explorer| {
+            let element = explorer.paint();
+            element.children[0]
+                .children
+                .iter()
+                .rev()
+                .find(|child| {
+                    matches!(&child.element_type, crate::component::ElementType::Text(text) if text.contains("files") || text.contains("boom"))
+                })
+                .and_then(|child| child.class.clone())
+                .expect("the status line")
+        };
+        let mut explorer = Explorer::new(FileExplorerProps {
+            root_path: PathBuf::from("/fixture"),
+            current_path: PathBuf::from("/fixture"),
+            ..Default::default()
+        });
+        explorer.apply_seed(&FileExplorerState {
+            entries: vec![entry("alpha")],
+            initialized: true,
+            ..Default::default()
+        });
+        explorer.layout(LayoutInfo::from_bounds(crate::event::hit::Bounds {
+            x: 0.0,
+            y: 0.0,
+            width: 40.0,
+            height: 12.0,
+        }));
+        assert!(status_class(&mut explorer).contains(crate::widgets::display::look::MUTED));
+        explorer.error = Some("boom".into());
+        let class = status_class(&mut explorer);
+        assert!(
+            class.contains(crate::widgets::display::look::ERROR) && !class.contains("text-muted"),
+            "{class}"
+        );
+    }
+
     /// DAT-004: the explorer is named by `aria_label` alone, and each row
     /// tells its label, its position and the count of entries.
     #[test]

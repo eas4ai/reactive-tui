@@ -404,19 +404,20 @@ impl LiveDataTable {
             .iter()
             .map(|&i| props.table_props.columns[i].clone())
             .collect();
-        for column in &mut table.columns {
-            if let Some((priority, (_, ascending))) = model
-                .sorts
-                .iter()
-                .enumerate()
-                .find(|(_, (key, _))| key == &column.key)
-            {
-                column.title.push_str(if *ascending { " ↑" } else { " ↓" });
-                if model.sorts.len() > 1 {
-                    column.title.push_str(&(priority + 1).to_string());
-                }
-            }
-        }
+        // The table shows the sorts as marks in `primary` and tells the
+        // screen reader their direction (DAT-001, DAT-004); it does not sort
+        // the rows again, which the model already did.
+        let sorts: Vec<(usize, bool)> = model
+            .sorts
+            .iter()
+            .filter_map(|(key, ascending)| {
+                table
+                    .columns
+                    .iter()
+                    .position(|column| &column.key == key)
+                    .map(|index| (index, *ascending))
+            })
+            .collect();
         table.sort_column = None;
         table.selected_row = model
             .selected
@@ -564,7 +565,7 @@ impl LiveDataTable {
         let cursor = Arc::new(move |index: Option<usize>| {
             state.lock().unwrap().selected = index.and_then(|index| ids.get(index)).cloned();
         });
-        super::super::table::data_view(table, seed, sort, cursor, window).with_key("table")
+        super::super::table::data_view(table, seed, sort, cursor, window, sorts).with_key("table")
     }
 }
 

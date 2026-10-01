@@ -349,11 +349,13 @@ impl DataTableProps {
                 ..Default::default()
             },
             filters: Vec::new(),
+            // Off unless asked for: no default caps the rows a data table
+            // shows (docs/spec/data-widgets.md, DAT-002).
             pagination: PaginationConfig {
                 current_page: 0,
                 page_size: 25,
                 total_rows,
-                enabled: total_rows > 25,
+                enabled: false,
             },
             virtual_scroll: VirtualScrollConfig {
                 row_height: 1,
@@ -411,6 +413,44 @@ impl DataTableProps {
 #[cfg(test)]
 mod boundary_tests {
     use super::*;
+
+    /// DAT-002: neither the props nor the builder cap a data table's rows
+    /// by a page unless the application asks for pages.
+    #[test]
+    fn dat_002_no_default_caps_a_data_tables_rows() {
+        let rows = |count: usize| {
+            (0..count)
+                .map(|i| TableRow::new(&i.to_string()).with_cell("name", &format!("Row{i:02}")))
+                .collect::<Vec<_>>()
+        };
+        let props = DataTableProps::new(vec![TableColumn::new("Name", "name")], rows(40));
+        assert!(
+            !props.pagination.enabled,
+            "the props page nothing by default"
+        );
+        assert!(
+            !props.virtual_scroll.enabled || props.virtual_scroll.viewport_height == 0,
+            "the virtual viewport takes the table's own height"
+        );
+        let element = crate::builder::data_table()
+            .column("Name", "name")
+            .rows(rows(40))
+            .build();
+        let built = element
+            .props
+            .downcast_ref::<DataTableProps>()
+            .expect("the builder's props");
+        assert!(
+            !built.pagination.enabled,
+            "the builder pages nothing by default"
+        );
+        assert!(
+            DataTableProps::new(Vec::new(), rows(40))
+                .with_pagination(true, 10)
+                .pagination
+                .enabled
+        );
+    }
 
     #[test]
     fn page_ranges_remain_sliceable_after_data_shrinks_or_indices_overflow() {

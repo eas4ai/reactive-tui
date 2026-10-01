@@ -735,7 +735,12 @@ impl Component for LiveTree {
         if callback_changed {
             self.error = Self::validate(&self.root);
         }
-        let reveal = self.previous.selected_node != config.selected_node;
+        // A node the application newly selects takes the cursor and comes
+        // into view (DAT-003).
+        if let Some(id) = revealed.last() {
+            self.cursor = Some(id.clone());
+        }
+        let reveal = self.previous.selected_node != config.selected_node || !revealed.is_empty();
         self.reveal_selection(&revealed, state);
         if self.previous.search_term != config.search_term
             || self.previous.filter_visible != config.filter_visible
@@ -1020,6 +1025,55 @@ mod tests {
         let mut live = LiveTree::new(unnamed.clone());
         let state = live.initial_state(&unnamed);
         assert_eq!(node(&live.render(&unnamed, &state)).label(), None);
+    }
+
+    /// DAT-003: a node the application selects once the tree is shown, below
+    /// the rows in view, takes the cursor and scrolls into view.
+    #[test]
+    fn dat_003_a_node_selected_later_by_the_application_comes_into_view() {
+        let root = |selected: usize| {
+            TreeNode::new("root", "Root").expanded(true).children(
+                (0..30)
+                    .map(|i| {
+                        TreeNode::new(format!("n{i}"), format!("Node {i}")).selected(i == selected)
+                    })
+                    .collect(),
+            )
+        };
+        let mut props = props(root(usize::MAX), None);
+        let mut live = LiveTree::new(props.clone());
+        let mut state = live.initial_state(&props);
+        live.layout(
+            LayoutInfo::from_bounds(crate::event::hit::Bounds {
+                x: 0.0,
+                y: 0.0,
+                width: 40.0,
+                height: 12.0,
+            }),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(state.scroll_state.offset_y, 0);
+        let later = super::LiveProps {
+            config: TreeProps {
+                root: Some(root(25)),
+                ..props.config.clone()
+            },
+            seed: TreeState::default(),
+        };
+        live.update(&later, &mut state);
+        assert_eq!(live.cursor.as_deref(), Some("n25"));
+        assert_eq!(state.selected_nodes, vec!["n25".to_string()]);
+        let row = state
+            .visible_nodes
+            .iter()
+            .position(|id| id == "n25")
+            .expect("the node is in the rows") as u16;
+        let top = state.scroll_state.offset_y;
+        assert!(
+            row >= top && row < top + 12,
+            "row {row} is in view from {top}"
+        );
     }
 
     /// DAT-003: a node selected under a collapsed parent is revealed, and

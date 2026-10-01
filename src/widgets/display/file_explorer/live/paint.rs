@@ -477,13 +477,19 @@ impl Explorer {
                 )
             }
         });
+        // The status line is a hint, unless it carries the error (DAT-001).
+        let status_class = if self.error.is_some() {
+            look::ERROR
+        } else {
+            look::MUTED
+        };
         children.push(self.styled(
             status,
             0,
             height.saturating_sub(1),
             width.saturating_sub(usize::from(self.pending_operation) * 7),
             None,
-            look::MUTED,
+            status_class,
         ));
         if self.pending_operation {
             children.push(self.styled(
