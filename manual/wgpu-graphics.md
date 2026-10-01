@@ -232,10 +232,10 @@ One worker serves one canvas. Both demos start theirs this way.
   example because it is full, that one picture is sent in the command
   itself. A picture of more than about 12 million pixels does not fit the
   frame's output then, and the canvas shows the reason in its own area.
-- A frame holds 64 MiB of new pictures and 64 MiB of output. When a
-  canvas's picture does not fit, the frame is shown without it and the
-  canvas shows the reason in its own area, until its picture has another
-  size.
+- A frame holds 64 MiB of new pictures, counted by their size before they
+  are made ready, and each picture 64 MiB of output. When a canvas's
+  picture does not fit, the frame is shown without it and the canvas shows
+  the reason in its own area, until its picture has another size.
 - An image is at most 4096 by 4096 pixels.
 - A gradient keeps its first 16 stops.
 - A dash pattern draws at most 65 536 dashes on one line. A line that would

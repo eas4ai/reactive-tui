@@ -237,3 +237,93 @@ fn run<P: RasterPlane>(queue: &(Mutex<Queue<P>>, Condvar), made: &mpsc::Sender<M
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Job, Maker, PixelLayers};
+    use crate::{
+        backend::suprtui::graphics::RasterPlane, error::Result,
+        widgets::display::image::paint::ImageProtocol,
+    };
+    use std::time::{Duration, Instant};
+
+    /// A Sixel picture of one canvas that takes `slow` to copy out.
+    #[derive(Clone, PartialEq)]
+    struct Slow {
+        id: u32,
+        frame: u32,
+        slow: Duration,
+    }
+    impl RasterPlane for Slow {
+        fn id(&self) -> u32 {
+            self.id
+        }
+        fn protocol(&self) -> ImageProtocol {
+            ImageProtocol::Sixel
+        }
+        fn quality(&self) -> crate::widgets::ImageQuality {
+            crate::widgets::ImageQuality::Fast
+        }
+        fn position(&self) -> (u32, u32) {
+            (0, 0)
+        }
+        fn raster(&self, _: (u16, u16)) -> Result<image::RgbaImage> {
+            std::thread::sleep(self.slow);
+            Ok(image::RgbaImage::from_pixel(
+                6,
+                6,
+                image::Rgba([9, 9, 9, 255]),
+            ))
+        }
+        fn background(&self, _: u32, _: u32, _: (u16, u16)) -> image::Rgba<u8> {
+            image::Rgba([0, 0, 0, 255])
+        }
+    }
+
+    fn job(frame: u32, slow: Duration) -> Job<Slow> {
+        Job {
+            plane: Slow { id: 7, frame, slow },
+            z: 0,
+            cell: (1, 1),
+            blend_legacy: true,
+            below: PixelLayers::new((1, 1)),
+        }
+    }
+
+    #[test]
+    fn gfx_009_a_picture_handed_over_while_another_waits_replaces_it() {
+        let maker = Maker::start().expect("the picture thread");
+        // The first picture keeps the thread busy while three more come.
+        maker.submit(job(0, Duration::from_millis(300)));
+        let started = Instant::now();
+        while !maker.making() || maker.waiting() > 0 {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "the thread took no picture"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        for frame in 1..4 {
+            maker.submit(job(frame, Duration::ZERO));
+        }
+        let waiting = maker.waiting();
+        let mut made = Vec::new();
+        let started = Instant::now();
+        while made.len() < 2 && started.elapsed() < Duration::from_secs(5) {
+            made.extend(
+                maker
+                    .made()
+                    .into_iter()
+                    .map(|made| (made.plane.frame, made.latest, made.thread)),
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(
+            waiting == 1
+                && made.iter().map(|(frame, _, _)| *frame).collect::<Vec<_>>() == [0, 3]
+                && made.iter().map(|(_, latest, _)| *latest).collect::<Vec<_>>() == [false, true]
+                && made.iter().all(|(_, _, thread)| thread.starts_with("rtui-picture-")),
+            "GFX-009: with three pictures handed over while one was made ready, {waiting} waited, and the pictures made (frame, latest, thread) were {made:?}"
+        );
+    }
+}

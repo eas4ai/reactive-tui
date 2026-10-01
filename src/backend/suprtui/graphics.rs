@@ -227,6 +227,18 @@ impl<P: RasterPlane> Graphics<P> {
                     _ => None,
                 };
                 if kept.is_none() {
+                    // A frame holds 64 MiB of new pictures, counted by
+                    // their size before they are made ready (GFX-007).
+                    let (columns, rows) = plane.cells();
+                    let size = u64::from(columns * u32::from(cell.0))
+                        * u64::from(rows * u32::from(cell.1))
+                        * 4;
+                    raster_bytes = raster_bytes.saturating_add(size as usize);
+                    if raster_bytes > 64 * 1024 * 1024 {
+                        plane.refuse("image frame exceeds 64 MiB raster limit");
+                        coverage.push(coverage::Coverage::empty(plane.position()));
+                        continue;
+                    }
                     let job = maker::Job {
                         plane: plane.clone(),
                         z,
@@ -327,18 +339,17 @@ impl<P: RasterPlane> Graphics<P> {
         self.maker.as_ref().is_some_and(maker::Maker::making)
     }
     /// What shows each canvas picture the picture thread has made ready
-    /// since the last call, for a picture-only update; empty when there is
-    /// none. A picture made for cells its canvas no longer shows, because
+    /// since the last call, one picture-only update each. A picture made for cells its canvas no longer shows, because
     /// the canvas moved, went, or has other cells over it, is not written,
     /// and when no newer picture of the canvas waits, the canvas's picture
     /// is made ready again for the cells as they are (GFX-009). The flag
     /// says whether a picture was handed over again.
-    pub fn take_made(&mut self, cell: (u16, u16)) -> (Vec<u8>, bool) {
+    pub fn take_made(&mut self, cell: (u16, u16)) -> (Vec<Vec<u8>>, bool) {
         let Some(made) = self.maker.as_ref().map(maker::Maker::made) else {
             return (Vec::new(), false);
         };
         let mut again = false;
-        let mut bytes = b"\x1b7".to_vec();
+        let mut pictures = Vec::new();
         for made in made {
             let Some(index) = self
                 .last
@@ -368,13 +379,13 @@ impl<P: RasterPlane> Graphics<P> {
                 *covered = made.covered;
             }
             self.made_on.push(made.thread);
+            let mut bytes = Vec::with_capacity(made.bytes.len() + 4);
+            bytes.extend_from_slice(b"\x1b7");
             bytes.extend_from_slice(&made.bytes);
+            bytes.extend_from_slice(b"\x1b8");
+            pictures.push(bytes);
         }
-        if bytes.len() == 2 {
-            return (Vec::new(), again);
-        }
-        bytes.extend_from_slice(b"\x1b8");
-        (bytes, again)
+        (pictures, again)
     }
     /// The thread that made each canvas picture written since the last
     /// call ready, one name per picture (GFX-009).

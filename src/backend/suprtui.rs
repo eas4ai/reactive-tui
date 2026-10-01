@@ -781,13 +781,7 @@ fn run_worker<W: Write>(
         // waiting or being made when it was asked.
         let making = graphics.making();
         let (pictures, again) = graphics.take_made(images.cell_pixels);
-        if !pictures.is_empty() && deferred.is_none() {
-            if let Err(error) = renderer.backend_mut().write_pictures(&pictures) {
-                deferred = Some(error.into());
-                renderer.flush_failed();
-                force = true;
-            }
-        }
+        write_pictures(&mut renderer, &pictures, &mut deferred, &mut force);
         let command = if making || again {
             match receiver.recv_timeout(PICTURE_POLL) {
                 Ok(command) => command,
@@ -956,13 +950,7 @@ fn run_worker<W: Write>(
                 while deferred.is_none() && std::time::Instant::now() < deadline {
                     let making = graphics.making();
                     let (pictures, again) = graphics.take_made(images.cell_pixels);
-                    if !pictures.is_empty() {
-                        if let Err(error) = renderer.backend_mut().write_pictures(&pictures) {
-                            deferred = Some(error.into());
-                            renderer.flush_failed();
-                            force = true;
-                        }
-                    }
+                    write_pictures(&mut renderer, &pictures, &mut deferred, &mut force);
                     if !making && !again {
                         break;
                     }
@@ -1004,6 +992,31 @@ fn run_worker<W: Write>(
     }
     if let Err(error) = renderer.backend_mut().finish_graphics(graphics.cleanup()) {
         log::warn!("Image output cleanup failed: {error}");
+    }
+}
+
+/// Write canvas pictures made ready between frames, each as its own
+/// update, timed in the stats the next overlay shows (RAS-006). A failure
+/// is reported as a frame's flush failure is (PIP-002); a picture that
+/// comes after one, before the next present, is not written.
+fn write_pictures<W: Write>(
+    renderer: &mut Renderer<'_, CheckedOutput<W>>,
+    pictures: &[Vec<u8>],
+    deferred: &mut Option<ReactiveError>,
+    force: &mut bool,
+) {
+    for picture in pictures {
+        if deferred.is_some() {
+            return;
+        }
+        let started = std::time::Instant::now();
+        let written = renderer.backend_mut().write_pictures(picture);
+        renderer.add_write_ns(started.elapsed().as_nanos() as u64);
+        if let Err(error) = written {
+            *deferred = Some(error.into());
+            renderer.flush_failed();
+            *force = true;
+        }
     }
 }
 
