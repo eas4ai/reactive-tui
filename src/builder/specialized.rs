@@ -603,6 +603,7 @@ pub struct StackBuilder {
     justify: StackJustify,
     spacing: f32,
     padding: StackPadding,
+    aria_label: Option<String>,
 }
 
 impl Default for StackBuilder {
@@ -622,7 +623,14 @@ impl StackBuilder {
             justify: StackJustify::Start,
             spacing: 0.0,
             padding: StackPadding::default(),
+            aria_label: None,
         }
+    }
+
+    /// The name the screen reader gives the stack (NAV-004).
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
     }
 
     /// Add a child element to the stack
@@ -682,6 +690,7 @@ impl StackBuilder {
             alignment: self.alignment,
             justify: self.justify,
             padding: self.padding,
+            aria_label: self.aria_label,
             ..Default::default()
         };
         let mut element = crate::widgets::layout::stack::stack_element(&props, self.spacing);

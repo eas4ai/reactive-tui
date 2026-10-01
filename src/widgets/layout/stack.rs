@@ -106,6 +106,7 @@ pub struct StackBuilder {
     padding: StackPadding,
     reverse: bool,
     children: Vec<Element>,
+    aria_label: Option<String>,
 }
 
 impl StackBuilder {
@@ -190,6 +191,12 @@ impl StackBuilder {
         self
     }
 
+    /// The name the screen reader gives the stack (NAV-004).
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
+        self
+    }
+
     /// Add a child element
     pub fn child(mut self, child: Element) -> Self {
         self.children.push(child);
@@ -212,6 +219,7 @@ impl StackBuilder {
             justify: self.justify,
             padding: self.padding,
             reverse: self.reverse,
+            aria_label: self.aria_label,
             children: self.children,
         }
     }
@@ -233,6 +241,7 @@ impl Default for StackBuilder {
             padding: StackPadding::default(),
             reverse: false,
             children: Vec::new(),
+            aria_label: None,
         }
     }
 }
@@ -256,6 +265,8 @@ pub struct StackProps {
     pub reverse: bool,
     /// Child elements to layout
     pub children: Vec<Element>,
+    /// The name the screen reader gives the stack; none when unset (NAV-004).
+    pub aria_label: Option<String>,
 }
 
 impl Default for StackProps {
@@ -269,6 +280,7 @@ impl Default for StackProps {
             padding: StackPadding::default(),
             reverse: false,
             children: Vec::new(),
+            aria_label: None,
         }
     }
 }
@@ -365,8 +377,57 @@ pub(crate) fn stack_element(props: &StackProps, spacing: f32) -> Element {
         .padding_r_px(props.padding.right as f32)
         .padding_t_px(props.padding.top as f32)
         .padding_b_px(props.padding.bottom as f32);
-    crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+    // The stack fills the width its parent allots, whatever the parent's
+    // direction (NAV-002).
+    let style = style.width_percent(100.0).min_width_px(0.0);
+    let mut element = crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
         .styles(style)
         .children(props.children.clone())
-        .build()
+        .build();
+    if let Some(label) = &props.aria_label {
+        let mut node = crate::accessibility::Node::new(crate::accessibility::Role::Group);
+        node.set_label(label.clone());
+        element = element.with_accessibility(node);
+    }
+    element
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// NAV-004: a stack is named by `aria_label` from its props or either
+    /// builder, and has no name when none is set.
+    #[test]
+    fn nav_004_a_stack_is_named_by_its_aria_label_only() {
+        let unnamed = stack_element(&StackProps::default(), 0.0);
+        assert!(
+            unnamed
+                .metadata
+                .accessibility
+                .as_ref()
+                .and_then(|node| node.inner.label())
+                .is_none(),
+            "a stack has no name when the props set none"
+        );
+        let props = StackBuilder::vertical().aria_label("Layers").build();
+        let named = stack_element(&props, 0.0);
+        assert_eq!(
+            named
+                .metadata
+                .accessibility
+                .as_ref()
+                .and_then(|node| node.inner.label()),
+            Some("Layers")
+        );
+        let built = crate::builder::stack().aria_label("Panes").build();
+        assert_eq!(
+            built
+                .metadata
+                .accessibility
+                .as_ref()
+                .and_then(|node| node.inner.label()),
+            Some("Panes")
+        );
+    }
 }
