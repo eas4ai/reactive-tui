@@ -88,6 +88,7 @@ pub struct ProgressBarBuilder {
     color: Option<String>,
     width: Option<u16>,
     class: Option<String>,
+    aria_label: Option<String>,
 }
 
 impl ProgressBarBuilder {
@@ -102,6 +103,7 @@ impl ProgressBarBuilder {
             color: None,
             width: None,
             class: None,
+            aria_label: None,
         }
     }
 
@@ -177,6 +179,13 @@ impl ProgressBarBuilder {
         self
     }
 
+    /// The name the screen reader is told instead of the label
+    /// (docs/spec/data-widgets.md, DAT-004)
+    pub fn aria_label(mut self, label: &str) -> Self {
+        self.aria_label = Some(label.to_string());
+        self
+    }
+
     /// Build the ProgressBar element
     ///
     /// Creates a progress bar element with the configured properties.
@@ -190,11 +199,10 @@ impl ProgressBarBuilder {
             label: self.label,
             show_percentage: self.show_percentage,
             animated: self.animated,
-            color: self
-                .color
-                .or_else(|| crate::widgets::display::ProgressBarProps::default().color),
+            color: self.color,
             width: self.width,
             style: self.class,
+            aria_label: self.aria_label,
             ..Default::default()
         };
         Element::component_with_props("ProgressBar", props)

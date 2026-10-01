@@ -38,6 +38,9 @@ struct Row {
     loading: bool,
     branches: Vec<bool>,
     last: bool,
+    /// The row's position among its visible siblings, from 1, and their count.
+    position: usize,
+    count: usize,
 }
 #[derive(Clone, Copy, PartialEq)]
 enum Part {
@@ -77,7 +80,10 @@ impl LiveTree {
         None
     }
 
-    fn sync_authored_nodes(&self, root: &Option<TreeNode>, state: &mut TreeState) {
+    /// Applies the flags the new `root` authors; the nodes it newly selects
+    /// come back, so their ancestors can be expanded (DAT-003).
+    fn sync_authored_nodes(&self, root: &Option<TreeNode>, state: &mut TreeState) -> Vec<String> {
+        let mut newly_selected = Vec::new();
         let mut old = HashMap::new();
         let mut pending: Vec<_> = self.previous.root.iter().collect();
         while let Some(node) = pending.pop() {
@@ -111,8 +117,12 @@ impl LiveTree {
                     }
                 }
             }
+            if node.selected && previous.is_none_or(|old| !old.selected) {
+                newly_selected.push(node.id.clone());
+            }
             pending.extend(&node.children);
         }
+        newly_selected
     }
 
     fn seed_nodes(&self, state: &mut TreeState) {
@@ -138,6 +148,7 @@ impl LiveTree {
         let mut selectable = HashSet::new();
         let mut matches = HashSet::new();
         let mut paths = HashSet::new();
+        let mut parents: HashMap<String, String> = HashMap::new();
         // Postorder computes matching subtrees once, without repeated recursive searches.
         let mut pending: Vec<_> = self.root.iter().map(|node| (node, false)).collect();
         while let Some((node, visited)) = pending.pop() {
@@ -150,6 +161,9 @@ impl LiveTree {
                     matches.insert(node.id.clone());
                 }
                 pending.push((node, true));
+                for child in &node.children {
+                    parents.insert(child.id.clone(), node.id.clone());
+                }
                 pending.extend(node.children.iter().map(|child| (child, false)));
             } else if matches.contains(&node.id)
                 || node.children.iter().any(|child| paths.contains(&child.id))
@@ -166,10 +180,10 @@ impl LiveTree {
         let mut pending: Vec<_> = self
             .root
             .iter()
-            .map(|node| (node, 0usize, None, Vec::new(), true))
+            .map(|node| (node, 0usize, None, Vec::new(), true, 1usize, 1usize))
             .collect();
         self.rows.clear();
-        while let Some((node, level, parent_id, branches, last)) = pending.pop() {
+        while let Some((node, level, parent_id, branches, last, position, count)) = pending.pop() {
             if !term.is_empty() && props.filter_visible && !paths.contains(&node.id) {
                 continue;
             }
@@ -198,6 +212,8 @@ impl LiveTree {
                 loading: node.loading,
                 branches: branches.clone(),
                 last,
+                position,
+                count,
             });
             if is_expanded || !term.is_empty() {
                 let visible: Vec<_> = node
@@ -216,6 +232,8 @@ impl LiveTree {
                         Some(node.id.clone()),
                         branches.clone(),
                         index + 1 == visible.len(),
+                        index + 1,
+                        visible.len(),
                     )
                 }));
             }
@@ -224,12 +242,22 @@ impl LiveTree {
         if !props.multi_select {
             state.selected_nodes.truncate(1);
         }
-        if self
+        if let Some(hidden) = self
             .cursor
-            .as_ref()
-            .is_some_and(|id| !self.rows.iter().any(|row| &row.node.id == id))
+            .clone()
+            .filter(|id| !self.rows.iter().any(|row| &row.node.id == id))
         {
-            self.cursor = self.rows.first().map(|row| row.node.id.clone());
+            // The cursor's node is out of view: the cursor moves to its
+            // nearest visible ancestor (DAT-003), or to the first row when
+            // the node is gone.
+            let mut ancestor = parents.get(&hidden).cloned();
+            while let Some(id) = &ancestor {
+                if self.rows.iter().any(|row| &row.node.id == id) {
+                    break;
+                }
+                ancestor = parents.get(id).cloned();
+            }
+            self.cursor = ancestor.or_else(|| self.rows.first().map(|row| row.node.id.clone()));
         }
         state.flat_nodes = self.rows.iter().map(|row| row.node.clone()).collect();
         state.visible_nodes = self.rows.iter().map(|row| row.node.id.clone()).collect();
@@ -240,6 +268,37 @@ impl LiveTree {
             .map(|row| row.node.id.clone())
             .collect();
         self.clamp(props, state);
+    }
+
+    /// The ancestors of `id`, nearest first, in the tree the live tree holds.
+    fn ancestors(&self, id: &str) -> Vec<String> {
+        let mut pending: Vec<(&TreeNode, Vec<String>)> =
+            self.root.iter().map(|node| (node, Vec::new())).collect();
+        while let Some((node, path)) = pending.pop() {
+            if node.id == id {
+                let mut path = path;
+                path.reverse();
+                return path;
+            }
+            let mut below = path;
+            below.push(node.id.clone());
+            pending.extend(node.children.iter().map(|child| (child, below.clone())));
+        }
+        Vec::new()
+    }
+
+    /// Expands the ancestors that hide a node the application selected, so
+    /// the selection is in view (DAT-003). An ancestor the application
+    /// collapses afterwards stays collapsed: only a change of selection
+    /// reveals.
+    fn reveal_selection(&self, ids: &[String], state: &mut TreeState) {
+        for id in ids {
+            for ancestor in self.ancestors(id) {
+                if !state.expanded_nodes.contains(&ancestor) {
+                    state.expanded_nodes.push(ancestor);
+                }
+            }
+        }
     }
 
     fn clamp(&mut self, props: &TreeProps, state: &mut TreeState) {
@@ -637,13 +696,15 @@ impl Component for LiveTree {
         }
         self.cursor = state.selected_nodes.first().cloned();
         self.scroll = state.scroll_state.offset_y as usize;
+        self.reveal_selection(&state.selected_nodes.clone(), &mut state);
         self.rebuild(&props.config, &mut state);
         state
     }
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
         let config = &props.config;
+        let mut revealed = Vec::new();
         if self.previous.root != config.root {
-            self.sync_authored_nodes(&config.root, state);
+            revealed = self.sync_authored_nodes(&config.root, state);
             self.root = config.root.clone();
             self.loaded.clear();
             self.error = Self::validate(&self.root);
@@ -653,6 +714,7 @@ impl Component for LiveTree {
         if self.seed.selected_nodes != props.seed.selected_nodes {
             state.selected_nodes = props.seed.selected_nodes.clone();
             self.cursor = state.selected_nodes.first().cloned();
+            revealed.extend(state.selected_nodes.iter().cloned());
         }
         if self.seed.checked_nodes != props.seed.checked_nodes {
             state.checked_nodes = props.seed.checked_nodes.clone();
@@ -660,6 +722,7 @@ impl Component for LiveTree {
         if self.previous.selected_node != config.selected_node {
             state.selected_nodes = config.selected_node.iter().cloned().collect();
             self.cursor = config.selected_node.clone();
+            revealed.extend(config.selected_node.iter().cloned());
         }
         if self.previous.expanded_nodes != config.expanded_nodes {
             state.expanded_nodes = config.expanded_nodes.clone();
@@ -673,6 +736,7 @@ impl Component for LiveTree {
             self.error = Self::validate(&self.root);
         }
         let reveal = self.previous.selected_node != config.selected_node;
+        self.reveal_selection(&revealed, state);
         if self.previous.search_term != config.search_term
             || self.previous.filter_visible != config.filter_visible
         {
@@ -760,6 +824,13 @@ impl Component for LiveTree {
                     self.last_press = None;
                     state.drag_source = None;
                     state.drop_target = None;
+                } else if self.cursor.is_none() {
+                    // The cursor starts on the first row, without selecting it.
+                    self.cursor = self
+                        .rows
+                        .iter()
+                        .find(|row| row.selectable)
+                        .map(|row| row.node.id.clone());
                 }
                 EventResult::Consumed
             }
@@ -889,5 +960,92 @@ impl Component for LiveTree {
             }
             _ => EventResult::Ignored,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn props(root: TreeNode, aria_label: Option<&str>) -> LiveProps {
+        LiveProps {
+            config: TreeProps {
+                root: Some(root),
+                aria_label: aria_label.map(str::to_string),
+                ..Default::default()
+            },
+            seed: TreeState::default(),
+        }
+    }
+
+    fn node(element: &Element) -> accesskit::Node {
+        (*element
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("a node")
+            .inner)
+            .clone()
+    }
+
+    /// DAT-004: a row tells its level, its position among its siblings and
+    /// their count; the tree is named by `aria_label` alone.
+    #[test]
+    fn dat_004_a_tree_row_tells_its_level_position_and_count() {
+        let root = TreeNode::new("root", "Root").expanded(true).children(vec![
+            TreeNode::new("src", "src"),
+            TreeNode::new("manual", "manual"),
+            TreeNode::new("tests", "tests"),
+        ]);
+        let props = props(root, Some("Workspace tree"));
+        let mut live = LiveTree::new(props.clone());
+        let state = live.initial_state(&props);
+        let element = live.render(&props, &state);
+        assert_eq!(node(&element).label(), Some("Workspace tree"));
+        let rows = &element.children[0].children;
+        assert_eq!(node(&rows[0]).level(), Some(1));
+        assert_eq!(node(&rows[0]).position_in_set(), Some(1));
+        assert_eq!(node(&rows[0]).size_of_set(), Some(1));
+        assert_eq!(node(&rows[2]).label(), Some("manual"));
+        assert_eq!(node(&rows[2]).level(), Some(2));
+        assert_eq!(node(&rows[2]).position_in_set(), Some(2));
+        assert_eq!(node(&rows[2]).size_of_set(), Some(3));
+        let unnamed = super::LiveProps {
+            config: TreeProps {
+                aria_label: None,
+                ..props.config.clone()
+            },
+            seed: TreeState::default(),
+        };
+        let mut live = LiveTree::new(unnamed.clone());
+        let state = live.initial_state(&unnamed);
+        assert_eq!(node(&live.render(&unnamed, &state)).label(), None);
+    }
+
+    /// DAT-003: a node selected under a collapsed parent is revealed, and
+    /// collapsing the parent of the cursor's node moves the cursor to it.
+    #[test]
+    fn dat_003_a_selected_node_is_revealed_and_a_collapse_keeps_the_cursor_near() {
+        let root = TreeNode::new("root", "Root").expanded(true).children(vec![
+            TreeNode::new("folder", "Folder")
+                .children(vec![TreeNode::new("leaf", "Leaf").selected(true)]),
+            TreeNode::new("other", "Other"),
+        ]);
+        let props = props(root, None);
+        let mut live = LiveTree::new(props.clone());
+        let mut state = live.initial_state(&props);
+        assert!(
+            state.visible_nodes.iter().any(|id| id == "leaf"),
+            "the selected leaf is in view: {:?}",
+            state.visible_nodes
+        );
+        assert_eq!(live.cursor.as_deref(), Some("leaf"));
+        live.expand(&props.config, &mut state, "folder", false);
+        assert!(!state.visible_nodes.iter().any(|id| id == "leaf"));
+        assert_eq!(
+            live.cursor.as_deref(),
+            Some("folder"),
+            "the cursor moves to the collapsed parent"
+        );
     }
 }

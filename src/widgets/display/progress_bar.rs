@@ -39,6 +39,7 @@ pub struct ProgressBarBuilder {
     pulse: bool,
     custom_formatter: Option<Arc<FormatterFn>>,
     on_complete: Option<Arc<dyn Fn() + Send + Sync>>,
+    aria_label: Option<String>,
 }
 
 impl ProgressBarBuilder {
@@ -99,6 +100,13 @@ impl ProgressBarBuilder {
     /// Set label text
     pub fn label(mut self, label: impl Into<String>) -> Self {
         self.label = Some(label.into());
+        self
+    }
+
+    /// The name the screen reader is told instead of the label
+    /// (docs/spec/data-widgets.md, DAT-004)
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.aria_label = Some(label.into());
         self
     }
 
@@ -210,6 +218,7 @@ impl ProgressBarBuilder {
             pulse: self.pulse,
             custom_formatter: self.custom_formatter,
             on_complete: self.on_complete,
+            aria_label: self.aria_label,
         }
     }
 
@@ -230,8 +239,8 @@ impl Default for ProgressBarBuilder {
             indeterminate: false,
             animated: false,
             label: None,
-            color: Some("bg-blue".to_string()),
-            background_color: Some("bg-gray-200".to_string()),
+            color: None,
+            background_color: None,
             height: 1,
             width: None,
             style: None,
@@ -243,6 +252,7 @@ impl Default for ProgressBarBuilder {
             pulse: false,
             custom_formatter: None,
             on_complete: None,
+            aria_label: None,
         }
     }
 }
@@ -266,9 +276,10 @@ pub struct ProgressBarProps {
     pub animated: bool,
     /// Optional label text
     pub label: Option<String>,
-    /// Progress bar color
+    /// Progress bar color; none paints the filled part in `primary`
+    /// (docs/spec/data-widgets.md, DAT-001)
     pub color: Option<String>,
-    /// Background color
+    /// Background color; none paints the track in `border` (DAT-001)
     pub background_color: Option<String>,
     /// Height of the progress bar
     pub height: u16,
@@ -292,6 +303,9 @@ pub struct ProgressBarProps {
     pub custom_formatter: Option<Arc<FormatterFn>>,
     /// Callback when progress completes
     pub on_complete: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// The name the screen reader is told instead of the label; without
+    /// either the bar has no name (DAT-004)
+    pub aria_label: Option<String>,
 }
 
 impl Default for ProgressBarProps {
@@ -305,8 +319,8 @@ impl Default for ProgressBarProps {
             indeterminate: false,
             animated: false,
             label: None,
-            color: Some("bg-blue".to_string()),
-            background_color: Some("bg-gray-200".to_string()),
+            color: None,
+            background_color: None,
             height: 1,
             width: None,
             style: None,
@@ -318,6 +332,7 @@ impl Default for ProgressBarProps {
             pulse: false,
             custom_formatter: None,
             on_complete: None,
+            aria_label: None,
         }
     }
 }
@@ -339,6 +354,7 @@ impl PartialEq for ProgressBarProps {
             && self.style == other.style
             && self.bar_style == other.bar_style
             && self.text_style == other.text_style
+            && self.aria_label == other.aria_label
             && self.orientation == other.orientation
             && self.segments == other.segments
             && self.striped == other.striped

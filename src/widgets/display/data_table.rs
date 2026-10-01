@@ -93,7 +93,7 @@ impl PaginationConfig {
 /// Virtual scrolling configuration
 #[derive(Debug, Clone, PartialEq)]
 pub struct VirtualScrollConfig {
-    /// Height of each row in pixels
+    /// Height of each row in cells (1)
     pub row_height: u16,
     /// Number of rows to render outside visible area (buffer)
     pub overscan: usize,
@@ -101,7 +101,9 @@ pub struct VirtualScrollConfig {
     pub total_rows: usize,
     /// Current scroll offset
     pub scroll_offset: usize,
-    /// Visible area height
+    /// The height of the rows in view, in cells; 0 takes the table's own
+    /// height, so no default caps the rows a data table shows
+    /// (docs/spec/data-widgets.md, DAT-002)
     pub viewport_height: u16,
     /// Whether virtual scrolling is enabled
     pub enabled: bool,
@@ -118,6 +120,10 @@ impl VirtualScrollConfig {
         // instead of dividing by zero or inventing a row size.
         if self.row_height == 0 {
             return (0, 0);
+        }
+        // No viewport height: every row is in view.
+        if self.viewport_height == 0 {
+            return (0, self.total_rows);
         }
         let visible_rows = (self.viewport_height as usize).div_ceil(self.row_height as usize);
         let offset = self.scroll_offset.min(self.total_rows);
@@ -350,11 +356,11 @@ impl DataTableProps {
                 enabled: total_rows > 25,
             },
             virtual_scroll: VirtualScrollConfig {
-                row_height: 32,
+                row_height: 1,
                 overscan: 5,
                 total_rows,
                 scroll_offset: 0,
-                viewport_height: 400,
+                viewport_height: 0,
                 enabled: total_rows > 100,
             },
             show_filters: true,

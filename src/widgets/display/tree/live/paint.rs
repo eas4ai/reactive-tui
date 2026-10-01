@@ -4,7 +4,7 @@ use crate::{
     builder::ElementBuilder,
     component::{FocusProps, LayoutType},
     layout::style::{Direction, StyleBuilder},
-    widgets::display::table::border,
+    widgets::display::{look, table::border},
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -16,7 +16,7 @@ impl LiveTree {
             .saturating_mul(props.indent_size as usize)
             .min(u16::MAX as usize);
         let width = indent + usize::from(props.show_lines && row.node.level > 0) * 3;
-        let class = props.line_style.as_deref().unwrap_or("");
+        let class = props.line_style.as_deref().unwrap_or(look::MUTED);
         let mut children = Vec::new();
         if props.show_lines && row.node.level > 0 {
             let mut mark = |text: &str, x: usize, width: usize| {
@@ -113,15 +113,30 @@ impl LiveTree {
     }
     fn paint_row(&self, row: &Row, props: &TreeProps, state: &TreeState, y: usize) -> Element {
         let node = &row.node;
-        let mut class = props.node_style.clone().unwrap_or_default();
+        let enabled = row.selectable || row.checkable || row.expandable;
+        let selected = state.selected_nodes.contains(&node.id);
+        // The cursor's row shows `selection` while the tree holds the focus,
+        // a selected node `accent` unless the application styled it, the
+        // node under the pointer `hover` (DAT-001).
+        let mut class = look::row(
+            state.focused && self.cursor.as_deref() == Some(node.id.as_str()),
+            selected && props.selected_style.is_none(),
+            state.hover_node.as_deref() == Some(node.id.as_str()),
+            !enabled,
+        )
+        .to_string();
+        if let Some(style) = &props.node_style {
+            class.push_str(&format!(" {style}"));
+        }
         if node.expanded {
-            class.push_str(&format!(
-                " {}",
-                props.expanded_style.as_deref().unwrap_or("")
-            ));
+            if let Some(style) = &props.expanded_style {
+                class.push_str(&format!(" {style}"));
+            }
         }
         if !node.has_children {
-            class.push_str(&format!(" {}", props.leaf_style.as_deref().unwrap_or("")));
+            if let Some(style) = &props.leaf_style {
+                class.push_str(&format!(" {style}"));
+            }
         }
         if let Some(style) = &node.style {
             class.push_str(&format!(" {style}"));
@@ -129,11 +144,10 @@ impl LiveTree {
         if node.matched {
             class.push_str(" underline");
         }
-        if state.selected_nodes.contains(&node.id) {
-            class.push_str(&format!(
-                " {}",
-                props.selected_style.as_deref().unwrap_or("")
-            ));
+        if selected {
+            if let Some(style) = &props.selected_style {
+                class.push_str(&format!(" {style}"));
+            }
         }
         if state.drop_target.as_ref() == Some(&node.id) {
             class.push_str(" underline font-bold");
@@ -157,7 +171,7 @@ impl LiveTree {
                 }
                 .to_string(),
                 2,
-                "",
+                look::MUTED,
                 Some((&node.id, Part::Expand)),
             ),
         );
@@ -178,7 +192,7 @@ impl LiveTree {
                 .text(
                     if checked { "☑ " } else { "☐ " }.to_string(),
                     2,
-                    "",
+                    if checked { look::MARK } else { look::MUTED },
                     Some((&node.id, Part::Check)),
                 )
                 .with_accessibility(semantic)
@@ -209,11 +223,13 @@ impl LiveTree {
         cells.push(self.text(label, label_width, "", Some((&node.id, Part::Label))));
         let mut accessible = Node::new(Role::TreeItem);
         accessible.set_label(&node.label);
-        accessible.set_selected(state.selected_nodes.contains(&node.id));
+        accessible.set_selected(selected);
+        accessible.inner.set_level(node.level.saturating_add(1));
+        accessible.inner.set_position_in_set(row.position);
+        accessible.inner.set_size_of_set(row.count);
         if row.expandable {
             accessible.set_expanded(node.expanded);
         }
-        let enabled = row.selectable || row.checkable || row.expandable;
         if !enabled {
             accessible.set_disabled();
         } else {
@@ -255,8 +271,10 @@ impl LiveTree {
     pub(super) fn paint(&self, props: &TreeProps, state: &TreeState) -> Element {
         self.targets.lock().unwrap().clear();
         if let Some(error) = &self.error {
-            return Element::text(error)
-                .with_class("w-full whitespace-normal break-words text-red-500");
+            return Element::text(error).with_class(format!(
+                "w-full whitespace-normal break-words {}",
+                look::ERROR
+            ));
         }
         let (width, height) = self
             .viewport
@@ -325,37 +343,45 @@ impl LiveTree {
                 layout.size.1.max(0.0) as usize,
             ));
         }
+        let bordered = border::enabled(&props.border);
         let natural = self
             .rows
             .len()
             .max(1)
-            .saturating_add(usize::from(border::enabled(&props.border)) * 2)
+            .saturating_add(usize::from(bordered) * 2)
             .min(u16::MAX as usize);
-        let height = props
-            .max_height
-            .map_or(natural, |max| natural.min(max as usize));
+        // The box is its parent's background with no fill of its own
+        // (DAT-001), and fills the width and the height its parent allots
+        // unless the props set a size (DAT-002).
+        let mut style = StyleBuilder::new()
+            .display_flex()
+            .direction(Direction::Column)
+            .padding_all_px(if bordered { 1.0 } else { 0.0 })
+            .overflow_hidden();
+        style = match (props.height, props.max_height) {
+            (Some(height), _) => style.height_px(height as f32),
+            (None, Some(max)) => style
+                .height_px(natural.min(max as usize) as f32)
+                .max_height_percent(100.0),
+            (None, None) => style
+                .height_percent(100.0)
+                .min_height_px(natural as f32)
+                .max_height_percent(100.0),
+        };
+        style = match props.width {
+            Some(width) => style.width_px(width as f32),
+            None => style.width_percent(100.0),
+        };
+        let mut node = Node::new(Role::Tree);
+        if let Some(label) = &props.aria_label {
+            node.set_label(label.clone());
+        }
         ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
-            .styles(
-                StyleBuilder::new()
-                    .display_flex()
-                    .direction(Direction::Column)
-                    .height_px(height as f32)
-                    .max_height_percent(100.0)
-                    .padding_all_px(if border::enabled(&props.border) {
-                        1.0
-                    } else {
-                        0.0
-                    })
-                    .overflow_hidden(),
-            )
-            .class(if border::enabled(&props.border) {
-                "w-full min-w-0 min-h-0 border"
-            } else {
-                "w-full min-w-0 min-h-0"
-            })
+            .styles(style)
+            .class("min-w-0")
             .children(children)
             .build()
             .with_focus(FocusProps::input())
-            .with_accessibility(Node::new(Role::Tree))
+            .with_accessibility(node)
     }
 }

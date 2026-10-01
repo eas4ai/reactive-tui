@@ -309,6 +309,15 @@ pub struct FileExplorerProps {
     pub on_navigate: Option<String>,
     /// Maximum number of items to display (for virtual scrolling)
     pub max_visible_items: usize,
+    /// The name the screen reader is told; none leaves the explorer unnamed
+    /// (docs/spec/data-widgets.md, DAT-004)
+    pub aria_label: Option<String>,
+    /// The explorer's width in cells; none fills the width its parent
+    /// allots (DAT-002)
+    pub width: Option<u16>,
+    /// The explorer's height in rows; none fills the height its parent
+    /// allots (DAT-002)
+    pub height: Option<u16>,
 }
 
 impl Default for FileExplorerProps {
@@ -332,6 +341,9 @@ impl Default for FileExplorerProps {
             on_activate: None,
             on_navigate: None,
             max_visible_items: 1000,
+            aria_label: None,
+            width: None,
+            height: None,
         }
     }
 }
@@ -533,6 +545,13 @@ impl FileExplorerBuilder {
     /// Set maximum visible items for virtual scrolling
     pub fn max_visible_items(mut self, max: usize) -> Self {
         self.props.max_visible_items = max;
+        self
+    }
+
+    /// The name the screen reader is told; without one the explorer has
+    /// no name (DAT-004)
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.props.aria_label = Some(label.into());
         self
     }
 

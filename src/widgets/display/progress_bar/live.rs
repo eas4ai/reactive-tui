@@ -3,6 +3,7 @@ use crate::{
     builder::ElementBuilder,
     component::{ElementType, LayoutInfo, LayoutType, LifecycleEvent},
     layout::style::StyleBuilder,
+    widgets::display::look,
 };
 mod motion;
 type Color = (f32, f32, f32, f32);
@@ -62,7 +63,7 @@ impl Component for LiveProgress {
                 0,
                 0,
                 width,
-                "text-red-500",
+                look::ERROR,
                 None,
                 1.0,
             ));
@@ -73,7 +74,7 @@ impl Component for LiveProgress {
                     0,
                     row,
                     width,
-                    config.text_style.as_deref().unwrap_or(""),
+                    config.text_style.as_deref().unwrap_or(look::TEXT),
                     None,
                     1.0,
                 ));
@@ -120,12 +121,21 @@ impl Component for LiveProgress {
                         end += 1;
                     }
                     let color = if filled { foreground } else { background };
+                    // The filled part is `primary` and the track `border` unless
+                    // the application colored them (DAT-001).
+                    let class = config.bar_style.as_deref().unwrap_or(if color.is_some() {
+                        ""
+                    } else if filled {
+                        look::FILL
+                    } else {
+                        look::BORDER
+                    });
                     children.push(text_at(
                         line,
                         start,
                         row + y,
                         end - start,
-                        config.bar_style.as_deref().unwrap_or(""),
+                        class,
                         color,
                         if filled { sample.alpha } else { 1.0 },
                     ));
@@ -139,7 +149,7 @@ impl Component for LiveProgress {
                     0,
                     row,
                     width,
-                    config.text_style.as_deref().unwrap_or(""),
+                    config.text_style.as_deref().unwrap_or(look::TEXT),
                     None,
                     1.0,
                 ));
@@ -185,7 +195,11 @@ impl Component for LiveProgress {
             .build();
         let mut node =
             crate::accessibility::Node::new(crate::accessibility::Role::ProgressIndicator);
-        node.set_label(config.label.as_deref().unwrap_or("Progress"));
+        // Named by `aria_label`, else by the label; with neither it has no
+        // fixed English name (DAT-004).
+        if let Some(label) = config.aria_label.as_deref().or(config.label.as_deref()) {
+            node.set_label(label);
+        }
         node.set_value(error.map_or_else(|| text.clone(), str::to_owned));
         if error.is_none() && !config.indeterminate {
             node.inner
@@ -319,4 +333,53 @@ pub(super) fn bar_char(
         },
         filled,
     )
+}
+
+#[cfg(test)]
+mod dat_tests {
+    use super::*;
+
+    fn node(config: ProgressBarProps) -> accesskit::Node {
+        let props = LiveProps {
+            config,
+            seed: ProgressBarState::default(),
+        };
+        let live = LiveProgress::new(props.clone());
+        (*live
+            .render(&props, &())
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("a node")
+            .inner)
+            .clone()
+    }
+
+    /// DAT-004: the bar tells its value, its minimum and its maximum, and
+    /// is named by `aria_label`, else by its label, else not at all.
+    #[test]
+    fn dat_004_a_progress_bar_tells_its_value_and_range_and_is_named_by_its_label() {
+        let config = ProgressBarProps {
+            value: 40.0,
+            min_value: 0.0,
+            max_value: 100.0,
+            label: Some("Loading".into()),
+            ..Default::default()
+        };
+        let labeled = node(config.clone());
+        assert_eq!(labeled.label(), Some("Loading"));
+        assert_eq!(labeled.numeric_value(), Some(40.0));
+        assert_eq!(labeled.min_numeric_value(), Some(0.0));
+        assert_eq!(labeled.max_numeric_value(), Some(100.0));
+        let named = node(ProgressBarProps {
+            aria_label: Some("Upload".into()),
+            ..config.clone()
+        });
+        assert_eq!(named.label(), Some("Upload"));
+        let unnamed = node(ProgressBarProps {
+            label: None,
+            ..config
+        });
+        assert_eq!(unnamed.label(), None, "no fixed English name");
+    }
 }

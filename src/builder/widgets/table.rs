@@ -28,6 +28,7 @@ pub struct DataTableBuilder {
     hidden_columns: Vec<String>,
     filters: Vec<ColumnFilter>,
     class: Option<String>,
+    aria_label: Option<String>,
 }
 
 impl DataTableBuilder {
@@ -38,18 +39,21 @@ impl DataTableBuilder {
             pagination_enabled: true,
             page_size: 25,
             virtual_scroll_enabled: false,
-            row_height: 32,
-            viewport_height: 400,
+            row_height: 1,
+            viewport_height: 0,
             searchable: true,
             filterable: true,
             exportable: true,
             hidden_columns: Vec::new(),
             filters: Vec::new(),
             class: None,
+            aria_label: None,
         }
     }
 
-    /// Add a column to the table
+    /// Add a column to the table: it shares the width with the other
+    /// columns by weight and is at least as wide as its title and its sort
+    /// mark (docs/spec/data-widgets.md, DAT-002)
     pub fn column(mut self, title: &str, key: &str) -> Self {
         self.columns.push(TableColumn {
             title: title.to_string(),
@@ -58,7 +62,7 @@ impl DataTableBuilder {
             alignment: Alignment::Start,
             sortable: true,
             resizable: true,
-            min_width: 100,
+            min_width: 0,
             max_width: None,
         });
         self
@@ -159,6 +163,13 @@ impl DataTableBuilder {
         self
     }
 
+    /// The name the screen reader is told; without one the table has no
+    /// name (DAT-004)
+    pub fn aria_label(mut self, label: &str) -> Self {
+        self.aria_label = Some(label.to_string());
+        self
+    }
+
     /// Build the DataTable element
     pub fn build(self) -> Element {
         self.build_with_name("DataTable")
@@ -177,6 +188,7 @@ impl DataTableBuilder {
         props.hidden_columns = self.hidden_columns;
         props.filters = self.filters;
         props.table_props.sortable = true;
+        props.table_props.aria_label = self.aria_label;
 
         let mut element = Element::component_with_props(component_name, props);
 

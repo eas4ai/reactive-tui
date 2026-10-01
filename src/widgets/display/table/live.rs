@@ -7,6 +7,7 @@ use crate::{
         FocusEventKind, KeyEventKind, MouseButton, MouseEvent, MouseEventKind, WheelDelta,
     },
     layout::style::{Direction, StyleBuilder},
+    widgets::display::look,
 };
 use std::sync::Mutex;
 
@@ -68,12 +69,13 @@ impl LiveTable {
             .enumerate()
             .map(|(i, width)| {
                 let column = &props.columns[i];
+                let floor = Table::column_floor(props, column);
                 self.resized
                     .get(&column.key)
                     .copied()
                     .unwrap_or(width)
-                    .max(column.min_width)
-                    .min(column.max_width.unwrap_or(u16::MAX).max(column.min_width))
+                    .max(floor)
+                    .min(column.max_width.unwrap_or(u16::MAX).max(floor))
             })
             .collect()
     }
@@ -131,7 +133,7 @@ impl LiveTable {
         if !props.scrollable {
             return;
         }
-        if let Some(position) = state.selected_row.and_then(|row| {
+        if let Some(position) = state.cursor_row.or(state.selected_row).and_then(|row| {
             Table
                 .sort_rows(props, state)
                 .iter()
@@ -202,7 +204,83 @@ impl LiveTable {
         cell
     }
 
-    fn row(&self, cells: Vec<Element>, y: isize, offset: u16, width: usize) -> Element {
+    /// A header cell: the column's title and, when the column is sorted,
+    /// its mark in `primary` (DAT-001).
+    #[allow(clippy::too_many_arguments)]
+    fn header(
+        &self,
+        title: &str,
+        mark: Option<&str>,
+        width: u16,
+        column: usize,
+        alignment: &Alignment,
+        style: Option<&str>,
+        node: Node,
+    ) -> Element {
+        // The title and the mark sit where a cell's text of the same width
+        // would, so a centered or right-aligned header lines up with its
+        // column's cells.
+        let width = width as usize;
+        let mark_width = mark.map_or(0, UnicodeWidthStr::width);
+        let title_width = UnicodeWidthStr::width(title).min(width.saturating_sub(mark_width));
+        let start = match alignment {
+            Alignment::Center => width.saturating_sub(title_width + mark_width) / 2,
+            Alignment::End => width.saturating_sub(title_width + mark_width),
+            _ => 0,
+        };
+        let piece = |text: &str, x: usize, piece_width: usize, class: &str| {
+            ElementBuilder::new(ElementType::Text(text.to_string()))
+                .styles(
+                    StyleBuilder::new()
+                        .position_absolute()
+                        .inset_left(x as f32)
+                        .inset_top(0.0)
+                        .width_px(piece_width as f32)
+                        .height_px(1.0)
+                        .overflow_hidden(),
+                )
+                .class(&format!("whitespace-pre truncate {class}"))
+                .build()
+        };
+        let mut pieces = vec![piece(
+            title,
+            start,
+            title_width,
+            style.unwrap_or(look::HEADER),
+        )];
+        if let Some(mark) = mark {
+            pieces.push(piece(mark, start + title_width, mark_width, look::MARK));
+        }
+        let mut cell = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+            .styles(
+                StyleBuilder::new()
+                    .width_px(width as f32)
+                    .height_px(1.0)
+                    .flex_shrink(0.0)
+                    .overflow_hidden(),
+            )
+            .children(pieces)
+            .build()
+            .with_accessibility(node);
+        let targets = self.targets.clone();
+        cell.metadata.layout.push(Arc::new(move |layout| {
+            targets
+                .lock()
+                .unwrap()
+                .push((Target::Header(column), layout));
+            false
+        }));
+        cell
+    }
+
+    fn row(
+        &self,
+        cells: Vec<Element>,
+        y: isize,
+        offset: u16,
+        width: usize,
+        class: &str,
+    ) -> Element {
         ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
             .styles(
                 StyleBuilder::new()
@@ -214,8 +292,54 @@ impl LiveTable {
                     .height_px(1.0)
                     .width_px(width as f32),
             )
+            .class(class)
             .children(cells)
             .build()
+    }
+
+    /// Scrolls sideways so that `column` is whole in view (DAT-004).
+    fn reveal_column(&self, state: &mut TableState, column: usize) {
+        let widths = &state.column_widths;
+        let start = widths
+            .iter()
+            .take(column)
+            .fold(0u16, |sum, &width| sum.saturating_add(width));
+        let end = start.saturating_add(widths.get(column).copied().unwrap_or(0));
+        let scroll = &mut state.scroll_state;
+        if start < scroll.offset_x {
+            scroll.offset_x = start;
+        } else if end > scroll.offset_x.saturating_add(scroll.viewport_width) {
+            scroll.offset_x = end.saturating_sub(scroll.viewport_width);
+        }
+    }
+
+    /// Sorts by `column` as a click on its header does: through the data
+    /// table's request when it owns the sort, else here.
+    fn sort_by(
+        &self,
+        props: &LiveProps,
+        state: &mut TableState,
+        column: usize,
+        extend: bool,
+    ) -> EventResult {
+        let config = &props.config;
+        if !config.sortable || !config.columns.get(column).is_some_and(|col| col.sortable) {
+            return EventResult::Ignored;
+        }
+        if let Some(request) = &props.sort_request {
+            request(column, extend);
+            EventResult::Consumed
+        } else {
+            self.sort(config, state, column)
+        }
+    }
+
+    /// The first row the keys can reach, in the sorted order.
+    fn first_row(props: &TableProps, state: &TableState) -> Option<usize> {
+        Table
+            .sort_rows(props, state)
+            .into_iter()
+            .find(|&index| props.selectable && props.rows[index].selectable)
     }
 
     fn sort(&self, props: &TableProps, state: &mut TableState, column: usize) -> EventResult {
@@ -289,6 +413,7 @@ impl Component for LiveTable {
             .filter_map(|&index| remap(index))
             .collect();
         state.selected_row = state.selected_row.and_then(remap);
+        state.cursor_row = state.cursor_row.and_then(remap);
         if props.controlled_selection
             || self.seed.selected_row != props.seed.selected_row
             || self.seed.selected_rows != props.seed.selected_rows
@@ -319,6 +444,7 @@ impl Component for LiveTable {
         if !config.selectable {
             state.selected_rows.clear();
             state.selected_row = None;
+            state.cursor_row = None;
         }
         self.resized
             .retain(|key, _| config.columns.iter().any(|col| &col.key == key));
@@ -368,13 +494,18 @@ impl Component for LiveTable {
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
         if let Some(error) = &self.error {
-            return Element::text(error)
-                .with_class("text-red-500 whitespace-normal break-words w-full");
+            return Element::text(error).with_class(format!(
+                "{} whitespace-normal break-words w-full",
+                look::ERROR
+            ));
         }
         let props = &props.config;
         self.targets.lock().unwrap().clear();
         let widths = self.widths(props);
-        let total = widths.iter().map(|&width| width as usize).sum();
+        let total: usize = widths.iter().map(|&width| width as usize).sum();
+        // A row's fill reaches the box's last cell when the columns are
+        // narrower than the box.
+        let row_width = total.max(state.scroll_state.viewport_width as usize);
         let mut children = Vec::new();
         if props.show_header {
             let cells = props
@@ -382,32 +513,55 @@ impl Component for LiveTable {
                 .iter()
                 .enumerate()
                 .map(|(i, column)| {
-                    let mut title = column.title.clone();
-                    if state.sort_column == Some(i) {
-                        title.push_str(if state.sort_ascending { " ↑" } else { " ↓" });
+                    let sorted = state.sort_column == Some(i);
+                    let mark = sorted.then_some(if state.sort_ascending { " ↑" } else { " ↓" });
+                    let mut node = Node::new(Role::ColumnHeader);
+                    node.set_label(column.title.clone());
+                    node.inner.set_column_index(i);
+                    if sorted {
+                        node.inner.set_sort_direction(if state.sort_ascending {
+                            accesskit::SortDirection::Ascending
+                        } else {
+                            accesskit::SortDirection::Descending
+                        });
                     }
-                    self.cell(
-                        title,
-                        props.header_style.as_deref().unwrap_or("font-bold"),
+                    self.header(
+                        &column.title,
+                        mark,
                         widths[i],
-                        Target::Header(i),
+                        i,
                         &column.alignment,
-                        Node::new(Role::ColumnHeader),
+                        props.header_style.as_deref(),
+                        node,
                     )
                     .with_key(format!("header:{}", column.key))
                 })
                 .collect();
             children.push(
-                self.row(cells, 0, state.scroll_state.offset_x, total)
+                self.row(cells, 0, state.scroll_state.offset_x, row_width, "")
                     .with_key("header"),
             );
         }
+        // The cursor row shows while the table holds the focus (DAT-001).
+        let cursor = if state.focused {
+            state.cursor_row.or(state.selected_row)
+        } else {
+            None
+        };
         let buffered = self
             .window
             .map_or(0, |(_, overscan, _)| self.scroll_y.min(overscan));
         for (visible, &index) in state.visible_rows.iter().enumerate() {
             let row = &props.rows[index];
             let selected = state.selected_rows.contains(&index);
+            // The application's style for a selected row takes the place of
+            // `accent`; the cursor and the hover keep their roles.
+            let state_class = look::row(
+                cursor == Some(index),
+                selected && props.selected_style.is_none(),
+                state.hover_row == Some(index),
+                !row.selectable,
+            );
             let mut class = props.row_style.clone().unwrap_or_default();
             if props.zebra_striping && (self.scroll_y.saturating_sub(buffered) + visible) % 2 == 1 {
                 class.push(' ');
@@ -434,6 +588,8 @@ impl Component for LiveTable {
                     );
                     let mut semantic = Node::new(Role::Cell);
                     semantic.set_selected(selected);
+                    semantic.inner.set_row_index(index);
+                    semantic.inner.set_column_index(column);
                     if !row.selectable {
                         semantic.set_disabled();
                     }
@@ -453,9 +609,8 @@ impl Component for LiveTable {
                             .metadata
                             .accessibility_options
                             .get_or_insert_default();
-                        options.focus = state.focused
-                            && state.selected_row == Some(index)
-                            && state.selected_column.unwrap_or(0) == column;
+                        options.focus =
+                            cursor == Some(index) && state.selected_column.unwrap_or(0) == column;
                         options.focus_event = Some(crate::event::CustomEvent::new(
                             "reactive_tui.table.focus",
                             format!("{index}:{column}").into_bytes(),
@@ -466,6 +621,7 @@ impl Component for LiveTable {
                 .collect();
             let mut node = Node::new(Role::Row);
             node.set_selected(selected);
+            node.inner.set_row_index(index);
             if !row.selectable {
                 node.set_disabled();
             }
@@ -474,7 +630,8 @@ impl Component for LiveTable {
                     cells,
                     visible as isize - buffered as isize,
                     state.scroll_state.offset_x,
-                    total,
+                    row_width,
+                    state_class,
                 )
                 .with_key(format!("row:{}", row.id))
                 .disabled(!row.selectable)
@@ -530,39 +687,48 @@ impl Component for LiveTable {
                 height.max(0.0) as usize,
             ));
         }
-        let border = usize::from(super::border::enabled(&props.border)) * 2;
+        let bordered = super::border::enabled(&props.border);
         let natural_height = props
             .rows
             .len()
             .saturating_add(usize::from(props.show_header))
-            .saturating_add(border)
+            .saturating_add(usize::from(bordered) * 2)
             .min(u16::MAX as usize);
-        let height = props
-            .max_height
-            .map_or(natural_height, |max| natural_height.min(max as usize));
+        // The box is its parent's background with no fill of its own
+        // (DAT-001), and fills the width and the height its parent allots
+        // unless the props set a size (DAT-002).
+        let mut style = StyleBuilder::new()
+            .display_flex()
+            .direction(Direction::Column)
+            .padding_all_px(if bordered { 1.0 } else { 0.0 })
+            .overflow_hidden();
+        style = match (props.height, props.max_height) {
+            (Some(height), _) => style.height_px(height as f32),
+            (None, Some(max)) => style
+                .height_px(natural_height.min(max as usize) as f32)
+                .max_height_percent(100.0),
+            (None, None) => style
+                .height_percent(100.0)
+                .min_height_px(natural_height as f32)
+                .max_height_percent(100.0),
+        };
+        style = match props.width {
+            Some(width) => style.width_px(width as f32),
+            None => style.width_percent(100.0),
+        };
+        let mut node = Node::new(Role::Table);
+        if let Some(label) = &props.aria_label {
+            node.set_label(label.clone());
+        }
+        node.inner.set_row_count(props.rows.len());
+        node.inner.set_column_count(props.columns.len());
         ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
-            .styles(
-                StyleBuilder::new()
-                    .display_flex()
-                    .direction(Direction::Column)
-                    .height_px(height as f32)
-                    .max_height_percent(100.0)
-                    .padding_all_px(if super::border::enabled(&props.border) {
-                        1.0
-                    } else {
-                        0.0
-                    })
-                    .overflow_hidden(),
-            )
-            .class(if super::border::enabled(&props.border) {
-                "w-full min-w-0 min-h-0 border"
-            } else {
-                "w-full min-w-0 min-h-0"
-            })
+            .styles(style)
+            .class("min-w-0")
             .children(children)
             .build()
             .with_focus(FocusProps::input())
-            .with_accessibility(Node::new(Role::Table))
+            .with_accessibility(node)
     }
 
     fn handle_event(
@@ -588,6 +754,7 @@ impl Component for LiveTable {
                         && config.rows.get(row).is_some_and(|row| row.selectable)
                 }) {
                     state.selected_row = Some(row);
+                    state.cursor_row = Some(row);
                     state.selected_column = Some(column);
                     state.focused = true;
                     self.reveal_selection(config, state);
@@ -601,18 +768,34 @@ impl Component for LiveTable {
                 if !state.focused {
                     self.drag = None;
                     state.resizing_column = None;
+                } else if state.cursor_row.is_none() {
+                    // The cursor starts on the selected row, else on the first
+                    // row, without selecting it.
+                    state.cursor_row = state
+                        .selected_row
+                        .or_else(|| Self::first_row(config, state));
                 }
                 EventResult::Consumed
             }
             Event::Key(key) if state.focused && key.kind != KeyEventKind::Release => {
                 match key.code {
-                    KeyCode::Left if config.scrollable => {
-                        state.scroll_state.offset_x = state.scroll_state.offset_x.saturating_sub(1);
+                    // Left and Right move the column cursor and bring its
+                    // column into view; `s` sorts by it (DAT-004).
+                    KeyCode::Left | KeyCode::Right if !config.columns.is_empty() => {
+                        let last = config.columns.len() - 1;
+                        let current = state.selected_column.unwrap_or(0).min(last);
+                        let column = if key.code == KeyCode::Left {
+                            current.saturating_sub(1)
+                        } else {
+                            (current + 1).min(last)
+                        };
+                        state.selected_column = Some(column);
+                        self.reveal_column(state, column);
                         EventResult::Consumed
                     }
-                    KeyCode::Right if config.scrollable => {
-                        state.scroll_state.offset_x = state.scroll_state.offset_x.saturating_add(1);
-                        EventResult::Consumed
+                    KeyCode::Char('s') if !key.modifiers.ctrl && !key.modifiers.alt => {
+                        let column = state.selected_column.unwrap_or(0);
+                        self.sort_by(props, state, column, key.modifiers.shift)
                     }
                     _ => {
                         Table.handle_key_navigation(key.code.clone(), key.modifiers, config, state)
@@ -657,6 +840,20 @@ impl Component for LiveTable {
                 EventResult::Consumed
             }
             Event::Mouse(mouse)
+                if matches!(mouse.kind, MouseEventKind::Move | MouseEventKind::Enter)
+                    && self.drag.is_none() =>
+            {
+                state.hover_row = match self.target_at(mouse) {
+                    Some((Target::Cell(row, _), _)) => Some(row),
+                    _ => None,
+                };
+                EventResult::Ignored
+            }
+            Event::Mouse(mouse) if mouse.kind == MouseEventKind::Leave => {
+                state.hover_row = None;
+                EventResult::Ignored
+            }
+            Event::Mouse(mouse)
                 if matches!(mouse.kind, MouseEventKind::Move | MouseEventKind::Drag)
                     && self.drag.is_some() =>
             {
@@ -693,14 +890,8 @@ impl Component for LiveTable {
                             state.resizing_column = Some(column);
                             state.resize_start_x = mouse.position.x().min(u16::MAX as u32) as u16;
                             EventResult::Consumed
-                        } else if let Some(request) = &props.sort_request {
-                            if !config.sortable || !config.columns[column].sortable {
-                                return EventResult::Ignored;
-                            }
-                            request(column, mouse.modifiers.shift);
-                            EventResult::Consumed
                         } else {
-                            self.sort(config, state, column)
+                            self.sort_by(props, state, column, mouse.modifiers.shift)
                         }
                     }
                     Target::Cell(row, column) => {
@@ -787,6 +978,81 @@ mod tests {
             None,
             "the table has no name when the props set none"
         );
+    }
+
+    /// DAT-004: the sorted header tells its direction, each row its index
+    /// and each cell its column index; the table is named by `aria_label`.
+    #[test]
+    fn dat_004_a_sorted_header_tells_its_direction_and_each_cell_its_place() {
+        let config = TableProps {
+            columns: vec![
+                TableColumn::new("Name", "name"),
+                TableColumn::new("Count", "count"),
+            ],
+            rows: vec![
+                TableRow::new("a")
+                    .with_cell("name", "alpha")
+                    .with_cell("count", "9"),
+                TableRow::new("b")
+                    .with_cell("name", "beta")
+                    .with_cell("count", "10"),
+            ],
+            sortable: true,
+            sort_column: Some(1),
+            sort_ascending: false,
+            aria_label: Some("Project members".into()),
+            ..Default::default()
+        };
+        let mut props = LiveProps {
+            config,
+            seed: TableState {
+                sort_column: Some(1),
+                sort_ascending: false,
+                ..Default::default()
+            },
+            sort_request: None,
+            cursor_change: None,
+            controlled_selection: false,
+            window: None,
+        };
+        let mut live = LiveTable::new(props.clone());
+        let mut state = live.initial_state(&props);
+        live.layout(
+            LayoutInfo::from_bounds(crate::event::hit::Bounds {
+                x: 0.0,
+                y: 0.0,
+                width: 40.0,
+                height: 7.0,
+            }),
+            &mut props,
+            &mut state,
+        );
+        let element = live.render(&props, &state);
+        let node = |element: &Element| {
+            element
+                .metadata
+                .accessibility
+                .as_ref()
+                .expect("a node")
+                .inner
+                .clone()
+        };
+        assert_eq!(node(&element).label(), Some("Project members"));
+        let content = &element.children[0];
+        let header = &content.children[0];
+        assert_eq!(
+            node(&header.children[1]).sort_direction(),
+            Some(accesskit::SortDirection::Descending),
+            "the sorted column's header tells its direction"
+        );
+        assert_eq!(node(&header.children[0]).sort_direction(), None);
+        assert_eq!(node(&header.children[1]).column_index(), Some(1));
+        // Sorted by the numbers, descending: beta (10) comes first.
+        let rows = &content.children[1];
+        assert_eq!(node(&rows.children[0]).row_index(), Some(1));
+        assert_eq!(node(&rows.children[1]).row_index(), Some(0));
+        assert_eq!(node(&rows.children[0].children[1]).column_index(), Some(1));
+        assert_eq!(node(&rows.children[0].children[1]).row_index(), Some(1));
     }
 
     #[test]
