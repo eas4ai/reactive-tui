@@ -308,9 +308,6 @@ impl<P: RasterPlane> Graphics<P> {
             .map(RasterPlane::id)
             .collect();
         self.shared.keep(&canvases);
-        if let Some(maker) = &self.maker {
-            maker.keep(canvases);
-        }
         self.in_place = in_place;
         self.possible_ids.extend(
             next.iter()
@@ -344,7 +341,7 @@ impl<P: RasterPlane> Graphics<P> {
             below,
             raster_bytes,
             room,
-            &mut self.shared,
+            &mut Objects::Written(&mut self.shared),
         )?;
         if plane.canvas().is_some() && !kept {
             let thread = std::thread::current();
@@ -377,6 +374,7 @@ impl<P: RasterPlane> Graphics<P> {
                 .iter()
                 .position(|plane| plane.id() == made.plane.id())
             else {
+                made.drop_unwritten();
                 continue;
             };
             let current = &self.last[index];
@@ -394,10 +392,16 @@ impl<P: RasterPlane> Graphics<P> {
                         again = true;
                     }
                 }
+                made.drop_unwritten();
                 continue;
             }
             if let Some(covered) = self.coverage.get_mut(index) {
                 *covered = made.covered;
+            }
+            // The object is the record's now, which keeps it while the
+            // terminal may read it (GFX-005).
+            if let Some(name) = made.object {
+                self.shared.written(made.plane.id(), name);
             }
             self.made_on.push(made.thread);
             pictures.push(made.bytes);
@@ -521,9 +525,6 @@ impl<P: RasterPlane> Graphics<P> {
     }
     pub fn cleanup(&self) -> Vec<u8> {
         self.shared.forget();
-        if let Some(maker) = &self.maker {
-            maker.forget();
-        }
         let mut bytes = if self.possible_legacy {
             b"\x1b[2J".to_vec()
         } else {
@@ -541,8 +542,8 @@ impl<P: RasterPlane> Graphics<P> {
 
 /// The cells `plane` covers and the bytes that show it, of at most `room`
 /// bytes; no bytes for a plane that is `kept` as it is. A canvas's Kitty
-/// picture goes through the shared-memory objects of `shared` where the
-/// host reads them.
+/// picture goes through a shared-memory object where the host reads it,
+/// kept by `objects`.
 #[allow(clippy::too_many_arguments)]
 fn draw_plane<P: RasterPlane>(
     plane: &P,
@@ -553,7 +554,7 @@ fn draw_plane<P: RasterPlane>(
     below: &mut PixelLayers,
     raster_bytes: &mut usize,
     room: usize,
-    shared: &mut shared::Pictures,
+    objects: &mut Objects<'_>,
 ) -> Result<(coverage::Coverage, Vec<u8>)> {
     let pixels = plane.raster(cell)?;
     let rastered = raster_bytes.saturating_add(pixels.as_raw().len());
@@ -573,7 +574,7 @@ fn draw_plane<P: RasterPlane>(
         ImageProtocol::Kitty => plane
             .canvas()
             .filter(|picture| picture.shared_memory)
-            .and_then(|_| shared.kitty(&pixels, plane.id(), plane.z_index(z)))
+            .and_then(|_| objects.kitty(&pixels, plane.id(), plane.z_index(z)))
             .unwrap_or_else(|| {
                 ProtocolRenderer::kitty_pixels(&pixels, plane.id(), plane.z_index(z), true)
             }),
@@ -640,6 +641,28 @@ fn draw_plane<P: RasterPlane>(
     bytes.extend_from_slice(output.as_bytes());
     bytes.extend_from_slice(sixel_modes.1);
     Ok((covered, bytes))
+}
+
+/// Who keeps the shared-memory object of a canvas's Kitty picture: the
+/// record of written pictures, for a picture written as it is drawn, or the
+/// picture made ready apart, which names it until the worker writes or
+/// drops the picture (GFX-005, GFX-009).
+enum Objects<'a> {
+    Written(&'a mut shared::Pictures),
+    Made(&'a mut Option<String>),
+}
+
+impl Objects<'_> {
+    fn kitty(&mut self, pixels: &image::RgbaImage, id: u32, z: i32) -> Option<String> {
+        match self {
+            Self::Written(pictures) => pictures.kitty(pixels, id, z),
+            Self::Made(object) => {
+                let (command, name) = shared::make(pixels, id, z)?;
+                **object = Some(name);
+                Some(command)
+            }
+        }
+    }
 }
 
 /// Sparse cell tiles keep alpha composition proportional to painted pixels,

@@ -7,8 +7,10 @@
 //! canvas has its own list, so a frame of many canvases never removes a
 //! picture it has just made for another of them.
 
-/// The shared-memory objects this process made and may still have to
-/// remove, by the canvas they show, oldest first.
+/// The shared-memory objects of the pictures written, which this process
+/// may still have to remove, by the canvas they show, oldest first. The
+/// object of a picture made ready apart is the maker's until the worker
+/// writes the picture or drops it (GFX-009).
 #[derive(Default)]
 pub(super) struct Pictures {
     #[cfg(unix)]
@@ -20,41 +22,66 @@ pub(super) struct Pictures {
 #[cfg(unix)]
 const WAITING: usize = 2;
 
+/// A new shared-memory object holding `pixels`, and the Kitty command that
+/// shows it as image `id` at the cursor; `None` when the object cannot be
+/// made, and the picture is then sent in the command itself. The caller
+/// owns the object: [`Pictures::written`] takes it once its picture is
+/// written, and [`unlink`] removes it when it is not.
+#[cfg(unix)]
+pub fn make(pixels: &image::RgbaImage, id: u32, z: i32) -> Option<(String, String)> {
+    use base64::Engine;
+    use rustix::fs::Mode;
+    use rustix::shm;
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let name = format!(
+        "/rtui-canvas-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    );
+    // A leftover from an earlier process with this id is not ours to keep.
+    let _ = shm::unlink(name.as_str());
+    let flags = shm::OFlags::CREATE | shm::OFlags::EXCL | shm::OFlags::RDWR;
+    let object = shm::open(name.as_str(), flags, Mode::RUSR | Mode::WUSR).ok()?;
+    if fill(object, pixels.as_raw()).is_none() {
+        let _ = shm::unlink(name.as_str());
+        return None;
+    }
+    let (width, height) = pixels.dimensions();
+    let encoded = base64::engine::general_purpose::STANDARD.encode(name.as_bytes());
+    Some((
+        format!("\x1b_Ga=T,f=32,t=s,s={width},v={height},i={id},q=2,C=1,z={z};{encoded}\x1b\\"),
+        name,
+    ))
+}
+
+/// Remove the shared-memory object `name`, whose picture is not written.
+#[cfg(unix)]
+pub fn unlink(name: &str) {
+    let _ = rustix::shm::unlink(name);
+}
+
 #[cfg(unix)]
 impl Pictures {
     /// The Kitty command that shows `pixels` from shared memory as image
-    /// `id` at the cursor; `None` when the object cannot be made, and the
-    /// picture is then sent in the command itself.
+    /// `id` at the cursor, its picture written now; `None` when the object
+    /// cannot be made, and the picture is then sent in the command itself.
     pub fn kitty(&mut self, pixels: &image::RgbaImage, id: u32, z: i32) -> Option<String> {
-        use base64::Engine;
-        use rustix::fs::Mode;
-        use rustix::shm;
-        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let (command, name) = make(pixels, id, z)?;
+        self.written(id, name);
+        Some(command)
+    }
+
+    /// The picture of canvas `id` whose object is `name` is being written.
+    /// The terminal may still read the one before it; older objects of the
+    /// canvas are removed.
+    pub fn written(&mut self, id: u32, name: String) {
         let names = self.names.entry(id).or_default();
         while names.len() >= WAITING {
-            if let Some(name) = names.pop_front() {
-                let _ = shm::unlink(name.as_str());
+            if let Some(old) = names.pop_front() {
+                unlink(&old);
             }
         }
-        let name = format!(
-            "/rtui-canvas-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        );
-        // A leftover from an earlier process with this id is not ours to keep.
-        let _ = shm::unlink(name.as_str());
-        let flags = shm::OFlags::CREATE | shm::OFlags::EXCL | shm::OFlags::RDWR;
-        let object = shm::open(name.as_str(), flags, Mode::RUSR | Mode::WUSR).ok()?;
-        if fill(object, pixels.as_raw()).is_none() {
-            let _ = shm::unlink(name.as_str());
-            return None;
-        }
-        names.push_back(name.clone());
-        let (width, height) = pixels.dimensions();
-        let name = base64::engine::general_purpose::STANDARD.encode(name.as_bytes());
-        Some(format!(
-            "\x1b_Ga=T,f=32,t=s,s={width},v={height},i={id},q=2,C=1,z={z};{name}\x1b\\"
-        ))
+        names.push_back(name);
     }
 
     /// Remove every object the terminal has not read.
@@ -123,13 +150,23 @@ impl Drop for Pictures {
     }
 }
 
+/// Shared memory is sent on Unix only; elsewhere the picture is sent in the
+/// command itself.
+#[cfg(not(unix))]
+pub fn make(_: &image::RgbaImage, _: u32, _: i32) -> Option<(String, String)> {
+    None
+}
+
+#[cfg(not(unix))]
+pub fn unlink(_: &str) {}
+
 #[cfg(not(unix))]
 impl Pictures {
-    /// Shared memory is sent on Unix only; elsewhere the picture is sent
-    /// in the command itself.
     pub fn kitty(&mut self, _: &image::RgbaImage, _: u32, _: i32) -> Option<String> {
         None
     }
+
+    pub fn written(&mut self, _: u32, _: String) {}
 
     pub fn forget(&self) {}
 

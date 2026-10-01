@@ -3,9 +3,10 @@
 //! (GFX-009): copied out of the canvas's frame, written to shared memory,
 //! or encoded as base64 or Sixel. The backend's worker hands each canvas's
 //! newest picture over and goes on; a picture handed over while another of
-//! the same canvas still waits replaces it, so at most one waits. The
-//! thread owns the shared-memory objects it makes (GFX-005), and removes
-//! those the terminal has not read when it stops.
+//! the same canvas still waits replaces it, so at most one waits. A
+//! picture sent through shared memory names its object; the worker keeps
+//! it once it writes the picture, and an object whose picture is never
+//! written is removed (GFX-005).
 
 use super::{coverage::Coverage, draw_plane, shared, PixelLayers, RasterPlane};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -35,6 +36,17 @@ pub(super) struct Made<P> {
     pub thread: String,
     /// Whether no newer picture of its canvas waited when it was ready.
     pub latest: bool,
+    /// The shared-memory object the picture's Kitty command names.
+    pub object: Option<String>,
+}
+
+impl<P> Made<P> {
+    /// The picture is not written: its shared-memory object goes.
+    pub fn drop_unwritten(self) {
+        if let Some(name) = self.object {
+            shared::unlink(&name);
+        }
+    }
 }
 
 /// What the worker asks of the thread, and the picture it works on.
@@ -43,11 +55,6 @@ struct Queue<P> {
     waiting: Vec<Job<P>>,
     /// Whether a picture is being made ready.
     working: bool,
-    /// The canvases still shown, when that changed: the shared-memory
-    /// objects of the others are removed.
-    keep: Option<Vec<u32>>,
-    /// Remove every shared-memory object the terminal has not read.
-    forget: bool,
     stop: bool,
 }
 
@@ -69,8 +76,6 @@ impl<P: RasterPlane> Maker<P> {
             Mutex::new(Queue {
                 waiting: Vec::new(),
                 working: false,
-                keep: None,
-                forget: false,
                 stop: false,
             }),
             Condvar::new(),
@@ -106,20 +111,6 @@ impl<P: RasterPlane> Maker<P> {
         ready.notify_one();
     }
 
-    /// Remove the shared-memory objects of every canvas but those `shown`.
-    pub fn keep(&self, shown: Vec<u32>) {
-        let (queue, ready) = &*self.queue;
-        lock(queue).keep = Some(shown);
-        ready.notify_one();
-    }
-
-    /// Remove every shared-memory object the terminal has not read.
-    pub fn forget(&self) {
-        let (queue, ready) = &*self.queue;
-        lock(queue).forget = true;
-        ready.notify_one();
-    }
-
     /// Whether a picture waits or is being made ready. Asked before the
     /// pictures made so far are taken: a picture made after that was
     /// waiting or being made when this answered.
@@ -135,7 +126,12 @@ impl<P: RasterPlane> Maker<P> {
     pub fn made(&self) -> Vec<Made<P>> {
         let mut newest: Vec<Made<P>> = Vec::new();
         for made in self.made.try_iter() {
-            newest.retain(|kept| kept.plane.id() != made.plane.id());
+            if let Some(older) = newest
+                .iter()
+                .position(|kept| kept.plane.id() == made.plane.id())
+            {
+                newest.remove(older).drop_unwritten();
+            }
             newest.push(made);
         }
         newest
@@ -149,8 +145,9 @@ impl<P: RasterPlane> Maker<P> {
 }
 
 impl<P> Drop for Maker<P> {
-    /// Stop the thread once it has made the picture it works on, and wait
-    /// for it, so the shared-memory objects it made are removed.
+    /// Stop the thread once it has made the picture it works on, wait for
+    /// it, and remove the shared-memory objects of the pictures made and
+    /// never written.
     fn drop(&mut self) {
         let (queue, ready) = &*self.queue;
         lock(queue).stop = true;
@@ -158,24 +155,20 @@ impl<P> Drop for Maker<P> {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
+        for made in self.made.try_iter() {
+            made.drop_unwritten();
+        }
     }
 }
 
 fn run<P: RasterPlane>(queue: &(Mutex<Queue<P>>, Condvar), made: &mpsc::Sender<Made<P>>) {
     crate::platform::keep_full_speed();
     let thread = std::thread::current().name().unwrap_or_default().to_owned();
-    let mut objects = shared::Pictures::default();
     let (lock_queue, ready) = queue;
     loop {
         let job = {
             let mut queue = lock(lock_queue);
             loop {
-                if let Some(shown) = queue.keep.take() {
-                    objects.keep(&shown);
-                }
-                if std::mem::take(&mut queue.forget) {
-                    objects.forget();
-                }
                 if queue.stop {
                     return;
                 }
@@ -195,6 +188,7 @@ fn run<P: RasterPlane>(queue: &(Mutex<Queue<P>>, Condvar), made: &mpsc::Sender<M
             mut below,
         } = job;
         let mut rastered = 0;
+        let mut object = None;
         // A panic while a picture is made ready ends neither the thread nor
         // the App: the picture is refused as any other that cannot be
         // made.
@@ -208,7 +202,7 @@ fn run<P: RasterPlane>(queue: &(Mutex<Queue<P>>, Condvar), made: &mpsc::Sender<M
                 &mut below,
                 &mut rastered,
                 ROOM,
-                &mut objects,
+                &mut super::Objects::Made(&mut object),
             )
         }))
         .unwrap_or_else(|_| {
@@ -218,7 +212,14 @@ fn run<P: RasterPlane>(queue: &(Mutex<Queue<P>>, Condvar), made: &mpsc::Sender<M
         });
         // A picture that cannot be shown is left out and the canvas is told
         // why (GFX-007).
-        let drawn = drawn.map_err(|error| plane.refuse(&error.to_string())).ok();
+        let drawn = drawn
+            .map_err(|error| {
+                if let Some(name) = object.take() {
+                    shared::unlink(&name);
+                }
+                plane.refuse(&error.to_string());
+            })
+            .ok();
         // The picture goes to the worker before the thread says it is no
         // longer working, so a worker that saw it working takes it.
         let mut queue = lock(lock_queue);
@@ -234,7 +235,9 @@ fn run<P: RasterPlane>(queue: &(Mutex<Queue<P>>, Condvar), made: &mpsc::Sender<M
                     bytes,
                     thread: thread.clone(),
                     latest,
+                    object: object.take(),
                 })
+                .map_err(|unsent| unsent.0.drop_unwritten())
                 .is_err()
             }
             None => false,
@@ -461,6 +464,133 @@ mod tests {
             "GFX-009: with the picture thread unable to start the canvas was told {told:?} and the frame sent {:?}; once it could start, {} pictures were written, made on {made_on:?}",
             String::from_utf8_lossy(&first),
             written.len()
+        );
+    }
+
+    /// A canvas's Kitty picture sent through shared memory, which takes
+    /// `slow` to copy out, the next picture of the one before it.
+    #[cfg(unix)]
+    #[derive(Clone, PartialEq)]
+    struct Shared {
+        frame: u32,
+        slow: Duration,
+    }
+    #[cfg(unix)]
+    impl RasterPlane for Shared {
+        fn id(&self) -> u32 {
+            11
+        }
+        fn protocol(&self) -> ImageProtocol {
+            ImageProtocol::Kitty
+        }
+        fn quality(&self) -> crate::widgets::ImageQuality {
+            crate::widgets::ImageQuality::Fast
+        }
+        fn position(&self) -> (u32, u32) {
+            (0, 0)
+        }
+        fn raster(&self, _: (u16, u16)) -> Result<image::RgbaImage> {
+            std::thread::sleep(self.slow);
+            Ok(image::RgbaImage::from_pixel(
+                4,
+                4,
+                image::Rgba([7, 7, 7, 255]),
+            ))
+        }
+        fn background(&self, _: u32, _: u32, _: (u16, u16)) -> image::Rgba<u8> {
+            image::Rgba([0, 0, 0, 255])
+        }
+        fn cells(&self) -> (u32, u32) {
+            (4, 4)
+        }
+        fn canvas(&self) -> Option<crate::widgets::display::image::paint::CanvasPicture> {
+            Some(crate::widgets::display::image::paint::CanvasPicture {
+                shared_memory: true,
+            })
+        }
+        fn replaces(&self, _: &Self) -> bool {
+            true
+        }
+    }
+
+    /// The shared-memory object each Kitty picture in `bytes` names.
+    #[cfg(unix)]
+    fn objects(bytes: &[u8]) -> Vec<String> {
+        use base64::Engine;
+        String::from_utf8_lossy(bytes)
+            .split("\x1b_G")
+            .filter(|command| command.contains("t=s"))
+            .filter_map(|command| {
+                let name = command.split_once(';')?.1.split_once('\x1b')?.0;
+                let name = base64::engine::general_purpose::STANDARD
+                    .decode(name)
+                    .ok()?;
+                String::from_utf8(name).ok()
+            })
+            .collect()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn gfx_005_a_picture_being_written_keeps_its_shared_memory_while_later_ones_are_made() {
+        use crate::backend::suprtui::graphics::Graphics;
+        let wait = |graphics: &Graphics<Shared>| {
+            let started = Instant::now();
+            while graphics.making() {
+                assert!(
+                    started.elapsed() < Duration::from_secs(5),
+                    "the pictures were not made"
+                );
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        };
+        let mut graphics = Graphics::<Shared>::default();
+        graphics.make_pictures_apart();
+        let picture = |frame, slow| Shared { frame, slow };
+        graphics
+            .prepare(&[picture(0, Duration::ZERO)], (1, 1), false)
+            .expect("a frame");
+        graphics.acknowledge(vec![picture(0, Duration::ZERO)]);
+        wait(&graphics);
+        // The worker takes the picture and starts to write it; the terminal
+        // reads its object only once the write is through.
+        let (written, _) = graphics.take_made((1, 1));
+        let names: Vec<String> = written.iter().flat_map(|bytes| objects(bytes)).collect();
+        // Meanwhile a slow picture is made and a quick one waits behind it.
+        graphics
+            .prepare(&[picture(1, Duration::from_millis(100))], (1, 1), false)
+            .expect("a frame");
+        graphics.acknowledge(vec![picture(1, Duration::from_millis(100))]);
+        let started = Instant::now();
+        let maker = |graphics: &Graphics<Shared>| graphics.maker.as_ref().map_or(1, Maker::waiting);
+        while !graphics.making() || maker(&graphics) > 0 {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "the thread took no picture"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        graphics
+            .prepare(&[picture(2, Duration::ZERO)], (1, 1), false)
+            .expect("a frame");
+        graphics.acknowledge(vec![picture(2, Duration::ZERO)]);
+        wait(&graphics);
+        let there: Vec<bool> = names
+            .iter()
+            .map(|name| {
+                rustix::shm::open(
+                    name.as_str(),
+                    rustix::shm::OFlags::RDONLY,
+                    rustix::fs::Mode::empty(),
+                )
+                .is_ok()
+            })
+            .collect();
+        // What the test made is not left behind.
+        drop(graphics);
+        assert!(
+            names.len() == 1 && there == [true],
+            "GFX-005: the picture being written named the objects {names:?}; after two more pictures were made, they were there: {there:?}"
         );
     }
 }

@@ -401,11 +401,12 @@ impl RootComponent for Row {
     }
 }
 
-/// A terminal that notes, when output reaches it, whether the shared-memory
-/// object each Kitty picture names is there to be read.
+/// A terminal that notes, when output reaches it and `delay` later, whether
+/// the shared-memory object each Kitty picture names is there to be read.
 #[cfg(target_os = "linux")]
 #[derive(Clone, Default)]
 struct SharedReader {
+    delay: Duration,
     pending: Arc<Mutex<Vec<u8>>>,
     /// For each picture, in the order they came, its image id and whether
     /// its object was there.
@@ -419,6 +420,7 @@ impl Write for SharedReader {
     }
     fn flush(&mut self) -> io::Result<()> {
         use base64::Engine;
+        std::thread::sleep(self.delay);
         let chunk = std::mem::take(&mut *self.pending.lock().unwrap());
         let chunk = String::from_utf8_lossy(&chunk);
         let found = chunk
@@ -482,6 +484,45 @@ fn gfx_005_every_canvas_of_a_frame_keeps_its_shared_picture() {
         found.len(),
         canvases.len(),
         &missing[..missing.len().min(6)]
+    );
+}
+
+// The objects are looked for where Linux keeps them, in /dev/shm.
+#[cfg(target_os = "linux")]
+#[test]
+fn gfx_005_a_slow_terminal_finds_the_shared_memory_of_every_picture_it_is_sent() {
+    // The terminal reads each picture's object 150 ms after it was sent,
+    // while the canvas's next pictures are made ready apart (GFX-009); an
+    // object that the making of later pictures removes is not there.
+    let shared = ImageOutputOptions {
+        kitty_graphics: true,
+        kitty_shared_memory: true,
+        ..Default::default()
+    };
+    let terminal = SharedReader {
+        delay: Duration::from_millis(150),
+        ..Default::default()
+    };
+    let backend = SuprTuiBackend::with_writer_and_images(60, 20, terminal.clone(), shared).unwrap();
+    App::builder()
+        .backend(backend)
+        .root(Spinner {
+            frame: 0,
+            frames: 40,
+            held: None,
+            options: reference_options(true),
+            scene: spinning_cube,
+        })
+        .build()
+        .unwrap()
+        .run()
+        .unwrap();
+    let found = terminal.found.lock().unwrap();
+    let missing = found.iter().filter(|(_, there)| !there).count();
+    assert!(
+        found.len() >= 3 && missing == 0,
+        "GFX-005: of {} pictures sent through shared memory to a terminal that reads 150 ms later, {missing} had no object by then",
+        found.len()
     );
 }
 
