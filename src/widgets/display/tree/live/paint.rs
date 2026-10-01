@@ -319,8 +319,15 @@ impl LiveTree {
             .children(rows)
             .build()
             .with_key("viewport");
-        // Give an auto-sized flex parent the tree's intrinsic width. The rows
-        // themselves are absolute so scrolling cannot move the viewport.
+        // Give an auto-sized parent the tree's natural size: the rows are
+        // absolute, so this child carries their width and their count.
+        let bordered = border::enabled(&props.border);
+        let natural = self
+            .rows
+            .len()
+            .max(1)
+            .saturating_add(usize::from(bordered) * 2)
+            .min(u16::MAX as usize);
         let intrinsic_width = self
             .rows
             .iter()
@@ -331,10 +338,10 @@ impl LiveTree {
             .styles(
                 StyleBuilder::new()
                     .width_px(intrinsic_width as f32)
-                    .height_px(0.0),
+                    .height_px(natural as f32),
             )
             .build()
-            .with_key("intrinsic-width");
+            .with_key("intrinsic-size");
         let mut children = vec![content, intrinsic];
         if let Some(layout) = self.viewport {
             children.extend(border::elements(
@@ -343,16 +350,10 @@ impl LiveTree {
                 layout.size.1.max(0.0) as usize,
             ));
         }
-        let bordered = border::enabled(&props.border);
-        let natural = self
-            .rows
-            .len()
-            .max(1)
-            .saturating_add(usize::from(bordered) * 2)
-            .min(u16::MAX as usize);
         // The box is its parent's background with no fill of its own
-        // (DAT-001), and fills the width and the height its parent allots
-        // unless the props set a size (DAT-002).
+        // (DAT-001). It fills the width and the height its parent allots,
+        // and takes its natural size in a parent that allots none, unless
+        // the props set a size (DAT-002).
         let mut style = StyleBuilder::new()
             .display_flex()
             .direction(Direction::Column)
@@ -365,7 +366,7 @@ impl LiveTree {
                 .max_height_percent(100.0),
             (None, None) => style
                 .height_percent(100.0)
-                .min_height_px(natural as f32)
+                .min_height_px(0.0)
                 .max_height_percent(100.0),
         };
         style = match props.width {

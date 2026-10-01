@@ -1,4 +1,4 @@
-use super::{click, key, run, Control};
+use super::{app_input::run_when, click, key, run, Control};
 use reactive_tui::{
     component::Element,
     event::types::{Event, KeyCode, ResizeEvent},
@@ -140,9 +140,11 @@ fn table_scrolls_sorted_rows_and_skips_disabled_rows() {
                 (7, None),
             ],
         );
+        // The cursor starts on Row00 when the table takes the focus, so the
+        // first Down moves past the disabled Row01 to Row02 (DAT-001).
         assert_eq!(
             *calls.lock().unwrap(),
-            vec![Some(0), Some(2), Some(3), Some(11)]
+            vec![Some(2), Some(3), Some(4), Some(11)]
         );
         assert!(
             frames.last().unwrap().text.contains("Row11"),
@@ -278,10 +280,10 @@ fn table_without_explicit_height_scrolls_within_the_terminal() {
         config.rows = (0..40)
             .map(|i| TableRow::new(&i.to_string()).with_cell("name", &format!("Row{i:02}")))
             .collect();
-        let frames = run(
+        let frames = run_when(
             Control(Table::with_props(config).auto_focus()),
             size,
-            vec![(2, key(KeyCode::End)), (3, None)],
+            vec![("Row05", key(KeyCode::End)), ("Row39", None)],
         );
         assert!(
             frames.last().unwrap().text.contains("Row39"),
@@ -295,7 +297,7 @@ fn table_without_explicit_height_scrolls_within_the_terminal() {
 fn table_column_width_alignment_and_cell_styles_reach_the_frame() {
     use reactive_tui::widgets::display::{table::TableCell, Alignment};
     for size in [(24, 7), (48, 12)] {
-        let mut auto = TableColumn::new("A", "a");
+        let mut auto = TableColumn::new("A", "a").with_width(DisplaySize::Auto);
         auto.min_width = 1;
         auto.max_width = Some(8);
         auto.alignment = Alignment::End;
@@ -474,9 +476,11 @@ fn table_multi_selection_cell_actions_and_inert_inputs() {
                 (5, None),
             ],
         );
+        // The cursor starts on Zed; Down moves past the disabled Ada to Bea,
+        // and Shift+Down wraps to Zed.
         assert_eq!(
             *multi.lock().unwrap(),
-            vec![vec![0], vec![0, 2], vec![2]],
+            vec![vec![2], vec![2, 0], vec![2]],
             "{}",
             frames.last().unwrap().text
         );
@@ -555,14 +559,16 @@ fn table_keeps_selected_row_identity_when_props_reorder() {
                 (4, None),
             ],
         );
+        // Down moves the cursor from Zed to Ada and selects it; Ada is the
+        // second row once the props reorder, and the row's identity holds.
         assert_eq!(
             *actions.lock().unwrap(),
-            vec![2],
+            vec![1],
             "{}",
             frames.last().unwrap().text
         );
         assert!(
-            frames.last().unwrap().screen.cell(3, 1).unwrap().bgcolor() != vt100::Color::Default
+            frames.last().unwrap().screen.cell(2, 1).unwrap().bgcolor() != vt100::Color::Default
         );
     }
 }

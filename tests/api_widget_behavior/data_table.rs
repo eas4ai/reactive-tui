@@ -41,10 +41,12 @@ fn data_table_pages_sort_before_slicing_and_report_source_indices() {
         let frames = run(
             Control(Element::typed::<DataTable>(props)),
             size,
+            // The table fills the height its parent allots (DAT-002), so the
+            // page controls sit on the last row.
             vec![
                 (2, click(1, 0)),
                 (3, click(1, 1)),
-                (4, click(6, 3)),
+                (4, click(6, size.1 - 1)),
                 (5, click(1, 1)),
                 (6, None),
             ],
@@ -510,9 +512,9 @@ fn data_table_multi_selection_keeps_cursor_and_selections_across_pages() {
             size,
             vec![
                 (2, click(1, 1)),
-                (3, click(6, 3)),
+                (3, click(6, size.1 - 1)),
                 (4, click(1, 1)),
-                (5, click(1, 3)),
+                (5, click(1, size.1 - 1)),
                 (6, None),
             ],
         );

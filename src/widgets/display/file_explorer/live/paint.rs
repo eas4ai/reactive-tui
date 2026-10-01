@@ -102,31 +102,36 @@ impl Explorer {
         let cursor = self.focused && listing && self.cursor.as_ref() == Some(path);
         let selected = self.selected.contains(path);
         let hovered = self.hover.as_ref() == Some(path);
-        let mut pieces = vec![ElementBuilder::new(ElementType::Text(format!(
-            "{} {}",
-            row.entry.icon,
-            safe_text(&row.entry.name)
-        )))
-        .styles(StyleBuilder::new().height_px(1.0).flex_shrink(0.0))
-        .class("whitespace-pre")
-        .build()];
-        // The details give way before the name when the row is narrow.
+        // Each piece has its measured width, so its spaces are kept; the
+        // details give way before the name when the row is narrow.
+        let label = format!("{} {}", row.entry.icon, safe_text(&row.entry.name));
+        let mut pieces = vec![ElementBuilder::new(ElementType::Text(label.clone()))
+            .styles(
+                StyleBuilder::new()
+                    .width_px(UnicodeWidthStr::width(label.as_str()) as f32)
+                    .height_px(1.0)
+                    .flex_shrink(0.0),
+            )
+            .class("whitespace-pre")
+            .build()];
         if self.config.show_details && self.config.view_mode != ViewMode::Grid {
+            let details = format!(
+                "  {}  {}",
+                row.entry.format_size(),
+                row.entry.format_modified()
+            );
             pieces.push(
-                ElementBuilder::new(ElementType::Text(format!(
-                    "  {}  {}",
-                    row.entry.format_size(),
-                    row.entry.format_modified()
-                )))
-                .styles(
-                    StyleBuilder::new()
-                        .height_px(1.0)
-                        .flex_shrink(1.0)
-                        .min_width_px(0.0)
-                        .overflow_hidden(),
-                )
-                .class(&format!("whitespace-pre truncate {}", look::MUTED))
-                .build(),
+                ElementBuilder::new(ElementType::Text(details.clone()))
+                    .styles(
+                        StyleBuilder::new()
+                            .width_px(UnicodeWidthStr::width(details.as_str()) as f32)
+                            .height_px(1.0)
+                            .flex_shrink(1.0)
+                            .min_width_px(0.0)
+                            .overflow_hidden(),
+                    )
+                    .class(&format!("whitespace-pre {}", look::MUTED))
+                    .build(),
             );
         }
         let tree = self.config.view_mode == ViewMode::Tree;
@@ -503,8 +508,23 @@ impl Explorer {
             )
             .children(children)
             .build();
+        let natural_height = self.header_rows()
+            + 1
+            + usize::from(self.config.show_preview) * 3
+            + self
+                .rows
+                .len()
+                .max(1)
+                .div_ceil(columns)
+                .min((self.config.max_visible_items / columns).max(1));
+        // The rows are absolute, so this child gives an auto-sized parent the
+        // explorer's natural size.
         let intrinsic = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
-            .styles(StyleBuilder::new().width_px(24.0).height_px(0.0))
+            .styles(
+                StyleBuilder::new()
+                    .width_px(24.0)
+                    .height_px(natural_height.min(u16::MAX as usize) as f32),
+            )
             .build();
         let mut node = Node::new(if self.config.view_mode == ViewMode::Tree {
             Role::Tree
@@ -516,25 +536,16 @@ impl Explorer {
         if let Some(label) = &self.config.aria_label {
             node.set_label(label.clone());
         }
-        let natural_height = self.header_rows()
-            + 1
-            + usize::from(self.config.show_preview) * 3
-            + self
-                .rows
-                .len()
-                .max(1)
-                .div_ceil(columns)
-                .min((self.config.max_visible_items / columns).max(1));
-        // The explorer fills the width and the height its parent allots
-        // unless the props set a size (DAT-002).
+        // The explorer fills the width and the height its parent allots,
+        // and takes its natural size in a parent that allots none, unless
+        // the props set a size (DAT-002).
         let mut style = StyleBuilder::new()
             .max_height_percent(100.0)
+            .min_height_px(0.0)
             .overflow_hidden();
         style = match self.config.height {
             Some(height) => style.height_px(height as f32),
-            None => style
-                .height_percent(100.0)
-                .min_height_px(natural_height.min(u16::MAX as usize) as f32),
+            None => style.height_percent(100.0),
         };
         style = match self.config.width {
             Some(width) => style.width_px(width as f32),
