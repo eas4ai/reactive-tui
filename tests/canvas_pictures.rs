@@ -431,6 +431,121 @@ fn gfx_009_a_picture_is_never_written_over_cells_that_cover_its_canvas() {
     );
 }
 
+/// A root that turns the cube on a canvas that fills the screen, under a
+/// canvas of shapes that never changes, over part of it, while `turn` says
+/// so, then holds the last angle for `hold` and stops.
+struct Stacked {
+    frame: usize,
+    turn: Box<dyn Fn(usize) -> bool + Send + Sync>,
+    hold: Duration,
+    held: Option<Instant>,
+}
+impl RootComponent for Stacked {
+    fn render(&self) -> Element {
+        use reactive_tui::builder::core::div;
+        let angle = self.frame as f32 * 0.02;
+        let turning = CanvasProps::new(Arc::new(canvas_support::cube_in_view(angle, angle * 0.7)))
+            .view(canvas_support::SIZE.0 as f32, canvas_support::SIZE.1 as f32)
+            .options(reference_options(false));
+        let still =
+            CanvasProps::new(Arc::new(canvas_support::shapes())).options(reference_options(false));
+        div()
+            .class("relative w-full h-full")
+            .children(vec![
+                Element::typed::<Canvas>(turning),
+                div()
+                    .class("absolute left-10 top-4 w-16 h-6")
+                    .children(vec![Element::typed::<Canvas>(still)])
+                    .build(),
+            ])
+            .build()
+    }
+    fn update(&mut self) -> Result<RootUpdate> {
+        if (self.turn)(self.frame + 1) {
+            self.frame += 1;
+            return Ok(RootUpdate::Redraw);
+        }
+        let held = *self.held.get_or_insert_with(Instant::now);
+        Ok(if held.elapsed() >= self.hold {
+            RootUpdate::Exit
+        } else {
+            RootUpdate::Unchanged
+        })
+    }
+    /// The backend writes to memory and has no terminal to read keys from.
+    fn accepts_input(&self) -> bool {
+        false
+    }
+}
+
+#[test]
+#[serial_test::serial(gpu)]
+fn gfx_009_a_picture_made_ready_late_is_never_written_over_a_picture_above_it() {
+    // A Sixel picture is drawn over whatever the screen shows, so the one
+    // written last is the one seen. The turning canvas's pictures are made
+    // ready after their frames; the still canvas over it, at columns 10 to
+    // 25 and rows 4 to 9, has to stay on top of each of them.
+    let terminal = Terminal::keeping();
+    let pictures = Arc::clone(&terminal.pictures);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let inner = SuprTuiBackend::with_writer_and_images(
+        60,
+        20,
+        terminal.clone(),
+        ImageOutputOptions {
+            sixel: true,
+            ..Default::default()
+        },
+    )
+    .expect("a backend that writes to memory");
+    App::builder()
+        .backend(inner)
+        .root(Stacked {
+            frame: 0,
+            turn: Box::new(move |_| {
+                pictures.load(Ordering::SeqCst) < 12 && Instant::now() < deadline
+            }),
+            hold: Duration::from_millis(500),
+            held: None,
+        })
+        .build()
+        .expect("an App")
+        .run()
+        .expect("the App runs to its end");
+    let kept = terminal.kept.as_ref().unwrap().lock().unwrap();
+    let output = String::from_utf8_lossy(&kept);
+    // Which picture drew each pixel of the still canvas's cells last: the
+    // still canvas's own, which starts on its corner, or another.
+    let (left, top, columns, rows) = (10, 4, 16, 6);
+    let mut last = vec![None; columns * CELL.0 * rows * CELL.1];
+    let mut written = 0;
+    for (index, _) in output.match_indices(SIXEL) {
+        let Some(origin) = last_cursor_move(&output[..index]) else {
+            continue;
+        };
+        written += 1;
+        let still = origin == (top, left);
+        let (size, set) = canvas_support::sixel_pixels(&output[index + SIXEL.len()..]);
+        for y in 0..size.1 {
+            for x in 0..size.0 {
+                let (column, row) = (origin.1 * CELL.0 + x, origin.0 * CELL.1 + y);
+                let inside = (left * CELL.0..(left + columns) * CELL.0).contains(&column)
+                    && (top * CELL.1..(top + rows) * CELL.1).contains(&row);
+                if set[y * size.0 + x] && inside {
+                    last[(row - top * CELL.1) * columns * CELL.0 + column - left * CELL.0] =
+                        Some(still);
+                }
+            }
+        }
+    }
+    let over = last.iter().filter(|owner| **owner == Some(false)).count();
+    let shown = last.iter().filter(|owner| **owner == Some(true)).count();
+    assert!(
+        written >= 4 && shown > 0 && over == 0,
+        "GFX-009: of {written} Sixel pictures, the turning canvas's were drawn last over {over} pixels of the still canvas above it, which kept {shown}"
+    );
+}
+
 /// The zero-based row and column of the last cursor move in `text`.
 fn last_cursor_move(text: &str) -> Option<(usize, usize)> {
     text.rmatch_indices("\x1b[").find_map(|(at, _)| {
