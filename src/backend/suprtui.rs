@@ -156,6 +156,9 @@ pub struct SuprTuiBackend {
     layout_nodes_built: u64,
     layout_measured_elements: Vec<usize>,
     inverse_cells: u64,
+    /// How many canvas pictures each thread has made ready, by thread name
+    /// (GFX-009).
+    picture_threads: std::collections::BTreeMap<String, u64>,
     /// Geometry of the last frame whose flush the worker acknowledged; the
     /// fallback when a present reports the previous frame's failure (PIP-002).
     acknowledged: Acknowledged,
@@ -297,6 +300,7 @@ impl SuprTuiBackend {
             layout_nodes_built: 0,
             layout_measured_elements: Vec::new(),
             inverse_cells: 0,
+            picture_threads: std::collections::BTreeMap::new(),
             acknowledged: Acknowledged::default(),
             raw_mode: None,
             input: None,
@@ -345,6 +349,13 @@ impl SuprTuiBackend {
     /// cells by subtraction and add none (PNT-001).
     pub fn inverse_transformed_cells(&self) -> u64 {
         self.inverse_cells
+    }
+
+    /// How many canvas pictures each thread has made ready for the
+    /// terminal, by thread name, over the frames presented so far
+    /// (GFX-009).
+    pub fn picture_threads(&self) -> &std::collections::BTreeMap<String, u64> {
+        &self.picture_threads
     }
 
     /// Wait until every frame presented so far has been written and flushed.
@@ -579,6 +590,9 @@ impl Backend for SuprTuiBackend {
                 self.layout_nodes_built = geometry.layout_nodes_built;
                 self.layout_measured_elements = geometry.layout_measured_elements;
                 self.inverse_cells = geometry.inverse_cells;
+                for thread in geometry.pictures_made_on {
+                    *self.picture_threads.entry(thread).or_default() += 1;
+                }
                 Ok(())
             }
             Err(error) => {
@@ -866,6 +880,7 @@ fn run_worker<W: Write>(
                             "SuprTUI could not publish the frame",
                         ));
                     }
+                    geometry.pictures_made_on = graphics.take_made_on();
                     graphics.acknowledge(std::mem::take(&mut geometry.images));
                     geometry.hits = renderer.committed_hit_grid().to_vec();
                     Ok(geometry)

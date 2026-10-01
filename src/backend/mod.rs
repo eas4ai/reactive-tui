@@ -66,6 +66,9 @@ pub(crate) struct PresentedGeometry {
     /// background or its hit cells. Untransformed, unmasked nodes map cells
     /// by subtraction and add none (PNT-001).
     pub inverse_cells: u64,
+    /// The name of the thread that made each canvas picture the frame
+    /// sends ready for the terminal, one name per picture (GFX-009).
+    pub pictures_made_on: Vec<String>,
 }
 
 /// Minimal, patch-driven backend abstraction

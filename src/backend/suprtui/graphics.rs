@@ -27,6 +27,9 @@ pub(crate) struct Graphics<P = Plane> {
     /// to write the cells under it.
     stale: Vec<(u32, u32, u32, u32)>,
     shared: shared::Pictures,
+    /// The thread that made each canvas picture of the last `prepare`
+    /// ready, one name per picture (GFX-009).
+    made_on: Vec<String>,
 }
 impl<P> Default for Graphics<P> {
     fn default() -> Self {
@@ -39,6 +42,7 @@ impl<P> Default for Graphics<P> {
             in_place: false,
             stale: Vec::new(),
             shared: shared::Pictures::default(),
+            made_on: Vec::new(),
         }
     }
 }
@@ -143,6 +147,7 @@ impl<P: RasterPlane> Graphics<P> {
         self.candidate_coverage = None;
         self.in_place = false;
         self.stale.clear();
+        self.made_on.clear();
         if !force && next == self.last {
             return Ok(None);
         }
@@ -305,6 +310,11 @@ impl<P: RasterPlane> Graphics<P> {
                 "image frame exceeds 64 MiB output limit",
             ));
         }
+        if plane.canvas().is_some() {
+            let thread = std::thread::current();
+            self.made_on
+                .push(thread.name().unwrap_or_default().to_owned());
+        }
         if blend_legacy {
             below.add(plane, &pixels);
         }
@@ -323,6 +333,11 @@ impl<P: RasterPlane> Graphics<P> {
         bytes.extend_from_slice(output.as_bytes());
         bytes.extend_from_slice(sixel_modes.1);
         Ok((covered, bytes))
+    }
+    /// The thread that made each canvas picture of the last `prepare`
+    /// ready, one name per picture (GFX-009).
+    pub fn take_made_on(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.made_on)
     }
     /// Whether the last `prepare` changed canvas pictures only and cleared
     /// nothing: the cells stay as they are written, but the `stale` ones.
