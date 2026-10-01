@@ -39,7 +39,6 @@ impl Component for LiveProgress {
         changed
     }
     fn render(&self, props: &Self::Props, _: &Self::State) -> Element {
-        std::thread::sleep(std::time::Duration::from_millis(20));
         let config = &props.config;
         let error = validate(config).err();
         let text = if error.is_none() {
