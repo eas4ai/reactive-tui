@@ -19,6 +19,7 @@ intent and platform limits when the source needs context.
 - [Events, focus, and input](#events-focus-and-input)
 - [Input widgets](#input-widgets)
 - [Layout widgets](#layout-widgets)
+- [Data widgets](#data-widgets)
 - [Display widgets](#display-widgets)
 - [Menus](#menus)
 - [Dialogs](#dialogs)
@@ -118,10 +119,20 @@ They add interaction and retained state to common layout patterns.
 
 [Read Layout widgets](layout-widgets.md).
 
+## Data widgets
+
+Data widgets show a set of records: the table, the data table, the tree,
+the file explorer and the progress bar, with every color from the theme's
+roles, the size their parent allots, and a name for the screen reader.
+
+[Read Data widgets](data-widgets.md).
+
 ## Display widgets
 
 Display widgets include charts, tables, trees, file exploration, progress,
-modals, popovers, and images. This chapter covers the non-image display APIs.
+modals, popovers, and images. This chapter covers the non-image display APIs;
+the table, the tree, the file explorer and the progress bar have their own
+chapter above.
 
 [Read Display widgets](display-widgets.md).
 

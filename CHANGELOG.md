@@ -5,6 +5,55 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- **Breaking:** the table, the data table, the tree, the file explorer
+  and the progress bar take every color from the active theme
+  (docs/spec/data-widgets.md). A box sits on its parent's background with
+  no fill of its own and its border in `border` (it was a grey fill under
+  a white border); a header's title is `foreground` and the sort mark
+  `primary`; the row with the keyboard cursor is `selection` while the
+  widget holds the focus, a selected row `accent`, the row under the
+  pointer `hover`, a disabled row `text-muted` (`TableProps::selected_style`
+  and `TreeProps::selected_style` default to `None`, from `bg-blue fg-white`;
+  `TreeProps::line_style` to `None`, from `fg-gray`, and lines, expanders
+  and checkbox frames are `text-muted`); error lines are `text-error`; a
+  progress bar's filled part is `primary` on a `border` track
+  (`ProgressBarProps::color` and `background_color` default to `None`,
+  from `bg-blue` and `bg-gray-200`). The file explorer's `>` and `*` marks
+  before the cursor and the selected rows are gone; the rows show by
+  color, and its hints, sizes and status line are `text-muted`.
+- **Breaking:** the table, the data table, the tree and the file explorer
+  fill the width and the height their parent allots, and the progress bar
+  the width; `width` and `height` on `TableProps`, `TreeProps` and
+  `FileExplorerProps` set a size instead, as a `w-N` or `h-N` class on a
+  builder does. `TableColumn::new` is `DisplaySize::Flex(1.0)` with no
+  minimum beyond its title and sort mark (it was `Auto` with a minimum of
+  50 cells, and `builder::data_table().column()` asked for 100), so
+  columns share the width by weight and a table scrolls sideways only
+  when its columns' minimums exceed its width. A data table's
+  `VirtualScrollConfig` defaults to a row height of 1 and a viewport
+  height of 0, which means the table's own height (they were 32 and 400,
+  which capped a data table at thirteen rows).
+- A column whose every cell is a number sorts by its numbers in the table
+  and the data table ("10" no longer sorts before "9"). A tree reveals a
+  node the application selects under a collapsed parent by expanding its
+  ancestors, and collapsing the parent of the cursor's node moves the
+  cursor to that parent instead of the first row.
+- `aria_label` on `TableProps`, `TreeProps`, `FileExplorerProps` and
+  `ProgressBarProps`, and `.aria_label(..)` on `builder::data_table()`,
+  `builder::tree()`, `builder::file_explorer()`, `builder::progress_bar()`
+  and the widget-level tree and progress bar builders, name the widget for
+  the screen reader; without it the table, the tree and the explorer have
+  no name and the progress bar takes its label ("File explorer" and
+  "Progress" are gone). A table tells its row and column counts, each row
+  its index, each cell its column index and a sorted header its direction;
+  a tree row its level, position and count; an explorer row its position
+  and count.
+- A table's Left and Right move the column cursor and bring its column
+  into view (they scrolled sideways by one cell), `s` sorts by that column
+  as a click on its header does, and Space selects the cursor row. The
+  cursor is kept apart from the selection (`TableState::cursor_row`): a
+  table that takes the focus with nothing selected shows its cursor on
+  the first row, and the first Down moves to the second.
 - **Breaking:** the tabs, the accordion, the breadcrumb, the scroll view
   and the stack take every color from the active theme
   (docs/spec/layout-widgets.md). A tab's label is `text-muted` and the
