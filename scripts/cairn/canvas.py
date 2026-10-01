@@ -16,7 +16,8 @@ hosts (canvas-hosts): GFX-002 through tests/canvas_hosts.rs on this host, the
 pictures (canvas-pictures): GFX-009 through tests/canvas_pictures.rs, every
     test, the ignored ones too, in a release build on this host, the macOS
     host and the Windows tablet, with the App's wait in present printed for
-    each pixel output. A failure on any host it reached decides GFX-009.
+    each pixel output, and the picture thread's unit test here. A failure on
+    any host it reached decides GFX-009.
 gates (canvas-gates): BAR-010: cargo build, clippy -D warnings, doc and test
     of reactive-tui with the wgpu-graphics feature here, then the host build
     with the feature on both test hosts, failing on any warning.
@@ -139,6 +140,10 @@ def pictures() -> int:
     local = run(["cargo", *args.split()], timeout=3600, interleave=True)
     print(local.stdout[-6000:])
     results = {"linux": picture_summary(local.stdout)}
+    # The picture thread's own rule, that a picture handed over while
+    # another of its canvas waits replaces it, in the library's tests.
+    results["linux, picture thread"] = cargo_test_filtered(
+        None, "backend::suprtui::graphics::maker::tests::gfx_009_", features=FEATURE, package=PACKAGE)
     missing = []
     try:
         config = json.loads(CONFIG.read_text())

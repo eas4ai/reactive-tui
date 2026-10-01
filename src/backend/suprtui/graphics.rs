@@ -1,4 +1,5 @@
 mod coverage;
+mod maker;
 mod shared;
 use crate::{
     error::{ReactiveError, Result},
@@ -27,8 +28,13 @@ pub(crate) struct Graphics<P = Plane> {
     /// to write the cells under it.
     stale: Vec<(u32, u32, u32, u32)>,
     shared: shared::Pictures,
-    /// The thread that made each canvas picture of the last `prepare`
-    /// ready, one name per picture (GFX-009).
+    /// Whether canvas pictures are made ready on the picture thread, which
+    /// the App does not wait for (GFX-009).
+    apart: bool,
+    /// The picture thread, once a canvas's picture has been made ready.
+    maker: Option<maker::Maker<P>>,
+    /// The thread that made each canvas picture written since the last
+    /// `take_made_on` ready, one name per picture (GFX-009).
     made_on: Vec<String>,
 }
 impl<P> Default for Graphics<P> {
@@ -42,6 +48,8 @@ impl<P> Default for Graphics<P> {
             in_place: false,
             stale: Vec::new(),
             shared: shared::Pictures::default(),
+            apart: false,
+            maker: None,
             made_on: Vec::new(),
         }
     }
@@ -69,7 +77,7 @@ impl Step {
     }
 }
 
-pub(crate) trait RasterPlane: PartialEq {
+pub(crate) trait RasterPlane: PartialEq + Clone + Send + 'static {
     fn id(&self) -> u32;
     fn protocol(&self) -> ImageProtocol;
     fn quality(&self) -> crate::widgets::ImageQuality;
@@ -138,6 +146,29 @@ impl RasterPlane for Plane {
 }
 
 impl<P: RasterPlane> Graphics<P> {
+    /// Make canvas pictures ready on the picture thread from now on, which
+    /// the App does not wait for (GFX-009).
+    pub fn make_pictures_apart(&mut self) {
+        self.apart = true;
+    }
+    /// The picture thread, started when the first canvas picture is made
+    /// ready on it; `None` when pictures are made where `prepare` runs.
+    fn maker(&mut self) -> Option<&maker::Maker<P>> {
+        if !self.apart {
+            return None;
+        }
+        if self.maker.is_none() {
+            match maker::Maker::start() {
+                Ok(maker) => self.maker = Some(maker),
+                Err(error) => {
+                    log::warn!("canvas pictures are made ready before present returns: {error}");
+                    self.apart = false;
+                    return None;
+                }
+            }
+        }
+        self.maker.as_ref()
+    }
     pub fn prepare(
         &mut self,
         next: &[P],
@@ -147,7 +178,6 @@ impl<P: RasterPlane> Graphics<P> {
         self.candidate_coverage = None;
         self.in_place = false;
         self.stale.clear();
-        self.made_on.clear();
         if !force && next == self.last {
             return Ok(None);
         }
@@ -182,6 +212,45 @@ impl<P: RasterPlane> Graphics<P> {
                 .filter(|_| !blend_legacy)
             {
                 coverage.push(known.clone());
+                continue;
+            }
+            // A canvas's picture is made ready on the picture thread and
+            // written when it is ready (GFX-009). Until then a canvas that
+            // stays in its place keeps its last picture; one that is new,
+            // moved or covered otherwise, or that this frame cleared,
+            // shows none. Planes above it are blended without its pixels.
+            if plane.canvas().is_some() && self.apart {
+                let shown = match steps[z] {
+                    Step::Kept(index) | Step::InPlace(index) if in_place => {
+                        self.coverage.get(index).cloned()
+                    }
+                    _ => None,
+                };
+                if kept.is_none() {
+                    // A frame holds 64 MiB of new pictures, counted by
+                    // their size before they are made ready (GFX-007).
+                    let (columns, rows) = plane.cells();
+                    let size = u64::from(columns * u32::from(cell.0))
+                        * u64::from(rows * u32::from(cell.1))
+                        * 4;
+                    raster_bytes = raster_bytes.saturating_add(size as usize);
+                    if raster_bytes > 64 * 1024 * 1024 {
+                        plane.refuse("image frame exceeds 64 MiB raster limit");
+                        coverage.push(coverage::Coverage::empty(plane.position()));
+                        continue;
+                    }
+                    let job = maker::Job {
+                        plane: plane.clone(),
+                        z,
+                        cell,
+                        blend_legacy,
+                        below: below.clone(),
+                    };
+                    if let Some(maker) = self.maker() {
+                        maker.submit(job);
+                    }
+                }
+                coverage.push(shown.unwrap_or_else(|| coverage::Coverage::empty(plane.position())));
                 continue;
             }
             let room = (64usize * 1024 * 1024).saturating_sub(after.len());
@@ -219,6 +288,9 @@ impl<P: RasterPlane> Graphics<P> {
             .map(RasterPlane::id)
             .collect();
         self.shared.keep(&canvases);
+        if let Some(maker) = &self.maker {
+            maker.keep(canvases);
+        }
         self.in_place = in_place;
         self.possible_ids.extend(
             next.iter()
@@ -243,99 +315,80 @@ impl<P: RasterPlane> Graphics<P> {
         raster_bytes: &mut usize,
         room: usize,
     ) -> Result<(coverage::Coverage, Vec<u8>)> {
-        let pixels = plane.raster(cell)?;
-        let rastered = raster_bytes.saturating_add(pixels.as_raw().len());
-        if rastered > 64 * 1024 * 1024 {
-            return Err(ReactiveError::resource(
-                "image frame exceeds 64 MiB raster limit",
-            ));
-        }
-        *raster_bytes = rastered;
-        let (x, y) = plane.position();
-        let covered = coverage::Coverage::new((x, y), &pixels, cell);
-        if kept {
-            below.add(plane, &pixels);
-            return Ok((covered, Vec::new()));
-        }
-        let output = match plane.protocol() {
-            ImageProtocol::Kitty => plane
-                .canvas()
-                .filter(|picture| picture.shared_memory)
-                .and_then(|_| self.shared.kitty(&pixels, plane.id(), plane.z_index(z)))
-                .unwrap_or_else(|| {
-                    ProtocolRenderer::kitty_pixels(&pixels, plane.id(), plane.z_index(z), true)
-                }),
-            ImageProtocol::Inline => {
-                ProtocolRenderer::iterm_pixels(&below.flatten(plane, &pixels, false), false)?
-            }
-            ImageProtocol::Sixel if plane.canvas().is_some() => {
-                // A canvas's picture is drawn from the cursor, so it
-                // touches no cell outside the canvas, and only in whole
-                // bands of six rows, so none reaches below it.
-                let mut pixels = below.flatten(plane, &pixels, true);
-                // Sixel leaves a pixel it is not given as the screen
-                // shows it, which after the first picture is the last
-                // picture. So every pixel of a cell that shows the
-                // canvas is drawn: where the picture is transparent,
-                // in the cell's background.
-                for (x, y, pixel) in pixels.enumerate_pixels_mut() {
-                    if pixel[3] == 0 && plane.shows(x, y, cell) {
-                        *pixel = plane.background(x, y, cell);
-                    }
-                }
-                let height = pixels.height() - pixels.height() % 6;
-                if height == 0 {
-                    String::new()
-                } else {
-                    let pixels =
-                        image::imageops::crop_imm(&pixels, 0, 0, pixels.width(), height).to_image();
-                    SixelRenderer::encode_picture(&pixels)?
-                }
-            }
-            ImageProtocol::Sixel => {
-                let pixels = below.flatten(plane, &pixels, true);
-                let pixels = below.absolute(plane, &pixels)?;
-                let rastered = raster_bytes.saturating_add(pixels.as_raw().len());
-                if rastered > 64 * 1024 * 1024 {
-                    return Err(ReactiveError::resource(
-                        "image frame exceeds 64 MiB raster limit",
-                    ));
-                }
-                *raster_bytes = rastered;
-                SixelRenderer::encode_pixels(&pixels, plane.quality())?
-            }
-        };
-        if output.len() > room {
-            return Err(ReactiveError::resource(
-                "image frame exceeds 64 MiB output limit",
-            ));
-        }
-        if plane.canvas().is_some() {
+        let drawn = draw_plane(
+            plane,
+            z,
+            kept,
+            cell,
+            blend_legacy,
+            below,
+            raster_bytes,
+            room,
+            &mut self.shared,
+        )?;
+        if plane.canvas().is_some() && !kept {
             let thread = std::thread::current();
             self.made_on
                 .push(thread.name().unwrap_or_default().to_owned());
         }
-        if blend_legacy {
-            below.add(plane, &pixels);
-        }
-        let mut bytes = format!("\x1b[{};{}H", y + 1, x + 1).into_bytes();
-        // Sixel display mode (80) draws from the screen's corner; a
-        // canvas's picture is drawn from the cursor instead, which
-        // stays beside the picture (8452) so the screen never scrolls.
-        let sixel_modes: (&[u8], &[u8]) = match (plane.protocol(), plane.canvas()) {
-            (ImageProtocol::Sixel, None) => (b"\x1b[?80s\x1b[?80h", b"\x1b[?80r"),
-            (ImageProtocol::Sixel, Some(_)) => {
-                (b"\x1b[?80;8452s\x1b[?80l\x1b[?8452h", b"\x1b[?80;8452r")
-            }
-            _ => (b"", b""),
-        };
-        bytes.extend_from_slice(sixel_modes.0);
-        bytes.extend_from_slice(output.as_bytes());
-        bytes.extend_from_slice(sixel_modes.1);
-        Ok((covered, bytes))
+        Ok(drawn)
     }
-    /// The thread that made each canvas picture of the last `prepare`
-    /// ready, one name per picture (GFX-009).
+    /// Whether a canvas picture waits or is being made ready on the picture
+    /// thread, so the worker looks for it soon (GFX-009).
+    pub fn making(&self) -> bool {
+        self.maker.as_ref().is_some_and(maker::Maker::making)
+    }
+    /// What shows each canvas picture the picture thread has made ready
+    /// since the last call, one picture-only update each. A picture made for cells its canvas no longer shows, because
+    /// the canvas moved, went, or has other cells over it, is not written,
+    /// and when no newer picture of the canvas waits, the canvas's picture
+    /// is made ready again for the cells as they are (GFX-009). The flag
+    /// says whether a picture was handed over again.
+    pub fn take_made(&mut self, cell: (u16, u16)) -> (Vec<Vec<u8>>, bool) {
+        let Some(made) = self.maker.as_ref().map(maker::Maker::made) else {
+            return (Vec::new(), false);
+        };
+        let mut again = false;
+        let mut pictures = Vec::new();
+        for made in made {
+            let Some(index) = self
+                .last
+                .iter()
+                .position(|plane| plane.id() == made.plane.id())
+            else {
+                continue;
+            };
+            let current = &self.last[index];
+            if *current != made.plane && !current.replaces(&made.plane) {
+                if made.latest {
+                    let job = maker::Job {
+                        plane: current.clone(),
+                        z: index,
+                        cell,
+                        blend_legacy: self.possible_legacy,
+                        below: PixelLayers::new(cell),
+                    };
+                    if let Some(maker) = &self.maker {
+                        maker.submit(job);
+                        again = true;
+                    }
+                }
+                continue;
+            }
+            if let Some(covered) = self.coverage.get_mut(index) {
+                *covered = made.covered;
+            }
+            self.made_on.push(made.thread);
+            let mut bytes = Vec::with_capacity(made.bytes.len() + 4);
+            bytes.extend_from_slice(b"\x1b7");
+            bytes.extend_from_slice(&made.bytes);
+            bytes.extend_from_slice(b"\x1b8");
+            pictures.push(bytes);
+        }
+        (pictures, again)
+    }
+    /// The thread that made each canvas picture written since the last
+    /// call ready, one name per picture (GFX-009).
     pub fn take_made_on(&mut self) -> Vec<String> {
         std::mem::take(&mut self.made_on)
     }
@@ -451,6 +504,9 @@ impl<P: RasterPlane> Graphics<P> {
     }
     pub fn cleanup(&self) -> Vec<u8> {
         self.shared.forget();
+        if let Some(maker) = &self.maker {
+            maker.forget();
+        }
         let mut bytes = if self.possible_legacy {
             b"\x1b[2J".to_vec()
         } else {
@@ -466,8 +522,112 @@ impl<P: RasterPlane> Graphics<P> {
     }
 }
 
+/// The cells `plane` covers and the bytes that show it, of at most `room`
+/// bytes; no bytes for a plane that is `kept` as it is. A canvas's Kitty
+/// picture goes through the shared-memory objects of `shared` where the
+/// host reads them.
+#[allow(clippy::too_many_arguments)]
+fn draw_plane<P: RasterPlane>(
+    plane: &P,
+    z: usize,
+    kept: bool,
+    cell: (u16, u16),
+    blend_legacy: bool,
+    below: &mut PixelLayers,
+    raster_bytes: &mut usize,
+    room: usize,
+    shared: &mut shared::Pictures,
+) -> Result<(coverage::Coverage, Vec<u8>)> {
+    let pixels = plane.raster(cell)?;
+    let rastered = raster_bytes.saturating_add(pixels.as_raw().len());
+    if rastered > 64 * 1024 * 1024 {
+        return Err(ReactiveError::resource(
+            "image frame exceeds 64 MiB raster limit",
+        ));
+    }
+    *raster_bytes = rastered;
+    let (x, y) = plane.position();
+    let covered = coverage::Coverage::new((x, y), &pixels, cell);
+    if kept {
+        below.add(plane, &pixels);
+        return Ok((covered, Vec::new()));
+    }
+    let output = match plane.protocol() {
+        ImageProtocol::Kitty => plane
+            .canvas()
+            .filter(|picture| picture.shared_memory)
+            .and_then(|_| shared.kitty(&pixels, plane.id(), plane.z_index(z)))
+            .unwrap_or_else(|| {
+                ProtocolRenderer::kitty_pixels(&pixels, plane.id(), plane.z_index(z), true)
+            }),
+        ImageProtocol::Inline => {
+            ProtocolRenderer::iterm_pixels(&below.flatten(plane, &pixels, false), false)?
+        }
+        ImageProtocol::Sixel if plane.canvas().is_some() => {
+            // A canvas's picture is drawn from the cursor, so it
+            // touches no cell outside the canvas, and only in whole
+            // bands of six rows, so none reaches below it.
+            let mut pixels = below.flatten(plane, &pixels, true);
+            // Sixel leaves a pixel it is not given as the screen
+            // shows it, which after the first picture is the last
+            // picture. So every pixel of a cell that shows the
+            // canvas is drawn: where the picture is transparent,
+            // in the cell's background.
+            for (x, y, pixel) in pixels.enumerate_pixels_mut() {
+                if pixel[3] == 0 && plane.shows(x, y, cell) {
+                    *pixel = plane.background(x, y, cell);
+                }
+            }
+            let height = pixels.height() - pixels.height() % 6;
+            if height == 0 {
+                String::new()
+            } else {
+                let pixels =
+                    image::imageops::crop_imm(&pixels, 0, 0, pixels.width(), height).to_image();
+                SixelRenderer::encode_picture(&pixels)?
+            }
+        }
+        ImageProtocol::Sixel => {
+            let pixels = below.flatten(plane, &pixels, true);
+            let pixels = below.absolute(plane, &pixels)?;
+            let rastered = raster_bytes.saturating_add(pixels.as_raw().len());
+            if rastered > 64 * 1024 * 1024 {
+                return Err(ReactiveError::resource(
+                    "image frame exceeds 64 MiB raster limit",
+                ));
+            }
+            *raster_bytes = rastered;
+            SixelRenderer::encode_pixels(&pixels, plane.quality())?
+        }
+    };
+    if output.len() > room {
+        return Err(ReactiveError::resource(
+            "image frame exceeds 64 MiB output limit",
+        ));
+    }
+    if blend_legacy {
+        below.add(plane, &pixels);
+    }
+    let mut bytes = format!("\x1b[{};{}H", y + 1, x + 1).into_bytes();
+    // Sixel display mode (80) draws from the screen's corner; a
+    // canvas's picture is drawn from the cursor instead, which
+    // stays beside the picture (8452) so the screen never scrolls.
+    let sixel_modes: (&[u8], &[u8]) = match (plane.protocol(), plane.canvas()) {
+        (ImageProtocol::Sixel, None) => (b"\x1b[?80s\x1b[?80h", b"\x1b[?80r"),
+        (ImageProtocol::Sixel, Some(_)) => {
+            (b"\x1b[?80;8452s\x1b[?80l\x1b[?8452h", b"\x1b[?80;8452r")
+        }
+        _ => (b"", b""),
+    };
+    bytes.extend_from_slice(sixel_modes.0);
+    bytes.extend_from_slice(output.as_bytes());
+    bytes.extend_from_slice(sixel_modes.1);
+    Ok((covered, bytes))
+}
+
 /// Sparse cell tiles keep alpha composition proportional to painted pixels,
 /// rather than walking every preceding image for each translucent pixel.
+#[derive(Clone)]
 struct PixelLayers {
     cell: (u32, u32),
     tiles: HashMap<(u32, u32), Vec<image::Rgba<u8>>>,

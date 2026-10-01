@@ -78,17 +78,13 @@ impl Terminal {
 impl Write for Terminal {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         // A Kitty picture begins with its action, a Sixel picture with the
-        // device control string the crate writes.
-        let begins = |at: usize| {
-            [&b"\x1b_Ga=T"[..], SIXEL.as_bytes()]
-                .iter()
-                .any(|mark| bytes[at..].starts_with(mark))
-        };
-        let pictures = bytes
+        // device control string the crate writes. A picture is megabytes,
+        // so the marks are found the fast way: this terminal is the App's
+        // memory, not a slow link.
+        let pictures = [&b"\x1b_Ga=T"[..], SIXEL.as_bytes()]
             .iter()
-            .enumerate()
-            .filter(|(at, byte)| **byte == 0x1b && begins(*at))
-            .count();
+            .map(|mark| memchr::memmem::find_iter(bytes, mark).count())
+            .sum::<usize>();
         self.pictures.fetch_add(pictures, Ordering::SeqCst);
         if let Some(kept) = &self.kept {
             kept.lock().unwrap().extend_from_slice(bytes);
@@ -101,8 +97,7 @@ impl Write for Terminal {
 }
 
 /// One present: how long the App waited in it, the pictures the terminal
-/// had been sent once its bytes were written, and the frame the root had
-/// rendered.
+/// had been sent when it returned, and the frame the root had rendered.
 struct Present {
     waited: Duration,
     pictures: usize,
@@ -154,9 +149,8 @@ impl Backend for Timed {
         let started = Instant::now();
         self.inner.present()?;
         let waited = started.elapsed();
-        // The bytes are written after present returns; they are counted,
-        // not timed.
-        self.inner.sync()?;
+        // No sync: it waits for the pictures being made ready, which the
+        // App never does.
         let mut log = self.log.lock().unwrap();
         log.presents.push(Present {
             waited,
@@ -449,7 +443,10 @@ fn gfx_009_the_apps_wait_stays_within_a_frame_with_a_new_picture_every_frame() {
     for (name, images) in outputs() {
         let terminal = Terminal::default();
         let pictures = Arc::clone(&terminal.pictures);
-        let deadline = Instant::now() + Duration::from_secs(180);
+        let started = Instant::now();
+        let deadline = started + Duration::from_secs(180);
+        // The root turns until the pictures have come, then holds its last
+        // angle while those being made ready arrive.
         let log = run(
             (240, 60),
             images,
@@ -457,21 +454,20 @@ fn gfx_009_the_apps_wait_stays_within_a_frame_with_a_new_picture_every_frame() {
             Box::new(move |_| {
                 pictures.load(Ordering::SeqCst) < WARM + MEASURED && Instant::now() < deadline
             }),
-            Duration::ZERO,
+            Duration::from_millis(500),
             None,
         );
+        let total = terminal.pictures.load(Ordering::SeqCst);
         let measured: Vec<&Present> = log
             .presents
             .iter()
             .skip_while(|present| present.pictures < WARM)
             .collect();
-        let sent = measured
-            .last()
-            .map_or(0, |last| last.pictures)
-            .saturating_sub(measured.first().map_or(0, |first| first.pictures));
+        let sent = total.saturating_sub(measured.first().map_or(total, |first| first.pictures));
         if sent < MEASURED {
             failures.push(format!(
-                "{name}: {sent} pictures reached the terminal in 180 s, fewer than {MEASURED}"
+                "{name}: {sent} pictures reached the terminal after the first {WARM} in {:.0} s, fewer than {MEASURED}",
+                started.elapsed().as_secs_f64()
             ));
             continue;
         }
