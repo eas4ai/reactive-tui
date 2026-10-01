@@ -553,3 +553,53 @@ fn native_cursor_respects_image_pixels_and_retains_coverage_on_cached_frames() {
         );
     }
 }
+
+#[cfg(feature = "wgpu-graphics")]
+#[test]
+fn gfx_009_sync_says_so_when_it_gives_up_on_pictures_still_being_made() {
+    let capture = Capture::default();
+    let mut backend = SuprTuiBackend::with_writer_and_images(
+        240,
+        60,
+        capture.clone(),
+        ImageOutputOptions {
+            sixel: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    // A Sixel picture of 1920 by 960 pixels takes far longer than 50 ms to
+    // make ready in a test build.
+    let pixels = Arc::new(image::RgbaImage::from_pixel(
+        1920,
+        960,
+        image::Rgba([10, 20, 30, 255]),
+    ));
+    let mut canvas = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+        .class("w-full h-full")
+        .build();
+    canvas.metadata.image = Some(Arc::new(
+        crate::widgets::display::image::paint::ImagePaint::canvas(
+            1,
+            pixels,
+            false,
+            Arc::new(|_| {}),
+        ),
+    ));
+    backend.render_frame(&frame(vec![canvas])).unwrap();
+    backend.present().unwrap();
+    backend.set_picture_settle(std::time::Duration::from_millis(50));
+    let early = backend.sync();
+    backend.set_picture_settle(std::time::Duration::from_secs(120));
+    let late = backend.sync();
+    let sent = capture.take();
+    assert!(
+        early
+            .as_ref()
+            .is_err_and(|error| error.to_string().contains("still being made"))
+            && late.is_ok()
+            && sent.contains("\x1bP"),
+        "GFX-009: a sync that gave up after 50 ms said {early:?}, one with time enough {late:?}, and {} Sixel pictures were sent",
+        sent.matches("\x1bP").count()
+    );
+}

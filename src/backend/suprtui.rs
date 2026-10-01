@@ -117,7 +117,9 @@ enum Command {
     ),
     Shutdown(Reply, Option<String>),
     /// Reply once every earlier frame has been written and flushed.
-    Sync(Reply),
+    /// Reply whether the canvas pictures being made ready were written
+    /// within the time given.
+    Sync(mpsc::Sender<Result<bool>>, Duration),
     /// Leave the terminal as at exit, for a suspend (INP-010).
     #[cfg(unix)]
     Suspend(Reply),
@@ -156,6 +158,8 @@ pub struct SuprTuiBackend {
     layout_nodes_built: u64,
     layout_measured_elements: Vec<usize>,
     inverse_cells: u64,
+    /// How long `sync` waits for the canvas pictures being made ready.
+    picture_settle: Duration,
     /// How many canvas pictures each thread has made ready, by thread name
     /// (GFX-009).
     picture_threads: std::collections::BTreeMap<String, u64>,
@@ -300,6 +304,7 @@ impl SuprTuiBackend {
             layout_nodes_built: 0,
             layout_measured_elements: Vec::new(),
             inverse_cells: 0,
+            picture_settle: PICTURE_SETTLE,
             picture_threads: std::collections::BTreeMap::new(),
             acknowledged: Acknowledged::default(),
             raw_mode: None,
@@ -351,6 +356,13 @@ impl SuprTuiBackend {
         self.inverse_cells
     }
 
+    /// Wait at most `settle` in `sync` for the canvas pictures being made
+    /// ready.
+    #[cfg(test)]
+    pub(crate) fn set_picture_settle(&mut self, settle: Duration) {
+        self.picture_settle = settle;
+    }
+
     /// How many canvas pictures each thread has made ready for the
     /// terminal, by thread name, over the frames presented so far
     /// (GFX-009).
@@ -362,20 +374,28 @@ impl SuprTuiBackend {
     /// with the canvas pictures being made ready for them (GFX-009).
     /// `present` returns before its frame's write (PIP-001) and before its
     /// canvas pictures are ready; a caller that reads the output afterwards,
-    /// such as a test, calls this first. The App never does. A flush
-    /// failure is reported here as it would be by the next present, and the
-    /// geometry falls back the same way (PIP-002).
+    /// such as a test, calls this first. The App never does. Pictures still
+    /// being made after 30 seconds are reported as an error, with every
+    /// frame written. A flush failure is reported here as it would be by the
+    /// next present, and the geometry falls back the same way (PIP-002).
     pub fn sync(&mut self) -> Result<()> {
         let commands = self.commands.as_ref().ok_or_else(worker_stopped)?;
         let (reply, result) = mpsc::channel();
         commands
-            .send(Command::Sync(reply))
+            .send(Command::Sync(reply, self.picture_settle))
             .map_err(|_| worker_stopped())?;
-        let outcome = result.recv().map_err(|_| worker_stopped())?;
-        if outcome.is_err() {
-            self.fall_back_to_acknowledged();
+        match result.recv().map_err(|_| worker_stopped())? {
+            Ok(true) => Ok(()),
+            // Every frame was written; a canvas picture was not (GFX-009).
+            Ok(false) => Err(ReactiveError::resource(format!(
+                "canvas pictures were still being made ready when sync gave up after {:?}",
+                self.picture_settle
+            ))),
+            Err(error) => {
+                self.fall_back_to_acknowledged();
+                Err(error)
+            }
         }
-        outcome
     }
 
     /// Report the geometry of the last frame whose flush was acknowledged,
@@ -943,15 +963,20 @@ fn run_worker<W: Write>(
                     )
                 }));
             }
-            Command::Sync(reply) => {
+            Command::Sync(reply, settle) => {
                 // The pictures being made ready are written before the
-                // reply, or given up on after PICTURE_SETTLE.
-                let deadline = std::time::Instant::now() + PICTURE_SETTLE;
-                while deferred.is_none() && std::time::Instant::now() < deadline {
+                // reply, or given up on after `settle`.
+                let deadline = std::time::Instant::now() + settle;
+                let mut settled = false;
+                while deferred.is_none() {
                     let making = graphics.making();
                     let (pictures, again) = graphics.take_made(images.cell_pixels);
                     write_pictures(&mut renderer, &pictures, &mut deferred, &mut force);
                     if !making && !again {
+                        settled = true;
+                        break;
+                    }
+                    if std::time::Instant::now() >= deadline {
                         break;
                     }
                     std::thread::sleep(PICTURE_POLL);
@@ -961,7 +986,7 @@ fn run_worker<W: Write>(
                         force = true;
                         Err(error)
                     }
-                    None => Ok(()),
+                    None => Ok(settled),
                 };
                 let _ = reply.send(outcome);
             }

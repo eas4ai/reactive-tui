@@ -145,10 +145,11 @@ def pictures() -> int:
     local = run(["cargo", *args.split()], timeout=3600, interleave=True)
     print(local.stdout[-6000:])
     results = {"linux": picture_summary(local.stdout)}
-    # The picture thread's own rule, that a picture handed over while
-    # another of its canvas waits replaces it, in the library's tests.
+    # The library's GFX-009 tests: a picture handed over while another of
+    # its canvas waits replaces it, a thread that cannot start refuses the
+    # picture, and sync says so when it gives up on pictures.
     results["linux, picture thread"] = cargo_test_filtered(
-        None, "backend::suprtui::graphics::maker::tests::gfx_009_", features=FEATURE, package=PACKAGE)
+        None, "gfx_009_", features=FEATURE, package=PACKAGE)
     missing = []
     try:
         config = json.loads(CONFIG.read_text())
