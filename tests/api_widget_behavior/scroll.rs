@@ -37,6 +37,7 @@ fn scroll_wheel_has_direction_and_horizontal_unicode_uses_cells() {
         assert!(frames.last().unwrap().text.contains("zero"));
         let scroll = ScrollViewBuilder::new(Element::text("界界ABCDEFGH"))
             .viewport_size(6, 1)
+            .scroll_x(true)
             .scroll_y(false)
             .show_scrollbars(false)
             .scroll_speed(1)
@@ -443,6 +444,7 @@ fn nav_003_scroll_horizontal_track_and_thumb_are_symmetric() {
     for drag in [false, true] {
         let scroll = ScrollViewBuilder::new(content.clone())
             .viewport_size(20, 3)
+            .scroll_x(true)
             .scroll_y(false)
             .render();
         let steps = if drag {
