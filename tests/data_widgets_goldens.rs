@@ -81,12 +81,23 @@ fn page(child: Element) -> Element {
         .build()
 }
 
+/// A directory of four fixed names for the file explorer's golden, made
+/// fresh for each run: the catalog reads the manual directory, whose
+/// files, sizes and dates change with the manual and with every clone.
+fn explorer_fixture() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().expect("a fixture directory");
+    for name in ["alpha.md", "beta.md", "gamma.md"] {
+        std::fs::write(dir.path().join(name), name).expect("a fixture file");
+    }
+    std::fs::create_dir(dir.path().join("notes")).expect("a fixture directory");
+    dir
+}
+
 /// Each widget by name, as the widget catalog builds it, with the steps
 /// that show it: the table focused, the tree with a selected node.
-fn widgets() -> Vec<(&'static str, Element, Vec<Until>)> {
+fn widgets(fixture: &std::path::Path) -> Vec<(&'static str, Element, Vec<Until>)> {
     use reactive_tui::widgets::display::table::{Table, TableColumn, TableProps, TableRow};
     use reactive_tui::widgets::display::TreeNode;
-    let manual = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("manual");
     vec![
         (
             "table",
@@ -143,10 +154,11 @@ fn widgets() -> Vec<(&'static str, Element, Vec<Until>)> {
             "file_explorer",
             page(
                 builder::file_explorer()
-                    .root_path(&manual)
-                    .current_path(&manual)
+                    .root_path(fixture)
+                    .current_path(fixture)
                     .max_visible_items(5)
                     .show_preview(false)
+                    .show_details(false)
                     .build(),
             ),
             vec![wait("files", None)],
@@ -171,8 +183,9 @@ fn bar_004_data_widget_goldens_at_80_by_24_and_400_by_100() {
     let before = Theme::active();
     Theme::set_active(dark_theme());
     let mut mismatches = Vec::new();
+    let fixture = explorer_fixture();
     for size in [(80u16, 24u16), (400u16, 100u16)] {
-        for (widget, root, steps) in widgets() {
+        for (widget, root, steps) in widgets(fixture.path()) {
             let frame = app_input::run_until_on_debug(
                 Root(root),
                 size,
