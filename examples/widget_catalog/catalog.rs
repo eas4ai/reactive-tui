@@ -705,9 +705,11 @@ impl Catalog {
     }
 
     fn data_page(&self) -> Element {
+        // The page opens with the table focused, so Tab walks the widgets;
+        // the tree shows a selected node beside the table's cursor row.
         let root = TreeNode::new("root", "reactive-tui")
             .expanded(true)
-            .add_child(TreeNode::new("src", "src"))
+            .add_child(TreeNode::new("src", "src").selected(true))
             .add_child(TreeNode::new("manual", "manual"));
         let manual = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("manual");
         div()
@@ -738,7 +740,8 @@ impl Catalog {
                     ],
                     sortable: true,
                     ..Default::default()
-                }),
+                })
+                .auto_focus(),
             ))
             .child(Self::card(
                 "DataTable",
