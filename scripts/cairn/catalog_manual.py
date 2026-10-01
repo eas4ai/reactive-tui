@@ -386,6 +386,76 @@ LAYOUT_CODE = ("src/widgets/layout", "src/builder/widgets/layout.rs", "src/build
                "src/builder/widgets/breadcrumb.rs", "src/builder/specialized.rs")
 
 
+ENTRY_POINT = re.compile(r"\bbuilder::([a-z_][a-z0-9_]*)\(\)")
+TYPE_PATH = re.compile(r"\b(?:widgets::[a-z_:]+::)?([A-Z][A-Za-z0-9]*)(?:::new|\b)")
+
+
+def impl_methods(code: str) -> dict[str, set[str]]:
+    """The pub fns of each type's `impl` blocks in one file's code."""
+    methods: dict[str, set[str]] = {}
+    for found in re.finditer(r"\bimpl(?:<[^>]*>)?\s+([A-Z][A-Za-z0-9]*)(?:<[^>]*>)?\s*\{", code):
+        depth, i = 1, found.end()
+        while i < len(code) and depth:
+            depth += {"{": 1, "}": -1}.get(code[i], 0)
+            i += 1
+        methods.setdefault(found.group(1), set()).update(
+            re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", code[found.end():i]))
+    return methods
+
+
+def receivers(sources: dict[Path, str]) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
+    """What a section's citations can be called on. Two builders may share
+    a name (`builder::stack()` returns src/builder/specialized.rs's
+    StackBuilder, not src/widgets/layout/stack.rs's), so an entry point's
+    methods are the `impl` block in the entry point's own file, or in the
+    file its `use` line imports the type from; a type cited by name takes
+    every `impl` block of that name."""
+    impls = {path: impl_methods(code) for path, code in sources.items()}
+    by_name: dict[str, set[str]] = {}
+    for methods in impls.values():
+        for name, fns in methods.items():
+            by_name.setdefault(name, set()).update(fns)
+    entries: dict[str, set[str]] = {}
+    for path, code in sources.items():
+        for name, ret in re.findall(r"\bpub fn ([a-z_][a-z0-9_]*)\(\) -> ([A-Z][A-Za-z0-9]*)", code):
+            if ret in impls[path]:
+                entries.setdefault(name, impls[path][ret])
+                continue
+            imported = re.search(rf"^\s*use\s+([\w:]+)::(?:\{{[^}}]*\b{ret}\b[^}}]*\}}|{ret})\s*;", code, re.M)
+            module = imported.group(1).rsplit("::", 1)[-1] if imported else None
+            source = next((other for other in sources if other.stem == module and ret in impls[other]), None)
+            entries.setdefault(name, impls[source][ret] if source else by_name.get(ret, set()))
+    return entries, by_name
+
+
+def receiver_problems(section_text: str, heading: str, sources: dict[Path, str], family: str) -> list[str]:
+    """Every `.method(` a section cites must be a pub fn of a type the
+    section names: the type a cited `builder::name()` returns, or a type
+    cited by name (`Type::new(..)`, `widgets::layout::Type`). A section that
+    names no type is held to the family's pool of pub fns."""
+    entries, by_name = receivers(sources)
+    pool = set(re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", "\n".join(sources.values())))
+    allowed, named = set(), []
+    for piece in citations(section_text):
+        for entry in ENTRY_POINT.findall(piece):
+            if entry in entries:
+                named.append(f"builder::{entry}()")
+                allowed |= entries[entry]
+        for type_name in TYPE_PATH.findall(piece):
+            if type_name in by_name:
+                named.append(type_name)
+                allowed |= by_name[type_name]
+    problems = []
+    for piece in citations(section_text):
+        for name in METHOD_CALL.findall(piece):
+            if named and name not in allowed:
+                problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn of "
+                                f"{', '.join(sorted(set(named)))} in {family} code")
+            elif not named and name not in pool:
+                problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn in {family} code")
+    return problems
+
+
 def layout_docs_problems() -> list[str]:
     """The layout family: the catalog's Layout widgets page builds each of
     the five widgets in a card of its name, the manual has a heading for
@@ -400,18 +470,13 @@ def layout_docs_problems() -> list[str]:
         if page is not None and not (re.search(rf'"{card}"', prose[page[0]:page[1]])
                                      and re.search(built, code[page[0]:page[1]])):
             problems.append(f"catalog's Layout widgets page has no {card} card built with {built}")
-    methods = set()
-    for f in rust_sources(*LAYOUT_CODE):
-        methods |= set(re.findall(r"\bpub fn\s+([a-z_][a-z0-9_]*)", strip_test_modules(f.read_text(errors="replace"))))
+    sources = {f: strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(*LAYOUT_CODE)}
     manual = LAYOUT_MANUAL.read_text(errors="replace") if LAYOUT_MANUAL.exists() else ""
     for _, _, heading in LAYOUT_WIDGETS:
         if heading not in [title for _, title in headings(manual)]:
             problems.append(f"{LAYOUT_MANUAL.relative_to(ROOT)} has no {heading} heading")
             continue
-        for piece in citations(section(manual, heading) or ""):
-            for name in METHOD_CALL.findall(piece):
-                if name not in methods:
-                    problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn in layout code")
+        problems.extend(receiver_problems(section(manual, heading) or "", heading, sources, "layout"))
     return problems
 
 
