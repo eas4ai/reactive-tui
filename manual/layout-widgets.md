@@ -69,7 +69,9 @@ of segments, and the current one is marked as the current page.
 ## Scroll view
 
 `builder::scroll_view()` takes `.content(element)` or `.contents(vec)`,
-`.vertical_scroll(bool)`, `.horizontal_scroll(bool)`, `.show_scrollbars(bool)`,
+`.vertical_scroll(bool)`, `.horizontal_scroll(bool)` (off by default, from
+the props and either builder alike, so content wraps to the view's width),
+`.show_scrollbars(bool)`,
 `.viewport_size(width, height)` (or `.viewport_width(..)` and
 `.viewport_height(..)`; 0, the default, takes the parent's size), `.class(..)`
 and `.aria_label(..)`. The bar takes its column or row only while the
@@ -83,10 +85,14 @@ and their ranges.
 ## Stack
 
 `builder::stack()` arranges its `.child(..)` or `.children(..)` along one
-axis (`.direction(..)`, `.horizontal()` or `.vertical()`) with `.spacing(..)`
-cells between them, `.alignment(..)`, `.justify(..)`, `.wrap(..)` and
-`.padding(..)`. It has no colors or state of its own and fills the width
-its parent allots.
+axis (`.direction(..)`) with `.spacing(..)` cells between them,
+`.alignment(..)`, `.justify(..)`, `.padding(..)`, `.class(..)` and
+`.aria_label(..)` for the screen reader's name. `widgets::layout::StackBuilder`
+adds `StackBuilder::horizontal()` and `StackBuilder::vertical()` as starting
+points, `.wrap(..)`, `.reverse(..)` and the `.padding_all(..)`,
+`.padding_symmetric(..)`, `.padding_horizontal(..)` and `.padding_vertical(..)`
+shorthands. A stack has no colors or state of its own, fills the width its
+parent allots, and is named only by `aria_label`.
 
 ## Source map
 
