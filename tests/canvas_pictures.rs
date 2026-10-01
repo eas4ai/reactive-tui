@@ -371,6 +371,11 @@ fn gfx_009_a_picture_is_never_written_over_cells_that_cover_its_canvas() {
     // note covers the canvas's cells 4 to 15 of rows 2 to 4.
     let terminal = Terminal::keeping();
     let covered = 10;
+    // The root turns on until three pictures came after the note did, so
+    // the pictures of a busy host are waited for, not counted in frames.
+    let pictures = Arc::clone(&terminal.pictures);
+    let noted = Arc::new(AtomicUsize::new(usize::MAX));
+    let deadline = Instant::now() + Duration::from_secs(30);
     run(
         (80, 24),
         ImageOutputOptions {
@@ -378,7 +383,14 @@ fn gfx_009_a_picture_is_never_written_over_cells_that_cover_its_canvas() {
             ..Default::default()
         },
         &terminal,
-        Box::new(move |frame| frame < covered + 40),
+        Box::new(move |frame| {
+            if frame <= covered {
+                return true;
+            }
+            let sent = pictures.load(Ordering::SeqCst);
+            let _ = noted.compare_exchange(usize::MAX, sent, Ordering::SeqCst, Ordering::SeqCst);
+            sent < noted.load(Ordering::SeqCst).saturating_add(3) && Instant::now() < deadline
+        }),
         Duration::from_secs(1),
         Some(covered),
     );

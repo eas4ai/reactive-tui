@@ -296,12 +296,14 @@ impl RootComponent for Spinner {
     }
 }
 
-/// A terminal that takes `delay` per flush and keeps each flush apart.
+/// A terminal that takes `delay` per flush, keeps each flush apart and
+/// counts the pictures it is sent.
 #[derive(Clone)]
 struct SlowTerminal {
     flushes: Arc<Mutex<Vec<Vec<u8>>>>,
     pending: Arc<Mutex<Vec<u8>>>,
     delay: Duration,
+    pictures: Arc<std::sync::atomic::AtomicUsize>,
 }
 impl Write for SlowTerminal {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
@@ -312,6 +314,10 @@ impl Write for SlowTerminal {
         std::thread::sleep(self.delay);
         let chunk = std::mem::take(&mut *self.pending.lock().unwrap());
         if !chunk.is_empty() {
+            let text = String::from_utf8_lossy(&chunk);
+            let pictures = text.matches(SIXEL).count() + text.matches("\x1b_Ga=T").count();
+            self.pictures
+                .fetch_add(pictures, std::sync::atomic::Ordering::SeqCst);
             self.flushes.lock().unwrap().push(chunk);
         }
         Ok(())
@@ -328,6 +334,7 @@ fn run_spinner(
         flushes: Arc::default(),
         pending: Arc::default(),
         delay,
+        pictures: Arc::default(),
     };
     let backend = SuprTuiBackend::with_writer_and_images(60, 20, terminal.clone(), images).unwrap();
     App::builder()
@@ -521,23 +528,35 @@ fn gfx_005_pixel_frames_replace_each_other_in_place() {
     );
 }
 
-/// A root that draws the spinning cube beside a fixed label and, from
-/// frame `covered` to frame `gone`, a note over part of the canvas; from
-/// frame `gone` on it draws no canvas.
+/// Where a [`Covered`] root is: the canvas alone, then a note over part of
+/// it from the pictures the terminal had been sent then, then the note
+/// alone from a moment on.
+#[derive(Clone, Copy)]
+enum Cover {
+    Bare,
+    Noted(usize),
+    Gone(std::time::Instant),
+}
+
+/// A root that draws the spinning cube beside a fixed label until the
+/// terminal has been sent a picture, then a note over part of the canvas
+/// until two more pictures came, then the note without the canvas for a
+/// moment, and stops. Pictures reach the terminal after their frames
+/// (GFX-009), so the root goes on by the pictures, not by frames.
 struct Covered {
     frame: usize,
-    frames: usize,
-    covered: usize,
-    gone: usize,
+    cover: Cover,
+    pictures: Arc<std::sync::atomic::AtomicUsize>,
+    deadline: std::time::Instant,
 }
 impl RootComponent for Covered {
     fn render(&self) -> Element {
         use reactive_tui::builder::core::div;
         let mut right = Vec::new();
-        if self.frame < self.gone {
+        if !matches!(self.cover, Cover::Gone(_)) {
             right.push(canvas(spinning_cube(self.frame), reference_options(true)));
         }
-        if self.frame >= self.covered {
+        if !matches!(self.cover, Cover::Bare) {
             right.push(
                 div()
                     .class("absolute left-4 top-2 w-12 h-3 bg-blue-900")
@@ -555,11 +574,20 @@ impl RootComponent for Covered {
     }
     fn update(&mut self) -> Result<RootUpdate> {
         self.frame += 1;
-        Ok(if self.frame >= self.frames {
-            RootUpdate::Exit
-        } else {
-            RootUpdate::Redraw
-        })
+        let sent = self.pictures.load(std::sync::atomic::Ordering::SeqCst);
+        let late = std::time::Instant::now() >= self.deadline;
+        self.cover = match self.cover {
+            Cover::Bare if sent >= 1 || late => Cover::Noted(sent),
+            // Two more, so that one was made for the note's cells.
+            Cover::Noted(before) if sent >= before + 2 || late => {
+                Cover::Gone(std::time::Instant::now())
+            }
+            Cover::Gone(at) if at.elapsed() >= Duration::from_millis(300) => {
+                return Ok(RootUpdate::Exit)
+            }
+            cover => cover,
+        };
+        Ok(RootUpdate::Redraw)
     }
     /// The backend writes to memory and has no terminal to read keys from.
     fn accepts_input(&self) -> bool {
@@ -568,21 +596,22 @@ impl RootComponent for Covered {
 }
 
 /// What a terminal that takes `images` is sent, flush by flush, while a
-/// note comes over the canvas at frame 12 and the canvas goes at frame 28.
+/// note comes over the canvas and then the canvas goes.
 fn run_covered(images: ImageOutputOptions) -> Vec<String> {
     let terminal = SlowTerminal {
         flushes: Arc::default(),
         pending: Arc::default(),
         delay: Duration::ZERO,
+        pictures: Arc::default(),
     };
     let backend = SuprTuiBackend::with_writer_and_images(60, 20, terminal.clone(), images).unwrap();
     App::builder()
         .backend(backend)
         .root(Covered {
             frame: 0,
-            frames: 40,
-            covered: 12,
-            gone: 28,
+            cover: Cover::Bare,
+            pictures: Arc::clone(&terminal.pictures),
+            deadline: std::time::Instant::now() + Duration::from_secs(20),
         })
         .build()
         .unwrap()
@@ -631,7 +660,7 @@ fn gfx_005_cells_over_a_canvas_change_without_clearing_the_screen() {
         .collect();
     assert!(
         cleared == 0 && outside.is_empty() && (1..=20).all(|row| rows_after.contains(&row)),
-        "GFX-005: with a note drawn over the canvas from frame 12 and the canvas gone from frame 28, {cleared} later flushes cleared the screen, cells outside the canvas were set at {:?}, and after the last picture the rows written were {rows_after:?}",
+        "GFX-005: with a note drawn over the canvas and then the canvas gone, {cleared} later flushes cleared the screen, cells outside the canvas were set at {:?}, and after the last picture the rows written were {rows_after:?}",
         &outside[..outside.len().min(5)]
     );
 }
@@ -654,7 +683,7 @@ fn gfx_005_cells_over_a_kitty_canvas_change_without_sending_it_away() {
         deleted(&flushes[first + 1..=last]) == 0
             && deleted(&flushes[last + 1..]) == 1
             && outside.is_empty(),
-        "GFX-005: with a note drawn over the canvas from frame 12 and the canvas gone from frame 28, a Kitty host was sent {} deletions while the canvas showed and {} after it, and cells outside the canvas were set at {:?}",
+        "GFX-005: with a note drawn over the canvas and then the canvas gone, a Kitty host was sent {} deletions while the canvas showed and {} after it, and cells outside the canvas were set at {:?}",
         deleted(&flushes[first + 1..=last]),
         deleted(&flushes[last + 1..]),
         &outside[..outside.len().min(5)]
