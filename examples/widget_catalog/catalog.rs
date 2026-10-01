@@ -768,7 +768,6 @@ impl Catalog {
                     .label("Catalog coverage")
                     .value(82.0)
                     .show_percentage(true)
-                    .width(28)
                     .build(),
             ))
             .build()

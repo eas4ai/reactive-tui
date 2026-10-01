@@ -239,7 +239,7 @@ impl LiveTable {
                         .height_px(1.0)
                         .overflow_hidden(),
                 )
-                .class(&format!("whitespace-pre truncate {class}"))
+                .class(&format!("whitespace-pre {class}"))
                 .build()
         };
         let mut pieces = vec![piece(
@@ -672,12 +672,24 @@ impl Component for LiveTable {
             .children(children)
             .build()
             .with_key("viewport");
-        // Absolute rows need an intrinsic width contribution when the table
-        // is inside an auto-sized parent.
+        let bordered = super::border::enabled(&props.border);
+        let natural_height = props
+            .rows
+            .len()
+            .saturating_add(usize::from(props.show_header))
+            .saturating_add(usize::from(bordered) * 2)
+            .min(u16::MAX as usize);
+        // The rows are absolute, so this child gives the table its natural
+        // size inside an auto-sized parent: the columns' width and a row
+        // for each row of data.
         let intrinsic = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
-            .styles(StyleBuilder::new().width_px(total as f32).height_px(0.0))
+            .styles(
+                StyleBuilder::new()
+                    .width_px(total as f32)
+                    .height_px(natural_height as f32),
+            )
             .build()
-            .with_key("intrinsic-width");
+            .with_key("intrinsic-size");
         let mut children = vec![content, intrinsic];
         if let Some(viewport) = self.viewport {
             let (width, height) = viewport.size;
@@ -687,16 +699,10 @@ impl Component for LiveTable {
                 height.max(0.0) as usize,
             ));
         }
-        let bordered = super::border::enabled(&props.border);
-        let natural_height = props
-            .rows
-            .len()
-            .saturating_add(usize::from(props.show_header))
-            .saturating_add(usize::from(bordered) * 2)
-            .min(u16::MAX as usize);
         // The box is its parent's background with no fill of its own
-        // (DAT-001), and fills the width and the height its parent allots
-        // unless the props set a size (DAT-002).
+        // (DAT-001). It fills the width and the height its parent allots,
+        // and takes its natural size in a parent that allots none, unless
+        // the props set a size (DAT-002).
         let mut style = StyleBuilder::new()
             .display_flex()
             .direction(Direction::Column)
@@ -709,7 +715,7 @@ impl Component for LiveTable {
                 .max_height_percent(100.0),
             (None, None) => style
                 .height_percent(100.0)
-                .min_height_px(natural_height as f32)
+                .min_height_px(0.0)
                 .max_height_percent(100.0),
         };
         style = match props.width {

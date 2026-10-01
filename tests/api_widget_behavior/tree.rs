@@ -1,4 +1,7 @@
-use super::{click, key, run, Control};
+use super::{
+    app_input::{run_until_hidden, run_when},
+    click, key, run, Control,
+};
 use reactive_tui::{
     component::Element,
     event::types::{
@@ -135,15 +138,16 @@ fn tree_lazy_load_uses_returned_children_once_and_reports_expansion() {
             sink.lock().unwrap().push(id);
             vec![TreeNode::new("loaded", "Loaded child")]
         }));
-        let frames = run(
+        // Each step waits for the frame that shows the last one took.
+        let frames = run_when(
             Control(Element::typed::<Tree>(config).auto_focus()),
             size,
             vec![
-                (2, key(KeyCode::Home)),
-                (3, key(KeyCode::Right)),
-                (5, key(KeyCode::Left)),
-                (7, key(KeyCode::Right)),
-                (9, None),
+                ("Lazy", key(KeyCode::Home)),
+                ("Lazy", key(KeyCode::Right)),
+                ("Loaded child", key(KeyCode::Left)),
+                ("Lazy", key(KeyCode::Right)),
+                ("Loaded child", None),
             ],
         );
         assert_eq!(*calls.lock().unwrap(), vec!["lazy"]);
@@ -433,15 +437,15 @@ fn tree_down_up_click_does_not_toggle_twice_and_release_keys_are_inert() {
         }));
         let mut release = KeyEvent::new(KeyCode::Left);
         release.kind = KeyEventKind::Release;
-        let frames = run(
+        let frames = run_when(
             Control(Tree::with_props(config).auto_focus()),
             size,
             vec![
-                (2, click(2, 1)),
+                ("Folder", click(2, 1)),
                 // The App follows this release over the pressed row with a Click (INP-004).
-                (4, mouse(MouseEventKind::Up, 2, 1)),
-                (4, Some(Event::Key(release))),
-                (5, None),
+                ("Leaf", mouse(MouseEventKind::Up, 2, 1)),
+                ("Leaf", Some(Event::Key(release))),
+                ("Leaf", None),
             ],
         );
         assert_eq!(*calls.lock().unwrap(), vec![("folder".to_string(), true)]);
@@ -515,21 +519,22 @@ fn tree_changed_props_preserve_ids_and_replace_authored_flags() {
     }
     for size in [(24, 8), (48, 14)] {
         let calls = Arc::new(Mutex::new(Vec::new()));
-        let frames = run(
+        // The last step waits for the frame that shows the collapsed root.
+        let frames = run_until_hidden(
             Changing {
                 phase: AtomicUsize::new(0),
                 calls: calls.clone(),
             },
             size,
             vec![
-                (2, click(5, 1)),
-                (3, key(KeyCode::Right)),
-                (5, key(KeyCode::Down)),
-                (6, key(KeyCode::F(2))),
-                (7, key(KeyCode::Enter)),
-                (8, key(KeyCode::F(2))),
-                (10, None),
+                ("Folder", click(5, 1)),
+                ("Folder", key(KeyCode::Right)),
+                ("Leaf", key(KeyCode::Down)),
+                ("Leaf", key(KeyCode::F(2))),
+                ("Reordered", key(KeyCode::Enter)),
+                ("Reordered", key(KeyCode::F(2))),
             ],
+            "Folder",
         );
         assert_eq!(*calls.lock().unwrap(), vec!["leaf"]);
         assert!(frames
@@ -640,7 +645,9 @@ fn tree_border_and_builder_classes_reach_painted_cells() {
         let frames = run(Control(Tree::with_props(config)), size, vec![(2, None)]);
         let screen = &frames.last().unwrap().screen;
         assert_eq!(screen.cell(0, 0).unwrap().contents(), "╔");
-        assert_eq!(screen.cell(4, size.0 - 1).unwrap().contents(), "╝");
+        // The tree fills the height its parent allots (DAT-002): here the
+        // whole viewport, so the box closes on the last row.
+        assert_eq!(screen.cell(size.1 - 1, size.0 - 1).unwrap().contents(), "╝");
         assert_ne!(screen.cell(0, 0).unwrap().fgcolor(), vt100::Color::Default);
         let frames = run(
             Control(

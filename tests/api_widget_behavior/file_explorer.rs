@@ -930,12 +930,26 @@ fn explorer_typed_construction_and_public_seed_state_render_through_app() {
             size,
             vec![(&["alpha", "beta", "1 selected"], None)],
         );
-        assert!(frames
-            .last()
-            .unwrap()
+        // The selected row is painted by its role, with no mark before it
+        // (DAT-001): its cells have a background of their own.
+        let frame = frames.last().unwrap();
+        let row = frame
             .text
             .lines()
-            .any(|line| line.contains("beta") && line.contains('*')));
+            .position(|line| line.contains("beta"))
+            .expect("the beta row") as u16;
+        let column = (0..size.0)
+            .find(|&column| {
+                frame.screen.cell(row, column).unwrap().contents() == "b"
+                    && frame.screen.cell(row, column + 1).unwrap().contents() == "e"
+            })
+            .expect("the beta cell");
+        assert_ne!(
+            frame.screen.cell(row, column).unwrap().bgcolor(),
+            vt100::Color::Default,
+            "{}",
+            frame.text
+        );
     }
 }
 
