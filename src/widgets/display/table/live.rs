@@ -748,6 +748,47 @@ impl Component for LiveTable {
 mod tests {
     use super::*;
 
+    /// DAT-004: the table's node tells its row and column counts and is
+    /// named by `aria_label` alone.
+    #[test]
+    fn dat_004_a_table_tells_its_row_and_column_counts() {
+        let config = TableProps {
+            columns: vec![
+                TableColumn::new("Widget", "widget"),
+                TableColumn::new("State", "state"),
+            ],
+            rows: vec![
+                TableRow::new("input").with_cell("widget", "Input"),
+                TableRow::new("layout").with_cell("widget", "Layout"),
+                TableRow::new("data").with_cell("widget", "Data"),
+            ],
+            ..Default::default()
+        };
+        let props = LiveProps {
+            config,
+            seed: TableState::default(),
+            sort_request: None,
+            cursor_change: None,
+            controlled_selection: false,
+            window: None,
+        };
+        let live = LiveTable::new(props.clone());
+        let element = live.render(&props, &TableState::default());
+        let node = &element
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the table's node")
+            .inner;
+        assert_eq!(node.row_count(), Some(3));
+        assert_eq!(node.column_count(), Some(2));
+        assert_eq!(
+            node.label(),
+            None,
+            "the table has no name when the props set none"
+        );
+    }
+
     #[test]
     fn large_table_navigation_retains_full_row_offset() {
         let config = TableProps {

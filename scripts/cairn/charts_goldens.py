@@ -52,6 +52,10 @@ INPUT_GOLDENS = tuple(f"{widget}_{size}" for widget in INPUT_WIDGETS for size in
 # width the page allots, so the wide golden is 400 columns.
 LAYOUT_WIDGETS = ("tabs", "accordion", "breadcrumb", "scroll_view", "stack")
 LAYOUT_GOLDENS = tuple(f"{widget}_{size}" for widget in LAYOUT_WIDGETS for size in ("80x24", "400x100"))
+# The data widgets (tests/data_widgets_goldens.rs): each fills the width
+# the page allots, so the wide golden is 400 columns.
+DATA_WIDGETS = ("table", "data_table", "tree", "file_explorer", "progress_bar")
+DATA_GOLDENS = tuple(f"{widget}_{size}" for widget in DATA_WIDGETS for size in ("80x24", "400x100"))
 
 
 GOLDEN_TESTS = ("tests/charts_goldens.rs", "tests/api_widget_behavior/image.rs")
@@ -106,13 +110,14 @@ GOLDEN_RUNS = (("charts_goldens", "cht_023_", "charts", None), ("api_widget_beha
                ("canvas_goldens", "bar_004_", "canvas", CANVAS), ("menus_goldens", "bar_004_", "menus", None),
                ("overlays_goldens", "bar_004_", "overlays", None),
                ("input_widgets_goldens", "bar_004_", "input_widgets", None),
-               ("layout_widgets_goldens", "bar_004_", "layout_widgets", None))
+               ("layout_widgets_goldens", "bar_004_", "layout_widgets", None),
+               ("data_widgets_goldens", "bar_004_", "data_widgets", None))
 
 
 def checked_in() -> dict[Path, bytes]:
     """Every file of the golden families as it is now."""
     return {p: p.read_bytes() for family in ("charts", "image", "canvas", "menus", "overlays", "input_widgets",
-                                             "layout_widgets")
+                                             "layout_widgets", "data_widgets")
             for p in (SNAPSHOTS / family).rglob("*") if p.is_file()}
 
 
@@ -250,13 +255,23 @@ def wide_problems() -> list[str]:
             columns = max((display_width(row) for row in grid.split("\n")), default=0)
             if columns < 400:
                 problems.append(f"layout widget golden {name}.ansi is {columns} columns wide, under 400")
+    for name in DATA_GOLDENS:
+        path = SNAPSHOTS / "data_widgets" / f"{name}.ansi"
+        if not path.is_file():
+            problems.append(f"missing data widget golden {name}.ansi")
+        elif name.endswith("_400x100"):
+            grid = path.read_text(errors="replace").rsplit("\ncolors: ", 1)[0]
+            columns = max((display_width(row) for row in grid.split("\n")), default=0)
+            if columns < 400:
+                problems.append(f"data widget golden {name}.ansi is {columns} columns wide, under 400")
     for src, test in (("tests/charts_goldens.rs", "cht_023_"),
                       ("tests/api_widget_behavior/image.rs", "bar_004_"),
                       ("tests/canvas_goldens.rs", "bar_004_"),
                       ("tests/menus_goldens.rs", "bar_004_"),
                       ("tests/overlays_goldens.rs", "bar_004_"),
                       ("tests/input_widgets_goldens.rs", "bar_004_"),
-                      ("tests/layout_widgets_goldens.rs", "bar_004_")):
+                      ("tests/layout_widgets_goldens.rs", "bar_004_"),
+                      ("tests/data_widgets_goldens.rs", "bar_004_")):
         path = ROOT / src
         text = path.read_text(errors="replace") if path.is_file() else ""
         body = re.search(rf"fn {test}\w*\(\)\s*\{{(.*?)\n\}}", text, re.S)
@@ -270,6 +285,7 @@ def wide_problems() -> list[str]:
     problems.extend(regeneration_problems("tests/overlays_goldens.rs"))
     problems.extend(regeneration_problems("tests/input_widgets_goldens.rs"))
     problems.extend(regeneration_problems("tests/layout_widgets_goldens.rs"))
+    problems.extend(regeneration_problems("tests/data_widgets_goldens.rs"))
     return problems
 
 
@@ -327,20 +343,22 @@ def main() -> int:
     ok_overlays, why_overlays = cargo_test_filtered("overlays_goldens", "bar_004_")
     ok_inputs, why_inputs = cargo_test_filtered("input_widgets_goldens", "bar_004_")
     ok_layout, why_layout = cargo_test_filtered("layout_widgets_goldens", "bar_004_")
+    ok_data, why_data = cargo_test_filtered("data_widgets_goldens", "bar_004_")
     problems_004 = g + w + ([] if ok_023 else [f"golden comparison failed: {why_023}"]) + (
         [] if ok_image else [f"image golden comparison failed: {why_image}"]) + (
         [] if ok_canvas else [f"canvas golden comparison failed: {why_canvas}"]) + (
         [] if ok_menus else [f"menu golden comparison failed: {why_menus}"]) + (
         [] if ok_overlays else [f"overlay golden comparison failed: {why_overlays}"]) + (
         [] if ok_inputs else [f"input widget golden comparison failed: {why_inputs}"]) + (
-        [] if ok_layout else [f"layout widget golden comparison failed: {why_layout}"])
-    if ok_023 and ok_image and ok_canvas and ok_menus and ok_overlays and ok_inputs and ok_layout:
+        [] if ok_layout else [f"layout widget golden comparison failed: {why_layout}"]) + (
+        [] if ok_data else [f"data widget golden comparison failed: {why_data}"])
+    if ok_023 and ok_image and ok_canvas and ok_menus and ok_overlays and ok_inputs and ok_layout and ok_data:
         problems_004 += altered_golden_problems(before)
     after = checked_in()
     rewritten = sorted(str(p.relative_to(ROOT)) for p in before.keys() | after.keys() if before.get(p) != after.get(p))
     if rewritten:
         problems_004.append(f"a test run changed checked-in goldens: {', '.join(rewritten[:4])}")
-    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart, image, canvas, menu, overlay, input widget and layout widget goldens on the debug backend compare equal; "
+    results["BAR-004"] = (not problems_004, "; ".join(problems_004[:4]) or "chart, image, canvas, menu, overlay, input, layout and data widget goldens on the debug backend compare equal; "
                                                                    "wide ones 400+ columns")
     return finish(results)
 

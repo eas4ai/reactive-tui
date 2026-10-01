@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: layout-widgets
+Current: data-widgets
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -864,3 +864,54 @@ manual has a heading for each of the five and the changelog names what
 changed for an application; and the review records screenshots from Kitty
 of the catalog's Layout page under each of the five presets at 100 and 240
 columns, with a tab focused and the accordion's first section open.
+
+## data-widgets
+
+Requirements: DAT-001, DAT-002, DAT-003, DAT-004, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010
+
+The fourth piece of the widget work, second half. In the widget catalog on
+2026-09-30 the table, the data table and the tree sat in a grey box with a
+white border under every preset, the table showed one of its two columns
+in a card of 85 cells, no row showed focus, selection or hover, the data
+table showed at most thirteen rows, the file explorer painted its
+selection and its errors in palette colors and named itself in fixed
+English, and the progress bar was blue on light grey under every preset;
+the table sorted numbers as text and a tree node selected under a
+collapsed parent stayed hidden.
+
+The commitment brings the table, the data table, the tree, the file
+explorer and the progress bar (`widgets::display`, `builder::data_table()`,
+`builder::tree()`, `builder::progress_bar()`, `builder::file_explorer()`
+and the file explorer presets) to the widget bar (BAR-003 to BAR-006) on
+the color roles of theme.md: every color from a role, one look for the
+props and either builder, a box without a fill of its own, selected rows in
+`accent`, the cursor row in `selection`, and focus, hover and selection
+shown by color alone (DAT-001); the widgets fill the width and the height
+their parent gives, columns share the width by weight with a title's
+width as the minimum, and no default caps a data table's rows (DAT-002);
+numeric columns sort by their numbers, a selected tree node is revealed
+and a collapse keeps the cursor near (DAT-003); names from `aria_label` on
+the props and the builders, counts, indices, levels and the sort direction
+for the screen reader, and a key for every pointer action, the column
+sort among them (DAT-004). Goldens at 80 by 24 and 400 by 100 for each of
+the five; a heading of its own in a new manual chapter for each. The
+widget-bar, goldens and catalog-manual checks learn the data family in
+this spec phase; the progress bar animates, so the frame-budget check
+measures it. Three defects of `widget-study-defects` (6ddc057b) are fixed
+here: sorting as text, the column minimums and the hidden selection; the
+item keeps its other four.
+
+The two-axis charts are the sixth piece and canvas pictures off the App's
+thread the fifth, as agreed; the data table's filter and column panels, its
+export, the file explorer's operations and preview, and the progress bar's
+stripes and pulse keep their behavior and are not changed by this
+commitment; change callbacks on the builders and the screen reader's
+actions beyond focus and click are the eighth piece.
+
+Done when every named requirement passes; the new mechanism
+(data-widgets) has recorded a fail on a violating example for each of its
+requirements; every golden that changed is regenerated and looked at; the
+manual has a heading for each of the five and the changelog names what
+changed for an application; and the review records screenshots from Kitty
+of the catalog's Data display page under each of the five presets at 100
+and 240 columns, with a row of the table focused and a tree node selected.

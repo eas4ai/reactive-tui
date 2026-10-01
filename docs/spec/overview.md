@@ -61,6 +61,7 @@ component library as closely as a cell grid allows.
 | overlays.md | OVL | the modal, popover, toast and the five dialogs: their colors by role, their size in cells, where each is placed and what it is painted over, what the screen reader is told |
 | input-widgets.md | CTL | the text input, checkbox, radio button, select, slider and button: their colors by role, the width they fill, where a select's list opens and what it is painted over, what the screen reader is told |
 | layout-widgets.md | NAV | the tabs, accordion, breadcrumb, scroll view and stack: their colors by role, the size they fill, what happens when their content does not fit, what the screen reader is told |
+| data-widgets.md | DAT | the table, data table, tree, file explorer and progress bar: their colors by role, the size they fill, numeric sorting and a revealed selection, what the screen reader is told |
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults and the demos |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
@@ -80,7 +81,7 @@ is contract.
   parts of a theme other than its color roles: spacing variables, loading
   a theme from a file, the syntax colors (src/theme, src/syntax).
 - Widgets other than the charts, the canvas, the menus, the overlays, the
-  controls and the layout widgets (src/widgets): the data widgets, the
+  controls, the layout widgets and the data widgets (src/widgets): the
   images and the embedded terminal.
 - Image protocols and terminal capability detection (src/widgets/display/image
   other than fallback, src/core/capabilities).
