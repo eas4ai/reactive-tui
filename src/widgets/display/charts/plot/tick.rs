@@ -174,9 +174,65 @@ pub fn label_skip(positions: &[f64], widths: &[usize], gap: usize) -> usize {
     n
 }
 
+/// At most `count` of `ticks`, spread evenly from the first to the last: an
+/// axis's `label_count` (CHT-034). A `count` of zero, or one at least the
+/// number of ticks, keeps every tick.
+pub fn spread_ticks(ticks: Vec<Tick>, count: usize) -> Vec<Tick> {
+    if count == 0 || ticks.len() <= count {
+        return ticks;
+    }
+    let last = ticks.len() - 1;
+    (0..count)
+        .map(|k| {
+            let i = if count == 1 {
+                0
+            } else {
+                (k * last + (count - 1) / 2) / (count - 1)
+            };
+            ticks[i].clone()
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn ticks(n: usize) -> Vec<Tick> {
+        (0..n)
+            .map(|i| Tick {
+                value: i as f64,
+                position: i as f64 * 10.0,
+                label: i.to_string(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn spread_ticks_keeps_the_ends_and_spaces_the_rest() {
+        let picked: Vec<String> = spread_ticks(ticks(5), 3)
+            .into_iter()
+            .map(|t| t.label)
+            .collect();
+        assert_eq!(picked, ["0", "2", "4"]);
+        let picked: Vec<String> = spread_ticks(ticks(10), 4)
+            .into_iter()
+            .map(|t| t.label)
+            .collect();
+        assert_eq!(picked, ["0", "3", "6", "9"]);
+        let one: Vec<String> = spread_ticks(ticks(6), 1)
+            .into_iter()
+            .map(|t| t.label)
+            .collect();
+        assert_eq!(one, ["0"]);
+    }
+
+    #[test]
+    fn spread_ticks_leaves_a_short_or_unlimited_axis_alone() {
+        assert_eq!(spread_ticks(ticks(3), 5).len(), 3);
+        assert_eq!(spread_ticks(ticks(3), 3).len(), 3);
+        assert_eq!(spread_ticks(ticks(7), 0).len(), 7);
+    }
 
     #[test]
     fn nice_steps_are_one_two_five() {

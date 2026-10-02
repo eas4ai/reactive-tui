@@ -5,8 +5,8 @@
 use super::super::super::mask::{Marker, MaskCanvas, DOTS_X, DOTS_Y};
 use super::super::super::plot::{
     self, band_ticks, decimate_min_max, fit_label, format_tick, label_skip, labeled_ticks,
-    linear_ticks, point_ticks, polyline, text_width, value_domain, Axis, Grid, Rect, Rgba,
-    ScaleBand, ScaleLinear, ScalePoint, SizeClass, TextSink,
+    linear_ticks, mix, point_ticks, polyline, spread_ticks, text_width, value_domain, Axis, Grid,
+    Ramp, Rect, Rgba, ScaleBand, ScaleLinear, ScalePoint, SizeClass, TextSink,
 };
 use super::super::super::{
     AxisLabelPlacement, BarGrowth, ChartAxis, ChartType, DataPoint, FillStyle, LineStyle,
@@ -30,32 +30,6 @@ fn category_label(job: &Job, axis: &ChartAxis, index: usize) -> Option<String> {
             .filter(|s| s.visible)
             .find_map(|s| s.data.get(index).and_then(|p| p.label.clone()))
     })
-}
-
-/// `a` mixed toward `b` by `t` (0 is `a`, 1 is `b`), alpha from `a`.
-fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
-    let t = t.clamp(0.0, 1.0);
-    (
-        a.0 + (b.0 - a.0) * t,
-        a.1 + (b.1 - a.1) * t,
-        a.2 + (b.2 - a.2) * t,
-        a.3,
-    )
-}
-
-/// The color of a gradient at `t`, from its resolved stops in offset order.
-fn at_stop(stops: &[(f32, Rgba)], t: f32) -> Option<Rgba> {
-    let (first, last) = (stops.first()?, stops.last()?);
-    if t <= first.0 {
-        return Some(first.1);
-    }
-    if t >= last.0 {
-        return Some(last.1);
-    }
-    let after = stops.iter().position(|(offset, _)| *offset >= t)?;
-    let (a, b) = (stops[after - 1], stops[after]);
-    let span = (b.0 - a.0).max(f32::EPSILON);
-    Some(mix(a.1, b.1, (t - a.0) / span))
 }
 
 /// Keep a mapped coordinate finite and near the canvas (CHT-026).
@@ -446,20 +420,8 @@ pub(super) fn cartesian(
                 all.truncate(data_count);
             }
             match category_axis.label_count {
-                Some(n) if n >= 1 && all.len() > n => {
-                    let last = all.len() - 1;
-                    (0..n)
-                        .map(|k| {
-                            let i = if n == 1 {
-                                0
-                            } else {
-                                (k * last + (n - 1) / 2) / (n - 1)
-                            };
-                            all[i].clone()
-                        })
-                        .collect()
-                }
-                _ => all,
+                Some(n) => spread_ticks(all, n),
+                None => all,
             }
         };
         let category_skip = if category_axis.label_count.is_some() || numeric_x {
@@ -770,12 +732,13 @@ pub(super) fn cartesian(
                 if (from - to).abs() < 1e-9 {
                     continue;
                 }
-                let stops: Vec<(f32, Rgba)> = point
-                    .gradient
-                    .iter()
-                    .filter_map(|(offset, token)| color(token).map(|c| (*offset, c)))
-                    .collect();
-                if stops.is_empty() {
+                let ramp = Ramp::new(
+                    point
+                        .gradient
+                        .iter()
+                        .filter_map(|(offset, token)| color(token).map(|c| (*offset, c))),
+                );
+                if ramp.is_empty() {
                     if horizontal {
                         mask.rect(from, lane_start, to, lane_end, tint, Some((s, i)));
                     } else {
@@ -783,15 +746,16 @@ pub(super) fn cartesian(
                     }
                 } else {
                     // A gradient bar is drawn one cell slab at a time along
-                    // its length, each slab in the gradient's color there.
+                    // its length, each slab in the gradient's color where the
+                    // slab's middle falls between the bar's base and tip.
+                    let along = ScaleLinear::new((from, to), (0.0, 1.0));
                     let (lo, hi) = (from.min(to), from.max(to));
                     let mut at = lo;
                     while at < hi {
                         let next = ((at / dots).floor() + 1.0) * dots;
                         let next = next.min(hi);
                         let middle = (at + next) / 2.0;
-                        let t = ((middle - from) / (to - from)) as f32;
-                        let shade = at_stop(&stops, t).or(tint);
+                        let shade = ramp.at(along.map(middle) as f32).or(tint);
                         if horizontal {
                             mask.rect(at, lane_start, next, lane_end, shade, Some((s, i)));
                         } else {
