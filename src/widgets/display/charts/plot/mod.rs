@@ -14,6 +14,7 @@ pub mod domain;
 pub mod layout;
 pub mod legend;
 pub mod polar;
+pub mod ramp;
 pub mod sankey;
 pub mod scale;
 pub mod tick;
@@ -26,13 +27,15 @@ pub use domain::{value_domain, value_ticks};
 pub use layout::{Rect, SizeClass};
 pub use legend::{Legend, LegendEntry, SWATCH};
 pub use polar::{spoke_angles, PolarGrid};
+pub use ramp::{mix, Ramp};
 pub use sankey::{
     Sankey, SankeyAlign, SankeyError, SankeyGraph, SankeyLink, SankeyNode, SankeyRibbon,
     SankeyValueScale,
 };
 pub use scale::{ScaleBand, ScaleLinear, ScaleOrdinal, ScalePoint};
 pub use tick::{
-    band_ticks, format_tick, label_skip, labeled_ticks, linear_ticks, nice_step, point_ticks, Tick,
+    band_ticks, format_tick, label_skip, labeled_ticks, linear_ticks, nice_step, point_ticks,
+    spread_ticks, Tick,
 };
 pub use tooltip::{Tooltip, TooltipBox, TooltipLine, TooltipRow, TooltipStyle, MAX_ROWS};
 
