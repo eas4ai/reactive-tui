@@ -324,8 +324,9 @@ impl ChartsBuilder {
         self
     }
 
-    /// Fill color token of the series added last; unset, the fill takes
-    /// the stroke color (CHT-012).
+    /// Fill color token of the series added last: an area's fill, which
+    /// unset takes the stroke color (CHT-012), or the color of a bar
+    /// series' bars (CHT-013).
     pub fn fill(mut self, token: impl Into<String>) -> Self {
         if let Some(last) = self.props.series.last_mut() {
             last.fill = Some(token.into());
@@ -917,8 +918,9 @@ pub struct DataSeries {
     pub line_style: LineStyle,
     /// Fill style for area charts; new series default to solid fill.
     pub fill_style: FillStyle,
-    /// Fill color token of an area series; `None` fills with the stroke
-    /// color (CHT-012).
+    /// Fill color token of an area series, `None` filling with the stroke
+    /// color (CHT-012), and of a bar series' bars, `None` taking the series
+    /// color (CHT-013).
     pub fill: Option<String>,
     /// How much of the fill color shows over the chart background, 0 to 1
     /// (CHT-012).

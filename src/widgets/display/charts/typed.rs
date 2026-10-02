@@ -687,15 +687,17 @@ impl<T> BarChartBuilder<T> {
         self
     }
 
-    /// Fill color token of the series added last.
+    /// Fill color token of the series added last: the color of its bars,
+    /// stored as the series fill like the generic route's `.fill()` so both
+    /// routes build the same props (CHT-013, CHT-035).
     pub fn fill(mut self, token: impl Into<String>) -> Self {
         if let Some(last) = self.series.last_mut() {
-            last.color = Some(token.into());
+            last.fill = Some(token.into());
         }
         self
     }
 
-    /// Each bar's fill color token from its datum, over the series color
+    /// Each bar's fill color token from its datum, over the series fill
     /// (CHT-013).
     pub fn fill_with<S: Into<String>>(mut self, fill: impl Fn(&T) -> S + 'static) -> Self {
         self.fill_with = Some(Box::new(move |d| fill(d).into()));
@@ -1599,6 +1601,17 @@ mod tests {
             .build();
         assert_eq!(bars.growth, BarGrowth::Top);
         assert_eq!(bars.value_labels, Some(true));
+        // `.fill()` is the series fill on the typed route as on the generic
+        // one, so the routes build the same props (CHT-035).
+        assert_eq!(bars.series[0].fill.as_deref(), Some("chart-3"));
+        assert_eq!(bars.series[0].color, None);
+        let generic = ChartsBuilder::new()
+            .chart_type(ChartType::BarVertical)
+            .series(bars.series[0].clone())
+            .fill("chart-3")
+            .build();
+        assert_eq!(generic.series[0].fill, bars.series[0].fill);
+        assert_eq!(generic.series[0].color, bars.series[0].color);
         // The value label is its own field, not tooltip metadata (CHT-013).
         assert_eq!(bars.series[0].data[0].value_label.as_deref(), Some("1.0"));
         assert!(!bars.series[0].data[0].metadata.contains_key("label"));
