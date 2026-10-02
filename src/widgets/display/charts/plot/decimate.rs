@@ -60,6 +60,41 @@ pub fn decimate_min_max(values: &[f64], columns: usize) -> Vec<Sample> {
     out
 }
 
+/// Reduce points placed by plot column (a scatter on a numeric x, CHT-033)
+/// to at most two per column, each column's lowest and highest (CHT-027),
+/// in index order. `points` are (original index, column, value); non-finite
+/// values are skipped. The points left out keep their anchors for hover.
+pub fn decimate_by_column(points: impl IntoIterator<Item = (usize, usize, f64)>) -> Vec<Sample> {
+    let mut columns: std::collections::HashMap<usize, (Sample, Sample)> =
+        std::collections::HashMap::new();
+    for (index, column, value) in points {
+        if !value.is_finite() {
+            continue;
+        }
+        let sample = Sample { index, value };
+        columns
+            .entry(column)
+            .and_modify(|(low, high)| {
+                if sample.value < low.value {
+                    *low = sample;
+                }
+                if sample.value > high.value {
+                    *high = sample;
+                }
+            })
+            .or_insert((sample, sample));
+    }
+    let mut out: Vec<Sample> = Vec::with_capacity(columns.len() * 2);
+    for (low, high) in columns.into_values() {
+        out.push(low);
+        if high.index != low.index {
+            out.push(high);
+        }
+    }
+    out.sort_by_key(|sample| sample.index);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,5 +129,21 @@ mod tests {
     #[test]
     fn zero_columns_returns_everything() {
         assert_eq!(decimate_min_max(&[1.0, 2.0], 0).len(), 2);
+    }
+
+    #[test]
+    fn by_column_keeps_each_columns_lowest_and_highest_in_index_order() {
+        let points = [
+            (0, 3, 5.0),
+            (1, 3, 1.0),
+            (2, 3, 9.0),
+            (3, 7, 4.0),
+            (4, 3, f64::NAN),
+            (5, 7, 4.0),
+        ];
+        let kept = decimate_by_column(points);
+        let indices: Vec<usize> = kept.iter().map(|s| s.index).collect();
+        assert_eq!(indices, vec![1, 2, 3]);
+        assert!(decimate_by_column(std::iter::empty()).is_empty());
     }
 }
