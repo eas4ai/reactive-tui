@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: two-axis-charts-correct
+Current: ffi-feature-does-not-compile
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1036,3 +1036,27 @@ changed for an application; and the review records screenshots from
 Kitty of the catalog's Charts page under the five presets at 100 and 240
 columns, with a point in a scatter's second series selected by key and
 its tooltip over the plot.
+
+## ffi-feature-does-not-compile
+
+Requirements: BAR-011, BAR-001, BAR-002, BAR-007, BAR-008, BAR-009, BAR-010
+
+The first of the two P1 findings of the developer's independent review of
+e30afa23 (2026-10-01), promoted from the backlog on 2026-10-02 after the
+developer ranked the two ahead of the canvas work: the library does not
+compile with the `ffi` feature, which the C ABI and the TypeScript
+binding build it with. PointerTracker<T> carries a PhantomData<T>, so the
+static OnceLock<PointerTracker<Renderer>> needs Renderer: Sync, and the
+renderer holds the picture thread's mpsc::Receiver through DiffWriter and
+Graphics. No gate built the feature, so nothing reported it. Delivered
+here: the tracker identifies its type with a PhantomData<fn() -> T> and
+keeps its synchronized address registry, and neither the renderer nor the
+receiver is made Sync artificially; the feature's warnings under clippy
+-D warnings are fixed; the eight ffi test targets build and run; and
+BAR-011 adds the ffi gate (ffi-gates), which builds, lints, documents and
+tests the crate with `ffi` and builds it with `ffi,wgpu-graphics` on the
+Linux host, and builds it with `ffi,wgpu-graphics` on the two test hosts.
+
+Done when every named requirement passes, the ffi-gates mechanism has
+recorded a fail on the tree as it was at the start, and the changelog
+names the fix for an application that builds the native library.

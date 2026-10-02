@@ -63,3 +63,9 @@ Falsifier: At the commitment's final commit, any of the four commands exits non-
 Mechanism: canvas-gates
 Rationale: The gates build default features only, so nothing compiled src/graphics after 2026-09-19; the developer confirmed on 2026-09-27 that the canvas stays an optional feature with its own gate.
 Status: Agreed 2026-09-27
+
+[BAR-011] Every commitment MUST leave `cargo build`, `cargo clippy --all-targets -- -D warnings`, `cargo doc --no-deps` and `cargo test --no-fail-fast`, each with `--locked -p reactive-tui --features ffi`, and `cargo build --locked -p reactive-tui --features ffi,wgpu-graphics`, passing on the Linux development host, and `cargo build --locked -p reactive-tui --all-targets --features ffi,wgpu-graphics` passing with no warning on the macOS and Windows test hosts, at its final commit.
+Falsifier: At the commitment's final commit, any of the five commands exits non-zero on the Linux host, or the host build fails or prints a warning on either test host.
+Mechanism: ffi-gates
+Rationale: The gates build default features and wgpu-graphics only, so the C ABI's feature broke unnoticed: the developer's review of e30afa23 (finding 1) found the library does not compile with `ffi`, which the C and TypeScript bindings build it with.
+Status: Agreed 2026-10-02
