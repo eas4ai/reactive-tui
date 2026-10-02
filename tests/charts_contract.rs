@@ -1882,7 +1882,7 @@ fn cells_with(frame: &Snapshot, pick: impl Fn(&str) -> bool) -> Vec<(u16, u16)> 
             frame
                 .screen
                 .cell(*r, *c)
-                .is_some_and(|cell| pick(&cell.contents()))
+                .is_some_and(|cell| pick(cell.contents()))
         })
         .collect()
 }

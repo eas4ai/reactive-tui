@@ -230,6 +230,7 @@ fn test_chart_axis_configuration() {
         show_labels: true,
         tick_count: 10,
         custom_labels: vec!["Start".to_string(), "Middle".to_string(), "End".to_string()],
+        ..Default::default()
     };
 
     assert_eq!(x_axis.title, Some("X Axis".to_string()));

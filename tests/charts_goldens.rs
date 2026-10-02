@@ -2493,7 +2493,7 @@ fn cht_033_scatter_places_points_by_x_value() {
     let size = (40u16, 12u16);
     let data = vec![(1.0f64, 5.0f64), (2.0, 5.0), (10.0, 5.0)];
     let scatter = ScatterChartBuilder::new(data)
-        .x(|p: &(f64, f64)| p.0.to_string())
+        .x(|p: &(f64, f64)| p.0)
         .y(|p: &(f64, f64)| p.1)
         .size(size.0, size.1)
         .x_axis(false)

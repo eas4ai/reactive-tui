@@ -57,7 +57,7 @@ ROUTES = {
 # Typed-builder methods that are data accessors or per-series and per-point
 # settings, not chart-level options.
 NOT_OPTIONS = {"new", "build", "render", "x", "y", "band", "value", "open", "high", "low", "close", "name", "stroke",
-               "fill", "fill_gradient", "label", "label_color", "color", "bullish", "bearish", "tooltip_title",
+               "fill", "fill_with", "fill_gradient", "label", "label_color", "color", "bullish", "bearish", "tooltip_title",
                "tooltip_value", "tooltip_value_color", "tooltip_content", "value_label", "node_label", "node_color"}
 # A typed option whose generic-builder method has another name.
 ALIASES = {"alignment": ["growth", "alignment"], "dot": ["dots", "dot"], "natural": ["curve"], "linear": ["curve"],
@@ -76,18 +76,45 @@ RADIAL = {
 }
 
 
+def block_end(text: str, start: int) -> int:
+    """The index just past the brace block that opens before `start`."""
+    depth, j = 1, start
+    while j < len(text) and depth:
+        depth += text[j] == "{"
+        depth -= text[j] == "}"
+        j += 1
+    return j
+
+
+def macro_methods(text: str) -> dict[str, set[str]]:
+    """Map `macro_rules!` name -> the pub method names its body defines, for
+    the method-set macros the typed builders share (`common_methods!()`)."""
+    found: dict[str, set[str]] = {}
+    for m in re.finditer(r"macro_rules!\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{", text):
+        body = text[m.end(): block_end(text, m.end())]
+        found[m.group(1)] = set(re.findall(r"\bpub fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*[<(]", body))
+    return found
+
+
 def builder_methods(text: str) -> dict[str, set[str]]:
-    """Map builder type name -> set of pub method names."""
+    """Map builder type name -> set of pub method names, counting the methods
+    a macro invocation in the impl body generates: a shared method-set macro
+    (`common_methods!();`) by its definition, and a forwarding list
+    (`forward! { name(args); ... }`) by the names it lists."""
+    macros = macro_methods(text)
     found: dict[str, set[str]] = {}
     for m in re.finditer(r"impl(?:<[^>]*>)?\s+([A-Za-z_][A-Za-z0-9_]*)(?:<[^>]*>)?\s*\{", text):
         name = m.group(1)
-        depth, j = 1, m.end()
-        while j < len(text) and depth:
-            depth += text[j] == "{"
-            depth -= text[j] == "}"
-            j += 1
-        body = text[m.end(): j]
-        found.setdefault(name, set()).update(re.findall(r"\bpub fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*[<(]", body))
+        body = text[m.end(): block_end(text, m.end())]
+        methods = found.setdefault(name, set())
+        methods.update(re.findall(r"\bpub fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*[<(]", body))
+        for call in re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)!\s*(\(\s*\)\s*;|\{)", body):
+            macro = call.group(1)
+            if call.group(2) == "{":
+                listed = body[call.end(): block_end(body, call.end())]
+                methods.update(re.findall(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(", listed, re.M))
+            else:
+                methods.update(macros.get(macro, set()))
     return found
 
 
@@ -125,7 +152,14 @@ def main() -> int:
         # A sankey's links are built with SankeyLink::new(source, target, value).
         if kind == "sankey" and "new" not in lower.get("sankeylink", set()):
             radial_missing.append("sankey: no SankeyLink::new(source, target, value)")
-    closures = re.findall(r"Box<dyn Fn|Arc<dyn Fn|Rc<dyn Fn", "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources("src/widgets/display/charts.rs")))
+    # The props and their parts hold evaluated data, never a closure; a
+    # builder may hold one until `build()` runs it.
+    props_text = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources("src/widgets/display/charts.rs"))
+    closures = []
+    for name in ("ChartProps", "ChartAxis", "ChartLegend", "DataPoint", "DataSeries", "PointTooltip", "RadialOptions", "SankeyOptions"):
+        m = re.search(rf"pub struct {name}\s*\{{(.*?)\n\}}", props_text, re.S)
+        if m:
+            closures += re.findall(r"Box<dyn Fn|Arc<dyn Fn|Rc<dyn Fn", m.group(1))
     stored = [f"{len(closures)} closure fields stored in chart props (must be evaluated at build)"] if closures else []
     missing = sorted(set(missing)) + stored
     radial_missing = sorted(set(radial_missing)) + stored

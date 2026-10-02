@@ -251,6 +251,57 @@ macro_rules! chart {
             .title($title)
             .build()
     };
+
+    // Every other chart type, with and without a title (CHT-035).
+    [horizontal_bar: $name:expr => [$($value:expr),* $(,)?] $(, title: $title:expr)?] => {
+        $crate::chart!(@build horizontal_bar_chart, $name, [$($value),*] $(, $title)?)
+    };
+    [area: $name:expr => [$($value:expr),* $(,)?] $(, title: $title:expr)?] => {
+        $crate::chart!(@build area_chart, $name, [$($value),*] $(, $title)?)
+    };
+    [scatter: $name:expr => [$($value:expr),* $(,)?] $(, title: $title:expr)?] => {
+        $crate::chart!(@build scatter_chart, $name, [$($value),*] $(, $title)?)
+    };
+    [donut: $name:expr => [$($value:expr),* $(,)?] $(, title: $title:expr)?] => {
+        $crate::chart!(@build donut_chart, $name, [$($value),*] $(, $title)?)
+    };
+    [radar: $name:expr => [$($value:expr),* $(,)?] $(, title: $title:expr)?] => {
+        $crate::chart!(@build radar_chart, $name, [$($value),*] $(, $title)?)
+    };
+    // Candles as (open, high, low, close).
+    [candlestick: $name:expr => [$(($open:expr, $high:expr, $low:expr, $close:expr)),* $(,)?] $(, title: $title:expr)?] => {{
+        let builder = $crate::builder::chart()
+            .candlestick_chart()
+            .candle_series($name, vec![$(($open, $high, $low, $close)),*]);
+        $crate::chart!(@title builder $(, $title)?).build()
+    }};
+    // A Sankey chart: its nodes by name and its links as (from, to, value)
+    // by node index.
+    [sankey: $nodes:expr => [$(($from:expr, $to:expr, $value:expr)),* $(,)?] $(, title: $title:expr)?] => {{
+        let builder = $crate::builder::chart()
+            .sankey_chart()
+            .sankey_nodes($nodes, vec![$(($from, $to, $value)),*]);
+        $crate::chart!(@title builder $(, $title)?).build()
+    }};
+    (@build $constructor:ident, $name:expr, [$($value:expr),*]) => {
+        $crate::builder::chart()
+            .$constructor()
+            .simple_series($name, vec![$($value),*])
+            .build()
+    };
+    (@build $constructor:ident, $name:expr, [$($value:expr),*], $title:expr) => {
+        $crate::builder::chart()
+            .$constructor()
+            .simple_series($name, vec![$($value),*])
+            .title($title)
+            .build()
+    };
+    (@title $builder:ident) => {
+        $builder
+    };
+    (@title $builder:ident, $title:expr) => {
+        $builder.title($title)
+    };
 }
 
 /// Create a text input with optional configuration

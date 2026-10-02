@@ -26,10 +26,10 @@ pub use charts::{
     LineChartBuilder, PieChartBuilder, RadarChartBuilder, SankeyChartBuilder, ScatterChartBuilder,
 };
 pub use charts::{
-    BarGrowth, Candle, Chart, ChartAxis, ChartLegend, ChartProps, ChartState, ChartType,
-    ChartsBuilder, Curve, DataPoint, DataSeries, FillStyle, GlyphSet, LegendPosition, LineStyle,
-    RadialOptions, SankeyAlign, SankeyLabel, SankeyLink, SankeyOptions, SankeyValueScale,
-    SizeClass,
+    AxisLabelPlacement, BarGrowth, Candle, Chart, ChartAxis, ChartLegend, ChartProps, ChartState,
+    ChartType, ChartsBuilder, Curve, DataPoint, DataSeries, FillStyle, GlyphSet, LegendPosition,
+    LineStyle, PointTooltip, RadialOptions, SankeyAlign, SankeyLabel, SankeyLink, SankeyOptions,
+    SankeyValueScale, SizeClass,
 };
 pub use data_table::{
     ColumnFilter, DataTable, DataTableProps, DataTableState, FilterType, PaginationConfig,

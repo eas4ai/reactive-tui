@@ -37,33 +37,43 @@ pub fn glyph_support() -> bool {
 #[cfg(test)]
 pub(crate) static GLYPH_REPORT_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// Builder for creating Chart components with a fluent API
-#[derive(Clone, Debug)]
+/// Builder for creating Chart components with a fluent API. It holds the
+/// props it builds, so every option of a typed builder has a method here
+/// (CHT-035); the options that depend on the chart's orientation or on its
+/// data (the value axis of a bar chart, a tick format) apply at `build()`.
+#[derive(Clone, Default)]
 pub struct ChartsBuilder {
-    chart_type: ChartType,
-    series: Vec<DataSeries>,
-    title: Option<String>,
-    width: u16,
-    height: u16,
-    x_axis: ChartAxis,
-    y_axis: ChartAxis,
-    legend: ChartLegend,
-    color_palette: Vec<String>,
-    animated: bool,
-    animation_duration: u64,
-    show_tooltips: bool,
-    class: Option<String>,
-    growth: BarGrowth,
-    stacked: bool,
-    curve: Curve,
-    dots: bool,
-    size_class: Option<SizeClass>,
-    ascii: bool,
-    tick_margin: usize,
-    transition_duration: u64,
-    value_labels: Option<bool>,
-    radial: RadialOptions,
-    sankey: SankeyOptions,
+    props: ChartProps,
+    /// Deferred options, applied at `build()` once the type and data are known.
+    deferred: Deferred,
+}
+
+/// A tick label formatter, run once at `build()` (CHT-020, CHT-034).
+type TickFormat = std::sync::Arc<dyn Fn(f64) -> String + Send + Sync>;
+
+#[derive(Clone, Default)]
+struct Deferred {
+    /// Show the band (category) axis of a bar chart.
+    label_axis: Option<bool>,
+    /// Show the value axis of a bar chart.
+    value_axis: Option<bool>,
+    value_tick_count: Option<usize>,
+    value_placement: Option<AxisLabelPlacement>,
+    value_format: Option<TickFormat>,
+    y_format: Option<TickFormat>,
+    /// Label count on the band axis of a bar chart.
+    band_tick_count: Option<usize>,
+    /// Color tokens for candles by direction.
+    bullish: Option<String>,
+    bearish: Option<String>,
+}
+
+impl std::fmt::Debug for ChartsBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ChartsBuilder")
+            .field("props", &self.props)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ChartsBuilder {
@@ -128,234 +138,498 @@ impl ChartsBuilder {
 
     /// Set the chart type
     pub fn chart_type(mut self, chart_type: ChartType) -> Self {
-        self.chart_type = chart_type;
+        self.props.chart_type = chart_type;
         self
     }
 
     /// Add a data series
     pub fn series(mut self, series: DataSeries) -> Self {
-        self.series.push(series);
+        self.props.series.push(series);
         self
     }
 
     /// Add multiple data series
     pub fn with_series(mut self, series: Vec<DataSeries>) -> Self {
-        self.series.extend(series);
+        self.props.series.extend(series);
         self
     }
 
     /// Set the chart title
     pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
+        self.props.title = Some(title.into());
+        self
+    }
+
+    /// The name the screen reader is told, instead of the title (CHT-036).
+    pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+        self.props.aria_label = Some(label.into());
         self
     }
 
     /// Set the chart width
     pub fn width(mut self, width: u16) -> Self {
-        self.width = width;
+        self.props.width = width;
         self
     }
 
     /// Set the chart height
     pub fn height(mut self, height: u16) -> Self {
-        self.height = height;
+        self.props.height = height;
         self
     }
 
     /// Set the chart size
     pub fn size(mut self, width: u16, height: u16) -> Self {
-        self.width = width;
-        self.height = height;
+        self.props.width = width;
+        self.props.height = height;
         self
     }
 
     /// Configure the X-axis
     pub fn x_axis(mut self, axis: ChartAxis) -> Self {
-        self.x_axis = axis;
+        self.props.x_axis = axis;
         self
     }
 
     /// Configure the Y-axis
     pub fn y_axis(mut self, axis: ChartAxis) -> Self {
-        self.y_axis = axis;
+        self.props.y_axis = axis;
+        self
+    }
+
+    /// Show or hide the drawing's horizontal axis line and labels.
+    pub fn x_axis_labels(mut self, show: bool) -> Self {
+        self.props.x_axis.show_labels = show;
+        self
+    }
+
+    /// Show or hide the drawing's vertical axis line and labels.
+    pub fn y_axis_labels(mut self, show: bool) -> Self {
+        self.props.y_axis.show_labels = show;
         self
     }
 
     /// Configure the legend
     pub fn legend(mut self, legend: ChartLegend) -> Self {
-        self.legend = legend;
+        self.props.legend = legend;
         self
     }
 
     /// Hide the legend
     pub fn no_legend(mut self) -> Self {
-        self.legend.visible = false;
+        self.props.legend.visible = false;
         self
     }
 
     /// Set color palette
     pub fn color_palette(mut self, colors: Vec<String>) -> Self {
-        self.color_palette = colors;
+        self.props.color_palette = colors;
         self
     }
 
     /// Enable animation
     pub fn animated(mut self, animated: bool) -> Self {
-        self.animated = animated;
+        self.props.animated = animated;
         self
     }
 
     /// Set animation duration in milliseconds
     pub fn animation_duration(mut self, duration: u64) -> Self {
-        self.animation_duration = duration;
+        self.props.animation_duration = duration;
         self
     }
 
     /// Enable or disable tooltips
     pub fn show_tooltips(mut self, show: bool) -> Self {
-        self.show_tooltips = show;
+        self.props.show_tooltips = show;
         self
+    }
+
+    /// The reference's name for [`Self::show_tooltips`]: hover, keyboard
+    /// selection and the tooltip.
+    pub fn interactive(self, interactive: bool) -> Self {
+        self.show_tooltips(interactive)
     }
 
     /// Add CSS classes
     pub fn class(mut self, class: impl Into<String>) -> Self {
-        self.class = Some(class.into());
+        self.props.class = Some(class.into());
         self
     }
 
     /// Which edge bars grow from: Bottom or Top for vertical bars, Left or
     /// Right for horizontal ones.
     pub fn growth(mut self, growth: BarGrowth) -> Self {
-        self.growth = growth;
+        self.props.growth = growth;
         self
+    }
+
+    /// The reference's name for [`Self::growth`].
+    pub fn alignment(self, alignment: BarGrowth) -> Self {
+        self.growth(alignment)
     }
 
     /// Stack series instead of grouping them side by side (bars) or
     /// overlaying them (areas).
     pub fn stacked(mut self, stacked: bool) -> Self {
-        self.stacked = stacked;
+        self.props.stacked = stacked;
         self
     }
 
     /// Curve style for line and area strokes.
     pub fn curve(mut self, curve: Curve) -> Self {
-        self.curve = curve;
+        self.props.curve = curve;
         self
+    }
+
+    /// Smooth spline strokes.
+    pub fn natural(self) -> Self {
+        self.curve(Curve::Natural)
+    }
+
+    /// Straight strokes.
+    pub fn linear(self) -> Self {
+        self.curve(Curve::Linear)
+    }
+
+    /// Step strokes holding each value until the next point.
+    pub fn step_after(self) -> Self {
+        self.curve(Curve::StepAfter)
     }
 
     /// Draw a dot at every line-chart point.
     pub fn dots(mut self, dots: bool) -> Self {
-        self.dots = dots;
+        self.props.dots = dots;
+        self
+    }
+
+    /// Turn the dots on (the reference's name).
+    pub fn dot(self) -> Self {
+        self.dots(true)
+    }
+
+    /// Name of the series added last.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        if let Some(last) = self.props.series.last_mut() {
+            last.name = name.into();
+        }
+        self
+    }
+
+    /// Stroke color token of the series added last.
+    pub fn stroke(mut self, token: impl Into<String>) -> Self {
+        if let Some(last) = self.props.series.last_mut() {
+            last.color = Some(token.into());
+        }
+        self
+    }
+
+    /// Fill color token of the series added last; unset, the fill takes
+    /// the stroke color (CHT-012).
+    pub fn fill(mut self, token: impl Into<String>) -> Self {
+        if let Some(last) = self.props.series.last_mut() {
+            last.fill = Some(token.into());
+        }
+        self
+    }
+
+    /// Color token for candles that close above their open.
+    pub fn bullish(mut self, token: impl Into<String>) -> Self {
+        self.deferred.bullish = Some(token.into());
+        self
+    }
+
+    /// Color token for candles that close below their open.
+    pub fn bearish(mut self, token: impl Into<String>) -> Self {
+        self.deferred.bearish = Some(token.into());
         self
     }
 
     /// Force a size class regardless of the rectangle the chart gets.
     pub fn size_class(mut self, class: SizeClass) -> Self {
-        self.size_class = Some(class);
+        self.props.size_class = Some(class);
         self
     }
 
     /// Render with ASCII glyphs only.
     pub fn ascii(mut self, ascii: bool) -> Self {
-        self.ascii = ascii;
+        self.props.ascii = ascii;
         self
     }
 
-    /// Show every n-th axis label; 0 chooses a stride that avoids overlap.
+    /// Show every n-th category label; 0 chooses a stride that avoids
+    /// overlap.
     pub fn tick_margin(mut self, margin: usize) -> Self {
-        self.tick_margin = margin;
+        self.props.tick_margin = margin;
         self
     }
 
     /// Duration of the animation from old values to new ones, in ms.
     pub fn transition_duration(mut self, ms: u64) -> Self {
-        self.transition_duration = ms;
+        self.props.transition_duration = ms;
         self
     }
 
     /// Pie, donut and radar geometry (CHT-015, CHT-016).
     pub fn radial(mut self, radial: RadialOptions) -> Self {
-        self.radial = radial;
+        self.props.radial = radial;
         self
     }
 
     /// Sankey links and layout (CHT-030).
     pub fn sankey_options(mut self, sankey: SankeyOptions) -> Self {
-        self.sankey = sankey;
+        self.props.sankey = sankey;
         self
     }
 
     /// Turn value labels on or off; unset follows the size class.
     pub fn value_labels(mut self, on: bool) -> Self {
-        self.value_labels = Some(on);
+        self.props.value_labels = Some(on);
         self
     }
 
-    /// Build the ChartProps
+    /// Draw grid lines on both axes.
+    pub fn grid(mut self, grid: bool) -> Self {
+        self.props.x_axis.show_grid = grid;
+        self.props.y_axis.show_grid = grid;
+        self
+    }
+
+    /// Draw the grid dashed (dotted cells) or solid (CHT-034).
+    pub fn grid_dashed(mut self, dashed: bool) -> Self {
+        self.props.x_axis.dashed = dashed;
+        self.props.y_axis.dashed = dashed;
+        self
+    }
+
+    /// Divide the plot into `count` columns with vertical grid lines, the
+    /// first on its left edge (CHT-034).
+    pub fn grid_columns(mut self, count: usize) -> Self {
+        self.props.x_axis.grid_columns = Some(count);
+        self
+    }
+
+    /// Pin the value axis to `min..=max` instead of fitting the data
+    /// (CHT-034); shapes outside stop at the plot's edge.
+    pub fn y_domain(mut self, min: f64, max: f64) -> Self {
+        self.props.y_axis.min = Some(min);
+        self.props.y_axis.max = Some(max);
+        self
+    }
+
+    /// Lay the category axis out for `count` evenly spaced points, the data
+    /// taking the leading ones (CHT-034).
+    pub fn point_count(mut self, count: usize) -> Self {
+        self.props.point_count = Some(count);
+        self
+    }
+
+    /// Where the vertical axis's tick labels sit: in a gutter left of the
+    /// plot, or inside it beside their grid lines (CHT-034).
+    pub fn y_axis_label_placement(mut self, placement: AxisLabelPlacement) -> Self {
+        self.props.y_axis.placement = placement;
+        self
+    }
+
+    /// How many ticks the vertical axis carries, at least two; they place
+    /// the grid rows and the tick labels (CHT-034).
+    pub fn y_tick_count(mut self, count: usize) -> Self {
+        self.props.y_axis.tick_count = count.max(2);
+        self
+    }
+
+    /// The text of each vertical-axis tick label from its value, run once
+    /// at `build()` (CHT-034).
+    pub fn y_tick_format(mut self, format: impl Fn(f64) -> String + Send + Sync + 'static) -> Self {
+        self.deferred.y_format = Some(std::sync::Arc::new(format));
+        self
+    }
+
+    /// Label `count` of the category values, spread from the first to the
+    /// last, instead of every `tick_margin`-th (CHT-034).
+    pub fn x_tick_count(mut self, count: usize) -> Self {
+        self.props.x_axis.label_count = Some(count);
+        self
+    }
+
+    /// Draw a dashed line across the plot at `value`; call again for more
+    /// (CHT-034).
+    pub fn reference_line(mut self, value: f64) -> Self {
+        self.props.reference_lines.push(value);
+        self
+    }
+
+    /// Rows kept clear above the highest value and below the lowest
+    /// (CHT-034).
+    pub fn y_padding(mut self, top: u16, bottom: u16) -> Self {
+        self.props.headroom = (top, bottom);
+        self
+    }
+
+    /// Show or hide a bar chart's band axis (its categories).
+    pub fn label_axis(mut self, show: bool) -> Self {
+        self.deferred.label_axis = Some(show);
+        self
+    }
+
+    /// Show or hide a bar chart's value axis.
+    pub fn value_axis(mut self, show: bool) -> Self {
+        self.deferred.value_axis = Some(show);
+        self
+    }
+
+    /// How many ticks a bar chart's value axis carries, at least two.
+    pub fn value_tick_count(mut self, count: usize) -> Self {
+        self.deferred.value_tick_count = Some(count.max(2));
+        self
+    }
+
+    /// Where a bar chart's value tick labels sit.
+    pub fn value_axis_label_placement(mut self, placement: AxisLabelPlacement) -> Self {
+        self.deferred.value_placement = Some(placement);
+        self
+    }
+
+    /// The text of each value tick label of a bar chart, run once at
+    /// `build()`.
+    pub fn value_tick_format(
+        mut self,
+        format: impl Fn(f64) -> String + Send + Sync + 'static,
+    ) -> Self {
+        self.deferred.value_format = Some(std::sync::Arc::new(format));
+        self
+    }
+
+    /// Lay a bar chart's band axis out for `count` bands, the data taking
+    /// the leading ones.
+    pub fn band_count(mut self, count: usize) -> Self {
+        self.props.band_count = Some(count);
+        self
+    }
+
+    /// Label `count` of a bar chart's bands, spread from the first to the
+    /// last.
+    pub fn band_tick_count(mut self, count: usize) -> Self {
+        self.deferred.band_tick_count = Some(count);
+        self
+    }
+
+    /// Space between bands as a fraction of a band, 0 to 1 (default 0.4).
+    pub fn padding_inner(mut self, padding: f64) -> Self {
+        self.props.padding_inner = Some(padding);
+        self
+    }
+
+    /// Space before the first band and after the last, as a fraction of a
+    /// band (default 0.2).
+    pub fn padding_outer(mut self, padding: f64) -> Self {
+        self.props.padding_outer = Some(padding);
+        self
+    }
+
+    /// Keep every band at most `width` cells wide, so a few bars across a
+    /// wide chart stay narrow.
+    pub fn max_band_width(mut self, width: u16) -> Self {
+        self.props.max_band_width = Some(width);
+        self
+    }
+
+    /// The shortest a bar is drawn, in cells, so a tiny value still shows.
+    pub fn min_length(mut self, length: f64) -> Self {
+        self.props.min_bar_length = length;
+        self
+    }
+
+    /// A candle body's width as a fraction of its band (default 0.8).
+    pub fn body_width_ratio(mut self, ratio: f32) -> Self {
+        self.props.body_width_ratio = ratio;
+        self
+    }
+
+    /// Whether the chart's bars run horizontally.
+    fn horizontal(&self) -> bool {
+        self.props.chart_type == ChartType::BarHorizontal
+            || (self.props.chart_type == ChartType::BarVertical
+                && self.props.growth.is_horizontal())
+    }
+
+    /// Build the ChartProps: the deferred options settle by the chart's
+    /// orientation and data.
     pub fn build(self) -> ChartProps {
-        ChartProps {
-            chart_type: self.chart_type,
-            series: self.series,
-            title: self.title,
-            width: self.width,
-            height: self.height,
-            x_axis: self.x_axis,
-            y_axis: self.y_axis,
-            legend: self.legend,
-            color_palette: self.color_palette,
-            animated: self.animated,
-            animation_duration: self.animation_duration,
-            show_tooltips: self.show_tooltips,
-            class: self.class,
-            growth: self.growth,
-            stacked: self.stacked,
-            curve: self.curve,
-            dots: self.dots,
-            size_class: self.size_class,
-            ascii: self.ascii,
-            tick_margin: self.tick_margin,
-            transition_duration: self.transition_duration,
-            value_labels: self.value_labels,
-            radial: self.radial,
-            sankey: self.sankey,
+        let horizontal = self.horizontal();
+        let Self {
+            mut props,
+            deferred,
+        } = self;
+        {
+            let (value_axis, category_axis) = if horizontal {
+                (&mut props.x_axis, &mut props.y_axis)
+            } else {
+                (&mut props.y_axis, &mut props.x_axis)
+            };
+            if let Some(show) = deferred.value_axis {
+                value_axis.show_labels = show;
+            }
+            if let Some(show) = deferred.label_axis {
+                category_axis.show_labels = show;
+            }
+            if let Some(count) = deferred.value_tick_count {
+                value_axis.tick_count = count;
+            }
+            if let Some(placement) = deferred.value_placement {
+                value_axis.placement = placement;
+            }
+            if let Some(count) = deferred.band_tick_count {
+                category_axis.label_count = Some(count);
+            }
         }
+        if let Some((bullish, bearish)) = (deferred.bullish.is_some() || deferred.bearish.is_some())
+            .then_some((deferred.bullish, deferred.bearish))
+        {
+            for series in &mut props.series {
+                for point in &mut series.data {
+                    if let Some(candle) = point.candle {
+                        let token = if candle.is_bullish() {
+                            &bullish
+                        } else {
+                            &bearish
+                        };
+                        if point.color.is_none() {
+                            point.color = token.clone();
+                        }
+                    }
+                }
+            }
+        }
+        // Tick formats run once, over the ticks the value axis will carry.
+        let format = if horizontal {
+            deferred.value_format
+        } else {
+            deferred.value_format.or(deferred.y_format)
+        };
+        if let Some(format) = format {
+            let value_axis = if horizontal {
+                &props.x_axis
+            } else {
+                &props.y_axis
+            };
+            let ticks = plot::value_ticks(&props, value_axis);
+            let labelled: Vec<(f64, String)> = ticks
+                .into_iter()
+                .map(|value| (value, format(value)))
+                .collect();
+            if horizontal {
+                props.x_axis.ticks = labelled;
+            } else {
+                props.y_axis.ticks = labelled;
+            }
+        }
+        props
     }
 
     /// Build and render as an Element (convenience method)
     pub fn render(self) -> Element {
         Element::component("Charts").with_props(self.build())
-    }
-}
-
-impl Default for ChartsBuilder {
-    fn default() -> Self {
-        let props = ChartProps::default();
-        Self {
-            chart_type: props.chart_type,
-            series: props.series,
-            title: props.title,
-            width: props.width,
-            height: props.height,
-            x_axis: props.x_axis,
-            y_axis: props.y_axis,
-            legend: props.legend,
-            color_palette: props.color_palette,
-            animated: props.animated,
-            animation_duration: props.animation_duration,
-            show_tooltips: props.show_tooltips,
-            class: props.class,
-            growth: props.growth,
-            stacked: props.stacked,
-            curve: props.curve,
-            dots: props.dots,
-            size_class: props.size_class,
-            ascii: props.ascii,
-            tick_margin: props.tick_margin,
-            transition_duration: props.transition_duration,
-            value_labels: props.value_labels,
-            radial: props.radial,
-            sankey: props.sankey,
-        }
     }
 }
 
@@ -400,6 +674,17 @@ impl Candle {
     }
 }
 
+/// Where a value axis draws its tick labels (CHT-034).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AxisLabelPlacement {
+    /// In a gutter beside the plot, which the plot shrinks to make room for.
+    #[default]
+    Outside,
+    /// Inside the plot beside their grid lines, so the plot keeps its full
+    /// size.
+    Inside,
+}
+
 /// Chart axis configuration
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChartAxis {
@@ -417,6 +702,20 @@ pub struct ChartAxis {
     pub tick_count: usize,
     /// Custom tick labels
     pub custom_labels: Vec<String>,
+    /// Explicit ticks as (value, label), from a tick format run at
+    /// `build()`; empty lets the axis choose round values (CHT-034).
+    pub ticks: Vec<(f64, String)>,
+    /// Where a value axis draws its tick labels (CHT-034).
+    pub placement: AxisLabelPlacement,
+    /// How many category labels to show, spread from the first to the
+    /// last; `None` shows every `tick_margin`-th (CHT-034).
+    pub label_count: Option<usize>,
+    /// Draw this axis's grid lines dashed (dotted cells) rather than solid
+    /// (CHT-034).
+    pub dashed: bool,
+    /// Divide the plot into this many columns with vertical grid lines, the
+    /// first on its left edge (CHT-034).
+    pub grid_columns: Option<usize>,
 }
 
 impl Default for ChartAxis {
@@ -429,6 +728,11 @@ impl Default for ChartAxis {
             show_labels: true,
             tick_count: 5,
             custom_labels: Vec::new(),
+            ticks: Vec::new(),
+            placement: AxisLabelPlacement::Outside,
+            label_count: None,
+            dashed: true,
+            grid_columns: None,
         }
     }
 }
@@ -469,6 +773,21 @@ pub enum LegendPosition {
     Floating(u16, u16),
 }
 
+/// Tooltip text a point carries in place of the defaults (CHT-018): the
+/// typed builders' `tooltip_title`, `tooltip_value`, `tooltip_value_color`
+/// and `tooltip_content` closures are run once at `build()` into these.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PointTooltip {
+    /// The title row, instead of the category label.
+    pub title: Option<String>,
+    /// The value text, instead of the formatted value.
+    pub value: Option<String>,
+    /// The color token of the value text.
+    pub color: Option<String>,
+    /// Whole content lines, instead of the series rows.
+    pub lines: Vec<String>,
+}
+
 /// Chart data point with value and optional label
 #[derive(Debug, Clone, PartialEq)]
 pub struct DataPoint {
@@ -483,6 +802,20 @@ pub struct DataPoint {
     /// Open, high, low and close for candlestick charts; `value` holds the
     /// close so the point still works in every other chart type.
     pub candle: Option<Candle>,
+    /// The point's position on a numeric x axis (scatter charts, CHT-033);
+    /// `None` places the point by its index.
+    pub x: Option<f64>,
+    /// Color token of the point's value label; `None` takes the bar's color
+    /// (CHT-013).
+    pub label_color: Option<String>,
+    /// A bar's fill gradient as (offset, color token) stops from its base
+    /// (0) to its tip (1); empty fills the bar with its color (CHT-013).
+    pub gradient: Vec<(f32, String)>,
+    /// Tooltip text that replaces the defaults for this point (CHT-018).
+    pub tooltip: PointTooltip,
+    /// The text of a bar's value label, instead of the formatted value
+    /// (CHT-013); it is not tooltip metadata.
+    pub value_label: Option<String>,
 }
 
 impl DataPoint {
@@ -494,39 +827,71 @@ impl DataPoint {
             color: None,
             metadata: HashMap::new(),
             candle: None,
+            x: None,
+            label_color: None,
+            gradient: Vec::new(),
+            tooltip: PointTooltip::default(),
+            value_label: None,
         }
+    }
+
+    /// The text of a bar's value label (CHT-013).
+    pub fn with_value_label(mut self, label: impl Into<String>) -> Self {
+        self.value_label = Some(label.into());
+        self
     }
 
     /// Create a data point with value and label
     pub fn with_label(value: f64, label: impl Into<String>) -> Self {
         Self {
-            value,
             label: Some(label.into()),
-            color: None,
-            metadata: HashMap::new(),
-            candle: None,
+            ..Self::new(value)
+        }
+    }
+
+    /// A point at numeric `x` with value `y`, for scatter charts (CHT-033).
+    pub fn xy(x: f64, y: f64) -> Self {
+        Self {
+            x: Some(x),
+            ..Self::new(y)
         }
     }
 
     /// Create a candlestick point from open, high, low and close.
     pub fn candle(open: f64, high: f64, low: f64, close: f64) -> Self {
         Self {
-            value: close,
-            label: None,
-            color: None,
-            metadata: HashMap::new(),
             candle: Some(Candle {
                 open,
                 high,
                 low,
                 close,
             }),
+            ..Self::new(close)
         }
     }
 
     /// Set color for this data point
     pub fn with_color(mut self, color: impl Into<String>) -> Self {
         self.color = Some(color.into());
+        self
+    }
+
+    /// Color token of the point's value label (CHT-013).
+    pub fn with_label_color(mut self, color: impl Into<String>) -> Self {
+        self.label_color = Some(color.into());
+        self
+    }
+
+    /// A bar's fill gradient as (offset, token) stops from base to tip
+    /// (CHT-013).
+    pub fn with_gradient(mut self, stops: Vec<(f32, String)>) -> Self {
+        self.gradient = stops;
+        self
+    }
+
+    /// Tooltip text that replaces the defaults for this point (CHT-018).
+    pub fn with_tooltip(mut self, tooltip: PointTooltip) -> Self {
+        self.tooltip = tooltip;
         self
     }
 
@@ -552,6 +917,17 @@ pub struct DataSeries {
     pub line_style: LineStyle,
     /// Fill style for area charts; new series default to solid fill.
     pub fill_style: FillStyle,
+    /// Fill color token of an area series; `None` fills with the stroke
+    /// color (CHT-012).
+    pub fill: Option<String>,
+    /// How much of the fill color shows over the chart background, 0 to 1
+    /// (CHT-012).
+    pub fill_opacity: f32,
+    /// The series' own curve; `None` takes the chart's (CHT-012).
+    pub curve: Option<Curve>,
+    /// Whether this series draws a dot at every point; `None` takes the
+    /// chart's setting (CHT-012).
+    pub dots: Option<bool>,
 }
 
 impl DataSeries {
@@ -564,12 +940,40 @@ impl DataSeries {
             visible: true,
             line_style: LineStyle::Solid,
             fill_style: FillStyle::Solid,
+            fill: None,
+            fill_opacity: 0.4,
+            curve: None,
+            dots: None,
         }
     }
 
     /// Set color for this series
     pub fn with_color(mut self, color: impl Into<String>) -> Self {
         self.color = Some(color.into());
+        self
+    }
+
+    /// Fill color token of an area series (CHT-012).
+    pub fn with_fill(mut self, color: impl Into<String>) -> Self {
+        self.fill = Some(color.into());
+        self
+    }
+
+    /// How much of the fill shows over the background, 0 to 1 (CHT-012).
+    pub fn with_fill_opacity(mut self, opacity: f32) -> Self {
+        self.fill_opacity = opacity.clamp(0.0, 1.0);
+        self
+    }
+
+    /// The series' own curve (CHT-012).
+    pub fn with_curve(mut self, curve: Curve) -> Self {
+        self.curve = Some(curve);
+        self
+    }
+
+    /// Draw a dot at every point of this series, or not (CHT-012).
+    pub fn with_dots(mut self, dots: bool) -> Self {
+        self.dots = Some(dots);
         self
     }
 
@@ -806,6 +1210,31 @@ pub struct ChartProps {
     pub radial: RadialOptions,
     /// Sankey links and layout
     pub sankey: SankeyOptions,
+    /// The name the screen reader is told; `None` falls back to the title
+    /// (CHT-036)
+    pub aria_label: Option<String>,
+    /// Lay the category axis out for this many points, the data taking the
+    /// leading ones; `None` uses the data's own length (CHT-034)
+    pub point_count: Option<usize>,
+    /// Lay a bar chart's band axis out for this many bands (CHT-034)
+    pub band_count: Option<usize>,
+    /// Values at which a dashed reference line crosses the plot (CHT-034)
+    pub reference_lines: Vec<f64>,
+    /// Rows kept clear above the highest value and below the lowest
+    /// (CHT-034)
+    pub headroom: (u16, u16),
+    /// Space between bands as a fraction of a band; `None` is 0.4
+    /// (CHT-013)
+    pub padding_inner: Option<f64>,
+    /// Space outside the first and last band as a fraction of a band;
+    /// `None` is 0.2 (CHT-013)
+    pub padding_outer: Option<f64>,
+    /// The widest a band is drawn, in cells (CHT-013, CHT-014)
+    pub max_band_width: Option<u16>,
+    /// The shortest a bar is drawn, in cells (CHT-013)
+    pub min_bar_length: f64,
+    /// A candle body's width as a fraction of its band (CHT-014)
+    pub body_width_ratio: f32,
 }
 
 impl Props for ChartProps {
@@ -833,7 +1262,7 @@ impl Default for ChartProps {
             growth: BarGrowth::Bottom,
             stacked: false,
             curve: Curve::Natural,
-            dots: true,
+            dots: false,
             size_class: None,
             ascii: false,
             tick_margin: 0,
@@ -841,6 +1270,16 @@ impl Default for ChartProps {
             value_labels: None,
             radial: RadialOptions::default(),
             sankey: SankeyOptions::default(),
+            aria_label: None,
+            point_count: None,
+            band_count: None,
+            reference_lines: Vec::new(),
+            headroom: (0, 0),
+            padding_inner: None,
+            padding_outer: None,
+            max_band_width: None,
+            min_bar_length: 0.0,
+            body_width_ratio: 0.8,
         }
     }
 }

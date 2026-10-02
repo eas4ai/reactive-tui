@@ -570,9 +570,10 @@ impl Catalog {
                 .iter()
                 .map(|(class, w, h)| {
                     ScatterChartBuilder::new(samples())
-                        .x(|s| s.label)
-                        .y(|s| s.value)
-                        .name("value")
+                        .x(|s| s.open)
+                        .y(|s| s.close)
+                        .label(|s| s.label)
+                        .name("close by open")
                         .size(*w, *h)
                         .size_class(*class)
                         .render()

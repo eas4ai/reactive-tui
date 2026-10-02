@@ -1,30 +1,48 @@
 //! Typed chart builders over `Vec<T>` with accessor closures, mirroring the
-//! reference's method names (CHT-020): `x`, `y`, `band`, `value`, `stroke`,
-//! `fill`, `natural`, `linear`, `step_after`, `dot`, `tick_margin`,
-//! `alignment`, `label`, `grid`, and for candlesticks `open`, `high`, `low`
-//! and `close`. The pie, donut and radar builders take the reference's own
-//! names (CHT-029): `value`, `label`, `color`, `inner_radius`,
-//! `outer_radius`, `pad_angle` and `label_gap`, for radar `stroke`,
-//! `fill`, `dot`, `grid`, `grid_levels` and `max_value`, and for Sankey
-//! `new(nodes, links)`, `value_scale`, `node_align`, `iterations`,
+//! reference's method names (CHT-020): shared `name`, `interactive`,
+//! `tooltip_title`, `tooltip_value`, `tooltip_value_color`,
+//! `tooltip_content`, `tick_margin`, `grid`, `grid_dashed` and `x_axis`; for
+//! lines and areas `x`, `y`, `stroke`, `natural`, `linear`, `step_after`,
+//! `dot`, `y_domain`, `point_count`, `y_axis`, `y_axis_label_placement`,
+//! `y_tick_count`, `y_tick_format`, `x_tick_count`, `grid_columns`,
+//! `reference_line` and `y_padding`, areas also `fill` and `stacked`; for
+//! scatters a numeric `x` (CHT-033) with the line's axis methods; for bars
+//! `band`, `value`, `fill`, `fill_gradient`, `label`, `label_color`,
+//! `label_axis`, `value_axis`, `value_tick_count`,
+//! `value_axis_label_placement`, `value_tick_format`, `band_count`,
+//! `band_tick_count`, `alignment`, `padding_inner`, `padding_outer`,
+//! `max_band_width`, `min_length` and `stacked`; and for candlesticks `x`,
+//! `open`, `high`, `low`, `close`, `body_width_ratio`, `max_band_width`,
+//! `bullish` and `bearish`. The pie, donut and radar builders take the
+//! reference's own names (CHT-029): `value`, `label`, `color`,
+//! `inner_radius`, `outer_radius`, `pad_angle` and `label_gap`, for radar
+//! `stroke`, `fill`, `dot`, `grid`, `grid_levels` and `max_value`, and for
+//! Sankey `new(nodes, links)`, `value_scale`, `node_align`, `iterations`,
 //! `node_width`, `node_padding`, `node_color`, `node_label`, `value_label`,
-//! `labels`, `link_opacity`, `min_link_width` and `label_gap`. The closures run
-//! once at `build()`; the resulting [`ChartProps`] hold plain data points and
-//! stay comparable.
+//! `labels`, `link_opacity`, `min_link_width` and `label_gap`. The closures
+//! run once at `build()`; the resulting [`ChartProps`] hold plain data points
+//! and stay comparable.
 
 use super::{
-    BarGrowth, ChartAxis, ChartProps, ChartType, ChartsBuilder, Curve, DataPoint, DataSeries,
-    RadialOptions, SankeyAlign, SankeyLabel, SankeyLink, SankeyOptions, SankeyValueScale,
-    SizeClass,
+    AxisLabelPlacement, BarGrowth, ChartAxis, ChartProps, ChartType, ChartsBuilder, Curve,
+    DataPoint, DataSeries, RadialOptions, SankeyAlign, SankeyLabel, SankeyLink, SankeyOptions,
+    SankeyValueScale, SizeClass,
 };
 use crate::component::Element;
 
 type Label<T> = Box<dyn Fn(&T) -> String>;
 type Value<T> = Box<dyn Fn(&T) -> f64>;
-/// A Sankey node's text from the node and its throughput.
+/// A Sankey node's text from the node and its throughput, or a point's
+/// tooltip text from the datum and its value.
 type ValueText<T> = Box<dyn Fn(&T, f64) -> String>;
 /// A Sankey node's label lines from the node and its throughput.
 type LabelLines<T> = Box<dyn Fn(&T, f64) -> Vec<SankeyLabel>>;
+/// A point's whole tooltip content as lines, from the datum.
+type Lines<T> = Box<dyn Fn(&T) -> Vec<String>>;
+/// A bar's gradient stops from the datum, the chart's value range and a
+/// mapping from a chart value to a position along the bar (0 at its base,
+/// 1 at its tip).
+type Stops<T> = Box<dyn Fn(&T, (f64, f64), &dyn Fn(f64) -> f32) -> Vec<(f32, String)>>;
 
 /// Options every typed builder shares.
 struct Common {
@@ -63,11 +81,55 @@ impl Common {
     }
 }
 
+/// Per-point tooltip text from the datum, run once at `build()` (CHT-018).
+struct TooltipSpec<T> {
+    title: Option<Label<T>>,
+    value: Option<ValueText<T>>,
+    color: Option<ValueText<T>>,
+    content: Option<Lines<T>>,
+}
+
+impl<T> Default for TooltipSpec<T> {
+    fn default() -> Self {
+        Self {
+            title: None,
+            value: None,
+            color: None,
+            content: None,
+        }
+    }
+}
+
+impl<T> TooltipSpec<T> {
+    fn apply(&self, point: &mut DataPoint, datum: &T) {
+        let value = point.value;
+        if let Some(title) = &self.title {
+            point.tooltip.title = Some(title(datum));
+        }
+        if let Some(text) = &self.value {
+            point.tooltip.value = Some(text(datum, value));
+        }
+        if let Some(color) = &self.color {
+            point.tooltip.color = Some(color(datum, value));
+        }
+        if let Some(content) = &self.content {
+            point.tooltip.lines = content(datum);
+        }
+    }
+}
+
 macro_rules! common_methods {
     () => {
         /// Chart title.
         pub fn title(mut self, title: impl Into<String>) -> Self {
             self.common.base = self.common.base.title(title);
+            self
+        }
+
+        /// The name the screen reader is told, instead of the title
+        /// (CHT-036).
+        pub fn aria_label(mut self, label: impl Into<String>) -> Self {
+            self.common.base = self.common.base.aria_label(label);
             self
         }
 
@@ -83,9 +145,16 @@ macro_rules! common_methods {
             self
         }
 
-        /// Draw the category axis and its labels.
+        /// Draw the drawing's horizontal axis line and its labels.
         pub fn x_axis(mut self, show: bool) -> Self {
             self.common.x_axis = show;
+            self
+        }
+
+        /// Hover, keyboard selection and the tooltip, on or off (on by
+        /// default).
+        pub fn interactive(mut self, interactive: bool) -> Self {
+            self.common.base = self.common.base.interactive(interactive);
             self
         }
 
@@ -108,11 +177,170 @@ macro_rules! common_methods {
     };
 }
 
+/// The methods every cartesian builder has besides [`common_methods!`]:
+/// label stride, grid, the tooltip closures and headroom.
+macro_rules! cartesian_methods {
+    () => {
+        /// Show every n-th category label; 0 avoids overlap automatically.
+        pub fn tick_margin(mut self, margin: usize) -> Self {
+            self.common.tick_margin = margin;
+            self
+        }
+
+        /// Draw grid lines.
+        pub fn grid(mut self, grid: bool) -> Self {
+            self.common.grid = grid;
+            self
+        }
+
+        /// Draw the grid dashed (dotted cells, the default) or solid
+        /// (CHT-034).
+        pub fn grid_dashed(mut self, dashed: bool) -> Self {
+            self.common.base = self.common.base.grid_dashed(dashed);
+            self
+        }
+
+        /// Rows kept clear above the highest value and below the lowest
+        /// (CHT-034).
+        pub fn y_padding(mut self, top: u16, bottom: u16) -> Self {
+            self.common.base = self.common.base.y_padding(top, bottom);
+            self
+        }
+
+        /// The tooltip's title row from the datum, instead of its category
+        /// (CHT-018).
+        pub fn tooltip_title<S: Into<String>>(mut self, title: impl Fn(&T) -> S + 'static) -> Self {
+            self.tooltip.title = Some(Box::new(move |d| title(d).into()));
+            self
+        }
+
+        /// A point's value text from the datum and its value, instead of
+        /// the formatted value (CHT-018).
+        pub fn tooltip_value<S: Into<String>>(
+            mut self,
+            value: impl Fn(&T, f64) -> S + 'static,
+        ) -> Self {
+            self.tooltip.value = Some(Box::new(move |d, v| value(d, v).into()));
+            self
+        }
+
+        /// The color token of a point's value text, from the datum and its
+        /// value (CHT-018).
+        pub fn tooltip_value_color<S: Into<String>>(
+            mut self,
+            color: impl Fn(&T, f64) -> S + 'static,
+        ) -> Self {
+            self.tooltip.color = Some(Box::new(move |d, v| color(d, v).into()));
+            self
+        }
+
+        /// The tooltip's whole content as lines from the datum, instead of
+        /// the series rows (CHT-018).
+        pub fn tooltip_content<S: Into<String>>(
+            mut self,
+            content: impl Fn(&T) -> Vec<S> + 'static,
+        ) -> Self {
+            self.tooltip.content = Some(Box::new(move |d| {
+                content(d).into_iter().map(Into::into).collect()
+            }));
+            self
+        }
+    };
+}
+
+/// The value-axis options of lines, areas and scatters (CHT-034).
+macro_rules! value_axis_methods {
+    () => {
+        /// Pin the vertical axis to `min..=max` instead of fitting the data;
+        /// a value outside stops at the plot's edge.
+        pub fn y_domain(mut self, min: f64, max: f64) -> Self {
+            self.common.base = self.common.base.y_domain(min, max);
+            self
+        }
+
+        /// Lay the category axis out for `count` evenly spaced points, the
+        /// data taking the leading ones.
+        pub fn point_count(mut self, count: usize) -> Self {
+            self.common.base = self.common.base.point_count(count);
+            self
+        }
+
+        /// Show the vertical axis's tick labels, or hide them.
+        pub fn y_axis(mut self, show: bool) -> Self {
+            self.common.base = self.common.base.y_axis_labels(show);
+            self
+        }
+
+        /// Where the vertical axis's tick labels sit: in a gutter left of
+        /// the plot, or inside it beside their grid lines.
+        pub fn y_axis_label_placement(mut self, placement: AxisLabelPlacement) -> Self {
+            self.common.base = self.common.base.y_axis_label_placement(placement);
+            self
+        }
+
+        /// How many ticks the vertical axis carries, at least two; they
+        /// place the grid rows and the tick labels.
+        pub fn y_tick_count(mut self, count: usize) -> Self {
+            self.common.base = self.common.base.y_tick_count(count);
+            self
+        }
+
+        /// The text of each vertical-axis tick label from its value, run
+        /// once at `build()`.
+        pub fn y_tick_format<S: Into<String>>(
+            mut self,
+            format: impl Fn(f64) -> S + Send + Sync + 'static,
+        ) -> Self {
+            self.common.base = self.common.base.y_tick_format(move |v| format(v).into());
+            self
+        }
+
+        /// Label `count` of the category values, spread from the first to
+        /// the last, instead of every `tick_margin`-th.
+        pub fn x_tick_count(mut self, count: usize) -> Self {
+            self.common.base = self.common.base.x_tick_count(count);
+            self
+        }
+
+        /// Divide the plot into `count` columns with vertical grid lines.
+        pub fn grid_columns(mut self, count: usize) -> Self {
+            self.common.base = self.common.base.grid_columns(count);
+            self
+        }
+
+        /// Draw a dashed line across the plot at `value`; call again for
+        /// more.
+        pub fn reference_line(mut self, value: f64) -> Self {
+            self.common.base = self.common.base.reference_line(value);
+            self
+        }
+    };
+}
+
 /// One series described by accessors.
 struct SeriesSpec<T> {
     name: Option<String>,
     value: Value<T>,
     color: Option<String>,
+    /// An area's fill color token; `None` fills with the stroke (CHT-012).
+    fill: Option<String>,
+    /// The series' own curve (CHT-012).
+    curve: Option<Curve>,
+    /// Dots at every point of this series (CHT-012).
+    dots: Option<bool>,
+}
+
+impl<T> SeriesSpec<T> {
+    fn new(value: Value<T>) -> Self {
+        Self {
+            name: None,
+            value,
+            color: None,
+            fill: None,
+            curve: None,
+            dots: None,
+        }
+    }
 }
 
 fn points<T>(data: &[T], label: Option<&Label<T>>, value: &Value<T>) -> Vec<DataPoint> {
@@ -128,17 +356,40 @@ fn points<T>(data: &[T], label: Option<&Label<T>>, value: &Value<T>) -> Vec<Data
 }
 
 fn series<T>(data: &[T], label: Option<&Label<T>>, specs: &[SeriesSpec<T>]) -> Vec<DataSeries> {
+    cartesian_series(data, label, None, specs, &TooltipSpec::default())
+}
+
+/// The series of a cartesian builder: labelled by `label` or placed at the
+/// numeric `x`, with each spec's colors, curve and dots, and the tooltip
+/// closures run into every point.
+fn cartesian_series<T>(
+    data: &[T],
+    label: Option<&Label<T>>,
+    x: Option<&Value<T>>,
+    specs: &[SeriesSpec<T>],
+    tooltip: &TooltipSpec<T>,
+) -> Vec<DataSeries> {
     specs
         .iter()
         .enumerate()
         .map(|(i, spec)| {
+            let mut points = points(data, label, &spec.value);
+            for (point, datum) in points.iter_mut().zip(data) {
+                if let Some(x) = x {
+                    point.x = Some(x(datum));
+                }
+                tooltip.apply(point, datum);
+            }
             let mut series = DataSeries::new(
                 spec.name
                     .clone()
                     .unwrap_or_else(|| format!("series {}", i + 1)),
-                points(data, label, &spec.value),
+                points,
             );
             series.color = spec.color.clone();
+            series.fill = spec.fill.clone();
+            series.curve = spec.curve;
+            series.dots = spec.dots;
             series
         })
         .collect()
@@ -150,6 +401,67 @@ pub struct LineChartBuilder<T> {
     data: Vec<T>,
     x: Option<Label<T>>,
     series: Vec<SeriesSpec<T>>,
+    tooltip: TooltipSpec<T>,
+}
+
+/// The per-series methods of lines and areas: name, stroke, curve and dots
+/// apply to the series added last, or to the whole chart before any series.
+macro_rules! stroke_methods {
+    () => {
+        /// Name of the series added last.
+        pub fn name(mut self, name: impl Into<String>) -> Self {
+            if let Some(last) = self.series.last_mut() {
+                last.name = Some(name.into());
+            }
+            self
+        }
+
+        /// Stroke color token (palette name, theme variable or hex) of the
+        /// series added last.
+        pub fn stroke(mut self, token: impl Into<String>) -> Self {
+            if let Some(last) = self.series.last_mut() {
+                last.color = Some(token.into());
+            }
+            self
+        }
+
+        /// Smooth spline strokes for the series added last, or for the
+        /// chart before any series.
+        pub fn natural(self) -> Self {
+            self.curved(Curve::Natural)
+        }
+
+        /// Straight strokes for the series added last, or for the chart
+        /// before any series.
+        pub fn linear(self) -> Self {
+            self.curved(Curve::Linear)
+        }
+
+        /// Step strokes holding each value until the next point, for the
+        /// series added last or for the chart before any series.
+        pub fn step_after(self) -> Self {
+            self.curved(Curve::StepAfter)
+        }
+
+        fn curved(mut self, curve: Curve) -> Self {
+            match self.series.last_mut() {
+                Some(last) => last.curve = Some(curve),
+                None => self.common.base = self.common.base.curve(curve),
+            }
+            self
+        }
+
+        /// Draw a dot at every point of the series added last, or of every
+        /// series before any is added; dots are off until asked for
+        /// (CHT-012).
+        pub fn dot(mut self) -> Self {
+            match self.series.last_mut() {
+                Some(last) => last.dots = Some(true),
+                None => self.common.base = self.common.base.dots(true),
+            }
+            self
+        }
+    };
 }
 
 impl<T> LineChartBuilder<T> {
@@ -160,22 +472,14 @@ impl<T> LineChartBuilder<T> {
             data: data.into_iter().collect(),
             x: None,
             series: Vec::new(),
+            tooltip: TooltipSpec::default(),
         }
     }
 
     common_methods!();
-
-    /// Show every n-th axis label; 0 avoids overlap automatically.
-    pub fn tick_margin(mut self, margin: usize) -> Self {
-        self.common.tick_margin = margin;
-        self
-    }
-
-    /// Draw grid lines.
-    pub fn grid(mut self, grid: bool) -> Self {
-        self.common.grid = grid;
-        self
-    }
+    cartesian_methods!();
+    value_axis_methods!();
+    stroke_methods!();
 
     /// Category label accessor.
     pub fn x<S: Into<String>>(mut self, x: impl Fn(&T) -> S + 'static) -> Self {
@@ -185,58 +489,19 @@ impl<T> LineChartBuilder<T> {
 
     /// Value accessor; each call adds a series.
     pub fn y(mut self, y: impl Fn(&T) -> f64 + 'static) -> Self {
-        self.series.push(SeriesSpec {
-            name: None,
-            value: Box::new(y),
-            color: None,
-        });
-        self
-    }
-
-    /// Name of the series added last.
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        if let Some(last) = self.series.last_mut() {
-            last.name = Some(name.into());
-        }
-        self
-    }
-
-    /// Stroke color token (palette name, theme variable or hex) of the
-    /// series added last.
-    pub fn stroke(mut self, token: impl Into<String>) -> Self {
-        if let Some(last) = self.series.last_mut() {
-            last.color = Some(token.into());
-        }
-        self
-    }
-
-    /// Smooth spline strokes.
-    pub fn natural(mut self) -> Self {
-        self.common.base = self.common.base.curve(Curve::Natural);
-        self
-    }
-
-    /// Straight strokes.
-    pub fn linear(mut self) -> Self {
-        self.common.base = self.common.base.curve(Curve::Linear);
-        self
-    }
-
-    /// Step strokes holding each value until the next point.
-    pub fn step_after(mut self) -> Self {
-        self.common.base = self.common.base.curve(Curve::StepAfter);
-        self
-    }
-
-    /// Draw a dot at every point.
-    pub fn dot(mut self) -> Self {
-        self.common.base = self.common.base.dots(true);
+        self.series.push(SeriesSpec::new(Box::new(y)));
         self
     }
 
     /// Evaluate the accessors into props.
     pub fn build(self) -> ChartProps {
-        let series = series(&self.data, self.x.as_ref(), &self.series);
+        let series = cartesian_series(
+            &self.data,
+            self.x.as_ref(),
+            None,
+            &self.series,
+            &self.tooltip,
+        );
         self.common.finish(series)
     }
 }
@@ -247,7 +512,7 @@ pub struct AreaChartBuilder<T> {
     data: Vec<T>,
     x: Option<Label<T>>,
     series: Vec<SeriesSpec<T>>,
-    fills: Vec<Option<String>>,
+    tooltip: TooltipSpec<T>,
 }
 
 impl<T> AreaChartBuilder<T> {
@@ -258,23 +523,14 @@ impl<T> AreaChartBuilder<T> {
             data: data.into_iter().collect(),
             x: None,
             series: Vec::new(),
-            fills: Vec::new(),
+            tooltip: TooltipSpec::default(),
         }
     }
 
     common_methods!();
-
-    /// Show every n-th axis label; 0 avoids overlap automatically.
-    pub fn tick_margin(mut self, margin: usize) -> Self {
-        self.common.tick_margin = margin;
-        self
-    }
-
-    /// Draw grid lines.
-    pub fn grid(mut self, grid: bool) -> Self {
-        self.common.grid = grid;
-        self
-    }
+    cartesian_methods!();
+    value_axis_methods!();
+    stroke_methods!();
 
     /// Category label accessor.
     pub fn x<S: Into<String>>(mut self, x: impl Fn(&T) -> S + 'static) -> Self {
@@ -284,35 +540,15 @@ impl<T> AreaChartBuilder<T> {
 
     /// Value accessor; each call adds a series.
     pub fn y(mut self, y: impl Fn(&T) -> f64 + 'static) -> Self {
-        self.series.push(SeriesSpec {
-            name: None,
-            value: Box::new(y),
-            color: None,
-        });
-        self.fills.push(None);
+        self.series.push(SeriesSpec::new(Box::new(y)));
         self
     }
 
-    /// Name of the series added last.
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        if let Some(last) = self.series.last_mut() {
-            last.name = Some(name.into());
-        }
-        self
-    }
-
-    /// Stroke color token of the series added last.
-    pub fn stroke(mut self, token: impl Into<String>) -> Self {
-        if let Some(last) = self.series.last_mut() {
-            last.color = Some(token.into());
-        }
-        self
-    }
-
-    /// Fill color token of the series added last.
+    /// Fill color token of the series added last; unset, the fill takes
+    /// the stroke color at 0.4 opacity (CHT-012).
     pub fn fill(mut self, token: impl Into<String>) -> Self {
-        if let Some(last) = self.fills.last_mut() {
-            *last = Some(token.into());
+        if let Some(last) = self.series.last_mut() {
+            last.fill = Some(token.into());
         }
         self
     }
@@ -323,42 +559,27 @@ impl<T> AreaChartBuilder<T> {
         self
     }
 
-    /// Smooth spline strokes.
-    pub fn natural(mut self) -> Self {
-        self.common.base = self.common.base.curve(Curve::Natural);
-        self
-    }
-
-    /// Straight strokes.
-    pub fn linear(mut self) -> Self {
-        self.common.base = self.common.base.curve(Curve::Linear);
-        self
-    }
-
-    /// Step strokes.
-    pub fn step_after(mut self) -> Self {
-        self.common.base = self.common.base.curve(Curve::StepAfter);
-        self
-    }
-
     /// Evaluate the accessors into props.
     pub fn build(self) -> ChartProps {
-        let mut series = series(&self.data, self.x.as_ref(), &self.series);
-        for (s, fill) in series.iter_mut().zip(&self.fills) {
-            if let Some(fill) = fill {
-                s.color = Some(fill.clone());
-            }
-        }
+        let series = cartesian_series(
+            &self.data,
+            self.x.as_ref(),
+            None,
+            &self.series,
+            &self.tooltip,
+        );
         self.common.finish(series)
     }
 }
 
-/// A scatter plot over `Vec<T>`.
+/// A scatter plot over `Vec<T>`: points placed by a numeric x (CHT-033).
 pub struct ScatterChartBuilder<T> {
     common: Common,
     data: Vec<T>,
-    x: Option<Label<T>>,
+    x: Option<Value<T>>,
+    label: Option<Label<T>>,
     series: Vec<SeriesSpec<T>>,
+    tooltip: TooltipSpec<T>,
 }
 
 impl<T> ScatterChartBuilder<T> {
@@ -368,37 +589,32 @@ impl<T> ScatterChartBuilder<T> {
             common: Common::new(ChartType::Scatter),
             data: data.into_iter().collect(),
             x: None,
+            label: None,
             series: Vec::new(),
+            tooltip: TooltipSpec::default(),
         }
     }
 
     common_methods!();
+    cartesian_methods!();
+    value_axis_methods!();
 
-    /// Show every n-th axis label; 0 avoids overlap automatically.
-    pub fn tick_margin(mut self, margin: usize) -> Self {
-        self.common.tick_margin = margin;
+    /// Numeric x accessor: points sit where their x values fall on a
+    /// linear axis (CHT-033).
+    pub fn x(mut self, x: impl Fn(&T) -> f64 + 'static) -> Self {
+        self.x = Some(Box::new(x));
         self
     }
 
-    /// Draw grid lines.
-    pub fn grid(mut self, grid: bool) -> Self {
-        self.common.grid = grid;
-        self
-    }
-
-    /// Category label accessor.
-    pub fn x<S: Into<String>>(mut self, x: impl Fn(&T) -> S + 'static) -> Self {
-        self.x = Some(Box::new(move |d| x(d).into()));
+    /// A point's label, for its tooltip; unset, the tooltip shows its x.
+    pub fn label<S: Into<String>>(mut self, label: impl Fn(&T) -> S + 'static) -> Self {
+        self.label = Some(Box::new(move |d| label(d).into()));
         self
     }
 
     /// Value accessor; each call adds a series.
     pub fn y(mut self, y: impl Fn(&T) -> f64 + 'static) -> Self {
-        self.series.push(SeriesSpec {
-            name: None,
-            value: Box::new(y),
-            color: None,
-        });
+        self.series.push(SeriesSpec::new(Box::new(y)));
         self
     }
 
@@ -420,7 +636,13 @@ impl<T> ScatterChartBuilder<T> {
 
     /// Evaluate the accessors into props.
     pub fn build(self) -> ChartProps {
-        let series = series(&self.data, self.x.as_ref(), &self.series);
+        let series = cartesian_series(
+            &self.data,
+            self.label.as_ref(),
+            self.x.as_ref(),
+            &self.series,
+            &self.tooltip,
+        );
         self.common.finish(series)
     }
 }
@@ -431,7 +653,11 @@ pub struct BarChartBuilder<T> {
     data: Vec<T>,
     band: Option<Label<T>>,
     label: Option<Label<T>>,
+    label_color: Option<Label<T>>,
+    fill_with: Option<Label<T>>,
+    gradient: Option<Stops<T>>,
     series: Vec<SeriesSpec<T>>,
+    tooltip: TooltipSpec<T>,
 }
 
 impl<T> BarChartBuilder<T> {
@@ -442,23 +668,16 @@ impl<T> BarChartBuilder<T> {
             data: data.into_iter().collect(),
             band: None,
             label: None,
+            label_color: None,
+            fill_with: None,
+            gradient: None,
             series: Vec::new(),
+            tooltip: TooltipSpec::default(),
         }
     }
 
     common_methods!();
-
-    /// Show every n-th axis label; 0 avoids overlap automatically.
-    pub fn tick_margin(mut self, margin: usize) -> Self {
-        self.common.tick_margin = margin;
-        self
-    }
-
-    /// Draw grid lines.
-    pub fn grid(mut self, grid: bool) -> Self {
-        self.common.grid = grid;
-        self
-    }
+    cartesian_methods!();
 
     /// Category (band) label accessor.
     pub fn band<S: Into<String>>(mut self, band: impl Fn(&T) -> S + 'static) -> Self {
@@ -468,11 +687,7 @@ impl<T> BarChartBuilder<T> {
 
     /// Value accessor; each call adds a series.
     pub fn value(mut self, value: impl Fn(&T) -> f64 + 'static) -> Self {
-        self.series.push(SeriesSpec {
-            name: None,
-            value: Box::new(value),
-            color: None,
-        });
+        self.series.push(SeriesSpec::new(Box::new(value)));
         self
     }
 
@@ -492,6 +707,29 @@ impl<T> BarChartBuilder<T> {
         self
     }
 
+    /// Each bar's fill color token from its datum, over the series color
+    /// (CHT-013).
+    pub fn fill_with<S: Into<String>>(mut self, fill: impl Fn(&T) -> S + 'static) -> Self {
+        self.fill_with = Some(Box::new(move |d| fill(d).into()));
+        self
+    }
+
+    /// Each bar's fill gradient from base to tip, as (offset, color token)
+    /// stops from the datum, the chart's value range and a mapping from a
+    /// chart value to a position along the bar (CHT-013).
+    pub fn fill_gradient<S: Into<String>>(
+        mut self,
+        stops: impl Fn(&T, (f64, f64), &dyn Fn(f64) -> f32) -> Vec<(f32, S)> + 'static,
+    ) -> Self {
+        self.gradient = Some(Box::new(move |d, range, to_bar| {
+            stops(d, range, to_bar)
+                .into_iter()
+                .map(|(offset, token)| (offset, token.into()))
+                .collect()
+        }));
+        self
+    }
+
     /// The edge bars grow from.
     pub fn alignment(mut self, alignment: BarGrowth) -> Self {
         self.common.base = self.common.base.growth(alignment);
@@ -505,6 +743,89 @@ impl<T> BarChartBuilder<T> {
         self
     }
 
+    /// Each bar's value-label color token from its datum (CHT-013).
+    pub fn label_color<S: Into<String>>(mut self, color: impl Fn(&T) -> S + 'static) -> Self {
+        self.label_color = Some(Box::new(move |d| color(d).into()));
+        self
+    }
+
+    /// Show or hide the band axis line and labels.
+    pub fn label_axis(mut self, show: bool) -> Self {
+        self.common.base = self.common.base.label_axis(show);
+        self
+    }
+
+    /// Show or hide the value axis's tick labels.
+    pub fn value_axis(mut self, show: bool) -> Self {
+        self.common.base = self.common.base.value_axis(show);
+        self
+    }
+
+    /// How many ticks the value axis carries, at least two; they place the
+    /// grid lines and the tick labels.
+    pub fn value_tick_count(mut self, count: usize) -> Self {
+        self.common.base = self.common.base.value_tick_count(count);
+        self
+    }
+
+    /// Where the value tick labels sit: in a gutter beside the bars, or
+    /// inside the plot beside their grid lines.
+    pub fn value_axis_label_placement(mut self, placement: AxisLabelPlacement) -> Self {
+        self.common.base = self.common.base.value_axis_label_placement(placement);
+        self
+    }
+
+    /// The text of each value tick label from its value, run once at
+    /// `build()`.
+    pub fn value_tick_format<S: Into<String>>(
+        mut self,
+        format: impl Fn(f64) -> S + Send + Sync + 'static,
+    ) -> Self {
+        self.common.base = self
+            .common
+            .base
+            .value_tick_format(move |v| format(v).into());
+        self
+    }
+
+    /// Lay the band axis out for `count` bands, the data taking the
+    /// leading ones.
+    pub fn band_count(mut self, count: usize) -> Self {
+        self.common.base = self.common.base.band_count(count);
+        self
+    }
+
+    /// Label `count` of the bands, spread from the first to the last.
+    pub fn band_tick_count(mut self, count: usize) -> Self {
+        self.common.base = self.common.base.band_tick_count(count);
+        self
+    }
+
+    /// Space between bands as a fraction of a band (default 0.4).
+    pub fn padding_inner(mut self, padding: f64) -> Self {
+        self.common.base = self.common.base.padding_inner(padding);
+        self
+    }
+
+    /// Space outside the first and last band as a fraction of a band
+    /// (default 0.2).
+    pub fn padding_outer(mut self, padding: f64) -> Self {
+        self.common.base = self.common.base.padding_outer(padding);
+        self
+    }
+
+    /// Keep every band at most `width` cells wide.
+    pub fn max_band_width(mut self, width: u16) -> Self {
+        self.common.base = self.common.base.max_band_width(width);
+        self
+    }
+
+    /// The shortest a bar is drawn, in cells, so a tiny value still shows.
+    pub fn min_length(mut self, length: f64) -> Self {
+        self.common.base = self.common.base.min_length(length);
+        self
+    }
+
     /// Stack the series end to end.
     pub fn stacked(mut self, stacked: bool) -> Self {
         self.common.base = self.common.base.stacked(stacked);
@@ -513,11 +834,41 @@ impl<T> BarChartBuilder<T> {
 
     /// Evaluate the accessors into props.
     pub fn build(self) -> ChartProps {
-        let mut series = series(&self.data, self.band.as_ref(), &self.series);
-        if let Some(label) = &self.label {
-            for s in &mut series {
-                for (point, datum) in s.data.iter_mut().zip(&self.data) {
-                    point.metadata.insert("label".into(), label(datum));
+        let mut series = cartesian_series(
+            &self.data,
+            self.band.as_ref(),
+            None,
+            &self.series,
+            &self.tooltip,
+        );
+        // The chart's value range for the gradient closure: every bar's
+        // value and zero.
+        let range = series
+            .iter()
+            .flat_map(|s| s.data.iter().map(|p| p.value))
+            .filter(|v| v.is_finite())
+            .fold((0.0f64, 0.0f64), |(low, high), v| (low.min(v), high.max(v)));
+        for s in &mut series {
+            for (point, datum) in s.data.iter_mut().zip(&self.data) {
+                if let Some(label) = &self.label {
+                    point.value_label = Some(label(datum));
+                }
+                if let Some(color) = &self.label_color {
+                    point.label_color = Some(color(datum));
+                }
+                if let Some(fill) = &self.fill_with {
+                    point.color = Some(fill(datum));
+                }
+                if let Some(gradient) = &self.gradient {
+                    let value = point.value;
+                    let to_bar = move |v: f64| -> f32 {
+                        if value == 0.0 {
+                            0.0
+                        } else {
+                            (v / value).clamp(0.0, 1.0) as f32
+                        }
+                    };
+                    point.gradient = gradient(datum, range, &to_bar);
                 }
             }
         }
@@ -536,6 +887,8 @@ pub struct CandlestickChartBuilder<T> {
     close: Option<Value<T>>,
     bullish: Option<String>,
     bearish: Option<String>,
+    name: Option<String>,
+    tooltip: TooltipSpec<T>,
 }
 
 impl<T> CandlestickChartBuilder<T> {
@@ -551,20 +904,17 @@ impl<T> CandlestickChartBuilder<T> {
             close: None,
             bullish: None,
             bearish: None,
+            name: None,
+            tooltip: TooltipSpec::default(),
         }
     }
 
     common_methods!();
+    cartesian_methods!();
 
-    /// Show every n-th axis label; 0 avoids overlap automatically.
-    pub fn tick_margin(mut self, margin: usize) -> Self {
-        self.common.tick_margin = margin;
-        self
-    }
-
-    /// Draw grid lines.
-    pub fn grid(mut self, grid: bool) -> Self {
-        self.common.grid = grid;
+    /// Name of the candle series, for the legend and the tooltip.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
         self
     }
 
@@ -610,6 +960,18 @@ impl<T> CandlestickChartBuilder<T> {
         self
     }
 
+    /// A candle body's width as a fraction of its band (default 0.8).
+    pub fn body_width_ratio(mut self, ratio: f32) -> Self {
+        self.common.base = self.common.base.body_width_ratio(ratio);
+        self
+    }
+
+    /// Keep every candle's band at most `width` cells wide.
+    pub fn max_band_width(mut self, width: u16) -> Self {
+        self.common.base = self.common.base.max_band_width(width);
+        self
+    }
+
     /// Evaluate the accessors into props. A missing accessor falls back to
     /// the close, so a partial description still draws.
     pub fn build(self) -> ChartProps {
@@ -630,9 +992,11 @@ impl<T> CandlestickChartBuilder<T> {
             if let Some(token) = if c > o { &self.bullish } else { &self.bearish } {
                 point.color = Some(token.clone());
             }
+            self.tooltip.apply(&mut point, d);
             points.push(point);
         }
-        let series = vec![DataSeries::new("candles", points)];
+        let name = self.name.clone().unwrap_or_else(|| "candles".into());
+        let series = vec![DataSeries::new(name, points)];
         self.common.finish(series)
     }
 }
@@ -1068,11 +1432,7 @@ impl<T> RadarChartBuilder<T> {
 
     /// Value accessor; each call adds a series.
     pub fn value(mut self, value: impl Fn(&T) -> f64 + 'static) -> Self {
-        self.series.push(SeriesSpec {
-            name: None,
-            value: Box::new(value),
-            color: None,
-        });
+        self.series.push(SeriesSpec::new(Box::new(value)));
         self.fills.push(None);
         self
     }
@@ -1189,7 +1549,10 @@ mod tests {
         assert_eq!(props.series[0].color.as_deref(), Some("chart-2"));
         assert_eq!(props.series[0].data[1].label.as_deref(), Some("tue"));
         assert_eq!(props.series[0].data[1].value, 1.5);
-        assert_eq!(props.curve, Curve::Linear);
+        // Curve and dots after `.y()` belong to that series (CHT-012).
+        assert_eq!(props.series[0].curve, Some(Curve::Linear));
+        assert_eq!(props.series[0].dots, Some(true));
+        assert!(!props.dots, "dots are off until a series turns them on");
         assert_eq!(props.tick_margin, 2);
         assert!(!props.x_axis.show_grid);
         assert_eq!(props.clone(), props, "props stay comparable");
@@ -1206,7 +1569,9 @@ mod tests {
             .build();
         assert_eq!(bars.growth, BarGrowth::Top);
         assert_eq!(bars.value_labels, Some(true));
-        assert_eq!(bars.series[0].data[0].metadata["label"], "1.0");
+        // The value label is its own field, not tooltip metadata (CHT-013).
+        assert_eq!(bars.series[0].data[0].value_label.as_deref(), Some("1.0"));
+        assert!(!bars.series[0].data[0].metadata.contains_key("label"));
         let area = AreaChartBuilder::new(rows())
             .x(|r| r.day)
             .y(|r| r.open)
@@ -1216,7 +1581,9 @@ mod tests {
             .step_after()
             .build();
         assert_eq!(area.series.len(), 2);
-        assert_eq!(area.series[0].color.as_deref(), Some("chart-1"));
+        // The fill is its own color, apart from the stroke (CHT-012).
+        assert_eq!(area.series[0].fill.as_deref(), Some("chart-1"));
+        assert_eq!(area.series[0].color, None);
         assert!(area.stacked);
         let scatter = ScatterChartBuilder::new(rows()).y(|r| r.close).build();
         assert_eq!(scatter.chart_type, ChartType::Scatter);
