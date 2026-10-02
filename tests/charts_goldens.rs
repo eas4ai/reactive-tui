@@ -2451,6 +2451,37 @@ fn cht_028_cut_labels_and_custom_patterns_stay_ascii() {
     );
 }
 
+/// CHT-013: the band paddings default to 0.4 inside and 0.2 outside of a
+/// band, so setting them to those values changes nothing, for grouped
+/// series and at the mini class alike.
+#[test]
+fn cht_013_default_band_padding_is_0_4_and_0_2_for_every_chart() {
+    let render = |size: (u16, u16), grouped: bool, explicit: bool| {
+        let mut p = props(ChartType::BarVertical, size, &[3.0, 8.0, 5.0, 7.0], 10.0);
+        if grouped {
+            p.series.push(series(&[6.0, 2.0, 9.0, 4.0]));
+        }
+        if explicit {
+            p.padding_inner = Some(0.4);
+            p.padding_outer = Some(0.2);
+        }
+        app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+            .pop()
+            .unwrap()
+            .text
+    };
+    assert_eq!(
+        render((60, 16), true, false),
+        render((60, 16), true, true),
+        "grouped bars take the documented default paddings"
+    );
+    assert_eq!(
+        render((20, 5), false, false),
+        render((20, 5), false, true),
+        "a mini chart takes the documented default paddings"
+    );
+}
+
 /// CHT-012: an area's stroke and fill colors are independent, and dots are
 /// off until a series turns them on.
 #[test]

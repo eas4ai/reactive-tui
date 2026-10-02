@@ -476,17 +476,21 @@ fn cht_022_value_transition_moves_from_the_old_values_to_the_target() {
         before > 0 && after > before,
         "test data must be visible: before {before}, after {after}"
     );
+    // The first bar's column: the outer band padding keeps it off column 0.
+    let bar_col = (0..size.0)
+        .find(|c| column_has(&settled, *c, "\u{2588}") > 0)
+        .expect("a bar column");
     let settled_row = (0..size.1)
-        .find(|r| cell_is(&settled, *r, 0, "\u{2588}"))
-        .expect("settled column 0");
+        .find(|r| cell_is(&settled, *r, bar_col, "\u{2588}"))
+        .expect("settled bar column");
     // The transition's end is the target's tip cell (its topmost painted
     // cell in column 0), which no intermediate frame shows.
     let (target_row, target_tip) = (0..size.1)
         .find_map(|r| {
-            let content = target.screen.cell(r, 0)?.contents();
+            let content = target.screen.cell(r, bar_col)?.contents();
             (!content.trim().is_empty()).then_some((r, content))
         })
-        .expect("target column 0");
+        .expect("target bar column");
     let root = Switching {
         switched: AtomicBool::new(false),
         redraw: AtomicBool::new(false),
@@ -499,13 +503,13 @@ fn cht_022_value_transition_moves_from_the_old_values_to_the_target() {
         size,
         vec![
             app_input::CellStep {
-                x: 0,
+                x: bar_col,
                 y: settled_row,
                 content: "\u{2588}",
                 event: app_input::key(KeyCode::Char('s')),
             },
             app_input::CellStep {
-                x: 0,
+                x: bar_col,
                 y: target_row,
                 content: Box::leak(target_tip.to_string().into_boxed_str()),
                 event: None,
@@ -594,9 +598,13 @@ fn cht_022_recovery_from_nan_data_keeps_every_bar_through_the_transition() {
             .count()
     };
     let settled_columns = block_columns(&settled);
+    // The first bar's column: the outer band padding keeps it off column 0.
+    let bar_col = (0..size.0)
+        .find(|c| column_has(&settled, *c, "\u{2588}") > 0)
+        .expect("a bar column");
     let settled_row = (0..size.1)
-        .find(|r| cell_is(&settled, *r, 0, "\u{2588}"))
-        .expect("settled bars start at column 0");
+        .find(|r| cell_is(&settled, *r, bar_col, "\u{2588}"))
+        .expect("settled bar column");
     let invalid = app_input::run_when_painted(
         Root(Element::typed::<Chart>(props(
             ChartType::BarVertical,
@@ -625,10 +633,10 @@ fn cht_022_recovery_from_nan_data_keeps_every_bar_through_the_transition() {
     .unwrap();
     let (target_row, target_tip) = (0..size.1)
         .find_map(|r| {
-            let content = target.screen.cell(r, 0)?.contents();
+            let content = target.screen.cell(r, bar_col)?.contents();
             (!content.trim().is_empty()).then_some((r, content))
         })
-        .expect("target column 0");
+        .expect("target bar column");
     let root = Staged {
         stage: std::sync::atomic::AtomicUsize::new(0),
         redraw: AtomicBool::new(false),
@@ -640,7 +648,7 @@ fn cht_022_recovery_from_nan_data_keeps_every_bar_through_the_transition() {
         size,
         vec![
             app_input::CellStep {
-                x: 0,
+                x: bar_col,
                 y: settled_row,
                 content: "\u{2588}",
                 event: app_input::key(KeyCode::Char('n')),
@@ -652,7 +660,7 @@ fn cht_022_recovery_from_nan_data_keeps_every_bar_through_the_transition() {
                 event: app_input::key(KeyCode::Char('v')),
             },
             app_input::CellStep {
-                x: 0,
+                x: bar_col,
                 y: target_row,
                 content: Box::leak(target_tip.to_string().into_boxed_str()),
                 event: None,

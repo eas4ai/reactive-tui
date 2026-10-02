@@ -426,19 +426,10 @@ pub(super) fn cartesian(
         BarGrowth::Right => ScaleLinear::new(domain, (x_dots.1, x_dots.0)),
     };
     let category_range = if horizontal { y_dots } else { x_dots };
-    // Band padding: the builder's, else the reference's 0.4 inside and 0.2
-    // outside; grouped lanes keep a tighter inner padding (CHT-013).
-    let padding_inner = props
-        .padding_inner
-        .unwrap_or(if vis.len() > 1 && !props.stacked {
-            0.3
-        } else {
-            0.4
-        });
-    let padding_outer =
-        props
-            .padding_outer
-            .unwrap_or(if class == SizeClass::Mini { 0.0 } else { 0.2 });
+    // Band padding: the builder's, else the agreed defaults of 0.4 inside
+    // and 0.2 outside of a band, at every class and series count (CHT-013).
+    let padding_inner = props.padding_inner.unwrap_or(0.4);
+    let padding_outer = props.padding_outer.unwrap_or(0.2);
     let band = ScaleBand::new(count, category_range)
         .padding_inner(padding_inner)
         .padding_outer(padding_outer);
