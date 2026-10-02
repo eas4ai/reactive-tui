@@ -138,7 +138,9 @@ pub(super) fn radar(
         mask.polyline(&outline, color, Some((*s, 0)));
         for (k, vertex) in vertices.iter().enumerate() {
             if k < data.data.len() {
-                if props.dots {
+                // A radar's vertex dots are on unless the builder turned
+                // them off.
+                if props.dots.unwrap_or(true) {
                     mask.marker(vertex.0, vertex.1, Marker::Dot, color, Some((*s, k)));
                 }
                 picture.anchors.insert(

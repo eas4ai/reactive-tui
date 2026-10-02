@@ -1736,7 +1736,7 @@ fn cht_015_a_left_out_label_keeps_its_slice_in_the_legend() {
 fn cht_016_radar_vertices_grid_levels_and_series_order() {
     let size = (81u16, 25u16);
     let mut p = radial_props(ChartType::Radar, size, &[8.0, 4.0, 8.0, 4.0]);
-    p.dots = true;
+    p.dots = Some(true);
     p.radial.grid = false;
     p.radial.fills = vec![Some("none".into())];
     let frame = radial_frame(p, size);
@@ -2482,6 +2482,32 @@ fn cht_013_default_band_padding_is_0_4_and_0_2_for_every_chart() {
     );
 }
 
+/// Roadmap, CHT-016: the radial charts keep their behavior, so a radar
+/// built without asking for dots still marks every vertex, and `dots(false)`
+/// turns them off.
+#[test]
+fn cht_016_a_radar_keeps_its_vertex_dots_by_default() {
+    let size = (40u16, 20u16);
+    let default = radial_frame(
+        radial_props(ChartType::Radar, size, &[3.0, 5.0, 2.0, 4.0]),
+        size,
+    );
+    assert!(
+        count(&default, |c| c == '\u{2022}') >= 4,
+        "a default radar marks its vertices with dots:\n{}",
+        default.text
+    );
+    let mut off = radial_props(ChartType::Radar, size, &[3.0, 5.0, 2.0, 4.0]);
+    off.dots = Some(false);
+    let off = radial_frame(off, size);
+    assert_eq!(
+        count(&off, |c| c == '\u{2022}'),
+        0,
+        "dots(false) removes the vertex dots:\n{}",
+        off.text
+    );
+}
+
 /// CHT-012: an area's stroke and fill colors are independent, and dots are
 /// off until a series turns them on.
 #[test]
@@ -2494,7 +2520,7 @@ fn cht_012_area_stroke_and_fill_are_independent_and_dots_default_off() {
         .y(|p: &(usize, f64)| p.1)
         .build();
     assert!(
-        !line.dots,
+        line.dots != Some(true),
         "a line's dots are off until .dot() turns them on"
     );
     let mut area = AreaChartBuilder::new(data)

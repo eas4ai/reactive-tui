@@ -306,9 +306,10 @@ impl ChartsBuilder {
         self.curve(Curve::StepAfter)
     }
 
-    /// Draw a dot at every line-chart point.
+    /// Draw a dot at every point, or none; unset, a radar has them and the
+    /// cartesian types do not.
     pub fn dots(mut self, dots: bool) -> Self {
-        self.props.dots = dots;
+        self.props.dots = Some(dots);
         self
     }
 
@@ -1316,8 +1317,11 @@ pub struct ChartProps {
     pub stacked: bool,
     /// Curve style for line and area strokes
     pub curve: Curve,
-    /// Draw a dot at each line-chart point
-    pub dots: bool,
+    /// Draw a dot at every point: `Some(true)` or `Some(false)` as the
+    /// builder asked, `None` for the chart type's own default, which is dots
+    /// at a radar's vertices and none on the cartesian types (CHT-012;
+    /// a series' own `dots` overrides it there).
+    pub dots: Option<bool>,
     /// Forced size class; `None` chooses from the rectangle (CHT-024)
     pub size_class: Option<SizeClass>,
     /// Render with ASCII glyphs only (CHT-028)
@@ -1384,7 +1388,7 @@ impl Default for ChartProps {
             growth: BarGrowth::Bottom,
             stacked: false,
             curve: Curve::Natural,
-            dots: false,
+            dots: None,
             size_class: None,
             ascii: false,
             tick_margin: 0,

@@ -1394,7 +1394,8 @@ pub struct RadarChartBuilder<T> {
     label: Option<Label<T>>,
     series: Vec<SeriesSpec<T>>,
     fills: Vec<Option<String>>,
-    dots: bool,
+    /// Vertex dots: unset leaves a radar's default, which is dots.
+    dots: Option<bool>,
     radial: RadialOptions,
 }
 
@@ -1407,7 +1408,7 @@ impl<T> RadarChartBuilder<T> {
             label: None,
             series: Vec::new(),
             fills: Vec::new(),
-            dots: false,
+            dots: None,
             radial: RadialOptions::default(),
         }
     }
@@ -1452,9 +1453,16 @@ impl<T> RadarChartBuilder<T> {
         self
     }
 
-    /// Draw a dot at each vertex.
+    /// Draw a dot at each vertex (a radar's default); `dots(false)` turns
+    /// them off.
     pub fn dot(mut self) -> Self {
-        self.dots = true;
+        self.dots = Some(true);
+        self
+    }
+
+    /// Dots at the vertices, on or off.
+    pub fn dots(mut self, dots: bool) -> Self {
+        self.dots = Some(dots);
         self
     }
 
@@ -1542,7 +1550,10 @@ mod tests {
         // Curve and dots after `.y()` belong to that series (CHT-012).
         assert_eq!(props.series[0].curve, Some(Curve::Linear));
         assert_eq!(props.series[0].dots, Some(true));
-        assert!(!props.dots, "dots are off until a series turns them on");
+        assert_eq!(
+            props.dots, None,
+            "dots are off until a series turns them on"
+        );
         assert_eq!(props.tick_margin, 2);
         assert!(!props.x_axis.show_grid);
         assert_eq!(props.clone(), props, "props stay comparable");
@@ -1658,6 +1669,31 @@ mod tests {
         assert_eq!(first.color.as_deref(), Some("chart-5"));
         assert_eq!(first.gradient.len(), 2);
         assert_eq!(first.gradient[1].1, "chart-2");
+    }
+
+    /// CHT-035, roadmap: a radar keeps its vertex dots by default on every
+    /// route; both leave the setting unset until asked.
+    #[test]
+    fn a_radar_leaves_its_vertex_dots_to_the_default_on_both_routes() {
+        let typed = RadarChartBuilder::new(rows())
+            .label(|r| r.day)
+            .value(|r| r.open)
+            .build();
+        let generic = ChartsBuilder::radar()
+            .series(typed.series[0].clone())
+            .build();
+        assert_eq!(typed.dots, None);
+        assert_eq!(generic.dots, None);
+        assert_eq!(ChartsBuilder::radar().dots(false).build().dots, Some(false));
+        assert_eq!(
+            RadarChartBuilder::new(rows())
+                .label(|r| r.day)
+                .value(|r| r.open)
+                .dots(false)
+                .build()
+                .dots,
+            Some(false)
+        );
     }
 
     #[test]
@@ -1842,7 +1878,7 @@ mod tests {
         assert_eq!(radar.series[0].color.as_deref(), Some("chart-3"));
         assert_eq!(radar.series[1].data[0].label.as_deref(), Some("mon"));
         assert_eq!(radar.radial.fills, vec![Some("none".to_string()), None]);
-        assert!(radar.dots && !radar.radial.grid);
+        assert!(radar.dots == Some(true) && !radar.radial.grid);
         assert_eq!(
             (
                 radar.radial.grid_levels,
