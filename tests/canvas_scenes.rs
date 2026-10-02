@@ -415,6 +415,109 @@ fn gfx_007_faults_switch_to_the_software_renderer_for_good() {
     );
 }
 
+/// GFX-007: a frame whose glyphs do not all fit the largest atlas is drawn
+/// whole in software for that frame and says so, and the adapter draws the
+/// next frame that fits; a cell outside the picture takes no room in the
+/// atlas, so a grid with a row below the picture draws every visible glyph
+/// on the adapter, the same picture as the software renderer's.
+#[test]
+// Tests that use the GPU take turns: one adapter serves them all.
+#[serial_test::serial(gpu)]
+fn gfx_007_a_full_glyph_atlas_draws_the_frame_in_software_and_offscreen_cells_take_no_room() {
+    use reactive_tui::layout::CellGrid;
+    // `columns` by `rows` distinct braille glyphs from `first`.
+    let braille = |columns: u16, rows: u16, first: u32| {
+        let mut grid = CellGrid::new(columns, rows);
+        for y in 0..rows {
+            for x in 0..columns {
+                let code = first + u32::from(y) * u32::from(columns) + u32::from(x);
+                let glyph = char::from_u32(code).unwrap().to_string();
+                grid.set(x, y, &glyph, Some((1.0, 1.0, 1.0, 1.0)));
+            }
+        }
+        Arc::new(grid)
+    };
+    let cells_scene = |grids: &[Arc<CellGrid>]| {
+        let mut scene = Scene::new();
+        for grid in grids {
+            scene.cells((0.0, 0.0), Arc::clone(grid), (512, 512));
+        }
+        scene
+    };
+    // The visible 8 by 8 cells of 512 pixels that hold no ink.
+    let empty_cells = |frame: &reactive_tui::graphics::GraphicsFrame| -> Vec<(usize, usize)> {
+        let pixels = frame.pixels();
+        (0..8)
+            .flat_map(|cy| (0..8).map(move |cx| (cx, cy)))
+            .filter(|(cx, cy)| {
+                !(cy * 512..(cy + 1) * 512)
+                    .any(|y| (cx * 512..(cx + 1) * 512).any(|x| pixels[y * 4096 + x][3] > 0))
+            })
+            .collect()
+    };
+    let mut gpu = HybridRenderer::new(reference_options(false));
+    let mut cpu = HybridRenderer::new(reference_options(true));
+    assert!(
+        matches!(gpu.mode(), GraphicsMode::Gpu(_)),
+        "GFX-007: this host's adapter draws, found {:?}",
+        gpu.mode()
+    );
+
+    // A ninth row below the picture: its glyphs take no atlas room, so the
+    // 64 visible ones fit and every visible cell is drawn on the adapter.
+    let below = cells_scene(&[braille(8, 9, 0x2801)]);
+    let on_gpu = gpu.render(&below, 4096, 4096).unwrap();
+    let on_cpu = cpu.render(&below, 4096, 4096).unwrap();
+    assert!(
+        matches!(on_gpu.mode(), GraphicsMode::Gpu(_)),
+        "GFX-007: a grid whose ninth row lies below the picture is drawn on the adapter, found {:?}",
+        on_gpu.mode()
+    );
+    assert_eq!(
+        empty_cells(&on_gpu),
+        Vec::<(usize, usize)>::new(),
+        "GFX-007: every visible cell of the 8 by 9 grid holds its glyph on the adapter"
+    );
+    assert!(
+        on_gpu.pixels() == on_cpu.pixels(),
+        "GFX-007: the adapter's picture of the 8 by 9 grid equals the software renderer's ({} pixels differ)",
+        on_gpu
+            .pixels()
+            .iter()
+            .zip(on_cpu.pixels())
+            .filter(|(a, b)| a != b)
+            .count()
+    );
+
+    // Two grids of 64 distinct glyphs each over the same cells: 128 glyphs
+    // of 512 pixels do not fit the 4096 atlas, so this frame is drawn in
+    // software, whole, and the frame says why; the adapter is kept.
+    let crowded = cells_scene(&[braille(8, 8, 0x2801), braille(8, 8, 0x2841)]);
+    let on_gpu = gpu.render(&crowded, 4096, 4096).unwrap();
+    let on_cpu = cpu.render(&crowded, 4096, 4096).unwrap();
+    assert!(
+        matches!(on_gpu.mode(), GraphicsMode::CpuFallback(reason) if reason.contains("atlas")),
+        "GFX-007: a frame the atlas cannot hold is drawn in software and says so, found {:?}",
+        on_gpu.mode()
+    );
+    assert!(
+        on_gpu.pixels() == on_cpu.pixels(),
+        "GFX-007: the frame the atlas could not hold equals the software renderer's picture"
+    );
+    assert!(
+        matches!(gpu.mode(), GraphicsMode::Gpu(_)),
+        "GFX-007: the adapter is kept after a frame its atlas could not hold, found {:?}",
+        gpu.mode()
+    );
+    let fits = cells_scene(&[braille(8, 8, 0x2801)]);
+    let next = gpu.render(&fits, 4096, 4096).unwrap();
+    assert!(
+        matches!(next.mode(), GraphicsMode::Gpu(_)),
+        "GFX-007: the next frame that fits is drawn on the adapter again, found {:?}",
+        next.mode()
+    );
+}
+
 struct Root(Element);
 impl RootComponent for Root {
     fn render(&self) -> Element {
