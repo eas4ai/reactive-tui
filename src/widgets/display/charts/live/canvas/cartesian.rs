@@ -933,19 +933,20 @@ pub(super) fn cartesian(
         } else {
             values
         };
-        // A scatter on a numeric x keeps every point: its points are not in
-        // column order, and each is its own mark.
+        // A scatter on a numeric x is not in column order, so it is thinned
+        // per plot column of its mapped x: each column keeps its lowest and
+        // highest point (CHT-027); every other point keeps its anchor below.
         let samples: Vec<_> = if numeric_x {
-            values
-                .iter()
-                .enumerate()
-                .filter(|(_, v)| v.is_finite())
-                .map(|(index, value)| plot::Sample {
-                    index,
-                    value: *value,
-                })
-                .filter(|k| index_visible(k.index))
-                .collect()
+            plot::decimate_by_column(
+                values
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| index_visible(*index))
+                    .map(|(index, value)| {
+                        let column = (x_of(s, index) / DOTS_X as f64).floor().max(0.0) as usize;
+                        (index, column, *value)
+                    }),
+            )
         } else {
             decimate_min_max(stacked_values, shapes.w)
                 .into_iter()

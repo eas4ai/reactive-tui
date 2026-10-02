@@ -710,21 +710,20 @@ fn cht_027_ten_thousand_points_cost_at_most_twice_one_thousand() {
         eprintln!("SKIP: the decimation cost ratio is measured on the optimized build");
         return;
     }
-    let work = |n: usize| {
+    // A line in index order, and a scatter on an unsorted numeric x, which
+    // is thinned per plot column instead (CHT-033, CHT-027).
+    let work = |n: usize, kind: ChartType, numeric_x: bool| {
         let values: Vec<f64> = (0..n)
             .map(|i| ((i as f64) * 0.01).sin() * 5.0 + 5.0)
             .collect();
+        let mut p = props(kind, size, &values, 10.0);
+        if numeric_x {
+            for (i, point) in p.series[0].data.iter_mut().enumerate() {
+                point.x = Some((i as f64 * 0.37) % 100.0);
+            }
+        }
         let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            app_input::run(
-                Root(Element::typed::<Chart>(props(
-                    ChartType::Line,
-                    size,
-                    &values,
-                    10.0,
-                ))),
-                size,
-                vec![(3, None)],
-            )
+            app_input::run(Root(Element::typed::<Chart>(p)), size, vec![(3, None)])
         }));
         match run {
             // The quietest frame after the first is the cost of the chart
@@ -741,12 +740,14 @@ fn cht_027_ten_thousand_points_cost_at_most_twice_one_thousand() {
             ),
         }
     };
-    let small = work(1_000).max(0.5);
-    let big = work(10_000);
-    assert!(
-        big <= small * 2.0,
-        "10,000 points took {big:.1} ms per frame against {small:.1} ms for 1,000: no decimation"
-    );
+    for (kind, numeric_x) in [(ChartType::Line, false), (ChartType::Scatter, true)] {
+        let small = work(1_000, kind.clone(), numeric_x).max(0.5);
+        let big = work(10_000, kind.clone(), numeric_x);
+        assert!(
+            big <= small * 2.0,
+            "{kind:?}: 10,000 points took {big:.1} ms per frame against {small:.1} ms for 1,000: no decimation"
+        );
+    }
 }
 
 /// CHT-014: a candle that closes below its open uses the bearish color, one

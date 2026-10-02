@@ -1276,6 +1276,54 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay, ascii: bool) -> CellGrid {
 mod tests {
     use super::*;
 
+    /// CHT-027: a scatter on a numeric x with far more points than columns
+    /// is drawn from at most two samples per column, and every point keeps
+    /// an anchor so hover and the keys still reach it.
+    #[test]
+    fn a_numeric_x_scatter_is_thinned_per_column_and_keeps_every_anchor() {
+        let points: Vec<DataPoint> = (0..10_000)
+            .map(|i| {
+                DataPoint::xy(
+                    (i as f64 * 0.37) % 100.0,
+                    ((i as f64) * 0.01).sin() * 4.0 + 5.0,
+                )
+            })
+            .collect();
+        let props = ChartProps {
+            chart_type: ChartType::Scatter,
+            width: 60,
+            height: 16,
+            series: vec![DataSeries::new("s", points)],
+            legend: ChartLegend {
+                visible: false,
+                ..Default::default()
+            },
+            animated: false,
+            ..Default::default()
+        };
+        let values: Vec<Vec<f64>> = vec![props.series[0].data.iter().map(|p| p.value).collect()];
+        let picture = canvas::draw(&canvas::Job {
+            props: &props,
+            width: 60,
+            height: 16,
+            values: &values,
+            progress: 1.0,
+            unicode_glyphs: true,
+            selected: None,
+        });
+        assert!(
+            picture.kept[0].len() <= 2 * picture.plot.w,
+            "{} samples drawn for a plot {} columns wide",
+            picture.kept[0].len(),
+            picture.plot.w
+        );
+        assert_eq!(
+            picture.anchors.len(),
+            10_000,
+            "every point keeps an anchor for hover"
+        );
+    }
+
     /// A picture drawn from older props, with more nodes or slices than the
     /// props now hold, never makes the tooltip index past the new data.
     #[test]
