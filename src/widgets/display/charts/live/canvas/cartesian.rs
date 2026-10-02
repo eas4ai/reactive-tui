@@ -102,6 +102,60 @@ impl LabelPlacer {
         self.taken.push((row, first, last));
         Some(x)
     }
+
+    /// Place `label` on the first of `rows` with room at `x`; `None` when no
+    /// row has room. The rows run outward from a bar's tip, so a label
+    /// that would overlap a neighbour's steps one row further (CHT-013).
+    fn place_rows(
+        &mut self,
+        plot: Rect,
+        x: usize,
+        rows: impl IntoIterator<Item = usize>,
+        width: usize,
+    ) -> Option<(usize, usize)> {
+        rows.into_iter()
+            .find_map(|row| self.place(plot, x, row, width).map(|x| (x, row)))
+    }
+
+    /// Place `label` on `row` at `x`, or at the nearest free span past the
+    /// labels already on that row in the growth direction (`rightward`),
+    /// inside the plot; `None` when the row has no room left (CHT-013).
+    fn place_along(
+        &mut self,
+        plot: Rect,
+        x: usize,
+        row: usize,
+        width: usize,
+        rightward: bool,
+    ) -> Option<usize> {
+        if width == 0 || width > plot.w {
+            return None;
+        }
+        let mut x = x.max(plot.x).min(plot.right() - width);
+        loop {
+            if let Some(placed) = self.place(plot, x, row, width) {
+                return Some(placed);
+            }
+            let (first, last) = (x, x + width - 1);
+            let clashes = self
+                .taken
+                .iter()
+                .filter(|(r, a, b)| *r == row && first <= *b + 1 && *a <= last + 1);
+            if rightward {
+                let past = clashes.map(|(_, _, b)| *b + 2).max()?;
+                if past + width > plot.right() {
+                    return None;
+                }
+                x = past;
+            } else {
+                let before = clashes.map(|(_, a, _)| *a).min()?;
+                x = before.checked_sub(width + 1)?;
+                if x < plot.x {
+                    return None;
+                }
+            }
+        }
+    }
 }
 
 pub(super) fn cartesian(
@@ -291,13 +345,52 @@ pub(super) fn cartesian(
         .value_labels
         .unwrap_or_else(|| class.has_value_labels());
     // Headroom: rows (or columns, for horizontal bars) kept clear past the
-    // extreme values (CHT-034), plus one row for value labels above the
-    // tallest bar (CHT-013). The shapes' range shrinks; the axis line keeps
-    // the whole plot.
+    // extreme values (CHT-034), plus room for the value labels past the
+    // longest bar (CHT-013): as many rows as labels wider than a bar's lane
+    // need to stagger without overlapping, or the widest label's columns
+    // beside a horizontal bar. The shapes' range shrinks; the axis line
+    // keeps the whole plot.
     let (head, foot) = (usize::from(props.headroom.0), usize::from(props.headroom.1));
-    let label_room = usize::from(bars && value_labels && !horizontal);
+    let widest_label = if bars && value_labels {
+        vis.iter()
+            .flat_map(|&s| props.series[s].data.iter())
+            .map(|p| {
+                text_width(
+                    &p.value_label
+                        .clone()
+                        .unwrap_or_else(|| format_tick(p.value)),
+                )
+            })
+            .max()
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    let lanes = if props.stacked || vis.len() < 2 {
+        1
+    } else {
+        vis.len()
+    };
+    let label_room = if bars && value_labels && !horizontal {
+        let lane_cells = (inner.w / (count.max(1) * lanes)).max(1);
+        (widest_label + 1).div_ceil(lane_cells).max(1)
+    } else {
+        0
+    };
+    let label_cols = if bars && value_labels && horizontal {
+        widest_label + 1
+    } else {
+        0
+    };
     let shapes = if horizontal {
-        let (left, right) = (foot.min(inner.w / 2), head.min(inner.w / 2));
+        // Tips point right when bars grow from the left edge.
+        let (mut left, mut right) = (foot, head);
+        if growth == BarGrowth::Left {
+            right += label_cols;
+        } else {
+            left += label_cols;
+        }
+        let (left, right) = (left.min(inner.w / 2), right.min(inner.w / 2));
         Rect {
             x: inner.x + left,
             w: inner.w.saturating_sub(left + right).max(1),
@@ -798,28 +891,41 @@ pub(super) fn cartesian(
         for (tip_x, tip_y, label, label_color, outward, _) in labels {
             let width = text_width(&label);
             if horizontal {
-                // Beside the tip, past it in the growth direction, inside
-                // the plot's rows.
-                let x = if (growth == BarGrowth::Left) == outward {
+                // Beside the tip, past it in the growth direction, on the
+                // bar's row; a bar sharing its row with another takes the
+                // next free span along the row.
+                let rightward = (growth == BarGrowth::Left) == outward;
+                let x = if rightward {
                     tip_x + 1
                 } else {
                     tip_x.saturating_sub(width)
                 };
-                if let Some(x) = placer.place(plot, x, tip_y, width) {
+                if let Some(x) = placer.place_along(plot, x, tip_y, width, rightward) {
                     text.text(x, tip_y, width, &label, label_color);
                 }
             } else {
                 // Above the tip (or below a bar that hangs or is negative),
-                // in the headroom row the plot kept; the tip row itself when
-                // the plot has no row past it.
-                let past = if outward {
-                    tip_y.checked_sub(1)
+                // in the headroom rows the plot kept, one row further out
+                // when a neighbour's label is in the way; the tip row itself
+                // when no row past it has room.
+                let rows: Vec<usize> = if outward {
+                    (1..=label_room.max(1))
+                        .filter_map(|k| tip_y.checked_sub(k))
+                        .filter(|y| plot.contains(tip_x, *y))
+                        .collect()
                 } else {
-                    Some(tip_y + 1)
+                    (1..=label_room.max(1))
+                        .map(|k| tip_y + k)
+                        .filter(|y| plot.contains(tip_x, *y))
+                        .collect()
                 };
-                let y = past.filter(|y| plot.contains(tip_x, *y)).unwrap_or(tip_y);
                 let x = (tip_x + 1).saturating_sub(width.div_ceil(2));
-                if let Some(x) = placer.place(plot, x, y, width) {
+                if let Some((x, y)) = placer.place_rows(
+                    plot,
+                    x,
+                    rows.into_iter().chain(std::iter::once(tip_y)),
+                    width,
+                ) {
                     text.text(x, y, width, &label, label_color);
                 }
             }
