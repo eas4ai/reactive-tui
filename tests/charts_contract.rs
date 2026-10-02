@@ -1966,6 +1966,37 @@ fn cht_034_tick_margin_thins_category_labels_on_either_orientation() {
     );
 }
 
+/// CHT-018: a chart too short for every series row summarizes the rows that
+/// do not fit instead of clipping a series away: six series in an eight-row
+/// chart show a title, four rows and "+2 more".
+#[test]
+fn cht_018_a_short_chart_summarizes_the_tooltip_rows_that_do_not_fit() {
+    let size = (80u16, 8u16);
+    let mut p = props(ChartType::Line, size, &[2.0, 5.0, 8.0]);
+    for i in 1..6 {
+        let mut extra = series(&[1.0 + i as f64, 4.0, 7.0]);
+        extra.name = format!("s{i}");
+        p.series.push(extra);
+    }
+    let frame = app_input::run(
+        Root(Element::typed::<Chart>(p)),
+        size,
+        vec![(2, hover(40, 4)), (3, None)],
+    )
+    .pop()
+    .unwrap();
+    assert!(
+        frame.text.contains("+2 more"),
+        "the tooltip summarizes the two rows the eight-row chart cannot show:\n{}",
+        frame.text
+    );
+    assert!(
+        frame.text.contains("s1") || frame.text.contains("s2"),
+        "the rows that fit are shown:\n{}",
+        frame.text
+    );
+}
+
 /// CHT-034: a tick count on the value axis is the number of ticks drawn,
 /// grid lines and labels alike: three over a pinned 0 to 8 gives 0, 4 and 8
 /// with grid lines at 4 and 8 above the axis, never five ticks, and five over
