@@ -118,7 +118,7 @@ impl Runtime {
             state.visible = visible;
         }
         self.changed
-            .update(|revision| *revision = revision.wrapping_add(1));
+            .update_atomic(|revision| *revision = revision.wrapping_add(1));
     }
     pub(super) fn set_trigger(&self, state: &Mutex<PopoverState>, rect: Rect<f32>) {
         {
@@ -133,7 +133,7 @@ impl Runtime {
             }
         }
         self.changed
-            .update(|revision| *revision = revision.wrapping_add(1));
+            .update_atomic(|revision| *revision = revision.wrapping_add(1));
     }
     fn record(&self, part: Part, layout: LayoutInfo) -> bool {
         let mut data = self.data.lock().unwrap();

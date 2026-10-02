@@ -36,7 +36,7 @@ struct Runtime {
 impl Runtime {
     fn select(&self, step: &WizardStep) {
         self.current.set(Some(step.id.clone()));
-        self.visited.update(|visited| {
+        self.visited.update_atomic(|visited| {
             visited.insert(step.id.clone());
         });
         self.errors.set(Vec::new());

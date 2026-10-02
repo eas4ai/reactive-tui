@@ -361,7 +361,7 @@ impl MouseEventProcessor {
                 active.started = now;
             }
             for signal in self.drag_states.lock().unwrap().values() {
-                signal.update(|state| {
+                signal.update_atomic(|state| {
                     if state.drag_start.is_some() {
                         state.is_dragging = false;
                         state.drag_start = Some(position);
@@ -381,7 +381,7 @@ impl MouseEventProcessor {
                 active.started = now;
             }
             for signal in self.press_states.lock().unwrap().values() {
-                signal.update(|state| {
+                signal.update_atomic(|state| {
                     if state.is_pressing {
                         state.press_start = Some(now);
                         state.duration = Duration::ZERO;
@@ -498,7 +498,7 @@ impl MouseEventProcessor {
         // End drag
         if let Some(active) = self.drag_start.lock().unwrap().take() {
             if let Some(signal) = self.drag_states.lock().unwrap().get(&active.owner) {
-                signal.update(|state| {
+                signal.update_atomic(|state| {
                     state.is_dragging = false;
                     state.drag_start = None;
                     state.current_position = Some(event.position);
@@ -506,7 +506,7 @@ impl MouseEventProcessor {
             }
             if let Some(registration) = self.drag_and_drop_states.lock().unwrap().get(&active.owner)
             {
-                registration.signal.update(|state| {
+                registration.signal.update_atomic(|state| {
                     state.drag.is_dragging = false;
                     state.drag.current_position = Some(event.position);
                     state.can_drop = false;
@@ -525,7 +525,7 @@ impl MouseEventProcessor {
                     .get(&active.owner)
                     .copied()
                     .unwrap_or(Duration::from_millis(800));
-                signal.update(|state| {
+                signal.update_atomic(|state| {
                     state.is_pressing = false;
                     state.duration = duration;
                     state.is_long_press = duration >= threshold;
@@ -576,7 +576,7 @@ impl MouseEventProcessor {
     fn handle_double_click(&self, event: &MouseEvent, component_id: Option<&str>) {
         if let Some(id) = component_id {
             if let Some(signal) = self.click_states.lock().unwrap().get(id) {
-                signal.update(|state| {
+                signal.update_atomic(|state| {
                     state.click_count = 2;
                     state.is_double_click = true;
                     state.position = Some(event.position);
@@ -588,7 +588,7 @@ impl MouseEventProcessor {
     fn handle_triple_click(&self, event: &MouseEvent, component_id: Option<&str>) {
         if let Some(id) = component_id {
             if let Some(signal) = self.click_states.lock().unwrap().get(id) {
-                signal.update(|state| {
+                signal.update_atomic(|state| {
                     state.click_count = 3;
                     state.is_triple_click = true;
                     state.position = Some(event.position);
@@ -665,7 +665,7 @@ impl MouseEventProcessor {
 
             // Update position state
             if let Some(signal) = self.position_states.lock().unwrap().get(id) {
-                signal.update(|state| {
+                signal.update_atomic(|state| {
                     state.is_inside = true;
                     state.position = Some(event.position);
                 });
@@ -688,7 +688,7 @@ impl MouseEventProcessor {
 
             // Update position state
             if let Some(signal) = self.position_states.lock().unwrap().get(id) {
-                signal.update(|state| {
+                signal.update_atomic(|state| {
                     state.is_inside = false;
                 });
             }
