@@ -54,6 +54,11 @@ pub enum GraphicsError {
     /// The software renderer failed.
     #[error("the software renderer failed: {0}")]
     Software(String),
+    /// The glyph atlas, at its largest, cannot hold every glyph one frame
+    /// draws: that frame is drawn in software, and the adapter is kept
+    /// (GFX-007).
+    #[error("the glyph atlas cannot hold the frame's glyphs: {0}")]
+    AtlasFull(String),
     /// The worker could not start or has stopped.
     #[error("the canvas worker is not running: {0}")]
     Worker(String),

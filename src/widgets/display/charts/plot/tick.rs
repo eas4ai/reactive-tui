@@ -61,7 +61,7 @@ pub fn format_tick(value: f64) -> String {
 /// values that keep the headroom past the data small.
 const STEPS: [f64; 5] = [1.0, 2.0, 2.5, 4.0, 5.0];
 
-/// The smallest step from [`STEPS`] (times a power of ten) that covers
+/// The smallest round step (1, 2, 2.5, 4 or 5 times a power of ten) that covers
 /// `span` in `intervals` steps, so an axis of `intervals + 1` ticks lands on
 /// round values (CHT-034).
 pub fn tick_step(span: f64, intervals: usize) -> f64 {
@@ -77,7 +77,7 @@ pub fn tick_step(span: f64, intervals: usize) -> f64 {
         .unwrap_or(10.0 * magnitude)
 }
 
-/// The step after `step` in [`STEPS`] order.
+/// The next round step after `step`.
 fn next_step(step: f64) -> f64 {
     let magnitude = 10f64.powf(step.log10().floor());
     let residual = step / magnitude;
@@ -89,7 +89,7 @@ fn next_step(step: f64) -> f64 {
 }
 
 /// `domain` widened so that `count` ticks fall on round values: a free end
-/// moves out to a multiple of a step from [`STEPS`] such that `count - 1`
+/// moves out to a multiple of a round step such that `count - 1`
 /// steps cover the data (CHT-034). `pinned` says which ends the builder set;
 /// both pinned, or fewer than two ticks, leaves the domain alone.
 pub fn nice_domain(domain: (f64, f64), pinned: (bool, bool), count: usize) -> (f64, f64) {

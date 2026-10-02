@@ -13,7 +13,7 @@ use super::paint::{Shader, ShaderKind};
 use super::raster::Window;
 use super::scene::{CanvasImage, Transform};
 use super::{GraphicsAdapterInfo, GraphicsError};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
@@ -937,8 +937,14 @@ impl GpuRenderer {
 
     /// Put every bitmap of `needed` into the glyph atlas, starting the
     /// atlas again, larger when it can grow, if they do not fit beside
-    /// what it holds.
-    fn place_glyphs(&mut self, needed: &[Arc<Bitmap>], generation: u64) {
+    /// what it holds. When they do not fit the largest atlas either, the
+    /// frame cannot be drawn here whole: it says so instead of drawing
+    /// some glyphs and not others (GFX-007).
+    fn place_glyphs(
+        &mut self,
+        needed: &[Arc<Bitmap>],
+        generation: u64,
+    ) -> Result<(), GraphicsError> {
         if self.atlas.generation != generation {
             self.atlas = GlyphAtlas::new(&self.device, self.atlas.side(), generation);
         }
@@ -946,19 +952,24 @@ impl GpuRenderer {
             .iter()
             .all(|bitmap| self.atlas.add(&self.queue, bitmap))
         {
-            return;
+            return Ok(());
         }
         let mut side = self.atlas.side();
         loop {
             self.atlas = GlyphAtlas::new(&self.device, side, generation);
-            let fits = needed
+            let placed = needed
                 .iter()
-                .all(|bitmap| self.atlas.add(&self.queue, bitmap));
-            if fits || side >= GlyphAtlas::LARGEST {
-                if !fits {
-                    log::warn!("The canvas's glyph atlas is full; some glyphs are not drawn");
-                }
-                return;
+                .take_while(|bitmap| self.atlas.add(&self.queue, bitmap))
+                .count();
+            if placed == needed.len() {
+                return Ok(());
+            }
+            if side >= GlyphAtlas::LARGEST {
+                return Err(GraphicsError::AtlasFull(format!(
+                    "{} of the frame's {} glyph bitmaps fit the {side} by {side} atlas",
+                    placed,
+                    needed.len()
+                )));
             }
             side *= 2;
         }
@@ -1007,25 +1018,59 @@ impl GpuRenderer {
         key
     }
 
-    /// The instances and passes of `draws`.
-    fn build(&mut self, draws: &[Draw], size: (u32, u32), glyphs: &mut Glyphs) -> Frame {
+    /// The instances and passes of `draws`, or why the atlas cannot serve
+    /// them (GFX-007).
+    fn build(
+        &mut self,
+        draws: &[Draw],
+        size: (u32, u32),
+        glyphs: &mut Glyphs,
+    ) -> Result<Frame, GraphicsError> {
         // Every bitmap the frame needs goes into the atlas first, so no
-        // draw finds the atlas changed under it.
+        // draw finds the atlas changed under it: each once, in the order
+        // the frame first names it, so what fits is the same every time.
+        // A glyph or cell outside the picture needs no bitmap, so content
+        // the picture does not show never takes the atlas's room.
+        let (width, height) = (size.0 as i32, size.1 as i32);
+        let inside = |left: i32, top: i32, right: i32, bottom: i32| {
+            right > 0 && bottom > 0 && left < width && top < height
+        };
         let mut needed: Vec<Arc<Bitmap>> = Vec::new();
+        let mut seen: HashSet<u32> = HashSet::new();
+        let mut need = |bitmap: &Arc<Bitmap>| {
+            if seen.insert(bitmap.id) {
+                needed.push(bitmap.clone());
+            }
+        };
         let mut tiles: Vec<Vec<Option<Arc<Bitmap>>>> = Vec::new();
         for draw in draws {
             match draw {
                 Draw::Glyphs { glyphs, .. } => {
-                    needed.extend(glyphs.iter().map(|glyph| glyph.bitmap.clone()));
+                    for glyph in glyphs {
+                        if inside(
+                            glyph.x,
+                            glyph.y,
+                            glyph.x + glyph.bitmap.width as i32,
+                            glyph.y + glyph.bitmap.height as i32,
+                        ) {
+                            need(&glyph.bitmap);
+                        }
+                    }
                 }
-                Draw::Cells { grid, cell, .. } => {
+                Draw::Cells {
+                    x, y, grid, cell, ..
+                } => {
                     // A grid names each of its glyphs once, so one lookup
                     // serves every cell that shows the glyph.
                     let mut known: HashMap<*const u8, Option<Arc<Bitmap>>> = HashMap::new();
-                    let cells = grid
+                    let cells: Vec<Option<Arc<Bitmap>>> = grid
                         .painted()
-                        .map(|(_, _, glyph, wide, _, _)| {
-                            if glyph.is_empty() {
+                        .map(|(column, row, glyph, wide, _, _)| {
+                            let left = x + i32::from(column) * i32::from(cell.0);
+                            let top = y + i32::from(row) * i32::from(cell.1);
+                            let right = left + i32::from(cell.0) * wide.clamp(1, 2) as i32;
+                            let bottom = top + i32::from(cell.1);
+                            if glyph.is_empty() || !inside(left, top, right, bottom) {
                                 return None;
                             }
                             known
@@ -1034,13 +1079,15 @@ impl GpuRenderer {
                                 .clone()
                         })
                         .collect();
-                    needed.extend(known.into_values().flatten());
+                    for tile in cells.iter().flatten() {
+                        need(tile);
+                    }
                     tiles.push(cells);
                 }
                 _ => {}
             }
         }
-        self.place_glyphs(&needed, glyphs.generation());
+        self.place_glyphs(&needed, glyphs.generation())?;
         let mut frame = Frame::new(size);
         let mut tiles = tiles.into_iter();
         for draw in draws {
@@ -1110,7 +1157,7 @@ impl GpuRenderer {
             }
         }
         frame.end_segment(Onto::Picture);
-        frame
+        Ok(frame)
     }
 
     /// Draw `draws` at `size` and read the picture back. `fail_readback`
@@ -1127,7 +1174,7 @@ impl GpuRenderer {
         self.images
             .retain(|_, texture| texture.image.upgrade().is_some());
         self.targets(size);
-        let frame = self.build(draws, size, glyphs);
+        let frame = self.build(draws, size, glyphs)?;
         let image_keys: Vec<usize> = frame
             .images
             .iter()

@@ -257,6 +257,17 @@ impl HybridRenderer {
                         drawn.draw_calls,
                     );
                 }
+                // A frame with more glyphs than the largest atlas holds is
+                // drawn in software, whole, and says so; the adapter draws
+                // the next frame, which may fit (GFX-007).
+                Err(GraphicsError::AtlasFull(reason)) => {
+                    return self.render_software(
+                        &draws,
+                        size,
+                        prepare,
+                        GraphicsMode::CpuFallback(format!("glyph atlas full: {reason}")),
+                    );
+                }
                 Err(error) => {
                     // The software renderer draws from here on (GFX-007).
                     self.mode = GraphicsMode::CpuFallback(error.to_string());
@@ -264,18 +275,30 @@ impl HybridRenderer {
                 }
             }
         }
+        let mode = self.mode.clone();
+        self.render_software(&draws, size, prepare, mode)
+    }
+
+    /// The picture of `draws` by the software renderer, labelled `mode`.
+    fn render_software(
+        &mut self,
+        draws: &[super::compile::Draw],
+        size: (u32, u32),
+        prepare: std::time::Duration,
+        mode: GraphicsMode,
+    ) -> Result<GraphicsFrame, GraphicsError> {
         if self.fault == Some(GraphicsFault::Software) {
             return Err(GraphicsError::Software("injected software failure".into()));
         }
         let started = Instant::now();
         let glyphs = &mut self.glyphs;
-        let bytes = catch_unwind(AssertUnwindSafe(|| cpu::render(&draws, size, glyphs)))
+        let bytes = catch_unwind(AssertUnwindSafe(|| cpu::render(draws, size, glyphs)))
             .map_err(|panic| GraphicsError::Software(panic_text(panic)))?;
         let timings = GraphicsTimings {
             prepare,
             render: started.elapsed(),
             ..Default::default()
         };
-        GraphicsFrame::drawn(size, bytes, self.mode.clone(), timings, 0)
+        GraphicsFrame::drawn(size, bytes, mode, timings, 0)
     }
 }
