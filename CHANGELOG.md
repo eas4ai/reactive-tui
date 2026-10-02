@@ -5,6 +5,45 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- The two-axis charts (line, area, scatter, bar, candlestick) meet the
+  widget bar and gpui-kit 0.7.0 (docs/spec/charts.md, CHT-011 to CHT-036).
+  **Breaking:** a line's dots are off until `.dot()` turns them on, as the
+  reference's are; an area's `.fill(token)` sets its own fill color apart
+  from the stroke and the fill shows at `fill_opacity` (0.4) over the chart
+  background, a gradient fading toward the baseline; `ScatterChartBuilder::x`
+  takes a number and places points on a linear x axis; a bar's `.label(..)`
+  fills `DataPoint::value_label` instead of the tooltip's metadata; and
+  `ChartsBuilder` holds its props, so its `Default` builds the same chart
+  as `ChartProps::default()`. New on the typed builders, `ChartsBuilder`
+  and `builder::chart()`: `interactive`, `aria_label`, `tooltip_title`,
+  `tooltip_value`, `tooltip_value_color`, `tooltip_content`, `grid_dashed`,
+  `y_padding`; for lines, areas and scatters `y_domain`, `point_count`,
+  `y_axis`, `y_axis_label_placement`, `y_tick_count`, `y_tick_format`,
+  `x_tick_count`, `grid_columns`, `reference_line`; for bars `fill_with`,
+  `fill_gradient`, `label_color`, `label_axis`, `value_axis`,
+  `value_tick_count`, `value_axis_label_placement`, `value_tick_format`,
+  `band_count`, `band_tick_count`, `padding_inner`, `padding_outer`,
+  `max_band_width`, `min_length`; for candlesticks `name`,
+  `body_width_ratio`, `max_band_width`; and the `chart!` macro has a form
+  for every chart type. The value axis covers stacked totals; `tick_margin`
+  thins category labels on both orientations; value labels never overlap
+  or leave the plot; candles reveal and animate; axes take the `border`
+  role, labels, axis titles and legend names `text-muted`, the title
+  `foreground`, the grid the new `--color-chart-grid` variable of every
+  preset, the tooltip `surface` behind `foreground` text in a `border`
+  frame, the crosshair `text-muted`, the band `hover` and the selected
+  marker `ring`; the tooltip is opaque, opens with the category, shows a
+  candle as open, high, low and close, lists the followed series first and
+  measures its rows in cells; Up and Down choose the series the keys
+  follow; a settled chart repaints when the theme changes; a chart whose
+  worker cannot start says so; extreme values under tight limits draw a
+  clipped segment instead of overflowing; ASCII mode covers the axes,
+  grid, tooltip, crosshair, swatches and markers; and the screen reader is
+  told the name from `aria_label` or the title, the type and state, the
+  selection as the value, and one child per series. The widget catalog's
+  Charts page shows every variant, and at 200 columns or more the large
+  class at a real rectangle.
+
 - On a terminal that takes pixels, `present` no longer waits while a
   canvas's picture is made ready (docs/spec/canvas.md, GFX-009). The
   backend copies the picture, writes it to shared memory or encodes it as

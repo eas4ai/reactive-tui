@@ -115,48 +115,114 @@ rectangle.
 Colors are tokens: a palette name such as `blue-500`, a theme variable such
 as `primary` or `chart-1`, or hex. Every token resolves through
 `Theme::resolve_color`, the resolver the utility classes use. Each preset
-defines `--color-chart-1` to `--color-chart-5`, `--color-chart-bullish` and
-`--color-chart-bearish`.
+defines `--color-chart-1` to `--color-chart-5`, `--color-chart-bullish`,
+`--color-chart-bearish` and `--color-chart-grid`. The chart's chrome takes
+its colors from roles: axis lines `border`, tick labels, axis titles and
+legend names `text-muted`, the title `foreground`, the grid `chart-grid`,
+the tooltip `surface` behind `foreground` text in a `border` frame, the
+crosshair `text-muted`, the highlight band `hover` and the selected marker
+`ring`. In ASCII mode (`.ascii(true)`, or a terminal without the glyphs)
+the axes, grid, tooltip frame, crosshair, swatches and markers are ASCII
+too.
 
 The typed builders take a `Vec<T>` and accessor closures that run once at
 `.build()`, so the resulting props hold plain points and stay comparable.
-`ChartsBuilder` and `builder::chart()` remain for series built by hand.
+`ChartsBuilder` and `builder::chart()` build every chart type from series
+made by hand, with a method for every option the typed builders have, and
+the `chart!` macro has a form per type (`chart![line: "name" => [1.0, 2.0]]`,
+`chart![candlestick: "name" => [(o, h, l, c)]]`,
+`chart![sankey: nodes => [(from, to, value)]]`).
 
 ### Line chart
 
 `LineChartBuilder::new(rows).x(|r| r.day).y(|r| r.close).name("close")`
 draws one series per `.y(` call. `.stroke("chart-2")` colors the series
-added last. `.natural()`, `.linear()` and `.step_after()` choose the curve;
-`.dot()` marks every point. Series longer than the plot is wide are
+added last. `.natural()`, `.linear()` and `.step_after()` choose the curve
+of the series added last, or of the whole chart before any series. Dots are
+off until `.dot()` turns them on for the series added last (or for every
+series before any is added). Series longer than the plot is wide are
 decimated to each column's minimum and maximum, and the tooltip still
 reports the original index.
+
+The value axis takes the reference's options: `.y_domain(min, max)` pins it
+(shapes outside stop at the plot's edge; equal ends draw nothing),
+`.point_count(n)` lays the category axis out for `n` points with the data
+taking the leading ones, `.y_axis(false)` hides its labels,
+`.y_axis_label_placement(AxisLabelPlacement::Inside)` draws them inside the
+plot beside their grid rows, `.y_tick_count(n)` sets how many ticks place
+the grid rows and labels (at least two), `.y_tick_format(|v| ..)` formats
+their text once at `.build()`, `.x_tick_count(n)` labels `n` categories
+spread from the first to the last, `.grid_columns(n)` divides the plot into
+`n` columns of vertical grid lines, `.grid_dashed(false)` draws the grid
+solid, `.reference_line(v)` draws a dashed line across the plot at `v`, and
+`.y_padding(top, bottom)` keeps rows clear past the extreme values.
+`.tick_margin(n)` shows every n-th category label on either orientation.
 
 ### Area chart
 
 `AreaChartBuilder` adds `.fill(` for the series added last and
-`.stacked(true)` to stack series. `FillStyle::Gradient` on a series shades
-the fill toward the baseline; `FillStyle::Pattern` tiles glyphs over it.
+`.stacked(true)` to stack series. The fill is its own color, apart from the
+stroke: unset, it takes the stroke color, and it shows at the series'
+`fill_opacity` (0.4 by default, `DataSeries::with_fill_opacity`) over the
+chart background. `FillStyle::Gradient` on a series is strongest at the
+stroke and fades to the background at the baseline; `FillStyle::Pattern`
+tiles glyphs over it. Each series keeps its own curve and dots.
 
 ### Scatter chart
 
-`ScatterChartBuilder` places a `•` marker on every point. The pointer selects
-the point nearest in both axes.
+`ScatterChartBuilder::new(rows).x(|r| r.weight).y(|r| r.height)` places a
+`•` marker where each point's numeric x and y fall on linear axes, each
+series with its own points; `.label(|r| ..)` names a point for its tooltip,
+which otherwise shows its x. The pointer selects the point nearest in both
+axes among every original point, thinned or not, and the selected point is
+ringed. The line chart's axis, tick, grid and reference-line methods apply.
 
 ### Bar chart
 
 `BarChartBuilder::new(rows).band(|r| r.day).value(|r| r.total)` draws
 vertical bars; `.alignment(BarGrowth::Left)` or `Right` turns them
 horizontal, `Top` hangs them from the top. Several `.value(` calls group
-bars; `.stacked(true)` stacks them. A bar tip resolves to an eighth block,
-so 3.5 of 8 differs from 3 and 4. `.label(|r| ..)` and the large size class
-show value labels in the text layer.
+bars; `.stacked(true)` stacks them, and the value axis covers the stacked
+totals. A bar tip resolves to an eighth block, so 3.5 of 8 differs from 3
+and 4. `.label(|r| ..)` and the large size class show value labels, placed
+tallest first so none overlaps another or leaves the plot; `.label_color(|r|
+..)` colors each; `.fill_with(|r| ..)` colors each bar from its row and
+`.fill_gradient(|r, range, to_bar| ..)` shades it from base to tip.
+`.padding_inner(0.4)` and `.padding_outer(0.2)` are the band paddings,
+`.max_band_width(cells)` caps a band, `.min_length(cells)` keeps a tiny bar
+visible, `.band_count(n)` lays the band axis out for `n` bands and
+`.band_tick_count(n)` labels `n` of them. `.label_axis(false)` hides the
+band axis, `.value_axis(false)` the value labels; `.value_tick_count(`,
+`.value_axis_label_placement(` and `.value_tick_format(` are the value
+axis's counterparts of the line chart's options, whichever way the bars
+run.
 
 ### Candlestick chart
 
 `CandlestickChartBuilder::new(rows).x(..).open(..).high(..).low(..).close(..)`
-draws a wick from low to high and a body from open to close. Candles that
-close above their open use the theme's bullish color, the rest the bearish
-color; `.bullish(` and `.bearish(` override the tokens.
+draws a wick from low to high and a body from open to close, the body
+`.body_width_ratio(0.8)` of its band and at most `.max_band_width(cells)`
+wide. Candles that close above their open use the theme's bullish color,
+the rest the bearish color; `.bullish(` and `.bearish(` override the tokens.
+Candles reveal and animate like the other types: their open, high, low and
+close all move.
+
+### Tooltip, keys and the screen reader
+
+Every cartesian builder takes `.interactive(false)` to turn hover, the keys
+and the tooltip off, `.tooltip_title(|r| ..)` for the tooltip's title row in
+place of the category, `.tooltip_value(|r, v| ..)` for a point's value text,
+`.tooltip_value_color(|r, v| ..)` for its color and `.tooltip_content(|r|
+..)` for whole content lines in place of the series rows; `.aria_label(`
+names the chart for the screen reader in place of its title. The tooltip is
+an opaque box on the `surface` role: a title row with the category, then a
+swatch, name and value per series, the followed series first, a candle as
+four rows (open, high, low, close), and a crosshair column, a highlight band
+in the `hover` role or a ring on a scatter's point marks the selection
+outside the box. Left, Right, Home and End move the selection along the
+followed series (a numeric scatter's points in x order); Up and Down choose
+the series; Escape clears. The screen reader is told the chart's name, its
+type and state, the selection as its value, and one child per series.
 
 ### Pie chart
 
@@ -247,10 +313,11 @@ one:
   labels.
 
 A resize that crosses a boundary switches class. The tooltip is a box beside
-the selected index with a swatch, name and value per series, at most eight
-rows before it summarizes, and a crosshair marks the index. Left, Right,
-Home and End move the selection; Escape clears it; the selection is announced
-through a live region and the accessibility description at every class.
+the selected index with a title row, then a swatch, name and value per
+series, at most eight rows before it summarizes, and a crosshair, band or
+ring marks the index. Left, Right, Home and End move the selection, Up and
+Down choose the series; Escape clears it; the selection is announced through
+a live region and the accessibility value at every class.
 
 Data changes animate from the shown values to the new ones over
 `.transition_duration(` milliseconds (200 by default); the reveal from zero
