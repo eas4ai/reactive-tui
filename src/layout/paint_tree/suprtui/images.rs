@@ -184,7 +184,7 @@ impl Plane {
     /// pixel for pixel: only moved, opaque, and its picture the size of its
     /// content. Cells another element covers are cleared or tinted as
     /// `raster` does.
-    fn canvas_raster(&self, cell: (u16, u16)) -> Option<image::RgbaImage> {
+    fn canvas_raster(&self, cell: (u16, u16), whole: bool) -> Option<image::RgbaImage> {
         self.image.canvas?;
         let (cw, ch) = (u32::from(cell.0), u32::from(cell.1));
         let content = (
@@ -225,14 +225,15 @@ impl Plane {
                 .copy_from_slice(&source.as_raw()[from..from + count]);
         }
         for (index, cover) in self.cover.iter().enumerate() {
-            if cover.visible && cover.tint[3] == 0 {
+            let visible = cover.visible || whole;
+            if visible && cover.tint[3] == 0 {
                 continue;
             }
             let (column, line) = (index as u32 % columns, index as u32 / columns);
             for y in line * ch..(line + 1) * ch {
                 for x in column * cw..(column + 1) * cw {
                     let pixel = output.get_pixel_mut(x, y);
-                    if !cover.visible {
+                    if !visible {
                         *pixel = image::Rgba([0; 4]);
                         continue;
                     }
@@ -335,7 +336,18 @@ impl Plane {
         ];
     }
     pub fn raster(&self, cell: (u16, u16)) -> Result<image::RgbaImage> {
-        if let Some(picture) = self.canvas_raster(cell) {
+        self.raster_with(cell, false)
+    }
+
+    /// The plane's pixels with the cells another plane above it takes
+    /// kept, not cleared: what shows through a translucent picture made over
+    /// this one on the picture thread (GFX-009).
+    pub fn raster_under(&self, cell: (u16, u16)) -> Result<image::RgbaImage> {
+        self.raster_with(cell, true)
+    }
+
+    fn raster_with(&self, cell: (u16, u16), whole: bool) -> Result<image::RgbaImage> {
+        if let Some(picture) = self.canvas_raster(cell, whole) {
             return Ok(picture);
         }
         let cw = u32::from(cell.0);
@@ -374,7 +386,7 @@ impl Plane {
         for (x, y, pixel) in output.enumerate_pixels_mut() {
             let index = (y / ch) as usize * (width / cw) as usize + (x / cw) as usize;
             let cover = self.cover[index];
-            if !cover.visible {
+            if !cover.visible && !whole {
                 continue;
             }
             let world_x = self.bounds.left as f32 + (x as f32 + 0.5) / cw as f32 - 0.5;

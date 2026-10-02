@@ -24,6 +24,11 @@ pub(super) struct Job<P> {
     pub cell: (u16, u16),
     pub blend_legacy: bool,
     pub below: PixelLayers,
+    /// The planes made ready on this thread below the picture whose cells it
+    /// shares: their pixels, hidden cells included, go under it here, so a
+    /// translucent picture blends over the canvas below it and not over the
+    /// cell background (GFX-009).
+    pub under: Vec<P>,
 }
 
 /// A picture made ready for the plane it names.
@@ -186,7 +191,15 @@ fn run<P: RasterPlane>(queue: &(Mutex<Queue<P>>, Condvar), made: &mpsc::Sender<M
             cell,
             blend_legacy,
             mut below,
+            under,
         } = job;
+        // The pixels of the planes below are copied here, on this thread,
+        // never where the App waits (GFX-009).
+        for lower in &under {
+            if let Ok(pixels) = lower.raster_under(cell) {
+                below.add(lower, &pixels);
+            }
+        }
         let mut rastered = 0;
         let mut object = None;
         // A panic while a picture is made ready ends neither the thread nor
@@ -298,6 +311,7 @@ mod tests {
             cell: (1, 1),
             blend_legacy: true,
             below: PixelLayers::new((1, 1)),
+            under: Vec::new(),
         }
     }
 
