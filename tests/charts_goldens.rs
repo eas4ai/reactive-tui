@@ -827,23 +827,36 @@ fn cht_027_ten_thousand_points_cost_at_most_twice_one_thousand() {
                 point.x = Some((i as f64 * 0.37) % 100.0);
             }
         }
-        let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            app_input::run(Root(Element::typed::<Chart>(p)), size, vec![(3, None)])
-        }));
-        match run {
-            // The quietest frame after the first is the cost of the chart
-            // itself; the maximum would measure whatever else the machine
-            // was doing at that moment.
-            Ok(frames) => frames
-                .iter()
-                .skip(1)
-                .map(|f| f.work_ms)
-                .fold(f64::INFINITY, f64::min),
-            Err(_) => panic!(
-                "{n} points did not paint three frames inside the harness's {:?} hang guard: the chart does not decimate to its column count",
-                app_input::HANG_GUARD
-            ),
+        // The quietest frame is the cost of the chart itself; every other
+        // frame also measures whatever else the machine was doing at that
+        // moment, and a loaded host (another project's build beside this
+        // test) once made two frames of one run look like no decimation.
+        // The two settled frames of each of five runs leave the noise little
+        // room to hide in: it can only raise a frame's cost, never lower it.
+        let mut quietest = f64::INFINITY;
+        for _ in 0..5 {
+            let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                app_input::run(
+                    Root(Element::typed::<Chart>(p.clone())),
+                    size,
+                    vec![(3, None)],
+                )
+            }));
+            match run {
+                Ok(frames) => {
+                    quietest = frames
+                        .iter()
+                        .skip(1)
+                        .map(|f| f.work_ms)
+                        .fold(quietest, f64::min)
+                }
+                Err(_) => panic!(
+                    "{n} points did not paint three frames inside the harness's {:?} hang guard: the chart does not decimate to its column count",
+                    app_input::HANG_GUARD
+                ),
+            }
         }
+        quietest
     };
     for (kind, numeric_x) in [(ChartType::Line, false), (ChartType::Scatter, true)] {
         let small = work(1_000, kind.clone(), numeric_x).max(0.5);
