@@ -2326,30 +2326,43 @@ fn cht_012_area_stroke_and_fill_are_independent_and_dots_default_off() {
     );
 }
 
-/// CHT-013: value labels at the large class never overlap and never leave
-/// the plot; a label that cannot be placed whole is left out, not cut.
+/// CHT-013: at the large class every bar has a value label, no two labels
+/// share a cell and none leaves the plot: forty equal bars whose six-cell
+/// labels cannot share one row stagger into the headroom rows the plot
+/// reserves (vertical) or along the row beside the tips (horizontal).
 #[test]
-fn cht_013_value_labels_never_overlap_or_fragment() {
+fn cht_013_every_large_bar_has_a_value_label_and_none_overlap_or_fragment() {
     let size = (200u16, 40u16);
     let values: Vec<f64> = (0..40).map(|_| 1000.5).collect();
-    let frame = last(ChartType::BarVertical, size, &values, 1200.0);
-    let fragments: Vec<String> = frame
-        .text
-        .lines()
-        .flat_map(|l| l.split_whitespace().map(str::to_owned))
-        .filter(|w| w.chars().any(|c| c.is_ascii_digit()) && w != "1000.5")
-        .collect();
-    assert!(
-        fragments.is_empty(),
-        "value labels overlapped or were cut: {:?}\n{}",
-        &fragments[..fragments.len().min(8)],
-        frame.text
-    );
-    assert!(
-        frame.text.contains("1000.5"),
-        "some value labels are placed:\n{}",
-        frame.text
-    );
+    for kind in [ChartType::BarVertical, ChartType::BarHorizontal] {
+        let frame = last(kind.clone(), size, &values, 1200.0);
+        // A horizontal bar's label starts right after its tip cell, so the
+        // bar's blocks are trimmed off the word before it is judged.
+        let shape =
+            |c: char| c == '\u{2588}' || ('\u{2589}'..='\u{258f}').contains(&c) || is_braille(c);
+        let words: Vec<String> = frame
+            .text
+            .lines()
+            .flat_map(|l| {
+                l.split_whitespace()
+                    .map(|w| w.trim_matches(shape).to_owned())
+            })
+            .filter(|w| w.chars().any(|c| c.is_ascii_digit()))
+            .collect();
+        let fragments: Vec<&String> = words.iter().filter(|w| *w != "1000.5").collect();
+        assert!(
+            fragments.is_empty(),
+            "{kind:?}: value labels overlapped or were cut: {:?}\n{}",
+            &fragments[..fragments.len().min(8)],
+            frame.text
+        );
+        let labels = words.iter().filter(|w| *w == "1000.5").count();
+        assert_eq!(
+            labels, 40,
+            "{kind:?}: every one of the 40 large-class bars has its value label:\n{}",
+            frame.text
+        );
+    }
 }
 
 /// CHT-014: candles reveal over time as the other types do, instead of
