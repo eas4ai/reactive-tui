@@ -185,11 +185,12 @@ fn chart_macros_paint_data_geometry() {
             ),
         ] {
             let frames = app_input::run(Control(element), size, vec![(2, None)]);
-            assert!(
-                frames.last().unwrap().text.contains(mark),
-                "{}",
-                frames.last().unwrap().text
-            );
+            // A line's dots are off until asked for (CHT-012), so its
+            // geometry is braille.
+            let text = &frames.last().unwrap().text;
+            let drawn = text.contains(mark)
+                || (mark == '●' && text.chars().any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)));
+            assert!(drawn, "{text}");
         }
     }
 }
