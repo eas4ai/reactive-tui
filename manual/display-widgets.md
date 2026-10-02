@@ -128,8 +128,12 @@ too.
 The typed builders take a `Vec<T>` and accessor closures that run once at
 `.build()`, so the resulting props hold plain points and stay comparable.
 `ChartsBuilder` and `builder::chart()` build every chart type from series
-made by hand, with a method for every option the typed builders have, and
-the `chart!` macro has a form per type (`chart![line: "name" => [1.0, 2.0]]`,
+made by hand, with a method for every option the typed builders have: the
+per-point ones (`.tooltip_title(`, `.tooltip_value(`, `.tooltip_value_color(`,
+`.tooltip_content(`, `.label_color(`, `.fill_with(` and `.fill_gradient(`)
+take their closure over the `DataPoint` instead of the row and apply to the
+series added last, so the same chart built either way has the same props.
+The `chart!` macro has a form per type (`chart![line: "name" => [1.0, 2.0]]`,
 `chart![candlestick: "name" => [(o, h, l, c)]]`,
 `chart![sankey: nodes => [(from, to, value)]]`).
 

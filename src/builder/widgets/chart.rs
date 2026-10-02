@@ -210,6 +210,66 @@ impl ChartBuilder {
         self
     }
 
+    /// The tooltip title of every point of the series added last, from the
+    /// point (CHT-018, CHT-035).
+    pub fn tooltip_title<S: Into<String>>(mut self, title: impl Fn(&DataPoint) -> S) -> Self {
+        self.inner = self.inner.tooltip_title(title);
+        self
+    }
+
+    /// The tooltip value text of every point of the series added last, from
+    /// the point and its value (CHT-018).
+    pub fn tooltip_value<S: Into<String>>(mut self, value: impl Fn(&DataPoint, f64) -> S) -> Self {
+        self.inner = self.inner.tooltip_value(value);
+        self
+    }
+
+    /// The color token of the tooltip value text of every point of the
+    /// series added last (CHT-018).
+    pub fn tooltip_value_color<S: Into<String>>(
+        mut self,
+        color: impl Fn(&DataPoint, f64) -> S,
+    ) -> Self {
+        self.inner = self.inner.tooltip_value_color(color);
+        self
+    }
+
+    /// The whole tooltip content of every point of the series added last,
+    /// as lines (CHT-018).
+    pub fn tooltip_content<S: Into<String>>(
+        mut self,
+        content: impl Fn(&DataPoint) -> Vec<S>,
+    ) -> Self {
+        self.inner = self.inner.tooltip_content(content);
+        self
+    }
+
+    /// The value-label color token of every point of the series added last
+    /// (CHT-013).
+    pub fn label_color<S: Into<String>>(mut self, color: impl Fn(&DataPoint) -> S) -> Self {
+        self.inner = self.inner.label_color(color);
+        self
+    }
+
+    /// Each bar's own fill color token, from the point (CHT-013).
+    pub fn fill_with<S: Into<String>>(mut self, fill: impl Fn(&DataPoint) -> S) -> Self {
+        self.inner = self.inner.fill_with(fill);
+        self
+    }
+
+    /// Each bar's fill gradient from base to tip, run once at `build()`
+    /// over the chart's value range (CHT-013).
+    pub fn fill_gradient<S: Into<String>>(
+        mut self,
+        stops: impl Fn(&DataPoint, (f64, f64), &dyn Fn(f64) -> f32) -> Vec<(f32, S)>
+            + Send
+            + Sync
+            + 'static,
+    ) -> Self {
+        self.inner = self.inner.fill_gradient(stops);
+        self
+    }
+
     /// Set CSS classes
     pub fn class(mut self, class: &str) -> Self {
         self.class = Some(class.to_string());

@@ -1590,6 +1590,76 @@ mod tests {
         assert_eq!(generic.y_axis, vertical.y_axis);
     }
 
+    /// Every per-point option of the typed bar builder has a generic form on
+    /// `ChartsBuilder` over the point, and the two routes build the same
+    /// series (CHT-035).
+    #[test]
+    fn per_point_options_build_the_same_series_on_the_generic_route() {
+        let typed = BarChartBuilder::new(rows())
+            .band(|r| r.day)
+            .value(|r| r.open)
+            .fill("chart-3")
+            .fill_with(|r| if r.open > 1.5 { "chart-4" } else { "chart-5" })
+            .fill_gradient(|r, range, to_bar| {
+                vec![
+                    (0.0, "chart-1".to_string()),
+                    (
+                        to_bar(range.1 / 2.0),
+                        format!("chart-{}", r.open as usize + 1),
+                    ),
+                ]
+            })
+            .label(|r| format!("{:.1}", r.open))
+            .label_color(|r| if r.open > 1.5 { "success" } else { "error" })
+            .tooltip_title(|r| r.day.to_uppercase())
+            .tooltip_value(|r, v| format!("{v} on {}", r.day))
+            .tooltip_value_color(|_, v| if v > 1.5 { "success" } else { "error" })
+            .tooltip_content(|r| vec![r.day.to_string(), "open".to_string()])
+            .build();
+        let generic = ChartsBuilder::new()
+            .chart_type(ChartType::BarVertical)
+            .series(DataSeries::new(
+                "series 1",
+                rows()
+                    .iter()
+                    .map(|r| {
+                        let mut point = DataPoint::with_label(r.open, r.day);
+                        point.value_label = Some(format!("{:.1}", r.open));
+                        point
+                    })
+                    .collect(),
+            ))
+            .value_labels(true)
+            .fill("chart-3")
+            .fill_with(|p| if p.value > 1.5 { "chart-4" } else { "chart-5" })
+            .fill_gradient(|p, range, to_bar| {
+                vec![
+                    (0.0, "chart-1".to_string()),
+                    (
+                        to_bar(range.1 / 2.0),
+                        format!("chart-{}", p.value as usize + 1),
+                    ),
+                ]
+            })
+            .label_color(|p| if p.value > 1.5 { "success" } else { "error" })
+            .tooltip_title(|p| p.label.clone().unwrap_or_default().to_uppercase())
+            .tooltip_value(|p, v| format!("{v} on {}", p.label.clone().unwrap_or_default()))
+            .tooltip_value_color(|_, v| if v > 1.5 { "success" } else { "error" })
+            .tooltip_content(|p| vec![p.label.clone().unwrap_or_default(), "open".to_string()])
+            .build();
+        assert_eq!(generic.series, typed.series);
+        assert_eq!(generic.value_labels, typed.value_labels);
+        let first = &generic.series[0].data[0];
+        assert_eq!(first.tooltip.title.as_deref(), Some("MON"));
+        assert_eq!(first.tooltip.value.as_deref(), Some("1 on mon"));
+        assert_eq!(first.tooltip.color.as_deref(), Some("error"));
+        assert_eq!(first.tooltip.lines, ["mon", "open"]);
+        assert_eq!(first.label_color.as_deref(), Some("error"));
+        assert_eq!(first.color.as_deref(), Some("chart-5"));
+        assert_eq!(first.gradient.len(), 2);
+        assert_eq!(first.gradient[1].1, "chart-2");
+    }
+
     #[test]
     fn bars_areas_scatter_and_candles_build_their_kinds() {
         let bars = BarChartBuilder::new(rows())
