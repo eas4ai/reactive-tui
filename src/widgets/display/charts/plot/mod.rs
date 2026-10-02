@@ -23,7 +23,7 @@ pub mod tooltip;
 pub use axis::{ellipsis, fit_label, fit_label_with, text_width, Axis, Grid, Orientation};
 pub use curve::{polyline, Curve};
 pub use decimate::{decimate_by_column, decimate_min_max, Sample};
-pub use domain::{value_domain, value_ticks};
+pub use domain::{value_domain, value_domain_with, value_ticks};
 pub use layout::{Rect, SizeClass};
 pub use legend::{Legend, LegendEntry, SWATCH};
 pub use polar::{spoke_angles, PolarGrid};

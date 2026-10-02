@@ -412,6 +412,8 @@ struct Switching {
     size: (u16, u16),
     before: Vec<f64>,
     after: Vec<f64>,
+    /// Leave the value range to the data instead of pinning 0 to 10.
+    auto_range: bool,
 }
 impl RootComponent for Switching {
     fn render(&self) -> Element {
@@ -421,6 +423,10 @@ impl RootComponent for Switching {
             self.size,
             if switched { &self.after } else { &self.before },
         );
+        if self.auto_range {
+            p.y_axis.min = None;
+            p.y_axis.max = None;
+        }
         p.animated = switched;
         p.animation_duration = 200;
         Element::typed::<Chart>(p)
@@ -497,6 +503,7 @@ fn cht_022_value_transition_moves_from_the_old_values_to_the_target() {
         size,
         before: vec![5.0, 5.0],
         after: vec![9.0, 9.0],
+        auto_range: false,
     };
     let frames = app_input::run_when_cell(
         root,
@@ -540,6 +547,53 @@ fn cht_022_value_transition_moves_from_the_old_values_to_the_target() {
             "frame {} dropped to {} blocks, below the previous rendering ({before}): the transition restarted from zero instead of moving from the old values",
             switch_index + 1 + i,
             post[i]
+        );
+    }
+}
+
+/// CHT-022: with the value range left to the data, a bar growing from 8 to
+/// 16 never dips below its previous rendering: the range follows the
+/// transition's values instead of jumping to the target's range while the
+/// bar is still near 8.
+#[test]
+fn cht_022_an_automatic_range_never_dips_during_a_transition() {
+    let size = (30u16, 12u16);
+    let settled = |values: &[f64]| {
+        let mut p = props(ChartType::BarVertical, size, values);
+        p.y_axis.min = None;
+        p.y_axis.max = None;
+        app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+            .pop()
+            .unwrap()
+    };
+    let before = count(&settled(&[8.0, 8.0]), |c| c == '\u{2588}');
+    assert!(before > 0, "test data must be visible");
+    let root = Switching {
+        switched: AtomicBool::new(false),
+        redraw: AtomicBool::new(false),
+        size,
+        before: vec![8.0, 8.0],
+        after: vec![16.0, 16.0],
+        auto_range: true,
+    };
+    let frames = app_input::run(
+        root,
+        size,
+        vec![(2, app_input::key(KeyCode::Char('s'))), (8, None)],
+    );
+    let counts: Vec<usize> = frames
+        .iter()
+        .map(|f| count(f, |c| c == '\u{2588}'))
+        .collect();
+    let switch_index = counts
+        .iter()
+        .position(|c| *c >= before)
+        .expect("settled start frame");
+    if let Some(i) = counts[switch_index + 1..].iter().position(|c| *c < before) {
+        panic!(
+            "frame {} dropped to {} blocks, below the previous rendering ({before}): the automatic range jumped to the target's before the values got there: {counts:?}",
+            switch_index + 1 + i,
+            counts[switch_index + 1 + i]
         );
     }
 }

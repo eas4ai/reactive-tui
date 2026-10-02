@@ -4,7 +4,7 @@
 
 use super::scale::ScaleLinear;
 use super::tick::{linear_ticks, nice_domain};
-use crate::widgets::display::charts::{ChartAxis, ChartProps, ChartType};
+use crate::widgets::display::charts::{ChartAxis, ChartProps, ChartType, DataPoint};
 
 /// The value-axis domain for `props` under `axis`'s explicit limits: the
 /// data's range including zero, or for candles their lows to their highs,
@@ -12,6 +12,19 @@ use crate::widgets::display::charts::{ChartAxis, ChartProps, ChartType};
 /// than the single values. An empty or degenerate range becomes a span of
 /// one around the value.
 pub fn value_domain(props: &ChartProps, axis: &ChartAxis) -> Result<(f64, f64), &'static str> {
+    value_domain_with(props, axis, None)
+}
+
+/// [`value_domain`] over `values` in place of the points' own: the values a
+/// transition is showing this frame (four per point for candles), so the
+/// automatic range follows the motion and no shape dips below its previous
+/// rendering while the target range is wider (CHT-022). `None` reads the
+/// points.
+pub fn value_domain_with(
+    props: &ChartProps,
+    axis: &ChartAxis,
+    values: Option<&[Vec<f64>]>,
+) -> Result<(f64, f64), &'static str> {
     let candles = props.chart_type == ChartType::Candlestick;
     let stacked = props.stacked
         && matches!(
@@ -21,10 +34,19 @@ pub fn value_domain(props: &ChartProps, axis: &ChartAxis) -> Result<(f64, f64), 
     let visible = || props.series.iter().filter(|s| s.visible);
     let auto = if candles {
         let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
-        for point in visible().flat_map(|s| s.data.iter()) {
-            let (a, b) = point
-                .candle
-                .map_or((point.value, point.value), |c| (c.low, c.high));
+        for (s, point, i) in visible_points(props) {
+            let (a, b) = match values.and_then(|v| v.get(s)) {
+                Some(v) if v.len() == props.series[s].data.len() * 4 => {
+                    (v[i * 4 + 2], v[i * 4 + 1])
+                }
+                Some(v) => (
+                    v.get(i).copied().unwrap_or(point.value),
+                    v.get(i).copied().unwrap_or(point.value),
+                ),
+                None => point
+                    .candle
+                    .map_or((point.value, point.value), |c| (c.low, c.high)),
+            };
             if a.is_finite() && b.is_finite() {
                 low = low.min(a);
                 high = high.max(b);
@@ -43,20 +65,21 @@ pub fn value_domain(props: &ChartProps, axis: &ChartAxis) -> Result<(f64, f64), 
         let count = visible().map(|s| s.data.len()).max().unwrap_or(0);
         let mut positive = vec![0.0f64; count];
         let mut negative = vec![0.0f64; count];
-        for series in visible() {
-            for (i, point) in series.data.iter().enumerate() {
-                if point.value.is_finite() {
-                    if point.value >= 0.0 {
-                        positive[i] += point.value;
-                    } else {
-                        negative[i] += point.value;
-                    }
+        for (s, point, i) in visible_points(props) {
+            let value = value_of(values, s, i, point.value);
+            if value.is_finite() {
+                if value >= 0.0 {
+                    positive[i] += value;
+                } else {
+                    negative[i] += value;
                 }
             }
         }
         ScaleLinear::domain_including_zero(positive.into_iter().chain(negative))
     } else {
-        ScaleLinear::domain_including_zero(visible().flat_map(|s| s.data.iter().map(|p| p.value)))
+        ScaleLinear::domain_including_zero(
+            visible_points(props).map(|(s, point, i)| value_of(values, s, i, point.value)),
+        )
     };
     let mut low = axis.min.unwrap_or(auto.0);
     let mut high = axis.max.unwrap_or(auto.1);
@@ -79,6 +102,26 @@ pub fn value_domain(props: &ChartProps, axis: &ChartAxis) -> Result<(f64, f64), 
         (axis.min.is_some(), axis.max.is_some()),
         axis.tick_count,
     ))
+}
+
+/// Every point of every visible series as (series index, point, point index).
+fn visible_points(props: &ChartProps) -> impl Iterator<Item = (usize, &DataPoint, usize)> {
+    props
+        .series
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.visible)
+        .flat_map(|(s, series)| series.data.iter().enumerate().map(move |(i, p)| (s, p, i)))
+}
+
+/// The value shown for point `i` of series `s`: the motion's when given,
+/// else `own`.
+fn value_of(values: Option<&[Vec<f64>]>, s: usize, i: usize, own: f64) -> f64 {
+    values
+        .and_then(|v| v.get(s))
+        .and_then(|v| v.get(i))
+        .copied()
+        .unwrap_or(own)
 }
 
 /// The values of the ticks the value axis of `props` carries under `axis`:
