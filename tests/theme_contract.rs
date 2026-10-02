@@ -436,29 +436,46 @@ fn probe_with_charts(number: usize) -> Theme {
     Theme::new(format!("probe-charts-{number}")).with_variables(variables)
 }
 
-/// A settled bar chart; a key gives the application the second probe theme.
-struct ThemedChart;
+/// A settled bar chart; a key gives the application the second probe theme
+/// and a marker line below the chart says so, which tells the frame
+/// presented after the change from any frame the worker's finish signal
+/// queued before the key was handled.
+struct ThemedChart {
+    switched: std::sync::atomic::AtomicBool,
+}
 impl RootComponent for ThemedChart {
     fn render(&self) -> Element {
-        Element::typed::<Chart>(ChartProps {
-            chart_type: ChartType::BarVertical,
-            width: 30,
-            height: 10,
-            series: vec![DataSeries::new(
-                "s",
-                vec![DataPoint::new(5.0), DataPoint::new(8.0)],
-            )],
-            legend: ChartLegend {
-                visible: false,
+        let switched = self.switched.load(std::sync::atomic::Ordering::Acquire);
+        div()
+            .class("flex flex-col w-full h-full")
+            .child(Element::typed::<Chart>(ChartProps {
+                chart_type: ChartType::BarVertical,
+                width: 30,
+                height: 10,
+                series: vec![DataSeries::new(
+                    "s",
+                    vec![DataPoint::new(5.0), DataPoint::new(8.0)],
+                )],
+                legend: ChartLegend {
+                    visible: false,
+                    ..Default::default()
+                },
+                animated: false,
                 ..Default::default()
-            },
-            animated: false,
-            ..Default::default()
-        })
+            }))
+            .child(
+                div()
+                    .class("w-full h-1")
+                    .text(if switched { "switched" } else { "settled" })
+                    .build(),
+            )
+            .build()
     }
     fn try_handle_event(&mut self, event: &Event) -> reactive_tui::error::Result<EventResult> {
         if matches!(event, Event::Key(_)) {
             Theme::set_active(probe_with_charts(1));
+            self.switched
+                .store(true, std::sync::atomic::Ordering::Release);
             return Ok(EventResult::Handled);
         }
         Ok(EventResult::Ignored)
@@ -477,10 +494,12 @@ fn thm_003_a_settled_chart_repaints_in_the_new_theme_on_the_next_frame() {
     let before: Arc<Theme> = Theme::active();
     Theme::set_active(probe_with_charts(0));
     // The key goes in once the chart's worker has painted its bars and the
-    // App is idle; the run ends once the App is idle again after it.
+    // App is idle; the run ends once the frame after the change is up.
     let frames = app_input::run_until(
-        ThemedChart,
-        (30, 10),
+        ThemedChart {
+            switched: std::sync::atomic::AtomicBool::new(false),
+        },
+        (30, 11),
         vec![
             app_input::Until {
                 text: "█",
@@ -488,7 +507,7 @@ fn thm_003_a_settled_chart_repaints_in_the_new_theme_on_the_next_frame() {
                 event: Some(Event::Key(KeyEvent::new(KeyCode::Char('t')))),
             },
             app_input::Until {
-                text: "█",
+                text: "switched",
                 cell: None,
                 event: None,
             },
@@ -496,11 +515,16 @@ fn thm_003_a_settled_chart_repaints_in_the_new_theme_on_the_next_frame() {
         app_input::HANG_GUARD,
     );
     Theme::set_active((*before).clone());
+    // The first frame that carries the marker is the frame presented after
+    // the theme change: the one THM-003 binds.
     let first = frames
         .iter()
         .find(|frame| frame.text.contains('█'))
         .expect("a painted chart");
-    let next = frames.last().unwrap();
+    let next = frames
+        .iter()
+        .find(|frame| frame.text.contains("switched"))
+        .expect("the frame presented after the theme change");
     assert!(
         cells_of_probe(first, 0) > 0 && cells_of_probe(first, 1) == 0,
         "THM-003: the settled chart is painted in the first theme's colors: {} cells of it, {} of the second:\n{}",
