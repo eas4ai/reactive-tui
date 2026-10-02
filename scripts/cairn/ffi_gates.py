@@ -10,7 +10,12 @@ macOS host and the Windows tablet, failing on any warning line.
 
 Every Linux command must exit zero before the hosts are tried. A test host
 that cannot be reached, or a missing host file, prints no result line, so
-Sudus records BAR-011 unverified (as host_builds.py does).
+Sudus records BAR-011 unverified (as host_builds.py does). So does a Linux
+command that failed only because rustc, rustdoc, clippy-driver or the linker
+was killed by a signal, read as workspace_gates.py reads it: the crash shows
+nothing about the code, and a rerun decides. A command with a failure of its
+own (a compile error, a lint, a failed test) fails the gate whatever else
+crashed.
 """
 
 from __future__ import annotations
@@ -22,13 +27,15 @@ from pathlib import Path
 
 from _common import JOBS, finish, run
 from host_builds import BUILD, CONFIG, HOSTS, Unreachable, build_on, snapshot
+from workspace_gates import toolchain_crashes
 
 PACKAGE = "reactive-tui"
 HOST_FEATURES = "ffi,wgpu-graphics"
 
 
-def linux() -> list[str]:
-    """The Linux commands that failed, as `cargo <subcommand> <features>`."""
+def linux() -> tuple[list[str], list[str]]:
+    """The Linux commands that failed on the code, as `cargo <subcommand>
+    <features>`, and those that failed only because the toolchain crashed."""
     ffi = ["-p", PACKAGE, "--features", "ffi", "--jobs", JOBS]
     both = ["-p", PACKAGE, "--features", HOST_FEATURES, "--jobs", JOBS]
     commands = [
@@ -38,20 +45,29 @@ def linux() -> list[str]:
         ["cargo", "test", "--locked", "--no-fail-fast", *ffi],
         ["cargo", "build", "--locked", *both],
     ]
-    failing = []
+    failing, crashed = [], []
     for command in commands:
         result = run(command, timeout=3600, interleave=True)
         print(result.stdout[-6000:])
         if result.returncode != 0:
             features = command[command.index("--features") + 1]
-            failing.append(f"{command[1]} ({features})")
-    return failing
+            name = f"{command[1]} ({features})"
+            crashes = toolchain_crashes(result.stdout)
+            if crashes:
+                crashed.append(f"{name}: {', '.join(crashes)}")
+            else:
+                failing.append(name)
+    return failing, crashed
 
 
 def gates() -> int:
-    failing = linux()
+    failing, crashed = linux()
     if failing:
         return finish({"BAR-011": (False, f"failing on Linux: {', '.join(failing)}")})
+    if crashed:
+        # No result line: Sudus records the run as unverified, and a rerun decides.
+        print(f"BAR-011 unverified: the toolchain crashed, so these commands reached no verdict: {'; '.join(crashed)}")
+        return 1
     try:
         config = json.loads(CONFIG.read_text())
     except (OSError, ValueError) as error:
