@@ -739,6 +739,57 @@ fn sixel_unset(picture: &str) -> ((usize, usize), usize) {
     (size, set.iter().filter(|pixel| !**pixel).count())
 }
 
+/// GFX-005: a canvas whose pixel height is not a multiple of six (one cell
+/// row is 16 pixels, two are 32) is sent whole as Sixel: the picture states
+/// its true height, every pixel is set, and the partial last band sets no
+/// pixel below the canvas.
+#[test]
+fn gfx_005_a_sixel_canvas_keeps_its_last_partial_band() {
+    let sixel = ImageOutputOptions {
+        sixel: true,
+        ..Default::default()
+    };
+    for rows in [1u16, 2, 3] {
+        let mut scene = Scene::new();
+        scene.fill(
+            &Path::rect(0.0, 0.0, 1000.0, 1000.0),
+            &Paint::solid(Color::rgba(255, 0, 0, 255)),
+        );
+        let options = GraphicsOptions {
+            output: Some(CanvasOutput::Sixel),
+            ..reference_options(true)
+        };
+        let frames = app_input::run_when_output(
+            Root(canvas(scene, options)),
+            (4, rows),
+            sixel.clone(),
+            vec![(SIXEL.to_owned(), 1, None)],
+        );
+        let output: String = frames
+            .iter()
+            .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
+            .collect();
+        let picture = output.split(SIXEL).nth(1).expect("a Sixel picture");
+        let (size, set) = canvas_support::sixel_pixels(picture);
+        let expected = (32usize, 16 * usize::from(rows));
+        assert_eq!(
+            size, expected,
+            "GFX-005: a {rows}-row canvas states its whole picture, not whole bands only"
+        );
+        assert!(
+            set.iter().all(|pixel| *pixel),
+            "GFX-005: every pixel of the {rows}-row canvas is sent ({} of {} unset)",
+            set.iter().filter(|p| !**p).count(),
+            set.len()
+        );
+        assert_eq!(
+            canvas_support::sixel_outside(picture),
+            0,
+            "GFX-005: the partial last band sets no pixel below the {rows}-row canvas"
+        );
+    }
+}
+
 #[test]
 fn gfx_005_a_sixel_frame_leaves_nothing_of_the_last() {
     let sixel = ImageOutputOptions {

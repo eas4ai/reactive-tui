@@ -583,8 +583,11 @@ fn draw_plane<P: RasterPlane>(
         }
         ImageProtocol::Sixel if plane.canvas().is_some() => {
             // A canvas's picture is drawn from the cursor, so it
-            // touches no cell outside the canvas, and only in whole
-            // bands of six rows, so none reaches below it.
+            // touches no cell outside the canvas. Its last band of six
+            // rows may be partial: the encoder sets no bit for a row
+            // past the picture, and an unset pixel is left as it is, so
+            // nothing reaches below the canvas and no row of the
+            // picture is lost (the review's finding on Sixel bands).
             let mut pixels = below.flatten(plane, &pixels, true);
             // Sixel leaves a pixel it is not given as the screen
             // shows it, which after the first picture is the last
@@ -596,12 +599,9 @@ fn draw_plane<P: RasterPlane>(
                     *pixel = plane.background(x, y, cell);
                 }
             }
-            let height = pixels.height() - pixels.height() % 6;
-            if height == 0 {
+            if pixels.height() == 0 {
                 String::new()
             } else {
-                let pixels =
-                    image::imageops::crop_imm(&pixels, 0, 0, pixels.width(), height).to_image();
                 SixelRenderer::encode_picture(&pixels)?
             }
         }
