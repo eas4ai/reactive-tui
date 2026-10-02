@@ -74,7 +74,8 @@ pub struct TooltipBox {
 
 impl Tooltip {
     /// Lay the tooltip out for a chart `area`, so the box is at most as wide
-    /// as the area.
+    /// and as tall as the area: rows past the eighth, or past what the
+    /// area's height holds, are summarized in one row (CHT-018).
     pub fn layout(&self, area: Rect) -> TooltipBox {
         let inner_max = area.w.saturating_sub(2).max(1);
         let cut = ellipsis(self.ascii);
@@ -86,8 +87,12 @@ impl Tooltip {
                 color: None,
             });
         }
-        let shown = if self.rows.len() > MAX_ROWS {
-            MAX_ROWS - 1
+        // Rows the area has room for under the frame and the title; the
+        // summary row counts among them.
+        let room = area.h.saturating_sub(2 + lines.len()).max(1);
+        let limit = MAX_ROWS.min(room);
+        let shown = if self.rows.len() > limit {
+            limit - 1
         } else {
             self.rows.len()
         };
@@ -266,6 +271,32 @@ mod tests {
         assert!(boxed.lines[7].text.starts_with("+3 more"));
         assert_eq!(boxed.height, MAX_ROWS + 2);
         assert_eq!(tooltip(8).layout(Rect::sized(60, 20)).lines.len(), 8);
+    }
+
+    /// CHT-018: an area too short for every row summarizes the rest instead
+    /// of clipping a series away: six rows under a title in eight rows show
+    /// four and "+2 more".
+    #[test]
+    fn short_areas_summarize_the_rows_that_do_not_fit() {
+        let mut titled = tooltip(6);
+        titled.title = Some("mon".into());
+        let boxed = titled.layout(Rect::sized(80, 8));
+        assert_eq!(boxed.height, 8, "the box fits the area's height");
+        assert_eq!(boxed.lines.len(), 6);
+        assert!(
+            boxed.lines[5].text.starts_with("+2 more"),
+            "{}",
+            boxed.lines[5].text
+        );
+        let whole = titled.layout(Rect::sized(80, 9));
+        assert_eq!(
+            whole.lines.len(),
+            7,
+            "nine rows hold the title and six rows"
+        );
+        let tiny = tooltip(3).layout(Rect::sized(80, 3));
+        assert_eq!(tiny.lines.len(), 1);
+        assert!(tiny.lines[0].text.starts_with("+3 more"));
     }
 
     #[test]
