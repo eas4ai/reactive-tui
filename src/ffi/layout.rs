@@ -44,8 +44,10 @@ pub unsafe extern "C" fn rtui_native_style_create(
 /// # Safety
 ///
 /// `style` must be null or a live `RTuiNativeStyle` handle this library
-/// returned and has not destroyed. `element` must be null or a live
-/// `RTuiElement` handle this library returned and has not destroyed.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `element` must be null or a live `RTuiElement` handle this
+/// library returned and has not destroyed, and no other call may use it until
+/// this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_native_style_apply(
     style: *const RTuiNativeStyle,
@@ -66,7 +68,8 @@ pub unsafe extern "C" fn rtui_native_style_apply(
 /// # Safety
 ///
 /// `style` must be null or a live `RTuiNativeStyle` handle this library
-/// returned and has not destroyed.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_native_style_destroy(style: *mut RTuiNativeStyle) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {

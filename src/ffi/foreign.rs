@@ -245,7 +245,8 @@ pub unsafe extern "C" fn rtui_foreign_component_create(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed.
+/// library returned and has not destroyed, and no other call may use it until
+/// this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_destroy(
     component: *mut RTuiForeignComponent,
@@ -267,8 +268,9 @@ pub unsafe extern "C" fn rtui_foreign_component_destroy(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed. `out_element` must be null or a
-/// pointer slot the caller owns, which this call may write.
+/// library returned and has not destroyed, and no call may destroy it until
+/// this one returns. `out_element` must be null or a pointer slot the caller
+/// owns, which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_element(
     component: *const RTuiForeignComponent,
@@ -287,8 +289,9 @@ pub unsafe extern "C" fn rtui_foreign_component_element(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed. `out_element` must be null or a
-/// pointer slot the caller owns, which this call may write.
+/// library returned and has not destroyed, and no call may destroy it until
+/// this one returns. `out_element` must be null or a pointer slot the caller
+/// owns, which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_render(
     component: *const RTuiForeignComponent,
@@ -307,9 +310,10 @@ pub unsafe extern "C" fn rtui_foreign_component_render(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed. `event` must be null or a
-/// NUL-terminated string that stays readable during the call. `out_handled`
-/// must be null or a `bool` the caller owns, which this call may write.
+/// library returned and has not destroyed, and no call may destroy it until
+/// this one returns. `event` must be null or a NUL-terminated string that
+/// stays readable during the call. `out_handled` must be null or a `bool` the
+/// caller owns, which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_dispatch(
     component: *const RTuiForeignComponent,
@@ -364,8 +368,11 @@ unsafe fn set_json(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed. `out_value` must be a pointer slot
-/// the caller owns, which this call may write.
+/// library returned and has not destroyed, and no call may destroy it until
+/// this one returns. `out_value` must be null or a pointer slot the caller
+/// owns; this call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_get_props(
     component: *const RTuiForeignComponent,
@@ -380,8 +387,11 @@ pub unsafe extern "C" fn rtui_foreign_component_get_props(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed. `out_value` must be a pointer slot
-/// the caller owns, which this call may write.
+/// library returned and has not destroyed, and no call may destroy it until
+/// this one returns. `out_value` must be null or a pointer slot the caller
+/// owns; this call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_get_state(
     component: *const RTuiForeignComponent,
@@ -396,8 +406,9 @@ pub unsafe extern "C" fn rtui_foreign_component_get_state(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed. `value` must be a NUL-terminated
-/// string that stays readable during the call.
+/// library returned and has not destroyed, and no call may destroy it until
+/// this one returns. `value` must be null or a NUL-terminated string that
+/// stays readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_set_props(
     component: *const RTuiForeignComponent,
@@ -412,8 +423,9 @@ pub unsafe extern "C" fn rtui_foreign_component_set_props(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed. `value` must be a NUL-terminated
-/// string that stays readable during the call.
+/// library returned and has not destroyed, and no call may destroy it until
+/// this one returns. `value` must be null or a NUL-terminated string that
+/// stays readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_set_state(
     component: *const RTuiForeignComponent,
@@ -450,8 +462,9 @@ pub extern "C" fn rtui_element_set_focus(
 /// # Safety
 ///
 /// `component` must be null or a live `RTuiForeignComponent` handle this
-/// library returned and has not destroyed. `out_code` must be null or a `i32`
-/// the caller owns, which this call may write.
+/// library returned and has not destroyed, and no call may destroy it until
+/// this one returns. `out_code` must be null or a `i32` the caller owns,
+/// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_foreign_component_last_error(
     component: *const RTuiForeignComponent,

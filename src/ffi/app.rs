@@ -340,8 +340,9 @@ pub extern "C" fn rtui_app_builder_root_component(
 /// # Safety
 ///
 /// `builder` must be null or a live `RTuiAppBuilder` handle this library
-/// returned and has not destroyed. `out_app` must be null or a pointer slot
-/// the caller owns, which this call may write.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `out_app` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_builder_build(
     builder: *mut RTuiAppBuilder,
@@ -419,8 +420,9 @@ pub extern "C" fn rtui_app_quit(app: *mut RTuiApp) -> ReactiveError {
 /// # Safety
 ///
 /// `app` must be null or a live `RTuiApp` handle this library returned and
-/// has not destroyed. `out_dimensions` must be null or a `RTuiDimensions` the
-/// caller owns, which this call may write.
+/// has not destroyed, and no call may destroy it until this one returns.
+/// `out_dimensions` must be null or a `RTuiDimensions` the caller owns, which
+/// this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_get_size(
     app: *const RTuiApp,
@@ -464,8 +466,9 @@ pub extern "C" fn rtui_app_set_performance_mode(
 /// # Safety
 ///
 /// `app` must be null or a live `RTuiApp` handle this library returned and
-/// has not destroyed. `out_fps` must be null or a `u32` the caller owns,
-/// which this call may write.
+/// has not destroyed, and no call may destroy it until this one returns.
+/// `out_fps` must be null or a `u32` the caller owns, which this call may
+/// write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_get_current_fps(
     app: *const RTuiApp,
@@ -489,8 +492,9 @@ pub unsafe extern "C" fn rtui_app_get_current_fps(
 /// # Safety
 ///
 /// `app` must be null or a live `RTuiApp` handle this library returned and
-/// has not destroyed. `out_metrics` must be null or a
-/// `RTuiPerformanceMetrics` the caller owns, which this call may write.
+/// has not destroyed, and no call may destroy it until this one returns.
+/// `out_metrics` must be null or a `RTuiPerformanceMetrics` the caller owns,
+/// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_get_performance_metrics(
     app: *const RTuiApp,

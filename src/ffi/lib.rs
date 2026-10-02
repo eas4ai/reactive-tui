@@ -260,10 +260,10 @@ pub extern "C" fn bufferClear(buffer: *mut RTuiBuffer, bg: *const f32) {
 /// # Safety
 ///
 /// `buffer` must be null or a live `RTuiBuffer` handle this library returned
-/// and has not destroyed. `text` must be null or the start of as many
-/// readable bytes as `text_len` says. `fg` must be null or four readable
-/// `f32` color components. `bg` must be null or four readable `f32` color
-/// components.
+/// and has not destroyed, and no other call may use it until this one
+/// returns. `text` must be null or the start of as many readable bytes as
+/// `text_len` says. `fg` must be null or four readable `f32` color
+/// components. `bg` must be null or four readable `f32` color components.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn bufferDrawText(
     buffer: *mut RTuiBuffer,

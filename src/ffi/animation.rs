@@ -294,10 +294,13 @@ pub extern "C" fn rtui_animation_set_property(
 /// # Safety
 ///
 /// `manager` must be null or a live `RTuiAnimationManager` handle this
-/// library returned and has not destroyed. `animation` must be null or a live
-/// `RTuiAnimation` handle this library returned and has not destroyed.
-/// `out_id` must be null or a pointer slot the caller owns, which this call
-/// may write.
+/// library returned and has not destroyed, and no other call may use it until
+/// this one returns. `animation` must be null or a live `RTuiAnimation`
+/// handle this library returned and has not destroyed, and no other call may
+/// use it until this one returns. `out_id` must be null or a pointer slot the
+/// caller owns; this call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_animation_manager_add(
     manager: *mut RTuiAnimationManager,
@@ -335,8 +338,9 @@ pub unsafe extern "C" fn rtui_animation_manager_add(
 /// # Safety
 ///
 /// `manager` must be null or a live `RTuiAnimationManager` handle this
-/// library returned and has not destroyed. `animation_id` must be null or a
-/// NUL-terminated string that stays readable during the call.
+/// library returned and has not destroyed, and no other call may use it until
+/// this one returns. `animation_id` must be null or a NUL-terminated string
+/// that stays readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_animation_manager_remove(
     manager: *mut RTuiAnimationManager,
@@ -420,8 +424,9 @@ pub extern "C" fn rtui_animation_stop(animation: *mut RTuiAnimation) -> Reactive
 /// # Safety
 ///
 /// `animation` must be null or a live `RTuiAnimation` handle this library
-/// returned and has not destroyed. `out_playing` must be null or a `bool` the
-/// caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_playing` must be null or a `bool` the caller owns, which
+/// this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_animation_is_playing(
     animation: *const RTuiAnimation,
@@ -447,8 +452,9 @@ pub unsafe extern "C" fn rtui_animation_is_playing(
 /// # Safety
 ///
 /// `animation` must be null or a live `RTuiAnimation` handle this library
-/// returned and has not destroyed. `out_progress` must be null or a `f32` the
-/// caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_progress` must be null or a `f32` the caller owns, which
+/// this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_animation_get_progress(
     animation: *const RTuiAnimation,

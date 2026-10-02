@@ -151,8 +151,9 @@ pub unsafe extern "C" fn rtui_element_builder_button(
 /// # Safety
 ///
 /// `builder` must be null or a live `RTuiElementBuilder` handle this library
-/// returned and has not destroyed. `classes` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `classes` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_builder_add_class(
     builder: *mut RTuiElementBuilder,
@@ -185,8 +186,9 @@ pub unsafe extern "C" fn rtui_element_builder_add_class(
 /// # Safety
 ///
 /// `builder` must be null or a live `RTuiElementBuilder` handle this library
-/// returned and has not destroyed. `text` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `text` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_builder_set_text(
     builder: *mut RTuiElementBuilder,
@@ -216,8 +218,9 @@ pub unsafe extern "C" fn rtui_element_builder_set_text(
 /// # Safety
 ///
 /// `builder` must be null or a live `RTuiElementBuilder` handle this library
-/// returned and has not destroyed. `key` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `key` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_builder_set_key(
     builder: *mut RTuiElementBuilder,
@@ -271,8 +274,9 @@ pub extern "C" fn rtui_element_builder_add_child(
 /// # Safety
 ///
 /// `builder` must be null or a live `RTuiElementBuilder` handle this library
-/// returned and has not destroyed. `out_element` must be null or a pointer
-/// slot the caller owns, which this call may write.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_builder_build(
     builder: *mut RTuiElementBuilder,
@@ -321,7 +325,8 @@ pub extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
 ///
 /// # Safety
 ///
-/// `out` must be null or a pointer slot the caller owns, which this call may write.
+/// `out` must be null or a pointer slot the caller owns, which this call may
+/// write.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_div(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     unsafe { rtui_element_builder_div(out) }
@@ -331,7 +336,8 @@ pub unsafe extern "C" fn rtui_div(out: *mut *mut RTuiElementBuilder) -> Reactive
 ///
 /// # Safety
 ///
-/// `out` must be null or a pointer slot the caller owns, which this call may write.
+/// `out` must be null or a pointer slot the caller owns, which this call may
+/// write.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_span(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     unsafe { rtui_element_builder_span(out) }
@@ -341,7 +347,8 @@ pub unsafe extern "C" fn rtui_span(out: *mut *mut RTuiElementBuilder) -> Reactiv
 ///
 /// # Safety
 ///
-/// `out` must be null or a pointer slot the caller owns, which this call may write.
+/// `out` must be null or a pointer slot the caller owns, which this call may
+/// write.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_button(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     unsafe { rtui_element_builder_button(out) }
@@ -399,9 +406,10 @@ pub extern "C" fn rtui_h3(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiElementBuilder` handle this library returned
-/// and has not destroyed. `classes` must be null or a NUL-terminated string that
-/// stays readable during the call.
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `classes` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_element_builder_class(
     builder: *mut RTuiElementBuilder,
@@ -414,8 +422,9 @@ pub unsafe extern "C" fn rtui_element_builder_class(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiElementBuilder` handle this library returned
-/// and has not destroyed. `text` must be null or a NUL-terminated string that stays
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `text` must be null or a NUL-terminated string that stays
 /// readable during the call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_element_builder_text(
@@ -429,8 +438,9 @@ pub unsafe extern "C" fn rtui_element_builder_text(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiElementBuilder` handle this library returned
-/// and has not destroyed. `key` must be null or a NUL-terminated string that stays
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `key` must be null or a NUL-terminated string that stays
 /// readable during the call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_element_builder_key(
@@ -485,9 +495,11 @@ unsafe fn take_children(
 /// # Safety
 ///
 /// `builder` must be null or a live `RTuiElementBuilder` handle this library
-/// returned and has not destroyed. `children` must be null or the start of as
-/// many `RTuiElement` handles as `children_count` says, each one this library
-/// returned and has not destroyed.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `children` must be null or the start of as many `RTuiElement`
+/// handles as `children_count` says, each one this library returned and has
+/// not destroyed, and no other call may use or destroy them until this one
+/// returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_builder_children(
     builder: *mut RTuiElementBuilder,
@@ -510,9 +522,9 @@ pub unsafe extern "C" fn rtui_element_builder_children(
 ///
 /// # Safety
 ///
-/// `text` must be null or a NUL-terminated string that stays readable during the
-/// call. `out` must be null or a pointer slot the caller owns, which this call may
-/// write.
+/// `text` must be null or a NUL-terminated string that stays readable during
+/// the call. `out` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_element_text(
     text: *const c_char,
@@ -525,7 +537,8 @@ pub unsafe extern "C" fn rtui_element_text(
 ///
 /// # Safety
 ///
-/// `out` must be null or a pointer slot the caller owns, which this call may write.
+/// `out` must be null or a pointer slot the caller owns, which this call may
+/// write.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_element_empty(out: *mut *mut RTuiElement) -> ReactiveError {
     unsafe { rtui_element_create_empty(out) }
@@ -537,8 +550,9 @@ pub unsafe extern "C" fn rtui_element_empty(out: *mut *mut RTuiElement) -> React
 ///
 /// `children` must be null or the start of as many `RTuiElement` handles as
 /// `children_count` says, each one this library returned and has not
-/// destroyed. `out` must be null or a pointer slot the caller owns, which
-/// this call may write.
+/// destroyed, and no other call may use or destroy them until this one
+/// returns. `out` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_card(
     children: *const *mut RTuiElement,
@@ -563,7 +577,9 @@ pub unsafe extern "C" fn rtui_card(
 ///
 /// # Safety
 ///
-/// `string` must be null or a string this library returned and has not freed.
+/// `string` must be null or a string this library returned and has not freed,
+/// with every byte and the terminating NUL where the library put them: the
+/// caller may read it but must not shorten it or write a NUL into it.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_free_string(string: *mut c_char) {
     unsafe { rtui_string_free(string) }

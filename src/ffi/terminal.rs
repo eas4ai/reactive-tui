@@ -131,8 +131,9 @@ pub extern "C" fn clearTerminal(terminal: *mut RTuiTerminal) {
 /// # Safety
 ///
 /// `terminal` must be null or a live `RTuiTerminal` handle this library
-/// returned and has not destroyed. `caps_ptr` must be null or a
-/// `Capabilities` the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `caps_ptr` must be null or a `Capabilities` the caller owns,
+/// which this call may write.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn getTerminalCapabilities(
     terminal: *const RTuiTerminal,
@@ -166,8 +167,9 @@ pub unsafe extern "C" fn getTerminalCapabilities(
 /// # Safety
 ///
 /// `terminal` must be null or a live `RTuiTerminal` handle this library
-/// returned and has not destroyed. `response_ptr` must be null or the start
-/// of as many readable bytes as `response_len` says.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `response_ptr` must be null or the start of as many readable
+/// bytes as `response_len` says.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn processCapabilityResponse(
     terminal: *mut RTuiTerminal,
@@ -228,8 +230,9 @@ pub extern "C" fn setCursorPosition(terminal: *mut RTuiTerminal, x: i32, y: i32,
 /// # Safety
 ///
 /// `terminal` must be null or a live `RTuiTerminal` handle this library
-/// returned and has not destroyed. `style_ptr` must be null or the start of
-/// as many readable bytes as `style_len` says.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `style_ptr` must be null or the start of as many readable
+/// bytes as `style_len` says.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn setCursorStyle(
     terminal: *mut RTuiTerminal,
@@ -310,8 +313,9 @@ pub extern "C" fn setCursorColor(terminal: *mut RTuiTerminal, color: *const f32)
 /// # Safety
 ///
 /// `terminal` must be null or a live `RTuiTerminal` handle this library
-/// returned and has not destroyed. `title_ptr` must be null or the start of
-/// as many readable bytes as `title_len` says.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `title_ptr` must be null or the start of as many readable
+/// bytes as `title_len` says.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn setTerminalTitle(
     terminal: *mut RTuiTerminal,
