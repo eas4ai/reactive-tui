@@ -3,7 +3,7 @@
 //! over the ticks the axis will carry (CHT-011, CHT-034).
 
 use super::scale::ScaleLinear;
-use super::tick::linear_ticks;
+use super::tick::{linear_ticks, nice_domain};
 use crate::widgets::display::charts::{ChartAxis, ChartProps, ChartType};
 
 /// The value-axis domain for `props` under `axis`'s explicit limits: the
@@ -72,12 +72,18 @@ pub fn value_domain(props: &ChartProps, axis: &ChartAxis) -> Result<(f64, f64), 
     if low >= high || !(high - low).is_finite() {
         return Err("Axis range must have a finite positive span");
     }
-    Ok((low, high))
+    // A free end widens to a round step grid for the axis's tick count, so
+    // exactly that many ticks land on round values (CHT-034).
+    Ok(nice_domain(
+        (low, high),
+        (axis.min.is_some(), axis.max.is_some()),
+        axis.tick_count,
+    ))
 }
 
 /// The values of the ticks the value axis of `props` carries under `axis`:
-/// round values across its domain, `axis.tick_count` of them or so, so a
-/// tick format run at `build()` labels the same ticks the renderer draws.
+/// exactly `axis.tick_count` round values across its domain, so a tick
+/// format run at `build()` labels the same ticks the renderer draws.
 pub fn value_ticks(props: &ChartProps, axis: &ChartAxis) -> Vec<f64> {
     let Ok(domain) = value_domain(props, axis) else {
         return Vec::new();
@@ -116,7 +122,8 @@ mod tests {
         let grouped = props(ChartType::BarVertical, false, &[&[8.0], &[8.0]]);
         assert_eq!(value_domain(&grouped, &grouped.y_axis), Ok((0.0, 8.0)));
         let mixed = props(ChartType::Area, true, &[&[3.0, -2.0], &[4.0, -5.0]]);
-        assert_eq!(value_domain(&mixed, &mixed.y_axis), Ok((-7.0, 7.0)));
+        // Five ticks over -7 to 7 land on -8, -4, 0, 4 and 8 (CHT-034).
+        assert_eq!(value_domain(&mixed, &mixed.y_axis), Ok((-8.0, 8.0)));
     }
 
     /// The ticks a format labels at build are the renderer's round ticks.

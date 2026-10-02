@@ -1966,6 +1966,71 @@ fn cht_034_tick_margin_thins_category_labels_on_either_orientation() {
     );
 }
 
+/// CHT-034: a tick count on the value axis is the number of ticks drawn,
+/// grid lines and labels alike: three over a pinned 0 to 8 gives 0, 4 and 8
+/// with grid lines at 4 and 8 above the axis, never five ticks, and five over
+/// automatic data landing on 10 gives five round labels.
+#[test]
+fn cht_034_a_tick_count_draws_that_many_grid_lines_and_labels() {
+    // The large class, which draws the grid (CHT-024).
+    let size = (200u16, 40u16);
+    let grid_rows = |frame: &Snapshot| {
+        let mut rows: Vec<u16> = cells_with(frame, |glyph| glyph == "·")
+            .into_iter()
+            .map(|(row, _)| row)
+            .collect();
+        rows.dedup();
+        rows.len()
+    };
+    let mut pinned = props(ChartType::Line, size, &[2.0, 7.0, 5.0]);
+    pinned.y_axis.min = Some(0.0);
+    pinned.y_axis.max = Some(8.0);
+    pinned.y_axis.tick_count = 3;
+    pinned.y_axis.show_labels = true;
+    pinned.y_axis.show_grid = true;
+    let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(pinned)), size, 2)
+        .pop()
+        .unwrap();
+    // The lowest tick's line is the axis itself at the plot's bottom edge,
+    // so the grid holds one row per tick above it: two for three ticks,
+    // not four.
+    assert_eq!(
+        grid_rows(&frame),
+        2,
+        "a tick count of 3 draws grid lines at two ticks above the axis, not four:\n{}",
+        frame.text
+    );
+    for label in ["0", "4", "8"] {
+        assert!(
+            cells_with(&frame, |glyph| glyph == label)
+                .iter()
+                .any(|(_, col)| *col < 4),
+            "the tick label {label} is in the gutter:\n{}",
+            frame.text
+        );
+    }
+    let mut auto = props(ChartType::Line, size, &[2.0, 10.0, 5.0]);
+    auto.y_axis.tick_count = 5;
+    auto.y_axis.show_labels = true;
+    auto.y_axis.show_grid = true;
+    let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(auto)), size, 2)
+        .pop()
+        .unwrap();
+    assert_eq!(
+        grid_rows(&frame),
+        4,
+        "a tick count of 5 draws grid lines at the four ticks above the axis:\n{}",
+        frame.text
+    );
+    for label in ["2.5", "7.5", "10"] {
+        assert!(
+            frame.text.contains(label),
+            "the automatic range lands five ticks on round values ({label}):\n{}",
+            frame.text
+        );
+    }
+}
+
 /// CHT-013, CHT-035: a bar series' `fill` is the color of its bars, which
 /// the generic route's `.fill()` sets like the typed route's, instead of
 /// the palette color.
