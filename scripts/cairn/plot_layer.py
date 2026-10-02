@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""CHT-010 and CHT-011: a public plot layer exists and every chart maps data
-through it; band padding, zero inclusion and zero baseline hold.
+"""CHT-010, CHT-011 and CHT-034: a public plot layer exists and every chart
+maps data through it; band padding, zero inclusion, stacked totals and zero
+baseline hold; the axis options (pinned range, point count, tick counts and
+formats, label placement, grid, reference lines, headroom, tick_margin on
+both orientations) behave, through the cht_034_ tests of
+tests/charts_contract.rs.
 
-Prints one `cairn: CHT-01x: pass|fail` line per requirement.
+Prints one `cairn: CHT-0xx: pass|fail` line per requirement.
 """
 
 import re
@@ -45,9 +49,11 @@ def main() -> int:
     ok, why = cargo_test_filtered("charts_contract", "cht_011_")
     if not ok:
         problems_011.append(why.splitlines()[-1] if why else "scale unit tests failed")
+    ok_034, why_034 = cargo_test_filtered("charts_contract", "cht_034_")
     return finish({
         "CHT-010": (not problems_010, "; ".join(problems_010[:5]) if problems_010 else "plot layer present and used by every renderer"),
-        "CHT-011": (not problems_011, "; ".join(problems_011[:5]) if problems_011 else "band padding, zero inclusion and zero baseline hold"),
+        "CHT-011": (not problems_011, "; ".join(problems_011[:5]) if problems_011 else "band padding, zero inclusion, stacked totals and zero baseline hold"),
+        "CHT-034": (ok_034, why_034 if not ok_034 else "the axis options behave on both orientations"),
     })
 
 
