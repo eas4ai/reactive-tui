@@ -226,22 +226,36 @@ pub(super) fn color(value: &str) -> Option<Rgba> {
 }
 
 /// The color of point `point` in series `series`: the point's own color,
-/// then the series color, then the palette entry for the series.
+/// then (for a bar series) the series fill, then the series color, then the
+/// palette entry for the series. A bar's body is a fill, so `.fill()` colors
+/// it on every builder route alike (CHT-013, CHT-035).
 pub(super) fn point_color(props: &ChartProps, series: usize, point: usize) -> Option<Rgba> {
     let data = &props.series[series];
     data.data
         .get(point)
         .and_then(|p| p.color.as_deref())
+        .or_else(|| bar_fill(props, series))
         .or(data.color.as_deref())
         .or_else(|| palette_token(props, series))
         .and_then(color)
 }
 
-/// The color of a whole series.
+/// The fill token of a bar series, which colors its bars (CHT-013); `None`
+/// for other chart types, whose fill is the area under the stroke.
+fn bar_fill(props: &ChartProps, series: usize) -> Option<&str> {
+    matches!(
+        props.chart_type,
+        ChartType::BarVertical | ChartType::BarHorizontal
+    )
+    .then(|| props.series[series].fill.as_deref())
+    .flatten()
+}
+
+/// The color of a whole series, for its legend swatch: a bar series' fill
+/// (the color of its bars), else the series color, else the palette.
 pub(super) fn series_color(props: &ChartProps, series: usize) -> Option<Rgba> {
-    props.series[series]
-        .color
-        .as_deref()
+    bar_fill(props, series)
+        .or(props.series[series].color.as_deref())
         .or_else(|| palette_token(props, series))
         .and_then(color)
 }

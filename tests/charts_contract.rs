@@ -1966,6 +1966,37 @@ fn cht_034_tick_margin_thins_category_labels_on_either_orientation() {
     );
 }
 
+/// CHT-013, CHT-035: a bar series' `fill` is the color of its bars, which
+/// the generic route's `.fill()` sets like the typed route's, instead of
+/// the palette color.
+#[test]
+fn cht_013_a_bar_series_fill_colors_its_bars() {
+    let size = (30u16, 10u16);
+    let mut p = props(ChartType::BarVertical, size, &[4.0, 8.0, 6.0]);
+    p.series[0].fill = Some("chart-3".into());
+    let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+        .pop()
+        .unwrap();
+    let fill = role_rgb("chart-3");
+    let palette = role_rgb("chart-1");
+    let blocks = cells_with(&frame, |glyph| glyph == "█");
+    assert!(!blocks.is_empty(), "bars are drawn:\n{}", frame.text);
+    assert!(
+        blocks
+            .iter()
+            .all(|(row, col)| cell_near(&frame, *row, *col, fill)),
+        "every bar cell takes the series fill chart-3 {fill:?}:\n{}",
+        frame.text
+    );
+    assert!(
+        !blocks
+            .iter()
+            .any(|(row, col)| cell_near(&frame, *row, *col, palette)),
+        "no bar cell keeps the palette color chart-1 {palette:?}:\n{}",
+        frame.text
+    );
+}
+
 /// CHT-017: the chart's axes take the `border` role and its tick labels the
 /// `text-muted` role, not whatever color the element inherits.
 #[test]
