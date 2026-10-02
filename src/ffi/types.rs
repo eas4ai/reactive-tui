@@ -1,6 +1,5 @@
 //! FFI type definitions
 
-use crate::ffi::error::ReactiveError;
 use std::os::raw::c_void;
 
 /// Opaque handle to a terminal

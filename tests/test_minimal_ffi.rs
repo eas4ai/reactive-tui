@@ -34,14 +34,12 @@ mod minimal_ffi_tests {
             let original_ptr = builder_ptr;
 
             // Test in-place modification - pointer should remain the same
-            let result =
-                rtui_element_builder_add_class(builder_ptr, b"test-class\0".as_ptr() as *const i8);
+            let result = rtui_element_builder_add_class(builder_ptr, c"test-class".as_ptr());
             assert_eq!(result, 0); // Success
             assert_eq!(builder_ptr, original_ptr); // Pointer unchanged
 
             // Test setting text
-            let result =
-                rtui_element_builder_set_text(builder_ptr, b"Hello\0".as_ptr() as *const i8);
+            let result = rtui_element_builder_set_text(builder_ptr, c"Hello".as_ptr());
             assert_eq!(result, 0); // Success
             assert_eq!(builder_ptr, original_ptr); // Pointer unchanged
 
@@ -64,8 +62,7 @@ mod minimal_ffi_tests {
             assert_eq!(result, -2); // NullPointer error
 
             // Test null builder
-            let result =
-                rtui_element_builder_add_class(ptr::null_mut(), b"test\0".as_ptr() as *const i8);
+            let result = rtui_element_builder_add_class(ptr::null_mut(), c"test".as_ptr());
             assert_eq!(result, -2); // NullPointer error
 
             // Test null classes

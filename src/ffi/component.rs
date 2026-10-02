@@ -40,8 +40,14 @@ pub enum RTuiLayoutType {
 }
 
 /// Create a component element
+///
+/// # Safety
+///
+/// `name` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_create_component(
+pub unsafe extern "C" fn rtui_element_create_component(
     name: *const c_char,
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {
@@ -62,8 +68,14 @@ pub extern "C" fn rtui_element_create_component(
 }
 
 /// Create a text element
+///
+/// # Safety
+///
+/// `text` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_create_text(
+pub unsafe extern "C" fn rtui_element_create_text(
     text: *const c_char,
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {
@@ -84,8 +96,13 @@ pub extern "C" fn rtui_element_create_text(
 }
 
 /// Create a layout element
+///
+/// # Safety
+///
+/// `out_element` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_create_layout(
+pub unsafe extern "C" fn rtui_element_create_layout(
     layout_type: RTuiLayoutType,
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {
@@ -111,8 +128,13 @@ pub extern "C" fn rtui_element_create_layout(
 }
 
 /// Create a fragment element
+///
+/// # Safety
+///
+/// `out_element` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_create_fragment(
+pub unsafe extern "C" fn rtui_element_create_fragment(
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {
     if out_element.is_null() {
@@ -130,8 +152,15 @@ pub extern "C" fn rtui_element_create_fragment(
 }
 
 /// Create an empty element
+///
+/// # Safety
+///
+/// `out_element` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_create_empty(out_element: *mut *mut RTuiElement) -> ReactiveError {
+pub unsafe extern "C" fn rtui_element_create_empty(
+    out_element: *mut *mut RTuiElement,
+) -> ReactiveError {
     if out_element.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -149,8 +178,14 @@ pub extern "C" fn rtui_element_create_empty(out_element: *mut *mut RTuiElement) 
 // Element destroy function is in builder.rs to avoid duplication
 
 /// Set element key
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `key` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_element_set_key(
+pub unsafe extern "C" fn rtui_element_set_key(
     element: *mut RTuiElement,
     key: *const c_char,
 ) -> ReactiveError {
@@ -174,8 +209,14 @@ pub extern "C" fn rtui_element_set_key(
 }
 
 /// Set element class
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `class` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_element_set_class(
+pub unsafe extern "C" fn rtui_element_set_class(
     element: *mut RTuiElement,
     class: *const c_char,
 ) -> ReactiveError {
@@ -228,8 +269,14 @@ pub extern "C" fn rtui_element_add_child(
 }
 
 /// Get element type
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `out_type` must be null or a
+/// `RTuiElementType` the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_get_type(
+pub unsafe extern "C" fn rtui_element_get_type(
     element: *const RTuiElement,
     out_type: *mut RTuiElementType,
 ) -> ReactiveError {
@@ -256,8 +303,14 @@ pub extern "C" fn rtui_element_get_type(
 }
 
 /// Get element key
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `out_key` must be null or a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_get_key(
+pub unsafe extern "C" fn rtui_element_get_key(
     element: *const RTuiElement,
     out_key: *mut *mut c_char,
 ) -> ReactiveError {
@@ -283,8 +336,14 @@ pub extern "C" fn rtui_element_get_key(
 }
 
 /// Get element class
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `out_class` must be null or a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_get_class(
+pub unsafe extern "C" fn rtui_element_get_class(
     element: *const RTuiElement,
     out_class: *mut *mut c_char,
 ) -> ReactiveError {
@@ -310,8 +369,14 @@ pub extern "C" fn rtui_element_get_class(
 }
 
 /// Get number of children
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `out_count` must be null or a `usize` the
+/// caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_get_child_count(
+pub unsafe extern "C" fn rtui_element_get_child_count(
     element: *const RTuiElement,
     out_count: *mut usize,
 ) -> ReactiveError {
@@ -331,8 +396,14 @@ pub extern "C" fn rtui_element_get_child_count(
 }
 
 /// Get child element at index
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `out_child` must be null or a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_get_child(
+pub unsafe extern "C" fn rtui_element_get_child(
     element: *const RTuiElement,
     index: usize,
     out_child: *mut *mut RTuiElement,
@@ -360,8 +431,14 @@ pub extern "C" fn rtui_element_get_child(
 }
 
 /// Get component name (if element is a component)
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `out_name` must be null or a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_get_component_name(
+pub unsafe extern "C" fn rtui_element_get_component_name(
     element: *const RTuiElement,
     out_name: *mut *mut c_char,
 ) -> ReactiveError {
@@ -387,8 +464,14 @@ pub extern "C" fn rtui_element_get_component_name(
 }
 
 /// Get text content (if element is text)
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle this library
+/// returned and has not destroyed. `out_text` must be null or a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_get_text_content(
+pub unsafe extern "C" fn rtui_element_get_text_content(
     element: *const RTuiElement,
     out_text: *mut *mut c_char,
 ) -> ReactiveError {

@@ -256,8 +256,16 @@ pub extern "C" fn bufferClear(buffer: *mut RTuiBuffer, bg: *const f32) {
 }
 
 /// Draw text to buffer
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle this library returned
+/// and has not destroyed. `text` must be null or the start of as many
+/// readable bytes as `text_len` says. `fg` must be null or four readable
+/// `f32` color components. `bg` must be null or four readable `f32` color
+/// components.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferDrawText(
+pub unsafe extern "C" fn bufferDrawText(
     buffer: *mut RTuiBuffer,
     text: *const u8,
     text_len: usize,

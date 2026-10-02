@@ -11,8 +11,15 @@ use std::os::raw::c_char;
 // requires a registry system for function pointer management.
 
 /// Create a simple text input element (without callbacks)
+///
+/// # Safety
+///
+/// `placeholder` must be null or a NUL-terminated string that stays readable
+/// during the call. `initial_value` must be null or a NUL-terminated string
+/// that stays readable during the call. `out_element` must be null or a
+/// pointer slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_text_input_create(
+pub unsafe extern "C" fn rtui_text_input_create(
     placeholder: *const c_char,
     initial_value: *const c_char,
     out_element: *mut *mut super::builder::RTuiElement,
@@ -47,8 +54,14 @@ pub extern "C" fn rtui_text_input_create(
 }
 
 /// Create a simple checkbox element (without callbacks)
+///
+/// # Safety
+///
+/// `label` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_checkbox_create(
+pub unsafe extern "C" fn rtui_checkbox_create(
     label: *const c_char,
     initial_checked: bool,
     out_element: *mut *mut super::builder::RTuiElement,
@@ -84,8 +97,14 @@ pub extern "C" fn rtui_checkbox_create(
 }
 
 /// Create a simple progress bar element
+///
+/// # Safety
+///
+/// `label` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_progress_bar_create(
+pub unsafe extern "C" fn rtui_progress_bar_create(
     min_value: f64,
     max_value: f64,
     current_value: f64,
@@ -125,8 +144,14 @@ pub extern "C" fn rtui_progress_bar_create(
 }
 
 /// Create a simple button element (without callbacks)
+///
+/// # Safety
+///
+/// `text` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_button_create(
+pub unsafe extern "C" fn rtui_button_create(
     text: *const c_char,
     out_element: *mut *mut super::builder::RTuiElement,
 ) -> ReactiveError {
@@ -153,8 +178,14 @@ pub extern "C" fn rtui_button_create(
 }
 
 /// Create a simple text element
+///
+/// # Safety
+///
+/// `text` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_text_element_create(
+pub unsafe extern "C" fn rtui_text_element_create(
     text: *const c_char,
     out_element: *mut *mut super::builder::RTuiElement,
 ) -> ReactiveError {

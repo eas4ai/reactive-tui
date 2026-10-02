@@ -197,8 +197,16 @@ pub extern "C" fn textBufferReset(tb: *mut RTuiTextBuffer) {
 //
 
 /// Write a chunk of text
+///
+/// # Safety
+///
+/// `tb` must be null or a live `RTuiTextBuffer` handle this library returned
+/// and has not destroyed. `text_bytes` must be null or the start of as many
+/// readable bytes as `text_len` says. `fg` must be null or four readable
+/// `f32` color components. `bg` must be null or four readable `f32` color
+/// components. `attr` must be null or a readable `u8`.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn textBufferWriteChunk(
+pub unsafe extern "C" fn textBufferWriteChunk(
     tb: *mut RTuiTextBuffer,
     text_bytes: *const u8,
     text_len: u32,
@@ -544,8 +552,13 @@ pub extern "C" fn textBufferSetDefaultBg(tb: *mut RTuiTextBuffer, bg: *const f32
 }
 
 /// Set default attributes
+///
+/// # Safety
+///
+/// `tb` must be null or a live `RTuiTextBuffer` handle this library returned
+/// and has not destroyed. `attr` must be null or a readable `u8`.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn textBufferSetDefaultAttributes(tb: *mut RTuiTextBuffer, attr: *const u8) {
+pub unsafe extern "C" fn textBufferSetDefaultAttributes(tb: *mut RTuiTextBuffer, attr: *const u8) {
     if tb.is_null() {
         return;
     }

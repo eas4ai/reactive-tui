@@ -127,8 +127,14 @@ pub extern "C" fn clearTerminal(terminal: *mut RTuiTerminal) {
 }
 
 /// Get terminal capabilities
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle this library
+/// returned and has not destroyed. `caps_ptr` must be null or a
+/// `Capabilities` the caller owns, which this call may write.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn getTerminalCapabilities(
+pub unsafe extern "C" fn getTerminalCapabilities(
     terminal: *const RTuiTerminal,
     caps_ptr: *mut Capabilities,
 ) {
@@ -156,8 +162,14 @@ pub extern "C" fn getTerminalCapabilities(
 }
 
 /// Process capability response
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle this library
+/// returned and has not destroyed. `response_ptr` must be null or the start
+/// of as many readable bytes as `response_len` says.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn processCapabilityResponse(
+pub unsafe extern "C" fn processCapabilityResponse(
     terminal: *mut RTuiTerminal,
     response_ptr: *const u8,
     response_len: usize,
@@ -212,8 +224,14 @@ pub extern "C" fn setCursorPosition(terminal: *mut RTuiTerminal, x: i32, y: i32,
 }
 
 /// Set cursor style
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle this library
+/// returned and has not destroyed. `style_ptr` must be null or the start of
+/// as many readable bytes as `style_len` says.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn setCursorStyle(
+pub unsafe extern "C" fn setCursorStyle(
     terminal: *mut RTuiTerminal,
     style_ptr: *const u8,
     style_len: usize,
@@ -288,8 +306,14 @@ pub extern "C" fn setCursorColor(terminal: *mut RTuiTerminal, color: *const f32)
 }
 
 /// Set terminal title
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle this library
+/// returned and has not destroyed. `title_ptr` must be null or the start of
+/// as many readable bytes as `title_len` says.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn setTerminalTitle(
+pub unsafe extern "C" fn setTerminalTitle(
     terminal: *mut RTuiTerminal,
     title_ptr: *const u8,
     title_len: usize,

@@ -32,7 +32,7 @@ mod ffi_reactive_tests {
     #[test]
     fn test_seamless_string_signals() {
         let initial = CString::new("Hello, World!").unwrap();
-        let signal = rtui_signal_new_string(initial.as_ptr());
+        let signal = unsafe { rtui_signal_new_string(initial.as_ptr()) };
         assert!(!signal.is_null());
 
         // Get the string value
@@ -44,11 +44,11 @@ mod ffi_reactive_tests {
         assert_eq!(value_str, "Hello, World!");
 
         // Free the returned string
-        rtui_string_free(value_ptr);
+        unsafe { rtui_string_free(value_ptr) };
 
         // Set a new value
         let new_value = CString::new("Updated!").unwrap();
-        let result = rtui_signal_set_string_new(signal, new_value.as_ptr());
+        let result = unsafe { rtui_signal_set_string_new(signal, new_value.as_ptr()) };
         assert_eq!(result, ReactiveError::Success);
 
         // Verify the update
@@ -57,7 +57,7 @@ mod ffi_reactive_tests {
         let updated_str = updated_cstr.to_str().unwrap();
         assert_eq!(updated_str, "Updated!");
 
-        rtui_string_free(updated_ptr);
+        unsafe { rtui_string_free(updated_ptr) };
         rtui_signal_destroy_new(signal);
     }
 
@@ -67,30 +67,30 @@ mod ffi_reactive_tests {
         assert!(!signal.is_null());
 
         let value = rtui_signal_get_bool_new(signal);
-        assert_eq!(value, true);
+        assert!(value);
 
         let result = rtui_signal_set_bool_new(signal, false);
         assert_eq!(result, ReactiveError::Success);
 
         let new_value = rtui_signal_get_bool_new(signal);
-        assert_eq!(new_value, false);
+        assert!(!new_value);
 
         rtui_signal_destroy_new(signal);
     }
 
     #[test]
     fn test_seamless_float_signals() {
-        let signal = rtui_signal_new_float(3.14159);
+        let signal = rtui_signal_new_float(3.5);
         assert!(!signal.is_null());
 
         let value = rtui_signal_get_float_new(signal);
-        assert!((value - 3.14159).abs() < 0.0001);
+        assert!((value - 3.5).abs() < 0.0001);
 
-        let result = rtui_signal_set_float_new(signal, 2.71828);
+        let result = rtui_signal_set_float_new(signal, -2.25);
         assert_eq!(result, ReactiveError::Success);
 
         let new_value = rtui_signal_get_float_new(signal);
-        assert!((new_value - 2.71828).abs() < 0.0001);
+        assert!((new_value - -2.25).abs() < 0.0001);
 
         rtui_signal_destroy_new(signal);
     }
@@ -102,7 +102,7 @@ mod ffi_reactive_tests {
 
         // Use integer signal with hooks
         let key = CString::new("counter").unwrap();
-        let signal = rtui_use_signal_int(hooks, key.as_ptr(), 0);
+        let signal = unsafe { rtui_use_signal_int(hooks, key.as_ptr(), 0) };
         assert!(!signal.is_null());
 
         let value = rtui_signal_get_int(signal);
@@ -116,7 +116,7 @@ mod ffi_reactive_tests {
         assert_eq!(new_value, 5);
 
         // Use the same signal again - should return the same instance
-        let signal2 = rtui_use_signal_int(hooks, key.as_ptr(), 999);
+        let signal2 = unsafe { rtui_use_signal_int(hooks, key.as_ptr(), 999) };
         assert!(!signal2.is_null());
 
         // Should have the updated value, not the initial value
@@ -135,7 +135,7 @@ mod ffi_reactive_tests {
 
         let key = CString::new("message").unwrap();
         let initial = CString::new("Hello").unwrap();
-        let signal = rtui_use_signal_string(hooks, key.as_ptr(), initial.as_ptr());
+        let signal = unsafe { rtui_use_signal_string(hooks, key.as_ptr(), initial.as_ptr()) };
         assert!(!signal.is_null());
 
         let value_ptr = rtui_signal_get_string_owned(signal);
@@ -143,7 +143,7 @@ mod ffi_reactive_tests {
         let value_str = value_cstr.to_str().unwrap();
         assert_eq!(value_str, "Hello");
 
-        rtui_string_free(value_ptr);
+        unsafe { rtui_string_free(value_ptr) };
         rtui_signal_destroy_new(signal);
         rtui_hooks_destroy(hooks);
     }
@@ -155,11 +155,11 @@ mod ffi_reactive_tests {
             assert!(!hooks.is_null());
 
             let key = CString::new("enabled").unwrap();
-            let signal = rtui_use_signal_bool(hooks, key.as_ptr(), true);
+            let signal = unsafe { rtui_use_signal_bool(hooks, key.as_ptr(), true) };
             assert!(!signal.is_null());
 
             let value = rtui_signal_get_bool_new(signal);
-            assert_eq!(value, true);
+            assert!(value);
 
             rtui_signal_destroy_new(signal);
             rtui_hooks_destroy(hooks);
@@ -179,7 +179,7 @@ mod ffi_reactive_tests {
 
             // Try to get it as a bool - should return false (default)
             let bool_value = rtui_signal_get_bool_new(int_signal);
-            assert_eq!(bool_value, false); // Type mismatch returns default
+            assert!(!bool_value); // Type mismatch returns default
 
             // But getting as int should work
             let int_value = rtui_signal_get_int(int_signal);
@@ -225,7 +225,7 @@ mod ffi_reactive_tests {
             for i in 0..50 {
                 let text = format!("Test string {}", i);
                 let c_string = CString::new(text.clone()).unwrap();
-                let signal = rtui_signal_new_string(c_string.as_ptr());
+                let signal = unsafe { rtui_signal_new_string(c_string.as_ptr()) };
                 assert!(!signal.is_null());
 
                 let value_ptr = rtui_signal_get_string_owned(signal);
@@ -233,7 +233,7 @@ mod ffi_reactive_tests {
                 let value_str = value_cstr.to_str().unwrap();
                 assert_eq!(value_str, text);
 
-                rtui_string_free(value_ptr);
+                unsafe { rtui_string_free(value_ptr) };
                 rtui_signal_destroy_new(signal);
             }
         }
@@ -248,7 +248,7 @@ mod ffi_reactive_tests {
             let key = CString::new("persistent").unwrap();
 
             // Create signal with initial value
-            let signal1 = rtui_use_signal_int(hooks, key.as_ptr(), 100);
+            let signal1 = unsafe { rtui_use_signal_int(hooks, key.as_ptr(), 100) };
             assert!(!signal1.is_null());
 
             // Update the signal
@@ -256,7 +256,7 @@ mod ffi_reactive_tests {
             assert_eq!(result, ReactiveError::Success);
 
             // Get the same signal again - should have the updated value
-            let signal2 = rtui_use_signal_int(hooks, key.as_ptr(), 999);
+            let signal2 = unsafe { rtui_use_signal_int(hooks, key.as_ptr(), 999) };
             let value = rtui_signal_get_int(signal2);
             assert_eq!(value, 200); // Should be 200, not 100 or 999
 

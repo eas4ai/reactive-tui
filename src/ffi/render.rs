@@ -6,8 +6,13 @@ use crate::core::surface::{Rgba, Surface};
 use std::boxed::Box;
 
 /// Create a new renderer
+///
+/// # Safety
+///
+/// `out_renderer` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_renderer_create(
+pub unsafe extern "C" fn rtui_renderer_create(
     width: u16,
     height: u16,
     out_renderer: *mut *mut RTuiRenderer,
@@ -137,8 +142,14 @@ pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) 
 
 /// Borrow the drawing surface until renderer shutdown or destruction.
 /// The caller must serialize access with renderer operations and must not free it.
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle this library
+/// returned and has not destroyed. `out_surface` must be null or a pointer
+/// slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_renderer_get_surface(
+pub unsafe extern "C" fn rtui_renderer_get_surface(
     renderer: *mut RTuiRenderer,
     out_surface: *mut *mut RTuiSurface,
 ) -> ReactiveError {

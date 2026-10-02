@@ -9,12 +9,12 @@ fn legacy_typed_round_trips_and_common_destruction() {
     for _ in 0..32 {
         let mut signal = ptr::null_mut();
         assert_eq!(
-            rtui_signal_int_create(i64::MIN, &mut signal),
+            unsafe { rtui_signal_int_create(i64::MIN, &mut signal) },
             ReactiveError::Success
         );
         let mut value = 0;
         assert_eq!(
-            rtui_signal_int_get(signal, &mut value),
+            unsafe { rtui_signal_int_get(signal, &mut value) },
             ReactiveError::Success
         );
         assert_eq!(value, i64::MIN);
@@ -23,7 +23,7 @@ fn legacy_typed_round_trips_and_common_destruction() {
             ReactiveError::Success
         );
         assert_eq!(
-            rtui_signal_int_get(signal, &mut value),
+            unsafe { rtui_signal_int_get(signal, &mut value) },
             ReactiveError::Success
         );
         assert_eq!(value, i64::MAX);
@@ -34,13 +34,13 @@ fn legacy_typed_round_trips_and_common_destruction() {
         rtui_signal_destroy(signal);
 
         assert_eq!(
-            rtui_signal_float_create(-1.25, &mut signal),
+            unsafe { rtui_signal_float_create(-1.25, &mut signal) },
             ReactiveError::Success
         );
         let mut float = 0.0;
         assert_eq!(rtui_signal_float_set(signal, 4.5), ReactiveError::Success);
         assert_eq!(
-            rtui_signal_float_get(signal, &mut float),
+            unsafe { rtui_signal_float_get(signal, &mut float) },
             ReactiveError::Success
         );
         assert_eq!(float, 4.5);
@@ -48,13 +48,13 @@ fn legacy_typed_round_trips_and_common_destruction() {
         rtui_signal_destroy_new(signal);
 
         assert_eq!(
-            rtui_signal_bool_create(false, &mut signal),
+            unsafe { rtui_signal_bool_create(false, &mut signal) },
             ReactiveError::Success
         );
         let mut boolean = false;
         assert_eq!(rtui_signal_bool_set(signal, true), ReactiveError::Success);
         assert_eq!(
-            rtui_signal_bool_get(signal, &mut boolean),
+            unsafe { rtui_signal_bool_get(signal, &mut boolean) },
             ReactiveError::Success
         );
         assert!(boolean);
@@ -62,15 +62,15 @@ fn legacy_typed_round_trips_and_common_destruction() {
 
         let initial = CString::new("界🙂".repeat(64)).unwrap();
         assert_eq!(
-            rtui_signal_string_create(initial.as_ptr(), &mut signal),
+            unsafe { rtui_signal_string_create(initial.as_ptr(), &mut signal) },
             ReactiveError::Success
         );
         let owned = rtui_signal_get_string_owned(signal);
         assert!(!owned.is_null());
         assert_eq!(unsafe { CStr::from_ptr(owned) }, initial.as_c_str());
-        rtui_string_free(owned);
+        unsafe { rtui_string_free(owned) };
         assert_eq!(
-            rtui_signal_string_set(signal, c"updated".as_ptr()),
+            unsafe { rtui_signal_string_set(signal, c"updated".as_ptr()) },
             ReactiveError::Success
         );
         let mut buf = [0; 32];
@@ -92,7 +92,7 @@ fn tagged_types_reject_mismatch_and_both_destructors_release_handles() {
     assert_eq!(rtui_signal_get_int(int), i32::MAX);
     let mut wide = 99;
     assert_eq!(
-        rtui_signal_int_get(int, &mut wide),
+        unsafe { rtui_signal_int_get(int, &mut wide) },
         ReactiveError::InvalidParameter
     );
     assert_eq!(wide, 99);
@@ -117,9 +117,9 @@ fn tagged_types_reject_mismatch_and_both_destructors_release_handles() {
     );
     assert!(!rtui_signal_get_bool_new(boolean));
     rtui_signal_destroy(boolean);
-    let string = rtui_signal_new_string(c"start".as_ptr());
+    let string = unsafe { rtui_signal_new_string(c"start".as_ptr()) };
     assert_eq!(
-        rtui_signal_set_string_new(string, c"finish".as_ptr()),
+        unsafe { rtui_signal_set_string_new(string, c"finish".as_ptr()) },
         ReactiveError::Success
     );
     let mut buf = [0; 32];
@@ -136,11 +136,11 @@ fn tagged_types_reject_mismatch_and_both_destructors_release_handles() {
     rtui_signal_destroy(ptr::null_mut());
     rtui_signal_destroy_new(ptr::null_mut());
     assert_eq!(
-        rtui_signal_int_create(1, ptr::null_mut()),
+        unsafe { rtui_signal_int_create(1, ptr::null_mut()) },
         ReactiveError::NullPointer
     );
     assert_eq!(
-        rtui_signal_int_get(ptr::null(), &mut wide),
+        unsafe { rtui_signal_int_get(ptr::null(), &mut wide) },
         ReactiveError::NullPointer
     );
 }
@@ -148,8 +148,8 @@ fn tagged_types_reject_mismatch_and_both_destructors_release_handles() {
 #[test]
 fn hook_handles_own_shared_values_past_context_destruction() {
     let hooks = rtui_hooks_new();
-    let a = rtui_use_signal_int(hooks, c"count".as_ptr(), 1);
-    let b = rtui_use_signal_int(hooks, c"count".as_ptr(), 2);
+    let a = unsafe { rtui_use_signal_int(hooks, c"count".as_ptr(), 1) };
+    let b = unsafe { rtui_use_signal_int(hooks, c"count".as_ptr(), 2) };
     assert!(!a.is_null() && !b.is_null());
     assert_eq!(rtui_signal_set_int(a, 42), ReactiveError::Success);
     assert_eq!(rtui_signal_get_int(b), 42);
@@ -163,11 +163,11 @@ fn hook_handles_own_shared_values_past_context_destruction() {
 fn thread_safe_signal_has_its_own_matching_lifecycle() {
     let mut signal = ptr::null_mut();
     assert_eq!(
-        rtui_thread_safe_signal_string_create(c"initial".as_ptr(), &mut signal),
+        unsafe { rtui_thread_safe_signal_string_create(c"initial".as_ptr(), &mut signal) },
         ReactiveError::Success
     );
     assert_eq!(
-        rtui_thread_safe_signal_string_set(signal, c"changed".as_ptr()),
+        unsafe { rtui_thread_safe_signal_string_set(signal, c"changed".as_ptr()) },
         ReactiveError::Success
     );
     let mut buf = [0; 32];
