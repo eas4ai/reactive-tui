@@ -11,6 +11,9 @@ data to a component render scope.
 ## Main API
 
 - `Signal`, `ReadSignal`, and `WriteSignal` store and split reactive values.
+- `ThreadSafeSignal` holds a value any thread may read, set or update. `update`
+  runs its callback on a copy with the lock released; `update_atomic` runs it
+  under the lock and returns what the callback returns.
 - `Effect` runs work and owns an optional cleanup callback.
 - `Hooks` stores hook slots for a component instance.
 - Core hooks include `use_signal`, `use_effect`, `use_effect_with_deps`,
@@ -29,7 +32,12 @@ subscriptions or resources that must stop when the component leaves the tree.
 ## Behavior
 
 A changed signal notifies its subscribers and registered wakers. Equal writes
-do not request another redraw for comparable values. The scheduler processes
+do not request another redraw for comparable values. `ThreadSafeSignal::update_atomic`
+serializes read-modify-writes: each callback sees the result of every earlier
+one, so counters, accumulators and reducers lose no update, and `use_reducer`
+dispatches every action through it. `ThreadSafeSignal::update` runs on a
+copy, so its callback may read and write the same signal, and two concurrent
+`update` calls may overwrite each other. The scheduler processes
 queued updates outside its internal lock, so callbacks may schedule more work.
 Timers expose the next deadline to the application loop.
 
@@ -40,6 +48,10 @@ thread-safe hook types used by mounted components.
 ## Limits
 
 - Hook order must remain stable across renders.
+- An `update_atomic` callback runs under the signal's lock and must not call
+  `get`, `set`, `update` or `update_atomic` on that signal: such a call panics
+  at once with a message naming it. A reducer is a function of the state it is
+  given and must not read its own signal.
 - `Signal` and its split handles have bounds that depend on the operations used.
 - Timers run when the application loop processes scheduler work; they are not
   independent background executors.

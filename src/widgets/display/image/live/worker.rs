@@ -146,7 +146,7 @@ fn publish(shared: &Shared, response: Response) {
     drop(slots);
     shared
         .changed
-        .update(|revision| *revision = revision.wrapping_add(1));
+        .update_atomic(|revision| *revision = revision.wrapping_add(1));
 }
 fn activate(
     request: Request,

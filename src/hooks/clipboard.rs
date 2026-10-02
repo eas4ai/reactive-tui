@@ -217,7 +217,7 @@ pub fn use_clipboard(
             // its error signal; the simple hook retains its void copy callback.
             log::warn!("Clipboard copy failed; inspect use_clipboard's error state for details");
         }
-        state_copy.update(|current| match result {
+        state_copy.update_atomic(|current| match result {
             Ok(()) => {
                 current.content = Some(text.to_owned());
                 current.error = None;
@@ -230,14 +230,14 @@ pub fn use_clipboard(
         let backend = state_paste.get().backend;
         match backend.paste(|| !paste_owner.is_alive()) {
             Ok(text) => {
-                state_paste.update(|current| {
+                state_paste.update_atomic(|current| {
                     current.content = Some(text.clone());
                     current.error = None;
                 });
                 Some(text)
             }
             Err(error) => {
-                state_paste.update(|current| current.error = Some(error));
+                state_paste.update_atomic(|current| current.error = Some(error));
                 None
             }
         }

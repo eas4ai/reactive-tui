@@ -1,6 +1,7 @@
 use super::effect::EffectId;
 pub(crate) use super::hook_resources::{HookResources, Liveness, OwnedEffect};
 use std::any::{Any, TypeId};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -190,10 +191,45 @@ impl Default for Hooks {
 }
 
 /// Thread-safe signal wrapper
+///
+/// A value behind a mutex that any thread may read, set or update, with the
+/// Apps that read it as subscribers. [`update`](Self::update) runs its
+/// callback on a copy with the lock released, so the callback may read and
+/// write the signal again; [`update_atomic`](Self::update_atomic) runs it
+/// under the lock, so concurrent read-modify-writes lose nothing (SIG-001).
 pub struct ThreadSafeSignal<T> {
     inner: Arc<Mutex<T>>,
     version: Arc<Mutex<usize>>,
     app_subscribers: Arc<super::wake::Subscriptions>,
+}
+
+thread_local! {
+    /// The stores of the signals whose `update_atomic` callback this thread
+    /// is running, by the address of the store, so a call back into one of
+    /// them fails with a message instead of waiting on its own lock.
+    static ATOMIC_UPDATES: RefCell<Vec<usize>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Marks this thread as inside the `update_atomic` callback of the signal
+/// whose store is at `key`, until dropped (on a panic in the callback too).
+struct AtomicUpdate(usize);
+
+impl AtomicUpdate {
+    fn enter(key: usize) -> Self {
+        ATOMIC_UPDATES.with(|held| held.borrow_mut().push(key));
+        Self(key)
+    }
+}
+
+impl Drop for AtomicUpdate {
+    fn drop(&mut self) {
+        ATOMIC_UPDATES.with(|held| {
+            let mut held = held.borrow_mut();
+            if let Some(at) = held.iter().rposition(|key| *key == self.0) {
+                held.remove(at);
+            }
+        });
+    }
 }
 
 impl<T: Clone + Default> ThreadSafeSignal<T> {
@@ -206,8 +242,21 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
         }
     }
 
+    /// Fails at once when this thread is inside this signal's
+    /// `update_atomic` callback, which holds the lock `what` would take.
+    fn refuse_reentry(&self, what: &str) {
+        let key = Arc::as_ptr(&self.inner) as usize;
+        if ATOMIC_UPDATES.with(|held| held.borrow().contains(&key)) {
+            panic!(
+                "ThreadSafeSignal::{what} called from the update_atomic callback of the same signal: \
+                 the callback runs under the signal's lock and must not read, set or update that signal"
+            );
+        }
+    }
+
     /// Get the current value of the signal
     pub fn get(&self) -> T {
+        self.refuse_reentry("get");
         self.inner
             .lock()
             .map(|guard| {
@@ -249,6 +298,7 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
 
     /// Wait until a store under way has finished.
     pub(crate) fn settle(&self) {
+        self.refuse_reentry("settle");
         drop(self.inner.lock());
     }
 
@@ -260,6 +310,7 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
     ) where
         T: PartialEq,
     {
+        self.refuse_reentry("set");
         let changed =
             if let (Ok(mut inner), Ok(mut version)) = (self.inner.lock(), self.version.lock()) {
                 if holds() && *inner != value {
@@ -278,11 +329,20 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
         }
     }
 
-    /// Update the signal value using a function
+    /// Update the signal value using a function, on a copy.
+    ///
+    /// The callback runs on a clone of the value with the lock released, and
+    /// the result is stored through [`set`](Self::set) when it differs, so
+    /// the callback may read and write this signal again. Two concurrent
+    /// `update` calls may overwrite each other: both start from the same
+    /// copy and the later store wins, so a counter, an accumulator or a
+    /// reducer goes through [`update_atomic`](Self::update_atomic) instead
+    /// (SIG-001).
     pub fn update(&self, f: impl FnOnce(&mut T))
     where
         T: PartialEq,
     {
+        self.refuse_reentry("update");
         let mut next = match self.inner.lock() {
             Ok(inner) => inner.clone(),
             Err(_) => {
@@ -294,6 +354,52 @@ impl<T: Clone + Default> ThreadSafeSignal<T> {
         f(&mut next);
         if next != original {
             self.set(next);
+        }
+    }
+
+    /// Update the stored value under the signal's lock, and return what the
+    /// callback returns.
+    ///
+    /// Unlike [`update`](Self::update), concurrent `update_atomic` calls are
+    /// serialized: each callback sees the result of every earlier one, so a
+    /// counter, an accumulator or a reducer loses no update (SIG-001). The
+    /// callback runs while the signal is locked, so it must not call `get`,
+    /// `set`, `update` or `update_atomic` on this signal or a clone of it:
+    /// such a call panics at once with a message naming it, instead of
+    /// waiting forever on the lock. Subscribers are notified after the lock
+    /// is released, when the value changed. A callback that panics leaves
+    /// the value as it left it and the signal usable: the panic goes on
+    /// after the lock is released, without poisoning it.
+    pub fn update_atomic<R>(&self, f: impl FnOnce(&mut T) -> R) -> R
+    where
+        T: PartialEq,
+    {
+        self.refuse_reentry("update_atomic");
+        let key = Arc::as_ptr(&self.inner) as usize;
+        let (changed, outcome) = {
+            let _inside = AtomicUpdate::enter(key);
+            let mut inner = self
+                .inner
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut version = self
+                .version
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let before = inner.clone();
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(&mut inner)));
+            let changed = *inner != before;
+            if changed {
+                *version += 1;
+            }
+            (changed, outcome)
+        };
+        if changed {
+            self.app_subscribers.notify_except(None);
+        }
+        match outcome {
+            Ok(result) => result,
+            Err(panic) => std::panic::resume_unwind(panic),
         }
     }
 }
@@ -416,6 +522,10 @@ pub fn provide_context<T: Send + Sync + 'static>(hooks: &Hooks, value: T) {
 }
 
 /// Hook for managing state with a reducer (thread-safe version)
+///
+/// `dispatch` runs the reducer under the state's lock, so actions sent from
+/// several threads are all applied (SIG-001). The reducer is a function of
+/// the state it is given and must not read the state signal itself.
 pub fn use_reducer<S, A, F>(
     hooks: &Hooks,
     reducer: F,
@@ -431,8 +541,11 @@ where
     let reducer = Arc::new(reducer);
     let reducer_clone = Arc::clone(&reducer);
 
+    // Under the lock, so two actions dispatched at once are both applied
+    // (SIG-001); a reducer is a function of the state it is given and must
+    // not read the signal itself.
     let dispatch = Arc::new(move |action: A| {
-        state_clone.update(|s| {
+        state_clone.update_atomic(|s| {
             *s = reducer_clone(s, action);
         });
     });
@@ -505,6 +618,92 @@ mod tests {
                 .unwrap(),
             4
         );
+    }
+
+    #[test]
+    fn sig_001_update_atomic_applies_every_increment_of_two_threads() {
+        let signal = ThreadSafeSignal::new(0_usize);
+        let workers: Vec<_> = (0..2)
+            .map(|_| {
+                let signal = signal.clone();
+                std::thread::spawn(move || {
+                    for _ in 0..10_000 {
+                        signal.update_atomic(|n| *n += 1);
+                    }
+                })
+            })
+            .collect();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+        assert_eq!(signal.get(), 20_000);
+    }
+
+    #[test]
+    fn sig_001_update_atomic_returns_the_callbacks_result_and_notifies_on_change() {
+        use super::super::wake::{AppWaker, Scope};
+        let waker = AppWaker::new();
+        let signal = ThreadSafeSignal::new(5_i32);
+        {
+            let _scope = Scope::enter(&waker);
+            assert_eq!(signal.get(), 5);
+        }
+        assert_eq!(signal.update_atomic(|n| *n), 5);
+        assert!(!waker.is_pending(), "an unchanged value wakes nobody");
+        assert_eq!(
+            signal.update_atomic(|n| {
+                *n += 1;
+                *n * 10
+            }),
+            60
+        );
+        assert_eq!(signal.get(), 6);
+        assert!(waker.take().redraw, "a changed value wakes the subscribers");
+    }
+
+    #[test]
+    fn sig_001_a_call_back_into_the_signal_from_update_atomic_fails_with_a_message() {
+        for what in ["get", "set", "update", "update_atomic"] {
+            let signal = ThreadSafeSignal::new(1_i32);
+            let nested = signal.clone();
+            let (send, receive) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    signal.update_atomic(|value| {
+                        match what {
+                            "get" => {
+                                nested.get();
+                            }
+                            "set" => nested.set(2),
+                            "update" => nested.update(|v| *v = 2),
+                            _ => nested.update_atomic(|v| *v = 2),
+                        }
+                        *value = 3;
+                    })
+                }));
+                let message = match outcome {
+                    Ok(()) => String::new(),
+                    Err(panic) => panic
+                        .downcast_ref::<String>()
+                        .cloned()
+                        .or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string()))
+                        .unwrap_or_default(),
+                };
+                send.send((message, signal.get())).unwrap();
+            });
+            let (message, value) = receive
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap_or_else(|_| {
+                    panic!("the nested {what} waited on the lock instead of failing")
+                });
+            assert!(
+                message.contains(&format!(
+                    "ThreadSafeSignal::{what} called from the update_atomic callback"
+                )),
+                "{what}: {message:?}"
+            );
+            assert_eq!(value, 1, "a failed update_atomic stores nothing");
+        }
     }
 
     #[test]

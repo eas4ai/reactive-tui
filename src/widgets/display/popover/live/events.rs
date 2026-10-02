@@ -62,7 +62,7 @@ impl Popover {
                     // refreshes its path, without a handled target event.
                     self.live
                         .changed
-                        .update(|revision| *revision = revision.wrapping_add(1));
+                        .update_atomic(|revision| *revision = revision.wrapping_add(1));
                     return EventResult::Handled;
                 }
             }

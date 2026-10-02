@@ -5,6 +5,14 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- Actions dispatched to a `use_reducer` state from several threads are all
+  applied: `ThreadSafeSignal::update_atomic` runs its callback under the
+  signal's lock, so concurrent read-modify-writes lose nothing, and the
+  reducer hook and the framework's own counters and states go through it.
+  `ThreadSafeSignal::update` keeps running on a copy, so its callback may
+  read and write the signal, and its documentation now says two concurrent
+  `update` calls may overwrite each other. An `update_atomic` callback that
+  calls back into its signal panics with a message instead of deadlocking.
 - The native library builds with the `ffi` feature again, which the C
   header and the TypeScript binding build it with: the pointer trackers'
   statics no longer demand that the renderer be `Sync`, the ffi module is

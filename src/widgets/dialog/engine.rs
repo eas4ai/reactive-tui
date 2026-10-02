@@ -170,7 +170,8 @@ struct Core {
 }
 impl Core {
     fn wake(&self) {
-        self.changed.update(|value| *value = value.wrapping_add(1));
+        self.changed
+            .update_atomic(|value| *value = value.wrapping_add(1));
     }
     /// A dialog's box was laid out `height` rows tall: the host places the
     /// toasts under it again when that changed.

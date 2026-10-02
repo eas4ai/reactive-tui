@@ -30,12 +30,12 @@ impl Monitor {
                                 || terminal.last_error() != error.as_deref()
                         }
                         Err(_) => {
-                            signal.update(|revision| *revision = revision.wrapping_add(1));
+                            signal.update_atomic(|revision| *revision = revision.wrapping_add(1));
                             return;
                         }
                     };
                     if changed {
-                        signal.update(|revision| *revision = revision.wrapping_add(1));
+                        signal.update_atomic(|revision| *revision = revision.wrapping_add(1));
                     }
                     thread::park_timeout(Duration::from_millis(16));
                 }
