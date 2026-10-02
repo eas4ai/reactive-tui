@@ -50,8 +50,9 @@ pub extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
 /// # Safety
 ///
 /// `terminal` must be null or a live `ReactiveTerminal` handle this library
-/// returned and has not destroyed. `out_dimensions` must be null or a
-/// `RTuiDimensions` the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_dimensions` must be null or a `RTuiDimensions` the caller
+/// owns, which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_terminal_get_dimensions(
     terminal: *const ReactiveTerminal,

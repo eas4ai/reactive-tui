@@ -146,8 +146,9 @@ pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) 
 /// # Safety
 ///
 /// `renderer` must be null or a live `RTuiRenderer` handle this library
-/// returned and has not destroyed. `out_surface` must be null or a pointer
-/// slot the caller owns, which this call may write.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `out_surface` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_renderer_get_surface(
     renderer: *mut RTuiRenderer,

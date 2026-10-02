@@ -47,7 +47,8 @@ pub unsafe extern "C" fn rtui_dialog_engine_create(
 /// # Safety
 ///
 /// `engine` must be null or a live `RTuiDialogEngine` handle this library
-/// returned and has not destroyed.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_dialog_engine_destroy(
     engine: *mut RTuiDialogEngine,
@@ -66,8 +67,9 @@ pub unsafe extern "C" fn rtui_dialog_engine_destroy(
 /// # Safety
 ///
 /// `engine` must be null or a live `RTuiDialogEngine` handle this library
-/// returned and has not destroyed. `out_element` must be null or a pointer
-/// slot the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_dialog_engine_element(
     engine: *const RTuiDialogEngine,
@@ -86,9 +88,10 @@ pub unsafe extern "C" fn rtui_dialog_engine_element(
 /// # Safety
 ///
 /// `engine` must be null or a live `RTuiDialogEngine` handle this library
-/// returned and has not destroyed. `options` must be null or a NUL-terminated
-/// string that stays readable during the call. `out_id` must be null or a
-/// `u32` the caller owns, which this call may write.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `options` must be null or a NUL-terminated string that stays
+/// readable during the call. `out_id` must be null or a `u32` the caller
+/// owns, which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_dialog_engine_open(
     engine: *mut RTuiDialogEngine,
@@ -114,8 +117,9 @@ pub unsafe extern "C" fn rtui_dialog_engine_open(
 /// # Safety
 ///
 /// `engine` must be null or a live `RTuiDialogEngine` handle this library
-/// returned and has not destroyed. `update` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `update` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_dialog_engine_update(
     engine: *mut RTuiDialogEngine,
@@ -135,8 +139,9 @@ pub unsafe extern "C" fn rtui_dialog_engine_update(
 /// # Safety
 ///
 /// `engine` must be null or a live `RTuiDialogEngine` handle this library
-/// returned and has not destroyed. `result` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `result` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_dialog_engine_close(
     engine: *mut RTuiDialogEngine,
@@ -160,8 +165,11 @@ pub unsafe extern "C" fn rtui_dialog_engine_close(
 /// # Safety
 ///
 /// `engine` must be null or a live `RTuiDialogEngine` handle this library
-/// returned and has not destroyed. `out_event` must be null or a pointer slot
-/// the caller owns, which this call may write.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `out_event` must be null or a pointer slot the caller owns;
+/// this call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_dialog_engine_take_event(
     engine: *mut RTuiDialogEngine,

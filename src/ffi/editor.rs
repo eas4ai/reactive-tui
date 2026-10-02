@@ -47,7 +47,8 @@ pub unsafe extern "C" fn rtui_text_editor_create(
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_destroy(editor: *mut RTuiTextEditor) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -60,8 +61,9 @@ pub unsafe extern "C" fn rtui_text_editor_destroy(editor: *mut RTuiTextEditor) -
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed. `content` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `content` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_set_content(
     editor: *mut RTuiTextEditor,
@@ -79,8 +81,11 @@ pub unsafe extern "C" fn rtui_text_editor_set_content(
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed. `out_content` must be null or a pointer
-/// slot the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_content` must be null or a pointer slot the caller owns;
+/// this call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_get_content_owned(
     editor: *const RTuiTextEditor,
@@ -97,8 +102,9 @@ pub unsafe extern "C" fn rtui_text_editor_get_content_owned(
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed. `text` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `text` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_insert_text(
     editor: *mut RTuiTextEditor,
@@ -116,7 +122,8 @@ pub unsafe extern "C" fn rtui_text_editor_insert_text(
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_delete(
     editor: *mut RTuiTextEditor,
@@ -139,7 +146,8 @@ pub unsafe extern "C" fn rtui_text_editor_delete(
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_move(
     editor: *mut RTuiTextEditor,
@@ -172,7 +180,8 @@ pub unsafe extern "C" fn rtui_text_editor_move(
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_set_size(
     editor: *mut RTuiTextEditor,
@@ -199,7 +208,8 @@ pub unsafe extern "C" fn rtui_text_editor_set_size(
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_set_show_line_numbers(
     editor: *mut RTuiTextEditor,
@@ -218,8 +228,9 @@ pub unsafe extern "C" fn rtui_text_editor_set_show_line_numbers(
 /// # Safety
 ///
 /// `editor` must be null or a live `RTuiTextEditor` handle this library
-/// returned and has not destroyed. `out_element` must be null or a pointer
-/// slot the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_element` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_text_editor_element(
     editor: *const RTuiTextEditor,

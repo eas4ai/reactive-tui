@@ -182,8 +182,9 @@ pub unsafe extern "C" fn rtui_element_create_empty(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `key` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `key` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_set_key(
     element: *mut RTuiElement,
@@ -213,8 +214,9 @@ pub unsafe extern "C" fn rtui_element_set_key(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `class` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `class` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_set_class(
     element: *mut RTuiElement,
@@ -273,8 +275,9 @@ pub extern "C" fn rtui_element_add_child(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `out_type` must be null or a
-/// `RTuiElementType` the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_type` must be null or a `RTuiElementType` the caller owns,
+/// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_get_type(
     element: *const RTuiElement,
@@ -307,8 +310,11 @@ pub unsafe extern "C" fn rtui_element_get_type(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `out_key` must be null or a pointer slot
-/// the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_key` must be null or a pointer slot the caller owns; this
+/// call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_get_key(
     element: *const RTuiElement,
@@ -340,8 +346,11 @@ pub unsafe extern "C" fn rtui_element_get_key(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `out_class` must be null or a pointer slot
-/// the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_class` must be null or a pointer slot the caller owns; this
+/// call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_get_class(
     element: *const RTuiElement,
@@ -373,8 +382,9 @@ pub unsafe extern "C" fn rtui_element_get_class(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `out_count` must be null or a `usize` the
-/// caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_count` must be null or a `usize` the caller owns, which this
+/// call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_get_child_count(
     element: *const RTuiElement,
@@ -400,8 +410,9 @@ pub unsafe extern "C" fn rtui_element_get_child_count(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `out_child` must be null or a pointer slot
-/// the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_child` must be null or a pointer slot the caller owns, which
+/// this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_get_child(
     element: *const RTuiElement,
@@ -435,8 +446,11 @@ pub unsafe extern "C" fn rtui_element_get_child(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `out_name` must be null or a pointer slot
-/// the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_name` must be null or a pointer slot the caller owns; this
+/// call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_get_component_name(
     element: *const RTuiElement,
@@ -468,8 +482,11 @@ pub unsafe extern "C" fn rtui_element_get_component_name(
 /// # Safety
 ///
 /// `element` must be null or a live `RTuiElement` handle this library
-/// returned and has not destroyed. `out_text` must be null or a pointer slot
-/// the caller owns, which this call may write.
+/// returned and has not destroyed, and no call may destroy it until this one
+/// returns. `out_text` must be null or a pointer slot the caller owns; this
+/// call stores a string there that the caller releases with
+/// `rtui_string_free`, keeping every byte and the terminating NUL where this
+/// library put them until then.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_get_text_content(
     element: *const RTuiElement,

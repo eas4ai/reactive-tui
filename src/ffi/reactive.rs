@@ -485,8 +485,9 @@ pub extern "C" fn rtui_signal_string_get(
 /// # Safety
 ///
 /// `signal` must be null or a live `RTuiSignal` handle this library returned
-/// and has not destroyed. `value` must be null or a NUL-terminated string
-/// that stays readable during the call.
+/// and has not destroyed, and no other call may use it until this one
+/// returns. `value` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_signal_string_set(
     signal: *mut RTuiSignal,
@@ -513,8 +514,9 @@ pub unsafe extern "C" fn rtui_signal_string_set(
 /// # Safety
 ///
 /// `signal` must be null or a live `RTuiSignal` handle this library returned
-/// and has not destroyed. `out_value` must be null or a `i64` the caller
-/// owns, which this call may write.
+/// and has not destroyed, and no call may destroy it until this one returns.
+/// `out_value` must be null or a `i64` the caller owns, which this call may
+/// write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_signal_int_get(
     signal: *const RTuiSignal,
@@ -550,8 +552,9 @@ pub extern "C" fn rtui_signal_int_set(signal: *mut RTuiSignal, value: i64) -> Re
 /// # Safety
 ///
 /// `signal` must be null or a live `RTuiSignal` handle this library returned
-/// and has not destroyed. `out_value` must be null or a `f64` the caller
-/// owns, which this call may write.
+/// and has not destroyed, and no call may destroy it until this one returns.
+/// `out_value` must be null or a `f64` the caller owns, which this call may
+/// write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_signal_float_get(
     signal: *const RTuiSignal,
@@ -587,8 +590,9 @@ pub extern "C" fn rtui_signal_float_set(signal: *mut RTuiSignal, value: f64) -> 
 /// # Safety
 ///
 /// `signal` must be null or a live `RTuiSignal` handle this library returned
-/// and has not destroyed. `out_value` must be null or a `bool` the caller
-/// owns, which this call may write.
+/// and has not destroyed, and no call may destroy it until this one returns.
+/// `out_value` must be null or a `bool` the caller owns, which this call may
+/// write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_signal_bool_get(
     signal: *const RTuiSignal,
@@ -692,8 +696,9 @@ pub extern "C" fn rtui_thread_safe_signal_string_get(
 /// # Safety
 ///
 /// `signal` must be null or a live `RTuiThreadSafeSignal` handle this library
-/// returned and has not destroyed. `value` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// returned and has not destroyed, and no other call may use it until this
+/// one returns. `value` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_thread_safe_signal_string_set(
     signal: *mut RTuiThreadSafeSignal,
@@ -883,6 +888,10 @@ pub extern "C" fn rtui_signal_set_int(signal: *mut RTuiSignal, value: c_int) -> 
 }
 
 /// Get the current value of a string signal (improved API - returns owned string)
+///
+/// The string is released with `rtui_string_free`; until then the caller may
+/// read it but must not shorten it or write a NUL into it, since the free
+/// relies on the terminator where this library put it.
 #[no_mangle]
 pub extern "C" fn rtui_signal_get_string_owned(signal: *const RTuiSignal) -> *mut c_char {
     if signal.is_null() {
@@ -905,8 +914,9 @@ pub extern "C" fn rtui_signal_get_string_owned(signal: *const RTuiSignal) -> *mu
 /// # Safety
 ///
 /// `signal` must be null or a live `RTuiSignal` handle this library returned
-/// and has not destroyed. `value` must be null or a NUL-terminated string
-/// that stays readable during the call.
+/// and has not destroyed, and no other call may use it until this one
+/// returns. `value` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_signal_set_string_new(
     signal: *mut RTuiSignal,
@@ -999,7 +1009,9 @@ pub extern "C" fn rtui_signal_destroy_new(signal: *mut RTuiSignal) {
 ///
 /// # Safety
 ///
-/// `string` must be null or a string this library returned and has not freed.
+/// `string` must be null or a string this library returned and has not freed,
+/// with every byte and the terminating NUL where the library put them: the
+/// caller may read it but must not shorten it or write a NUL into it.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_string_free(string: *mut c_char) {
     if !string.is_null() {
@@ -1083,8 +1095,9 @@ pub extern "C" fn rtui_hooks_destroy(hooks: *mut RTuiHooks) {
 /// # Safety
 ///
 /// `hooks` must be null or a live `RTuiHooks` handle this library returned
-/// and has not destroyed. `key` must be null or a NUL-terminated string that
-/// stays readable during the call.
+/// and has not destroyed, and no other call may use it until this one
+/// returns. `key` must be null or a NUL-terminated string that stays readable
+/// during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_use_signal_int(
     hooks: *mut RTuiHooks,
@@ -1115,9 +1128,10 @@ pub unsafe extern "C" fn rtui_use_signal_int(
 /// # Safety
 ///
 /// `hooks` must be null or a live `RTuiHooks` handle this library returned
-/// and has not destroyed. `key` must be null or a NUL-terminated string that
-/// stays readable during the call. `initial` must be null or a NUL-terminated
-/// string that stays readable during the call.
+/// and has not destroyed, and no other call may use it until this one
+/// returns. `key` must be null or a NUL-terminated string that stays readable
+/// during the call. `initial` must be null or a NUL-terminated string that
+/// stays readable during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_use_signal_string(
     hooks: *mut RTuiHooks,
@@ -1155,8 +1169,9 @@ pub unsafe extern "C" fn rtui_use_signal_string(
 /// # Safety
 ///
 /// `hooks` must be null or a live `RTuiHooks` handle this library returned
-/// and has not destroyed. `key` must be null or a NUL-terminated string that
-/// stays readable during the call.
+/// and has not destroyed, and no other call may use it until this one
+/// returns. `key` must be null or a NUL-terminated string that stays readable
+/// during the call.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_use_signal_bool(
     hooks: *mut RTuiHooks,
