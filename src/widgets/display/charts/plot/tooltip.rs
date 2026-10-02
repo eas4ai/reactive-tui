@@ -14,12 +14,39 @@ pub const MAX_ROWS: usize = 8;
 /// One tooltip row.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TooltipRow {
-    /// Swatch color.
+    /// Swatch color; `None` draws no swatch.
     pub color: Option<Rgba>,
     /// Series name.
     pub name: String,
     /// Value text, kept whole; the name is cut first when space is short.
     pub value: String,
+    /// The color of the row's text; `None` takes the box's text color
+    /// (a point's `tooltip_value_color`, CHT-018).
+    pub value_color: Option<Rgba>,
+}
+
+/// One laid-out line of a tooltip box.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TooltipLine {
+    /// Swatch color; `None` draws no swatch.
+    pub swatch: Option<Rgba>,
+    /// The line's text.
+    pub text: String,
+    /// The text's color; `None` takes the box's text color.
+    pub color: Option<Rgba>,
+}
+
+/// How a tooltip box is drawn (CHT-017, CHT-018, CHT-028).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct TooltipStyle {
+    /// The frame's color (`border`).
+    pub frame: Option<Rgba>,
+    /// The text's color (`foreground`).
+    pub text: Option<Rgba>,
+    /// The opaque background (`surface`).
+    pub background: Option<Rgba>,
+    /// Frame glyphs `+`, `-` and `|` instead of box glyphs.
+    pub ascii: bool,
 }
 
 /// A tooltip for one hovered index.
@@ -34,8 +61,8 @@ pub struct Tooltip {
 /// A laid-out tooltip: its lines and the box around them.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TooltipBox {
-    /// Content lines with their swatch colors.
-    pub lines: Vec<(Option<Rgba>, String)>,
+    /// Content lines with their swatch and text colors.
+    pub lines: Vec<TooltipLine>,
     /// Outer width including the border.
     pub width: usize,
     /// Outer height including the border.
@@ -47,9 +74,13 @@ impl Tooltip {
     /// as the area.
     pub fn layout(&self, area: Rect) -> TooltipBox {
         let inner_max = area.w.saturating_sub(2).max(1);
-        let mut lines: Vec<(Option<Rgba>, String)> = Vec::new();
+        let mut lines: Vec<TooltipLine> = Vec::new();
         if let Some(title) = &self.title {
-            lines.push((None, fit_label(title, inner_max)));
+            lines.push(TooltipLine {
+                swatch: None,
+                text: fit_label(title, inner_max),
+                color: None,
+            });
         }
         let shown = if self.rows.len() > MAX_ROWS {
             MAX_ROWS - 1
@@ -60,16 +91,25 @@ impl Tooltip {
             // The swatch takes two cells; the value is kept whole and the
             // name is cut first, then dropped when fewer than two cells
             // remain for it.
-            let value = fit_label(&row.value, inner_max.saturating_sub(2));
-            let room = inner_max.saturating_sub(2 + 1 + text_width(&value));
-            let text = if room >= 2 {
+            let swatch = if row.color.is_some() { 2 } else { 0 };
+            let value = fit_label(&row.value, inner_max.saturating_sub(swatch));
+            let room = inner_max.saturating_sub(swatch + 1 + text_width(&value));
+            let text = if row.name.is_empty() {
+                value
+            } else if room >= 2 {
                 format!("{} {value}", fit_label(&row.name, room))
             } else {
                 value
             };
-            lines.push((row.color, text));
+            lines.push(TooltipLine {
+                swatch: row.color,
+                text,
+                color: row.value_color,
+            });
         }
         if self.rows.len() > shown {
+            // The rest are summed by their numeric values (CHT-018); a row
+            // whose value is no number adds nothing.
             let rest = self.rows.len() - shown;
             let total: f64 = self.rows[shown..]
                 .iter()
@@ -84,14 +124,15 @@ impl Tooltip {
                         .ok()
                 })
                 .sum();
-            lines.push((
-                None,
-                fit_label(&format!("+{rest} more, sum {total}"), inner_max),
-            ));
+            lines.push(TooltipLine {
+                swatch: None,
+                text: fit_label(&format!("+{rest} more, sum {total}"), inner_max),
+                color: None,
+            });
         }
         let width = lines
             .iter()
-            .map(|(color, text)| text_width(text) + if color.is_some() { 2 } else { 0 })
+            .map(|line| text_width(&line.text) + if line.swatch.is_some() { 2 } else { 0 })
             .max()
             .unwrap_or(0)
             .min(inner_max)
@@ -141,13 +182,15 @@ impl TooltipBox {
         (x, y)
     }
 
-    /// Draw the box with its top-left at `at`, clipped to `area`.
+    /// Draw the box with its top-left at `at`, clipped to `area`: its
+    /// background first, so the box is opaque over the plot, then the frame
+    /// and the lines in the style's colors.
     pub fn draw(
         &self,
         sink: &mut dyn TextSink,
         at: (usize, usize),
         area: Rect,
-        color: Option<Rgba>,
+        style: TooltipStyle,
     ) {
         let (x0, y0) = at;
         let w = self.width.min(area.right().saturating_sub(x0));
@@ -155,22 +198,41 @@ impl TooltipBox {
         if w < 2 || h < 2 {
             return;
         }
-        let top = format!("╭{}╮", "─".repeat(w - 2));
-        let bottom = format!("╰{}╯", "─".repeat(w - 2));
-        sink.text(x0, y0, w, &top, color);
+        sink.fill(x0, y0, w, h, style.background);
+        let (tl, tr, bl, br, hz, vt) = if style.ascii {
+            ("+", "+", "+", "+", "-", "|")
+        } else {
+            ("╭", "╮", "╰", "╯", "─", "│")
+        };
+        let top = format!("{tl}{}{tr}", hz.repeat(w - 2));
+        let bottom = format!("{bl}{}{br}", hz.repeat(w - 2));
+        sink.text(x0, y0, w, &top, style.frame);
         for row in 1..h - 1 {
-            sink.text(x0, y0 + row, w, &format!("│{}│", " ".repeat(w - 2)), color);
-            if let Some((swatch, text)) = self.lines.get(row - 1) {
+            sink.text(
+                x0,
+                y0 + row,
+                w,
+                &format!("{vt}{}{vt}", " ".repeat(w - 2)),
+                style.frame,
+            );
+            if let Some(line) = self.lines.get(row - 1) {
                 let mut x = x0 + 1;
-                if let Some(swatch) = swatch {
-                    sink.text(x, y0 + row, 1, SWATCH, Some(*swatch));
+                if let Some(swatch) = line.swatch {
+                    let glyph = if style.ascii { "#" } else { SWATCH };
+                    sink.text(x, y0 + row, 1, glyph, Some(swatch));
                     x += 2;
                 }
                 let room = (x0 + w - 1).saturating_sub(x);
-                sink.text(x, y0 + row, room, &fit_label(text, room), None);
+                sink.text(
+                    x,
+                    y0 + row,
+                    room,
+                    &fit_label(&line.text, room),
+                    line.color.or(style.text),
+                );
             }
         }
-        sink.text(x0, y0 + h - 1, w, &bottom, color);
+        sink.text(x0, y0 + h - 1, w, &bottom, style.frame);
     }
 }
 
@@ -186,6 +248,7 @@ mod tests {
                     color: Some((1.0, 0.0, 0.0, 1.0)),
                     name: format!("series{i}"),
                     value: format!("p1: {i}"),
+                    value_color: None,
                 })
                 .collect(),
         }
@@ -195,7 +258,7 @@ mod tests {
     fn rows_beyond_eight_are_summarized() {
         let boxed = tooltip(10).layout(Rect::sized(60, 20));
         assert_eq!(boxed.lines.len(), MAX_ROWS);
-        assert!(boxed.lines[7].1.starts_with("+3 more"));
+        assert!(boxed.lines[7].text.starts_with("+3 more"));
         assert_eq!(boxed.height, MAX_ROWS + 2);
         assert_eq!(tooltip(8).layout(Rect::sized(60, 20)).lines.len(), 8);
     }
@@ -204,7 +267,11 @@ mod tests {
     fn narrow_areas_cut_the_name_but_keep_the_value() {
         let boxed = tooltip(1).layout(Rect::sized(14, 10));
         assert!(boxed.width <= 14);
-        assert!(boxed.lines[0].1.ends_with("p1: 0"), "{}", boxed.lines[0].1);
+        assert!(
+            boxed.lines[0].text.ends_with("p1: 0"),
+            "{}",
+            boxed.lines[0].text
+        );
     }
 
     #[test]

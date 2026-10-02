@@ -1353,8 +1353,9 @@ fn cht_031_a_radar_pointer_selects_the_nearest_spoke() {
             .pop()
             .unwrap();
         assert!(
-            frame.text.contains(&format!("p{spoke}:")),
-            "a pointer at ({col}, {row}) must select the nearest spoke, {spoke}:\n{}",
+            frame.live.iter().any(|t| t.contains(&format!("p{spoke}:"))),
+            "a pointer at ({col}, {row}) must select the nearest spoke, {spoke}: announced {:?}\n{}",
+            frame.live,
             frame.text
         );
     }
@@ -1375,8 +1376,11 @@ fn cht_031_keys_move_through_slices_and_categories_in_order() {
                 .collect();
             events.push((keys.len() + 2, None));
             let frame = radial_run(p.clone(), size, events).pop().unwrap();
+            // The announcement names the selected point; the radar also
+            // writes its category labels at the spokes, so the frame text
+            // alone would not tell a selection from a label.
             (0..4)
-                .filter(|i| frame.text.contains(&format!("p{i}:")))
+                .filter(|i| frame.live.iter().any(|t| t.contains(&format!("p{i}:"))))
                 .collect::<Vec<_>>()
         };
         assert_eq!(

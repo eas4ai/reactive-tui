@@ -57,6 +57,11 @@ pub struct Axis {
     pub title: Option<String>,
     /// Whether to draw the axis line itself.
     pub line: bool,
+    /// The color of the axis line; `None` takes the labels' color (CHT-017
+    /// gives the line `border` and the labels `text-muted`).
+    pub line_color: Option<Rgba>,
+    /// Draw the line with `|`, `-` and `+` instead of box glyphs (CHT-028).
+    pub ascii: bool,
 }
 
 impl Axis {
@@ -68,6 +73,8 @@ impl Axis {
             skip: 1,
             title: None,
             line: true,
+            line_color: None,
+            ascii: false,
         }
     }
 
@@ -79,6 +86,8 @@ impl Axis {
             skip: 1,
             title: None,
             line: true,
+            line_color: None,
+            ascii: false,
         }
     }
 
@@ -92,6 +101,27 @@ impl Axis {
     pub fn with_title(mut self, title: Option<String>) -> Self {
         self.title = title;
         self
+    }
+
+    /// Draw the axis line in `color`, apart from the labels.
+    pub fn with_line_color(mut self, color: Option<Rgba>) -> Self {
+        self.line_color = color;
+        self
+    }
+
+    /// Draw the axis line with ASCII glyphs.
+    pub fn with_ascii(mut self, ascii: bool) -> Self {
+        self.ascii = ascii;
+        self
+    }
+
+    /// The glyphs of the axis line: (vertical, horizontal, corner).
+    fn glyphs(&self) -> (&'static str, &'static str, &'static str) {
+        if self.ascii {
+            ("|", "-", "+")
+        } else {
+            ("│", "─", "└")
+        }
     }
 
     /// Widest label in cells.
@@ -114,12 +144,14 @@ impl Axis {
     pub fn draw(&self, sink: &mut dyn TextSink, rect: Rect, plot: Rect, color: Option<Rgba>) {
         match self.orientation {
             Orientation::Vertical => {
+                let (vertical, _, corner) = self.glyphs();
+                let line_color = self.line_color.or(color);
                 if self.line && plot.w > 0 {
                     for row in plot.y..plot.bottom() {
-                        sink.under(plot.x, row, "│", color);
+                        sink.under(plot.x, row, vertical, line_color);
                     }
                     if plot.h > 0 {
-                        sink.under(plot.x, plot.bottom() - 1, "└", color);
+                        sink.under(plot.x, plot.bottom() - 1, corner, line_color);
                     }
                 }
                 if rect.w == 0 {
@@ -138,11 +170,13 @@ impl Axis {
                 }
             }
             Orientation::Horizontal => {
+                let (_, horizontal, corner) = self.glyphs();
+                let line_color = self.line_color.or(color);
                 if self.line && plot.h > 0 {
                     for col in plot.x..plot.right() {
-                        sink.under(col, plot.bottom() - 1, "─", color);
+                        sink.under(col, plot.bottom() - 1, horizontal, line_color);
                     }
-                    sink.under(plot.x, plot.bottom() - 1, "└", color);
+                    sink.under(plot.x, plot.bottom() - 1, corner, line_color);
                 }
                 if rect.h == 0 {
                     return;

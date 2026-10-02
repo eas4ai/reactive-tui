@@ -5,56 +5,20 @@
 use super::super::super::mask::{Marker, MaskCanvas, DOTS_X, DOTS_Y};
 use super::super::super::plot::{
     self, band_ticks, decimate_min_max, fit_label, format_tick, label_skip, labeled_ticks,
-    linear_ticks, point_ticks, polyline, text_width, Axis, Grid, Rect, Rgba, ScaleBand,
-    ScaleLinear, ScalePoint, SizeClass, TextSink,
+    linear_ticks, point_ticks, polyline, text_width, value_domain, Axis, Grid, Rect, Rgba,
+    ScaleBand, ScaleLinear, ScalePoint, SizeClass, TextSink,
 };
-use super::super::super::{BarGrowth, ChartAxis, ChartType, FillStyle, LineStyle};
+use super::super::super::{
+    AxisLabelPlacement, BarGrowth, ChartAxis, ChartType, DataPoint, FillStyle, LineStyle,
+};
 use super::{color, point_color, tick_count, Job, Picture, TextLayer};
 
 const BULLISH: &str = "chart-bullish";
 const BEARISH: &str = "chart-bearish";
-
-/// Value-axis domain from the target data, honoring explicit limits.
-fn value_domain(axis: &ChartAxis, job: &Job, candles: bool) -> Result<(f64, f64), &'static str> {
-    let props = job.props;
-    let values = props.series.iter().filter(|s| s.visible).flat_map(|s| {
-        s.data.iter().flat_map(move |p| match (candles, p.candle) {
-            (true, Some(c)) => vec![c.low, c.high],
-            _ => vec![p.value],
-        })
-    });
-    let auto = if candles {
-        let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
-        for v in values {
-            low = low.min(v);
-            high = high.max(v);
-        }
-        if low > high {
-            (0.0, 1.0)
-        } else if low == high {
-            (low - 1.0, high + 1.0)
-        } else {
-            (low, high)
-        }
-    } else {
-        ScaleLinear::domain_including_zero(values)
-    };
-    let mut low = axis.min.unwrap_or(auto.0);
-    let mut high = axis.max.unwrap_or(auto.1);
-    if low == high {
-        let pad = low.abs().max(1.0) * 0.1;
-        if axis.min.is_none() {
-            low -= pad;
-        }
-        if axis.max.is_none() {
-            high += pad;
-        }
-    }
-    if low >= high || !(high - low).is_finite() {
-        return Err("Axis range must have a finite positive span");
-    }
-    Ok((low, high))
-}
+/// The widest a mapped coordinate may wander outside the canvas, in dots:
+/// far enough past any plot that clipping is exact, near enough that no
+/// conversion overflows (CHT-026).
+const FAR: f64 = 1.0e7;
 
 /// The label of category `index`: a custom axis label, else the first point
 /// label any visible series carries at that index.
@@ -68,6 +32,104 @@ fn category_label(job: &Job, axis: &ChartAxis, index: usize) -> Option<String> {
     })
 }
 
+/// `a` mixed toward `b` by `t` (0 is `a`, 1 is `b`), alpha from `a`.
+fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
+    let t = t.clamp(0.0, 1.0);
+    (
+        a.0 + (b.0 - a.0) * t,
+        a.1 + (b.1 - a.1) * t,
+        a.2 + (b.2 - a.2) * t,
+        a.3,
+    )
+}
+
+/// The color of a gradient at `t`, from its resolved stops in offset order.
+fn at_stop(stops: &[(f32, Rgba)], t: f32) -> Option<Rgba> {
+    let (first, last) = (stops.first()?, stops.last()?);
+    if t <= first.0 {
+        return Some(first.1);
+    }
+    if t >= last.0 {
+        return Some(last.1);
+    }
+    let after = stops.iter().position(|(offset, _)| *offset >= t)?;
+    let (a, b) = (stops[after - 1], stops[after]);
+    let span = (b.0 - a.0).max(f32::EPSILON);
+    Some(mix(a.1, b.1, (t - a.0) / span))
+}
+
+/// Keep a mapped coordinate finite and near the canvas (CHT-026).
+fn near(v: f64) -> f64 {
+    if v.is_nan() {
+        0.0
+    } else {
+        v.clamp(-FAR, FAR)
+    }
+}
+
+/// The glyphs chrome is drawn with: Unicode, or ASCII when the builder
+/// forces it or the terminal lacks the glyphs (CHT-028).
+struct Glyphs {
+    ascii: bool,
+}
+
+impl Glyphs {
+    fn grid(&self, dashed: bool, vertical: bool) -> &'static str {
+        match (self.ascii, dashed, vertical) {
+            (true, true, _) => ".",
+            (true, false, true) => "|",
+            (true, false, false) => "-",
+            (false, true, _) => "·",
+            (false, false, true) => "│",
+            (false, false, false) => "─",
+        }
+    }
+    fn reference(&self) -> &'static str {
+        if self.ascii {
+            "-"
+        } else {
+            "┄"
+        }
+    }
+    fn pattern_dot(&self) -> &'static str {
+        if self.ascii {
+            "."
+        } else {
+            "·"
+        }
+    }
+}
+
+/// Value labels placed so that none overlaps another or leaves the plot
+/// (CHT-013): a label that cannot be placed whole is left out.
+#[derive(Default)]
+struct LabelPlacer {
+    /// Column spans taken per row, as (row, first, last).
+    taken: Vec<(usize, usize, usize)>,
+}
+
+impl LabelPlacer {
+    /// Place `label` with its left edge at `x` on `row` inside `plot`,
+    /// shifting it into the plot when it would leave it; `None` when it
+    /// would then overlap a placed label or is wider than the plot.
+    fn place(&mut self, plot: Rect, x: usize, row: usize, width: usize) -> Option<usize> {
+        if width == 0 || width > plot.w || row < plot.y || row >= plot.bottom() {
+            return None;
+        }
+        let x = x.max(plot.x).min(plot.right() - width);
+        let (first, last) = (x, x + width - 1);
+        let clash = self
+            .taken
+            .iter()
+            .any(|(r, a, b)| *r == row && first <= *b + 1 && *a <= last + 1);
+        if clash {
+            return None;
+        }
+        self.taken.push((row, first, last));
+        Some(x)
+    }
+}
+
 pub(super) fn cartesian(
     mask: &mut MaskCanvas,
     text: &mut TextLayer,
@@ -77,6 +139,13 @@ pub(super) fn cartesian(
     class: SizeClass,
 ) -> Result<(), &'static str> {
     let props = job.props;
+    let glyphs = Glyphs {
+        ascii: props.ascii || !job.unicode_glyphs,
+    };
+    let border = color("border");
+    let muted = color("text-muted");
+    let grid_color = color("chart-grid").or(border);
+    let background = color("background");
     let vis: Vec<usize> = props
         .series
         .iter()
@@ -84,7 +153,7 @@ pub(super) fn cartesian(
         .filter(|(_, s)| s.visible)
         .map(|(i, _)| i)
         .collect();
-    let count = vis
+    let data_count = vis
         .iter()
         .map(|s| props.series[*s].data.len())
         .max()
@@ -94,6 +163,15 @@ pub(super) fn cartesian(
         ChartType::BarVertical | ChartType::BarHorizontal
     );
     let candles = props.chart_type == ChartType::Candlestick;
+    let scatter = props.chart_type == ChartType::Scatter;
+    // The category axis is laid out for the data, or for more slots when
+    // the builder asked (CHT-034); the slots past the data stay empty.
+    let slots = if bars {
+        props.band_count
+    } else {
+        props.point_count
+    };
+    let count = slots.map_or(data_count, |n| n.max(data_count));
     let horizontal =
         props.chart_type == ChartType::BarHorizontal || (bars && props.growth.is_horizontal());
     let growth = if horizontal && !props.growth.is_horizontal() {
@@ -110,27 +188,67 @@ pub(super) fn cartesian(
     } else {
         (&props.y_axis, &props.x_axis)
     };
-    let domain = value_domain(value_axis, job, candles)?;
+    let domain = value_domain(props, value_axis)?;
+    // A scatter with numeric x places its points on a linear x axis
+    // (CHT-033); one without keeps its categories.
+    let numeric_x = scatter
+        && vis
+            .iter()
+            .any(|s| props.series[*s].data.iter().any(|p| p.x.is_some()));
+    let x_domain = numeric_x.then(|| {
+        let xs = vis.iter().flat_map(|s| {
+            props.series[*s]
+                .data
+                .iter()
+                .enumerate()
+                .map(|(i, p)| p.x.unwrap_or(i as f64))
+        });
+        let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
+        for x in xs.filter(|x| x.is_finite()) {
+            low = low.min(x);
+            high = high.max(x);
+        }
+        if low > high {
+            (0.0, 1.0)
+        } else if low == high {
+            (low - 1.0, high + 1.0)
+        } else {
+            (low, high)
+        }
+    });
     let axes = class.has_axes();
     if let Some(title) = &props.y_axis.title {
         if axes {
             let strip = area.take_top(1);
-            text.text(strip.x, strip.y, strip.w, title, None);
+            text.text(strip.x, strip.y, strip.w, title, muted);
         }
     }
-    // Tentative plot rectangle to measure ticks against.
+    // Explicit ticks from a tick format (CHT-034), else custom labels, else
+    // round values.
     let value_cells = if horizontal { area.w } else { area.h };
-    let value_ticks = |scale: &ScaleLinear| {
-        if value_axis.custom_labels.is_empty() {
+    let value_ticks = |scale: &ScaleLinear| -> Vec<plot::Tick> {
+        if !value_axis.ticks.is_empty() {
+            value_axis
+                .ticks
+                .iter()
+                .filter(|(value, _)| scale.contains(*value))
+                .map(|(value, label)| plot::Tick {
+                    value: *value,
+                    position: scale.map(*value),
+                    label: label.clone(),
+                })
+                .collect()
+        } else if value_axis.custom_labels.is_empty() {
             linear_ticks(scale, tick_count(value_axis, value_cells))
         } else {
             labeled_ticks(scale, &value_axis.custom_labels)
         }
     };
+    let inside = value_axis.placement == AxisLabelPlacement::Inside;
     let mut label_width = 0;
     let mut x_rows = 0;
     if axes {
-        if !horizontal && value_axis.show_labels && value_axis.tick_count > 0 {
+        if !horizontal && value_axis.show_labels && value_axis.tick_count > 0 && !inside {
             let probe = ScaleLinear::new(domain, (0.0, 1.0));
             label_width = value_ticks(&probe)
                 .iter()
@@ -141,7 +259,7 @@ pub(super) fn cartesian(
                 + 1;
         }
         if horizontal && category_axis.show_labels {
-            label_width = (0..count)
+            label_width = (0..data_count)
                 .filter_map(|i| category_label(job, category_axis, i))
                 .map(|l| text_width(&l))
                 .max()
@@ -154,7 +272,8 @@ pub(super) fn cartesian(
         } else {
             category_axis
         };
-        if bottom_axis.show_labels && (horizontal || count > 0) {
+        let bottom_labels = bottom_axis.show_labels && !(horizontal && inside);
+        if bottom_labels && (horizontal || count > 0) {
             x_rows = 1 + usize::from(props.x_axis.title.is_some());
         } else if props.x_axis.title.is_some() {
             x_rows = 1;
@@ -190,11 +309,39 @@ pub(super) fn cartesian(
     }
     mask.set_clip_cells(inner.x, inner.y, inner.w, inner.h);
     picture.plot = plot;
-    picture.scatter = props.chart_type == ChartType::Scatter;
+    picture.scatter = scatter;
+    let value_labels = props
+        .value_labels
+        .unwrap_or_else(|| class.has_value_labels());
+    // Headroom: rows (or columns, for horizontal bars) kept clear past the
+    // extreme values (CHT-034), plus one row for value labels above the
+    // tallest bar (CHT-013). The shapes' range shrinks; the axis line keeps
+    // the whole plot.
+    let (head, foot) = (usize::from(props.headroom.0), usize::from(props.headroom.1));
+    let label_room = usize::from(bars && value_labels && !horizontal);
+    let shapes = if horizontal {
+        let (left, right) = (foot.min(inner.w / 2), head.min(inner.w / 2));
+        Rect {
+            x: inner.x + left,
+            w: inner.w.saturating_sub(left + right).max(1),
+            ..inner
+        }
+    } else {
+        let top = (head + label_room).min(inner.h / 2);
+        let bottom = foot.min(inner.h / 2);
+        Rect {
+            y: inner.y + top,
+            h: inner.h.saturating_sub(top + bottom).max(1),
+            ..inner
+        }
+    };
 
     // Scales in dot units.
-    let x_dots = ((inner.x * DOTS_X) as f64, (inner.right() * DOTS_X) as f64);
-    let y_dots = ((inner.y * DOTS_Y) as f64, (inner.bottom() * DOTS_Y) as f64);
+    let x_dots = ((shapes.x * DOTS_X) as f64, (shapes.right() * DOTS_X) as f64);
+    let y_dots = (
+        (shapes.y * DOTS_Y) as f64,
+        (shapes.bottom() * DOTS_Y) as f64,
+    );
     let (y_dots, x_dots) = if bars || candles {
         (y_dots, x_dots)
     } else {
@@ -209,13 +356,22 @@ pub(super) fn cartesian(
         BarGrowth::Right => ScaleLinear::new(domain, (x_dots.1, x_dots.0)),
     };
     let category_range = if horizontal { y_dots } else { x_dots };
-    let band = ScaleBand::new(count, category_range)
-        .padding_inner(if vis.len() > 1 && !props.stacked {
+    // Band padding: the builder's, else the reference's 0.4 inside and 0.2
+    // outside; grouped lanes keep a tighter inner padding (CHT-013).
+    let padding_inner = props
+        .padding_inner
+        .unwrap_or(if vis.len() > 1 && !props.stacked {
             0.3
         } else {
             0.4
-        })
-        .padding_outer(if class == SizeClass::Mini { 0.0 } else { 0.2 });
+        });
+    let padding_outer =
+        props
+            .padding_outer
+            .unwrap_or(if class == SizeClass::Mini { 0.0 } else { 0.2 });
+    let band = ScaleBand::new(count, category_range)
+        .padding_inner(padding_inner)
+        .padding_outer(padding_outer);
     let points = ScalePoint::new(
         count,
         (
@@ -223,92 +379,163 @@ pub(super) fn cartesian(
             (category_range.1 - 1.0).max(category_range.0),
         ),
     );
+    let x_scale = x_domain.map(|d| ScaleLinear::new(d, (x_dots.0, (x_dots.1 - 1.0).max(x_dots.0))));
     let use_band = bars || candles;
+    // A band capped at `max_band_width` cells, centred in its slot
+    // (CHT-013, CHT-014).
+    let band_unit = if horizontal { DOTS_Y } else { DOTS_X } as f64;
+    let capped_band = |i: usize| -> (f64, f64) {
+        let (a, b) = band.band(i);
+        match props.max_band_width {
+            Some(max) if (b - a) > f64::from(max) * band_unit => {
+                let width = f64::from(max) * band_unit;
+                let center = (a + b) / 2.0;
+                (center - width / 2.0, center + width / 2.0)
+            }
+            _ => (a, b),
+        }
+    };
     let category_center = |i: usize| -> f64 {
         if use_band {
-            band.center(i)
+            let (a, b) = capped_band(i);
+            (a + b) / 2.0
         } else {
             points.map(i)
         }
     };
-    if horizontal {
-        picture.index_rows = (0..count)
-            .map(|i| category_center(i) / DOTS_Y as f64)
-            .collect();
-    } else {
-        picture.index_columns = (0..count)
-            .map(|i| category_center(i) / DOTS_X as f64)
-            .collect();
+    if !numeric_x {
+        if horizontal {
+            picture.index_rows = (0..data_count)
+                .map(|i| category_center(i) / DOTS_Y as f64)
+                .collect();
+        } else {
+            picture.index_columns = (0..data_count)
+                .map(|i| category_center(i) / DOTS_X as f64)
+                .collect();
+        }
     }
 
     // Grid, axes and labels.
     if axes {
         let ticks = value_ticks(&value_scale);
-        let stride = if props.tick_margin > 0 {
-            props.tick_margin
-        } else {
-            1
-        };
-        // Grid lines belong to the large class; medium draws axes and ticks
-        // only (CHT-024). An axis can still turn its grid off at large.
+        // `tick_margin` is a stride over the category labels, whatever the
+        // orientation (CHT-034); `label_count` spreads that many labels from
+        // the first to the last instead.
+        let stride = props.tick_margin.max(1);
         let show_grid = |axis: &ChartAxis| axis.show_grid && class.has_grid();
         let category_ticks: Vec<plot::Tick> = {
             let labels: Vec<Option<String>> = (0..count)
-                .map(|i| category_label(job, category_axis, i))
+                .map(|i| {
+                    (i < data_count)
+                        .then(|| category_label(job, category_axis, i))
+                        .flatten()
+                })
                 .collect();
-            if use_band {
+            let mut all = if numeric_x {
+                x_scale
+                    .as_ref()
+                    .map(|scale| linear_ticks(scale, tick_count(category_axis, shapes.w)))
+                    .unwrap_or_default()
+            } else if use_band {
                 band_ticks(&band, &labels)
             } else {
                 point_ticks(&points, &labels)
+            };
+            // Slots past the data carry no label.
+            if !numeric_x {
+                all.truncate(data_count);
+            }
+            match category_axis.label_count {
+                Some(n) if n >= 1 && all.len() > n => {
+                    let last = all.len() - 1;
+                    (0..n)
+                        .map(|k| {
+                            let i = if n == 1 {
+                                0
+                            } else {
+                                (k * last + (n - 1) / 2) / (n - 1)
+                            };
+                            all[i].clone()
+                        })
+                        .collect()
+                }
+                _ => all,
             }
         };
-        if horizontal {
-            let mut vertical = Axis::vertical(
-                category_ticks
+        let category_skip = if category_axis.label_count.is_some() || numeric_x {
+            1
+        } else {
+            stride
+        };
+        // Grid lines: the value ticks' rows (or columns), and the category
+        // ticks' columns or `grid_columns` even divisions (CHT-034).
+        let grid_columns_of = |axis_ticks: &[plot::Tick], plot_w: usize| -> Vec<usize> {
+            match category_axis.grid_columns.or(props.x_axis.grid_columns) {
+                Some(n) if n > 0 => (0..n).map(|k| k * plot_w / n).collect(),
+                _ => axis_ticks
                     .iter()
-                    .map(|t| plot::Tick {
-                        value: t.value,
-                        position: t.position / DOTS_Y as f64 - plot.y as f64,
-                        label: t.label.clone(),
-                    })
+                    .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
                     .collect(),
-            );
-            vertical.line = category_axis.show_labels;
-            let horizontal_axis = Axis::horizontal(
-                ticks
-                    .iter()
-                    .map(|t| plot::Tick {
-                        value: t.value,
-                        position: t.position / DOTS_X as f64 - plot.x as f64,
-                        label: t.label.clone(),
-                    })
-                    .collect(),
-            )
-            .with_title(props.x_axis.title.clone());
-            let skip = if props.tick_margin > 0 {
-                stride
+            }
+        };
+        let to_cells = |t: &plot::Tick, vertical: bool| plot::Tick {
+            value: t.value,
+            position: if vertical {
+                t.position / DOTS_Y as f64 - plot.y as f64
             } else {
-                label_skip(
-                    &horizontal_axis
-                        .ticks
-                        .iter()
-                        .map(|t| t.position)
-                        .collect::<Vec<_>>(),
-                    &horizontal_axis
-                        .ticks
-                        .iter()
-                        .map(|t| text_width(&t.label))
-                        .collect::<Vec<_>>(),
-                    1,
-                )
-            };
+                t.position / DOTS_X as f64 - plot.x as f64
+            },
+            label: t.label.clone(),
+        };
+        let mut reference_rows: Vec<(usize, bool)> = Vec::new();
+        for value in &props.reference_lines {
+            if value_scale.contains(*value) {
+                let at = near(value_scale.map(*value));
+                if horizontal {
+                    reference_rows.push(((at / DOTS_X as f64).round() as usize, false));
+                } else {
+                    reference_rows.push(((at / DOTS_Y as f64).round() as usize, true));
+                }
+            }
+        }
+        if horizontal {
+            let mut vertical =
+                Axis::vertical(category_ticks.iter().map(|t| to_cells(t, true)).collect())
+                    .with_skip(category_skip)
+                    .with_line_color(border)
+                    .with_ascii(glyphs.ascii);
+            vertical.line = category_axis.show_labels;
+            let horizontal_axis =
+                Axis::horizontal(ticks.iter().map(|t| to_cells(t, false)).collect())
+                    .with_title(props.x_axis.title.clone())
+                    .with_line_color(border)
+                    .with_ascii(glyphs.ascii);
+            // Value labels along the bottom thin only to avoid overlap.
+            let skip = label_skip(
+                &horizontal_axis
+                    .ticks
+                    .iter()
+                    .map(|t| t.position)
+                    .collect::<Vec<_>>(),
+                &horizontal_axis
+                    .ticks
+                    .iter()
+                    .map(|t| text_width(&t.label))
+                    .collect::<Vec<_>>(),
+                1,
+            );
             let horizontal_axis = horizontal_axis.with_skip(skip);
             if show_grid(value_axis) {
                 let columns = horizontal_axis
                     .shown()
                     .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
                     .collect();
-                Grid::new(columns, Vec::new()).draw(text, plot, "·", None);
+                Grid::new(columns, Vec::new()).draw(
+                    text,
+                    plot,
+                    glyphs.grid(value_axis.dashed, true),
+                    grid_color,
+                );
             }
             if show_grid(category_axis) {
                 let rows = vertical
@@ -316,38 +543,50 @@ pub(super) fn cartesian(
                     .iter()
                     .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
                     .collect();
-                Grid::new(Vec::new(), rows).draw(text, plot, "·", None);
+                Grid::new(Vec::new(), rows).draw(
+                    text,
+                    plot,
+                    glyphs.grid(category_axis.dashed, false),
+                    grid_color,
+                );
             }
             if category_axis.show_labels {
-                vertical.draw(text, label_rect, plot, None);
+                vertical.draw(text, label_rect, plot, muted);
             }
             if value_axis.show_labels || props.x_axis.title.is_some() {
-                horizontal_axis.draw(text, x_rect, plot, None);
+                if inside && value_axis.show_labels {
+                    // Value labels inside the plot, on its bottom row beside
+                    // their grid columns (CHT-034).
+                    let row = plot.bottom().saturating_sub(1);
+                    for tick in horizontal_axis.shown() {
+                        let col = plot.x + tick.position.round().max(0.0) as usize;
+                        let width = text_width(&tick.label);
+                        if col + width <= plot.right() {
+                            text.text(col, row, width, &tick.label, muted);
+                        }
+                    }
+                    if props.x_axis.title.is_some() {
+                        Axis::horizontal(Vec::new())
+                            .with_title(props.x_axis.title.clone())
+                            .with_line_color(border)
+                            .with_ascii(glyphs.ascii)
+                            .draw(text, x_rect, plot, muted);
+                    }
+                } else {
+                    horizontal_axis.draw(text, x_rect, plot, muted);
+                }
             }
         } else {
-            let vertical = Axis::vertical(
-                ticks
-                    .iter()
-                    .map(|t| plot::Tick {
-                        value: t.value,
-                        position: t.position / DOTS_Y as f64 - plot.y as f64,
-                        label: t.label.clone(),
-                    })
-                    .collect(),
-            )
-            .with_skip(stride);
-            let horizontal_axis = Axis::horizontal(
-                category_ticks
-                    .iter()
-                    .map(|t| plot::Tick {
-                        value: t.value,
-                        position: t.position / DOTS_X as f64 - plot.x as f64,
-                        label: t.label.clone(),
-                    })
-                    .collect(),
-            )
-            .with_title(props.x_axis.title.clone());
-            let skip = if props.tick_margin > 0 {
+            let vertical = Axis::vertical(ticks.iter().map(|t| to_cells(t, true)).collect())
+                .with_line_color(border)
+                .with_ascii(glyphs.ascii);
+            let horizontal_axis =
+                Axis::horizontal(category_ticks.iter().map(|t| to_cells(t, false)).collect())
+                    .with_title(props.x_axis.title.clone())
+                    .with_line_color(border)
+                    .with_ascii(glyphs.ascii);
+            let skip = if props.tick_margin > 0 && !numeric_x && category_axis.label_count.is_none()
+            {
                 stride
             } else {
                 label_skip(
@@ -370,27 +609,68 @@ pub(super) fn cartesian(
                     .shown()
                     .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
                     .collect();
-                Grid::new(Vec::new(), rows).draw(text, plot, "·", None);
+                Grid::new(Vec::new(), rows).draw(
+                    text,
+                    plot,
+                    glyphs.grid(value_axis.dashed, false),
+                    grid_color,
+                );
             }
-            if show_grid(category_axis) {
-                let columns = horizontal_axis
-                    .shown()
-                    .filter_map(|t| (t.position >= 0.0).then_some(t.position.round() as usize))
-                    .collect();
-                Grid::new(columns, Vec::new()).draw(text, plot, "·", None);
+            if show_grid(category_axis) || category_axis.grid_columns.is_some() {
+                let shown: Vec<plot::Tick> = horizontal_axis.shown().cloned().collect();
+                let columns = grid_columns_of(&shown, plot.w);
+                Grid::new(columns, Vec::new()).draw(
+                    text,
+                    plot,
+                    glyphs.grid(category_axis.dashed, true),
+                    grid_color,
+                );
             }
             if value_axis.show_labels {
-                vertical.draw(text, label_rect, plot, None);
+                if inside {
+                    // Value labels inside the plot beside their grid rows
+                    // (CHT-034); the axis line still marks the plot's edge.
+                    let mut line_only = Axis::vertical(Vec::new())
+                        .with_line_color(border)
+                        .with_ascii(glyphs.ascii);
+                    line_only.line = true;
+                    line_only.draw(text, label_rect, plot, muted);
+                    for tick in vertical.shown() {
+                        let row = tick.position.round();
+                        if row < 0.0 || row as usize >= plot.h {
+                            continue;
+                        }
+                        let width = text_width(&tick.label);
+                        let x = plot.x + 1;
+                        if x + width <= plot.right() {
+                            text.text(x, plot.y + row as usize, width, &tick.label, muted);
+                        }
+                    }
+                } else {
+                    vertical.draw(text, label_rect, plot, muted);
+                }
             }
             if category_axis.show_labels || props.x_axis.title.is_some() {
-                horizontal_axis.draw(text, x_rect, plot, None);
+                horizontal_axis.draw(text, x_rect, plot, muted);
+            }
+        }
+        // Reference lines: dashed across the plot at their values, under the
+        // shapes (CHT-034).
+        for (at, is_row) in reference_rows {
+            if is_row {
+                if at >= plot.y && at < plot.bottom() {
+                    for col in inner.x..inner.right() {
+                        text.under(col, at, glyphs.reference(), border);
+                    }
+                }
+            } else if at >= plot.x && at < plot.right() {
+                for row in inner.y..inner.bottom() {
+                    text.under(at, row, glyphs.reference(), border);
+                }
             }
         }
     }
 
-    let value_labels = props
-        .value_labels
-        .unwrap_or_else(|| class.has_value_labels());
     // Explicit limits on the category axis clip by index.
     let index_visible = |i: usize| {
         category_axis.min.is_none_or(|m| i as f64 >= m)
@@ -398,14 +678,32 @@ pub(super) fn cartesian(
     };
     let cell_of = |x: f64, y: f64| -> (usize, usize) {
         (
-            (x / DOTS_X as f64).floor().max(0.0) as usize,
-            (y / DOTS_Y as f64).floor().max(0.0) as usize,
+            (near(x) / DOTS_X as f64).floor().max(0.0) as usize,
+            (near(y) / DOTS_Y as f64).floor().max(0.0) as usize,
         )
     };
+    // Mapped coordinates stay within a few plot spans of the plot, so a
+    // value far outside tight limits becomes a short clipped segment rather
+    // than a walk toward infinity in the curve densifier or the fill loop
+    // (CHT-026).
+    let guarded = |m: f64, range: (f64, f64)| -> f64 {
+        let (lo, hi) = (range.0.min(range.1), range.0.max(range.1));
+        let guard = 8.0 * (hi - lo).max(DOTS_Y as f64);
+        if m.is_nan() {
+            lo
+        } else {
+            m.clamp(lo - guard, hi + guard)
+        }
+    };
+    let map = |v: f64| guarded(value_scale.map(v), value_scale.range());
 
     if bars {
         let mut stack_pos = vec![0.0f64; count];
         let mut stack_neg = vec![0.0f64; count];
+        let mut placer = LabelPlacer::default();
+        // Labels are placed after every bar is drawn, tallest first, so the
+        // bars that matter most keep theirs when room is short.
+        let mut labels: Vec<(usize, usize, String, Option<Rgba>, bool, f64)> = Vec::new();
         for (slot, &s) in vis.iter().enumerate() {
             let series = &props.series[s];
             for (i, point) in series.data.iter().enumerate() {
@@ -417,7 +715,7 @@ pub(super) fn cartesian(
                 };
                 let tint = point_color(props, s, i);
                 let (lane_start, lane_end) = {
-                    let (a, b) = band.band(i);
+                    let (a, b) = capped_band(i);
                     let (a, b) = if props.stacked || vis.len() < 2 {
                         (a, b)
                     } else {
@@ -426,9 +724,8 @@ pub(super) fn cartesian(
                     };
                     // Bar sides sit on cell boundaries so only the tip is
                     // fractional; a lane always keeps at least one cell.
-                    let unit = if horizontal { DOTS_Y } else { DOTS_X } as f64;
-                    let start = (a / unit).round() * unit;
-                    let end = ((b / unit).round() * unit).max(start + unit);
+                    let start = (a / band_unit).round() * band_unit;
+                    let end = ((b / band_unit).round() * band_unit).max(start + band_unit);
                     (start, end)
                 };
                 let base = if props.stacked {
@@ -453,14 +750,55 @@ pub(super) fn cartesian(
                 // from 3 and 4.
                 let dots = if horizontal { DOTS_X } else { DOTS_Y } as f64;
                 let snap = |v: f64| (v * 8.0 / dots).round() * dots / 8.0;
-                let (from, to) = (snap(value_scale.map(base)), snap(value_scale.map(top)));
+                let (from, mut to) = (snap(map(base)), snap(map(top)));
+                // A bar shorter than the minimum length grows to it, in the
+                // direction it grows (CHT-013).
+                let min_dots = props.min_bar_length.max(0.0) * dots;
+                if (to - from).abs() < min_dots && min_dots > 0.0 && value != 0.0 {
+                    let sign = if (to - from) != 0.0 {
+                        (to - from).signum()
+                    } else {
+                        let up = matches!(growth, BarGrowth::Bottom | BarGrowth::Right);
+                        if (value >= 0.0) == up {
+                            -1.0
+                        } else {
+                            1.0
+                        }
+                    };
+                    to = snap(from + sign * min_dots);
+                }
                 if (from - to).abs() < 1e-9 {
                     continue;
                 }
-                if horizontal {
-                    mask.rect(from, lane_start, to, lane_end, tint, Some((s, i)));
+                let stops: Vec<(f32, Rgba)> = point
+                    .gradient
+                    .iter()
+                    .filter_map(|(offset, token)| color(token).map(|c| (*offset, c)))
+                    .collect();
+                if stops.is_empty() {
+                    if horizontal {
+                        mask.rect(from, lane_start, to, lane_end, tint, Some((s, i)));
+                    } else {
+                        mask.rect(lane_start, from, lane_end, to, tint, Some((s, i)));
+                    }
                 } else {
-                    mask.rect(lane_start, from, lane_end, to, tint, Some((s, i)));
+                    // A gradient bar is drawn one cell slab at a time along
+                    // its length, each slab in the gradient's color there.
+                    let (lo, hi) = (from.min(to), from.max(to));
+                    let mut at = lo;
+                    while at < hi {
+                        let next = ((at / dots).floor() + 1.0) * dots;
+                        let next = next.min(hi);
+                        let middle = (at + next) / 2.0;
+                        let t = ((middle - from) / (to - from)) as f32;
+                        let shade = at_stop(&stops, t).or(tint);
+                        if horizontal {
+                            mask.rect(at, lane_start, next, lane_end, shade, Some((s, i)));
+                        } else {
+                            mask.rect(lane_start, at, lane_end, next, shade, Some((s, i)));
+                        }
+                        at = next;
+                    }
                 }
                 let tip = if horizontal {
                     cell_of(
@@ -476,34 +814,46 @@ pub(super) fn cartesian(
                 picture.anchors.insert((s, i), tip);
                 if value_labels {
                     // A builder-supplied label (typed `.label(..)`) replaces
-                    // the formatted value (CHT-020, CHT-013).
+                    // the formatted value (CHT-020, CHT-013), in the label's
+                    // own color when one is set.
                     let label = point
-                        .metadata
-                        .get("label")
-                        .cloned()
+                        .value_label
+                        .clone()
                         .unwrap_or_else(|| format_tick(point.value));
-                    let width = text_width(&label);
-                    if horizontal {
-                        let x = if growth == BarGrowth::Left {
-                            tip.0 + 1
-                        } else {
-                            tip.0.saturating_sub(width)
-                        };
-                        text.text(x, tip.1, width, &label, tint);
-                    } else {
-                        let outward = if (growth == BarGrowth::Bottom) == (value >= 0.0) {
-                            tip.1.checked_sub(1)
-                        } else {
-                            Some(tip.1 + 1)
-                        };
-                        // A bar whose tip is the plot's edge row keeps its
-                        // label, drawn on the tip row itself (CHT-013).
-                        let y = outward
-                            .filter(|y| plot.contains(tip.0, *y))
-                            .unwrap_or(tip.1);
-                        let x = (tip.0 + 1).saturating_sub(width.div_ceil(2)).max(plot.x);
-                        text.text(x, y, width, &label, tint);
-                    }
+                    let label_color = point.label_color.as_deref().and_then(color).or(tint);
+                    let outward = (growth == BarGrowth::Bottom || growth == BarGrowth::Right)
+                        == (value >= 0.0);
+                    labels.push((tip.0, tip.1, label, label_color, outward, value.abs()));
+                }
+            }
+        }
+        labels.sort_by(|a, b| b.5.total_cmp(&a.5));
+        for (tip_x, tip_y, label, label_color, outward, _) in labels {
+            let width = text_width(&label);
+            if horizontal {
+                // Beside the tip, past it in the growth direction, inside
+                // the plot's rows.
+                let x = if (growth == BarGrowth::Left) == outward {
+                    tip_x + 1
+                } else {
+                    tip_x.saturating_sub(width)
+                };
+                if let Some(x) = placer.place(plot, x, tip_y, width) {
+                    text.text(x, tip_y, width, &label, label_color);
+                }
+            } else {
+                // Above the tip (or below a bar that hangs or is negative),
+                // in the headroom row the plot kept; the tip row itself when
+                // the plot has no row past it.
+                let past = if outward {
+                    tip_y.checked_sub(1)
+                } else {
+                    Some(tip_y + 1)
+                };
+                let y = past.filter(|y| plot.contains(tip_x, *y)).unwrap_or(tip_y);
+                let x = (tip_x + 1).saturating_sub(width.div_ceil(2));
+                if let Some(x) = placer.place(plot, x, y, width) {
+                    text.text(x, y, width, &label, label_color);
                 }
             }
         }
@@ -515,30 +865,44 @@ pub(super) fn cartesian(
         let bearish = color(BEARISH);
         for &s in &vis {
             let series = &props.series[s];
+            let animated = job
+                .values
+                .get(s)
+                .filter(|v| v.len() == series.data.len() * 4);
             for (i, point) in series.data.iter().enumerate() {
                 if !index_visible(i) {
                     continue;
                 }
                 let Some(candle) = point.candle else { continue };
+                // The candle as motion has it now: the four values the
+                // transition and the reveal carry (CHT-014, CHT-022).
+                let (open, high, low, close) = match animated {
+                    Some(values) => (
+                        values[i * 4],
+                        values[i * 4 + 1],
+                        values[i * 4 + 2],
+                        values[i * 4 + 3],
+                    ),
+                    None => (candle.open, candle.high, candle.low, candle.close),
+                };
                 let tint = point
                     .color
                     .as_deref()
                     .or(series.color.as_deref())
                     .and_then(color)
-                    .or(if candle.is_bullish() {
-                        bullish
-                    } else {
-                        bearish
-                    });
-                let (a, b) = band.band(i);
-                // Bodies sit on cell boundaries like bars; the wick is one
-                // dot wide at the band's centre.
+                    .or(if close > open { bullish } else { bearish });
+                let (a, b) = capped_band(i);
+                // The body takes a ratio of its band (CHT-014), at least one
+                // cell, on cell boundaries like bars; the wick is one dot
+                // wide at the band's centre.
                 let unit = DOTS_X as f64;
-                let a = (a / unit).round() * unit;
-                let b = ((b / unit).round() * unit).max(a + unit);
+                let ratio = f64::from(props.body_width_ratio.clamp(0.05, 1.0));
                 let center = (a + b) / 2.0;
-                let (wick_top, wick_bottom) =
-                    (value_scale.map(candle.high), value_scale.map(candle.low));
+                let half = ((b - a) * ratio / 2.0).max(unit / 2.0);
+                let a = ((center - half) / unit).round() * unit;
+                let b = (((center + half) / unit).round() * unit).max(a + unit);
+                let center = (a + b) / 2.0;
+                let (wick_top, wick_bottom) = (map(high), map(low));
                 mask.rect(
                     center - 0.5,
                     wick_top,
@@ -547,16 +911,15 @@ pub(super) fn cartesian(
                     tint,
                     Some((s, i)),
                 );
-                let (mut open, mut close) =
-                    (value_scale.map(candle.open), value_scale.map(candle.close));
-                if (open - close).abs() < 0.5 {
-                    open -= 0.25;
-                    close += 0.25;
+                let (mut open_at, mut close_at) = (map(open), map(close));
+                if (open_at - close_at).abs() < 0.5 {
+                    open_at -= 0.25;
+                    close_at += 0.25;
                 }
-                mask.rect(a, open, b, close, tint, Some((s, i)));
+                mask.rect(a, open_at, b, close_at, tint, Some((s, i)));
                 picture
                     .anchors
-                    .insert((s, i), cell_of(center, open.min(close)));
+                    .insert((s, i), cell_of(center, open_at.min(close_at)));
             }
         }
         return Ok(());
@@ -580,6 +943,19 @@ pub(super) fn cartesian(
         }
     }
     picture.kept = vec![Vec::new(); props.series.len()];
+    let x_of = |s: usize, index: usize| -> f64 {
+        match &x_scale {
+            Some(scale) => {
+                let x = props.series[s]
+                    .data
+                    .get(index)
+                    .and_then(|p| p.x)
+                    .unwrap_or(index as f64);
+                guarded(scale.map(x), scale.range())
+            }
+            None => points.map(index),
+        }
+    };
     for (position, &s) in vis.iter().enumerate() {
         let series = &props.series[s];
         let Some(values) = job.values.get(s) else {
@@ -590,12 +966,28 @@ pub(super) fn cartesian(
         } else {
             values
         };
-        let samples: Vec<_> = decimate_min_max(stacked_values, inner.w)
-            .into_iter()
-            .filter(|k| index_visible(k.index))
-            .collect();
+        // A scatter on a numeric x keeps every point: its points are not in
+        // column order, and each is its own mark.
+        let samples: Vec<_> = if numeric_x {
+            values
+                .iter()
+                .enumerate()
+                .filter(|(_, v)| v.is_finite())
+                .map(|(index, value)| plot::Sample {
+                    index,
+                    value: *value,
+                })
+                .filter(|k| index_visible(k.index))
+                .collect()
+        } else {
+            decimate_min_max(stacked_values, shapes.w)
+                .into_iter()
+                .filter(|k| index_visible(k.index))
+                .collect()
+        };
         picture.kept[s] = samples.iter().map(|k| k.index).collect();
         let tint = point_color(props, s, 0);
+        let curve = series.curve.unwrap_or(props.curve);
         let mut dots: Vec<(f64, f64)> = Vec::with_capacity(samples.len());
         let mut bases: Vec<f64> = Vec::with_capacity(samples.len());
         for sample in &samples {
@@ -603,25 +995,29 @@ pub(super) fn cartesian(
                 (true, p) if p > 0 => tops[p - 1][sample.index],
                 _ => 0.0,
             };
-            let x = points.map(sample.index);
-            dots.push((x, value_scale.map(sample.value)));
-            bases.push(value_scale.map(base));
+            dots.push((x_of(s, sample.index), map(sample.value)));
+            bases.push(map(base));
         }
         if props.chart_type == ChartType::Area && series.fill_style != FillStyle::None {
-            let dense = polyline(&dots, props.curve, 1.0);
+            // The fill's own color at its opacity over the background, or
+            // the stroke's (CHT-012).
+            let fill_tint = series.fill.as_deref().and_then(color).or(tint);
+            let dense = polyline(&dots, curve, 1.0);
             let base_line: Vec<(f64, f64)> =
                 dots.iter().zip(&bases).map(|(d, b)| (d.0, *b)).collect();
-            let dense_base = polyline(&base_line, props.curve, 1.0);
+            let dense_base = polyline(&base_line, curve, 1.0);
             let mut covered: Vec<(usize, usize)> = Vec::new();
             fill_between(
                 mask,
                 &dense,
                 &dense_base,
-                tint,
+                fill_tint,
+                background,
+                series.fill_opacity,
                 &series.fill_style,
                 Some((s, 0)),
                 &mut covered,
-                value_scale.range(),
+                (shapes.y * DOTS_Y, shapes.bottom() * DOTS_Y),
             );
             if let FillStyle::Pattern(pattern) = &series.fill_style {
                 let tiles: Vec<&str> = pattern
@@ -641,7 +1037,7 @@ pub(super) fn cartesian(
                         }
                         "dots" => {
                             if (col + row) % 2 == 0 {
-                                "·"
+                                glyphs.pattern_dot()
                             } else {
                                 " "
                             }
@@ -649,14 +1045,14 @@ pub(super) fn cartesian(
                         _ => tiles
                             .get((col + row) % tiles.len().max(1))
                             .copied()
-                            .unwrap_or("▒"),
+                            .unwrap_or(if glyphs.ascii { "#" } else { "▒" }),
                     };
-                    text.text(col, row, 1, mark, tint);
+                    text.text(col, row, 1, mark, fill_tint);
                 }
             }
         }
-        if props.chart_type != ChartType::Scatter && series.line_style != LineStyle::None {
-            let dense = polyline(&dots, props.curve, 1.0);
+        if !scatter && series.line_style != LineStyle::None {
+            let dense = polyline(&dots, curve, 1.0);
             match series.line_style {
                 LineStyle::Solid => mask.polyline(&dense, tint, Some((s, 0))),
                 LineStyle::Dashed => {
@@ -676,9 +1072,10 @@ pub(super) fn cartesian(
                 LineStyle::None => {}
             }
         }
+        let series_dots = series.dots.unwrap_or(props.dots);
         let marker = match props.chart_type {
             ChartType::Scatter => Some(Marker::Dot),
-            _ if props.dots && samples.len() == values.len() => Some(Marker::Disc),
+            _ if series_dots && samples.len() == values.len() => Some(Marker::Disc),
             _ => None,
         };
         for (sample, dot) in samples.iter().zip(&dots) {
@@ -698,33 +1095,60 @@ pub(super) fn cartesian(
                 );
             }
         }
+        // A scatter's thinned points can still be hovered (CHT-027): every
+        // original point keeps an anchor at its own cell.
+        if scatter && samples.len() < values.len() {
+            for (index, value) in values.iter().enumerate() {
+                if !value.is_finite() || !index_visible(index) {
+                    continue;
+                }
+                let cell = cell_of(x_of(s, index), map(*value));
+                if inner.contains(cell.0, cell.1) {
+                    picture.anchors.entry((s, index)).or_insert(cell);
+                }
+            }
+        }
     }
     Ok(())
 }
 
-/// Fill the dots between `top` and `bottom` polylines column by column,
-/// shading toward the baseline for a gradient fill.
+/// Fill the dots between `top` and `bottom` polylines column by column: the
+/// fill color at `opacity` over `background`, and for a gradient strongest
+/// at the stroke and fading to the background at the baseline (CHT-012).
 #[allow(clippy::too_many_arguments)]
 fn fill_between(
     mask: &mut MaskCanvas,
     top: &[(f64, f64)],
     bottom: &[(f64, f64)],
     tint: Option<Rgba>,
+    background: Option<Rgba>,
+    opacity: f32,
     style: &FillStyle,
     owner: Option<(usize, usize)>,
     covered: &mut Vec<(usize, usize)>,
-    range: (f64, f64),
+    rows: (usize, usize),
 ) {
     if top.is_empty() || bottom.is_empty() {
         return;
     }
-    let (x0, x1) = (top.first().unwrap().0, top.last().unwrap().0);
+    let (x0, x1) = (near(top.first().unwrap().0), near(top.last().unwrap().0));
     let mut x = x0.round() as i64;
     let end = x1.round() as i64;
     let mut ti = 0;
     let mut bi = 0;
-    let far = range.0.max(range.1);
-    let near = range.0.min(range.1);
+    let (row_top, row_bottom) = (rows.0 as i64 - 1, rows.1 as i64 + 1);
+    let opacity = opacity.clamp(0.0, 1.0);
+    let shade_at = |t: f32| -> Option<Rgba> {
+        let tint = tint?;
+        match background {
+            // Over a known background the fill shows `opacity` of its color,
+            // less toward the baseline for a gradient.
+            Some(bg) => Some(mix(bg, tint, opacity * (1.0 - t))),
+            // Without one, the alpha carries the opacity.
+            None => Some((tint.0, tint.1, tint.2, tint.3 * opacity * (1.0 - t))),
+        }
+    };
+    let solid = shade_at(0.0);
     while x <= end {
         let xf = x as f64;
         while ti + 1 < top.len() && top[ti + 1].0 < xf {
@@ -733,20 +1157,20 @@ fn fill_between(
         while bi + 1 < bottom.len() && bottom[bi + 1].0 < xf {
             bi += 1;
         }
-        let y_top = interpolate_at(top, ti, xf);
-        let y_bottom = interpolate_at(bottom, bi, xf);
+        let y_top = near(interpolate_at(top, ti, xf));
+        let y_bottom = near(interpolate_at(bottom, bi, xf));
         let (a, b) = (y_top.min(y_bottom), y_top.max(y_bottom));
-        let mut y = a.round() as i64;
-        let last = b.round() as i64;
+        // Only the rows the plot holds are walked (CHT-026).
+        let mut y = (a.round() as i64).max(row_top);
+        let last = (b.round() as i64).min(row_bottom);
+        let extent = (y_bottom - y_top).abs().max(1.0);
         while y <= last {
             let shade = match style {
                 FillStyle::Gradient => {
-                    let extent = (far - near).max(1.0);
-                    let t = ((y as f64 - near) / extent).clamp(0.0, 1.0);
-                    let k = (0.45 + 0.55 * t) as f32;
-                    tint.map(|(r, g, bl, al)| (r * k, g * k, bl * k, al))
+                    let t = ((y as f64 - y_top).abs() / extent).clamp(0.0, 1.0) as f32;
+                    shade_at(t)
                 }
-                _ => tint,
+                _ => solid,
             };
             mask.dot(x, y, shade, owner);
             let cell = ((x.max(0) as usize) / DOTS_X, (y.max(0) as usize) / DOTS_Y);
@@ -778,6 +1202,7 @@ fn fit(label: &str, width: usize) -> String {
     fit_label(label, width)
 }
 
-/// Keep the text sink trait in scope for `text.text` calls above.
+/// Keep the text sink trait and the point type in scope for this module's
+/// path checks.
 #[allow(dead_code)]
-fn _sink(_: &dyn TextSink) {}
+fn _sink(_: &dyn TextSink, _: &DataPoint) {}

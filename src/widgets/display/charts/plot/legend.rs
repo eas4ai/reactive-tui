@@ -22,12 +22,42 @@ pub struct LegendEntry {
 pub struct Legend {
     /// Entries in series order.
     pub entries: Vec<LegendEntry>,
+    /// The color of the entry names; `None` inherits (CHT-017 gives it
+    /// `text-muted`).
+    pub name_color: Option<Rgba>,
+    /// Draw the swatches as `#` instead of a block (CHT-028).
+    pub ascii: bool,
 }
 
 impl Legend {
     /// A legend for `entries`.
     pub fn new(entries: Vec<LegendEntry>) -> Self {
-        Self { entries }
+        Self {
+            entries,
+            name_color: None,
+            ascii: false,
+        }
+    }
+
+    /// Draw the entry names in `color`.
+    pub fn with_name_color(mut self, color: Option<Rgba>) -> Self {
+        self.name_color = color;
+        self
+    }
+
+    /// Draw the swatches as `#` (CHT-028).
+    pub fn with_ascii(mut self, ascii: bool) -> Self {
+        self.ascii = ascii;
+        self
+    }
+
+    /// The swatch glyph.
+    fn swatch(&self) -> &'static str {
+        if self.ascii {
+            "#"
+        } else {
+            SWATCH
+        }
     }
 
     /// Whether there is anything to draw.
@@ -81,13 +111,13 @@ impl Legend {
     pub fn draw_stacked(&self, sink: &mut dyn TextSink, rect: Rect) {
         for (row, entry) in self.entries.iter().take(rect.h).enumerate() {
             let name = fit_label(&entry.name, rect.w.saturating_sub(2));
-            sink.text(rect.x, rect.y + row, 1, SWATCH, entry.color);
+            sink.text(rect.x, rect.y + row, 1, self.swatch(), entry.color);
             sink.text(
                 rect.x + 2,
                 rect.y + row,
                 rect.w.saturating_sub(2),
                 &name,
-                None,
+                self.name_color,
             );
         }
     }
@@ -144,7 +174,7 @@ impl Legend {
                 rect.x + x,
                 rect.y + row,
                 1,
-                SWATCH,
+                self.swatch(),
                 self.entries[index].color,
             );
             sink.text(
@@ -152,7 +182,7 @@ impl Legend {
                 rect.y + row,
                 rect.w.saturating_sub(x + 2),
                 &name,
-                None,
+                self.name_color,
             );
         }
     }

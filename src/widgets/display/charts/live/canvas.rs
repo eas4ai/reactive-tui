@@ -413,7 +413,8 @@ pub(super) fn draw(job: &Job) -> Picture {
     let mut area = Rect::sized(width, height);
     if let Some(title) = &props.title {
         let strip = area.take_top(1);
-        text.text(strip.x, strip.y, strip.w, title, None);
+        // The chart title takes the `foreground` role (CHT-017).
+        text.text(strip.x, strip.y, strip.w, title, color("foreground"));
     }
     let visible = visible(props);
     if visible.iter().all(|(_, s)| s.data.is_empty()) {
@@ -475,7 +476,10 @@ pub(super) fn draw(job: &Job) -> Picture {
             }),
             None => entries,
         };
-        let legend = Legend::new(entries);
+        // Legend names take the `text-muted` role (CHT-017).
+        let legend = Legend::new(entries)
+            .with_name_color(color("text-muted"))
+            .with_ascii(glyphs == GlyphSet::Ascii);
         if flowed {
             legend.draw_flowed(&mut text, rect, max_name, wrap);
         } else {
