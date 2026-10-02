@@ -1,0 +1,24 @@
+[
+  {
+    "crate": "accesskit_unix",
+    "version": "0.23.0",
+    "archive_sha256": "665c9079b7325a8168a6793437a172dda44b19a05af8ed52d7e32abaada996fe",
+    "vcs": {
+      "git": {
+        "sha1": "42e53b0d829e7a0b34dc8803bb06012db2e80cc6"
+      },
+      "path_in_vcs": "adapters/unix"
+    }
+  },
+  {
+    "crate": "accesskit_atspi_common",
+    "version": "0.20.0",
+    "archive_sha256": "c9d47ad644916f6cb7e432a5ca0dbd7cc78281a9772881057bb72d4aadb93257",
+    "vcs": {
+      "git": {
+        "sha1": "42e53b0d829e7a0b34dc8803bb06012db2e80cc6"
+      },
+      "path_in_vcs": "adapters/atspi-common"
+    }
+  }
+]

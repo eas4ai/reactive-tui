@@ -1,0 +1,515 @@
+use super::*;
+use crate::widgets::display::overlay::{global_rect, local_rect};
+use crate::{
+    builder::ElementBuilder,
+    component::{ElementType, FocusProps},
+    layout::style::StyleBuilder,
+    widgets::display::{table::border, Border},
+};
+
+fn node(style: StyleBuilder, children: Vec<Element>) -> Element {
+    ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+        .styles(style)
+        .children(children)
+        .build()
+}
+
+impl Popover {
+    pub(in super::super) fn render_live(&self, props: &PopoverProps) -> Element {
+        if let Some(error) = validation_error(props) {
+            self.live.reject(&self.state, props);
+            self.state.lock().unwrap().arrow_position = None;
+            return Element::text(error).class("text-error");
+        }
+        let (visible, progress) = self.live.sample(&self.state, props);
+        self.state.lock().unwrap().arrow_position = None;
+        let mut trigger_content = props.trigger_element.clone();
+        // The trigger tells the screen reader whether the popover is open
+        // (OVL-004): `aria-expanded` is the open state, `-false` the closed.
+        let mut trigger_class = trigger_content.class.take().unwrap_or_default();
+        trigger_class.push_str(if visible {
+            " aria-expanded"
+        } else {
+            " aria-expanded-false"
+        });
+        trigger_content.class = Some(trigger_class);
+        if matches!(trigger_content.element_type, ElementType::Text(_))
+            && trigger_content.focus.is_none()
+        {
+            trigger_content.focus = Some(FocusProps::button());
+        }
+        if props.trigger == PopoverTrigger::Click {
+            // Add the wrapper's action without replacing a typed child's role,
+            // label, text runs or selection during component expansion.
+            trigger_content
+                .metadata
+                .accessibility_options
+                .get_or_insert_default()
+                .clickable = true;
+        }
+        let trigger_disabled = trigger_content.metadata.disabled;
+        let mut trigger = node(
+            StyleBuilder::new().z_index(i32::from(props.z_index) + 2),
+            vec![trigger_content],
+        )
+        .class("self-start")
+        .with_key("popover-trigger");
+        trigger.metadata.disabled = trigger_disabled;
+        let owner = self.clone();
+        let config = props.clone();
+        trigger
+            .metadata
+            .capture_events
+            .push(Arc::new(move |event| owner.observe(event, &config, true)));
+        self.measure(&mut trigger, Part::Trigger);
+        let mut children = vec![trigger];
+        let (root_layout, body_layout, trigger_layout, explicit) = {
+            let data = self.live.data.lock().unwrap();
+            (data.root, data.body, data.trigger, data.explicit_trigger)
+        };
+        if let Some(root) = root_layout {
+            let trigger_rect = if explicit {
+                self.state.lock().unwrap().trigger_rect
+            } else {
+                trigger_layout
+                    .map(screen_rect)
+                    .unwrap_or_else(|| screen_rect(root))
+            };
+            self.state.lock().unwrap().trigger_rect = trigger_rect;
+            if visible || progress > 0.0 {
+                // The box leaves the clip of its ancestors, so once it has
+                // been laid out its clip is the screen: what holds and
+                // bounds the box (OVL-003). Until then, what the container
+                // may paint in.
+                let clip = body_layout.map_or(root.clip, |body| body.clip);
+                let bounds = local_rect(
+                    root,
+                    Rect {
+                        left: clip.x,
+                        top: clip.y,
+                        right: clip.x + clip.width,
+                        bottom: clip.y + clip.height,
+                    },
+                );
+                let trigger_local = local_rect(root, trigger_rect);
+                let measured = body_layout.map_or((0.0, 0.0), |layout| layout.size);
+                let constrained = self.apply_size_constraints(
+                    Self::make_rect(0.0, 0.0, measured.0, measured.1),
+                    props,
+                );
+                let content_size = (
+                    constrained.right.ceil() as u16,
+                    constrained.bottom.ceil() as u16,
+                );
+                let placed = self.calculate_rect_for_position(
+                    props.position,
+                    trigger_local,
+                    content_size,
+                    props.gap,
+                    props.offset,
+                );
+                let (placed, position) = self.adjust_for_boundaries(
+                    placed,
+                    props.position,
+                    trigger_local,
+                    content_size,
+                    bounds,
+                    props,
+                );
+                let ready = body_layout.is_some();
+                let hidden = !ready || placed.right <= placed.left || placed.bottom <= placed.top;
+                let changed_position = {
+                    let mut state = self.state.lock().unwrap();
+                    state.calculated_rect = global_rect(root, placed);
+                    let changed = ready && state.position != position;
+                    if ready {
+                        state.position = position;
+                        state.boundary_adjusted = placed
+                            != self.calculate_rect_for_position(
+                                props.position,
+                                trigger_local,
+                                content_size,
+                                props.gap,
+                                props.offset,
+                            );
+                    }
+                    changed
+                };
+                if changed_position {
+                    if let Some(callback) = &props.on_position_change {
+                        callback(position);
+                    }
+                }
+                if visible
+                    && ready
+                    && !hidden
+                    && (props.close_on_outside_click || props.backdrop_filter)
+                {
+                    let mut shield = node(
+                        StyleBuilder::new()
+                            .position_absolute()
+                            .inset_left(bounds.left)
+                            .inset_top(bounds.top)
+                            .width_px((bounds.right - bounds.left).max(0.0))
+                            .height_px((bounds.bottom - bounds.top).max(0.0))
+                            .z_index(i32::from(props.z_index))
+                            .unclipped(),
+                        vec![],
+                    )
+                    .with_key("popover-shield");
+                    if props.backdrop_filter {
+                        shield.class = Some("bg-overlay".into());
+                    }
+                    let owner = self.clone();
+                    let close = props.close_on_outside_click;
+                    shield.metadata.events.push(Arc::new(move |event| {
+                        if close && matches!(event, Event::Mouse(_)) && events::activation(event) {
+                            owner.hide();
+                            return EventResult::Consumed;
+                        }
+                        EventResult::Ignored
+                    }));
+                    children.push(shield);
+                }
+                let mut style = StyleBuilder::new()
+                    .position_absolute()
+                    .inset_left(placed.left)
+                    .inset_top(placed.top)
+                    .overflow_hidden()
+                    .z_index(i32::from(props.z_index) + 1)
+                    .unclipped();
+                if props.boundary_behavior != BoundaryBehavior::Ignore {
+                    style = style
+                        .max_width_px((bounds.right - bounds.left).max(0.0))
+                        .max_height_px((bounds.bottom - bounds.top).max(0.0));
+                }
+                if let Some(value) = props.min_width {
+                    style = style.min_width_px(f32::from(value));
+                }
+                if let Some(value) = props.max_width {
+                    style = style.max_width_px(f32::from(value));
+                }
+                if let Some(value) = props.min_height {
+                    style = style.min_height_px(f32::from(value));
+                }
+                if let Some(value) = props.max_height {
+                    style = style.max_height_px(f32::from(value));
+                }
+                if hidden {
+                    style = style.opacity(0.0);
+                } else {
+                    match props.animation {
+                        PopoverAnimation::Fade => style = style.opacity(progress),
+                        PopoverAnimation::Scale | PopoverAnimation::Bounce => {
+                            let scale = if props.animation == PopoverAnimation::Bounce {
+                                self.ease_out_bounce(progress)
+                            } else {
+                                0.8 + 0.2 * self.ease_out_back(progress)
+                            };
+                            style.motion.transform.scale_x = scale;
+                            style.motion.transform.scale_y = scale;
+                        }
+                        PopoverAnimation::Slide => {
+                            let offset = 3.0 * (1.0 - self.ease_out_cubic(progress));
+                            match position {
+                                PopoverPosition::Top
+                                | PopoverPosition::TopStart
+                                | PopoverPosition::TopEnd => style.motion.transform.y = offset,
+                                PopoverPosition::Bottom
+                                | PopoverPosition::BottomStart
+                                | PopoverPosition::BottomEnd => style.motion.transform.y = -offset,
+                                PopoverPosition::Left
+                                | PopoverPosition::LeftStart
+                                | PopoverPosition::LeftEnd => style.motion.transform.x = offset,
+                                _ => style.motion.transform.x = -offset,
+                            }
+                        }
+                        PopoverAnimation::None => {}
+                    }
+                }
+                let arrow_style = style
+                    .clone()
+                    .width_px(placed.right - placed.left)
+                    .height_px(placed.bottom - placed.top)
+                    .z_index(i32::from(props.z_index))
+                    .overflow_visible();
+                // The box: the theme's `surface` and `foreground`, a border
+                // in `border` around the content (OVL-001).
+                let mut body_children = vec![props.content.clone()];
+                // An empty content leaves an empty box, without a frame.
+                if content_size.0 > 2 && content_size.1 > 2 {
+                    body_children.extend(border::elements(
+                        &Border {
+                            color: Some("border".into()),
+                            ..Border::default()
+                        },
+                        usize::from(content_size.0),
+                        usize::from(content_size.1),
+                    ));
+                }
+                // The border takes one cell all around, and the content has
+                // one more cell of padding at each side, as a dialog's has.
+                let mut body = node(style.padding_all_px(1.0).padding_x_px(2.0), body_children)
+                    .class("bg-surface text-foreground")
+                    .with_key("popover-body");
+                body.metadata.inert = !visible || hidden;
+                body.metadata.accessibility =
+                    Some(crate::accessibility::Node::new(if props.focus_trap {
+                        crate::accessibility::Role::Dialog
+                    } else {
+                        crate::accessibility::Role::Group
+                    }));
+                // Opened by a key, the popover takes the focus into its
+                // content when the content holds a focusable element and
+                // gives it back when it closes (OVL-004); `auto_focus`
+                // takes it in any case.
+                let opened_by_key = self.state.lock().unwrap().opened_by_key;
+                if visible && !hidden && props.focus_trap {
+                    body.focus = Some(FocusProps::modal());
+                } else if visible && !hidden && (props.auto_focus || opened_by_key) {
+                    body.metadata.focus_scope = true;
+                    body.focus = Some(FocusProps {
+                        tab_index: -1,
+                        focusable: props.auto_focus,
+                        ..Default::default()
+                    });
+                }
+                let owner = self.clone();
+                let config = props.clone();
+                body.metadata
+                    .capture_events
+                    .push(Arc::new(move |event| owner.observe(event, &config, false)));
+                body.metadata.events.push(Arc::new(|event| {
+                    if matches!(event, Event::Mouse(_)) && events::activation(event) {
+                        EventResult::Consumed
+                    } else {
+                        EventResult::Ignored
+                    }
+                }));
+                self.measure(&mut body, Part::Body);
+                children.push(body);
+                if ready && !hidden && props.arrow.enabled && props.arrow.size > 0 {
+                    children.push(self.arrow(
+                        props,
+                        placed,
+                        trigger_local,
+                        position,
+                        arrow_style,
+                        visible,
+                        root,
+                    ));
+                }
+            }
+        }
+        let mut root = node(StyleBuilder::new(), children)
+            .class("relative items-start")
+            .with_key("popover-container");
+        self.measure(&mut root, Part::Root);
+        let owner = self.clone();
+        let config = props.clone();
+        root.metadata
+            .events
+            .push(Arc::new(move |event| owner.escape(event, &config)));
+        root
+    }
+
+    fn measure(&self, element: &mut Element, part: Part) {
+        let runtime = self.live.clone();
+        element
+            .metadata
+            .layout
+            .push(Arc::new(move |layout| runtime.record(part, layout)));
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn arrow(
+        &self,
+        props: &PopoverProps,
+        body: Rect<f32>,
+        trigger: Rect<f32>,
+        position: PopoverPosition,
+        style: StyleBuilder,
+        visible: bool,
+        root: LayoutInfo,
+    ) -> Element {
+        use PopoverPosition::*;
+        let vertical = matches!(
+            position,
+            Top | TopStart | TopEnd | Bottom | BottomStart | BottomEnd
+        );
+        let before = matches!(
+            position,
+            Bottom | BottomStart | BottomEnd | Right | RightStart | RightEnd
+        );
+        let (lo, hi, center) = if vertical {
+            (body.left, body.right, (trigger.left + trigger.right) / 2.0)
+        } else {
+            (body.top, body.bottom, (trigger.top + trigger.bottom) / 2.0)
+        };
+        let size = usize::from(props.arrow.size)
+            .min(((hi - lo + 1.0) / 2.0).max(1.0) as usize)
+            .min(
+                if vertical {
+                    root.clip.height
+                } else {
+                    root.clip.width
+                }
+                .max(1.0) as usize,
+            );
+        let center = (center + f32::from(props.arrow.offset))
+            .clamp(lo, (hi - 1.0).max(lo))
+            .floor();
+        let edge = if vertical {
+            if before {
+                body.top
+            } else {
+                body.bottom
+            }
+        } else if before {
+            body.left
+        } else {
+            body.right
+        };
+        let tip_axis = if before {
+            edge - size as f32
+        } else {
+            edge + size as f32 - 1.0
+        };
+        let tip = match (props.arrow.style, vertical, before) {
+            (ArrowStyle::Solid, true, true) => "▲",
+            (ArrowStyle::Solid, true, false) => "▼",
+            (ArrowStyle::Solid, false, true) => "◀",
+            (ArrowStyle::Solid, false, false) => "▶",
+            (ArrowStyle::Outline, true, true) => "△",
+            (ArrowStyle::Outline, true, false) => "▽",
+            (ArrowStyle::Outline, false, true) => "◁",
+            (ArrowStyle::Outline, false, false) => "▷",
+            (ArrowStyle::Double, true, true) => "⇈",
+            (ArrowStyle::Double, true, false) => "⇊",
+            (ArrowStyle::Double, false, true) => "⇇",
+            (ArrowStyle::Double, false, false) => "⇉",
+        };
+        let mut cells = Vec::new();
+        for depth in 0..size {
+            for cross in -(depth as i32)..=depth as i32 {
+                let boundary = cross.unsigned_abs() as usize == depth;
+                if props.arrow.style != ArrowStyle::Solid && !boundary {
+                    continue;
+                }
+                let axis = tip_axis
+                    + if before {
+                        depth as f32
+                    } else {
+                        -(depth as f32)
+                    };
+                let (x, y) = if vertical {
+                    (center + cross as f32, axis)
+                } else {
+                    (axis, center + cross as f32)
+                };
+                let mark = if depth == 0 {
+                    tip
+                } else if props.arrow.style == ArrowStyle::Double {
+                    "═"
+                } else {
+                    "█"
+                };
+                // A cell of the arrow is a piece of the box: filled in
+                // `surface` with its outline in `border`, so it shows on a
+                // page and on a box of the same color alike (OVL-001).
+                cells.push(
+                    ElementBuilder::new(ElementType::Text(mark.into()))
+                        .styles(
+                            StyleBuilder::new()
+                                .position_absolute()
+                                .inset_left(x - body.left)
+                                .inset_top(y - body.top)
+                                .width_px(1.0)
+                                .height_px(1.0),
+                        )
+                        .class("bg-surface text-border")
+                        .build(),
+                );
+            }
+        }
+        let (x, y) = if vertical {
+            (center, tip_axis)
+        } else {
+            (tip_axis, center)
+        };
+        let point = global_rect(root, Self::make_rect(x, y, 0.0, 0.0));
+        self.state.lock().unwrap().arrow_position = (point.left >= 0.0 && point.top >= 0.0)
+            .then_some(Position::cell(point.left as u16, point.top as u16));
+        let mut arrow = node(style, cells).with_key("popover-arrow");
+        arrow.metadata.inert = !visible;
+        let owner = self.clone();
+        let config = props.clone();
+        arrow
+            .metadata
+            .capture_events
+            .push(Arc::new(move |event| owner.observe(event, &config, false)));
+        let mut label = crate::accessibility::Node::new(crate::accessibility::Role::Label);
+        label.set_hidden();
+        arrow.metadata.accessibility = Some(label);
+        arrow
+    }
+}
+
+fn screen_rect(layout: LayoutInfo) -> Rect<f32> {
+    global_rect(
+        layout,
+        Rect {
+            left: 0.0,
+            top: 0.0,
+            right: layout.size.0,
+            bottom: layout.size.1,
+        },
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The trigger element of a rendered popover, after the App's
+    /// accessibility pass has turned its classes into a node.
+    fn spoken_trigger(visible: bool) -> crate::accessibility::Node {
+        let popover = Popover::new();
+        let props = PopoverProps {
+            visible,
+            trigger_element: Element::text("OPEN"),
+            content: Element::text("INNER"),
+            ..Default::default()
+        };
+        let mut root = popover.render_live(&props);
+        crate::accessibility::style::prepare(&mut root)
+            .expect("the classes are accessibility classes");
+        let trigger = root
+            .children
+            .iter()
+            .find(|child| child.key.as_deref() == Some("popover-trigger"))
+            .expect("the trigger node");
+        trigger.children[0]
+            .metadata
+            .accessibility
+            .clone()
+            .expect("the trigger tells its state")
+    }
+
+    /// A popover opened by a key remembers it until it closes, so a later
+    /// open by the pointer or the application does not take the focus.
+    #[test]
+    fn a_close_forgets_that_a_key_opened_the_popover() {
+        let popover = Popover::new();
+        popover.state.lock().unwrap().opened_by_key = true;
+        popover.hide();
+        assert!(!popover.state.lock().unwrap().opened_by_key);
+    }
+
+    /// OVL-004: the trigger reports whether the popover is open.
+    #[test]
+    fn ovl_004_the_trigger_tells_the_screen_reader_whether_the_popover_is_open() {
+        assert_eq!(spoken_trigger(true).inner.is_expanded(), Some(true));
+        assert_eq!(spoken_trigger(false).inner.is_expanded(), Some(false));
+    }
+}
