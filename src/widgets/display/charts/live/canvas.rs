@@ -547,6 +547,34 @@ fn legend_area(
                 true,
             ))
         }
+        // The medium class has a single-row legend (CHT-024): a side legend
+        // takes one row at the top of the area, aligned to its side, and a
+        // floating one is one row at its place; the large class stacks them.
+        LegendPosition::Left | LegendPosition::Right if !class.multi_row_legend() => {
+            let (w, h) = entries.flowed_size(area.w, max_name, false);
+            let h = h.min(area.h.saturating_sub(2));
+            let strip = area.take_top(h);
+            let w = w.min(strip.w);
+            let x = if props.legend.position == LegendPosition::Left {
+                strip.x
+            } else {
+                strip.right().saturating_sub(w)
+            };
+            Some((Rect { x, w, ..strip }, true))
+        }
+        LegendPosition::Floating(x, y) if !class.multi_row_legend() => {
+            let room = area.w.saturating_sub(x as usize);
+            let (w, h) = entries.flowed_size(room, max_name, false);
+            Some((
+                Rect {
+                    x: area.x + x as usize,
+                    y: area.y + y as usize,
+                    w: w.min(room),
+                    h: h.min(area.h.saturating_sub(y as usize)),
+                },
+                true,
+            ))
+        }
         LegendPosition::Left => {
             let w = stacked.0.min(area.w / 2);
             let rect = area.take_left(w);

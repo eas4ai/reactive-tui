@@ -429,6 +429,69 @@ fn cht_024_a_mini_chart_draws_no_title() {
     );
 }
 
+/// CHT-024: the medium class has a single-row legend at every position: a
+/// Left, Right or Floating legend of three series takes one row there, and
+/// only the large class stacks a side legend into a column.
+#[test]
+fn cht_024_a_medium_legend_is_one_row_at_every_position() {
+    let names = ["alpha", "beta", "gamma"];
+    let legend_at = |size: (u16, u16), position: LegendPosition| {
+        let mut p = props(ChartType::Line, size, &[2.0, 8.0, 5.0], 10.0);
+        p.series = names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                DataSeries::new(
+                    *name,
+                    [2.0, 8.0, 5.0]
+                        .iter()
+                        .map(|v| DataPoint::new(v + i as f64))
+                        .collect(),
+                )
+            })
+            .collect();
+        p.legend = ChartLegend {
+            visible: true,
+            position,
+            ..Default::default()
+        };
+        app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+            .pop()
+            .unwrap()
+    };
+    let rows_of = |frame: &Snapshot| -> Vec<usize> {
+        names
+            .iter()
+            .map(|name| {
+                frame
+                    .text
+                    .lines()
+                    .position(|l| l.contains(name))
+                    .unwrap_or_else(|| panic!("legend names {name}:\n{}", frame.text))
+            })
+            .collect()
+    };
+    for position in [
+        LegendPosition::Left,
+        LegendPosition::Right,
+        LegendPosition::Floating(2, 2),
+    ] {
+        let frame = legend_at((80, 24), position.clone());
+        let rows = rows_of(&frame);
+        assert!(
+            rows.iter().all(|r| *r == rows[0]),
+            "80 by 24 is the medium class: a {position:?} legend is one row, found rows {rows:?}:\n{}",
+            frame.text
+        );
+    }
+    let large = legend_at((200, 40), LegendPosition::Right);
+    let rows = rows_of(&large);
+    assert!(
+        rows[0] < rows[1] && rows[1] < rows[2],
+        "the large class stacks a Right legend into a column, found rows {rows:?}"
+    );
+}
+
 /// CHT-010: pie slices take their angles from the plot layer's linear scale,
 /// so two equal values split the circle into mirror halves.
 #[test]
