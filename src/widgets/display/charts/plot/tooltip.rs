@@ -3,7 +3,7 @@
 //! it summarizes, placed right of the anchor and flipped left or above when it
 //! would cross the chart's edge.
 
-use super::axis::{fit_label, text_width};
+use super::axis::{ellipsis, fit_label_with, text_width};
 use super::layout::Rect;
 use super::legend::SWATCH;
 use super::{Rgba, TextSink};
@@ -56,6 +56,9 @@ pub struct Tooltip {
     pub title: Option<String>,
     /// One row per series.
     pub rows: Vec<TooltipRow>,
+    /// Lay the text out with ASCII glyphs only: a cut text ends in `~`
+    /// (CHT-028).
+    pub ascii: bool,
 }
 
 /// A laid-out tooltip: its lines and the box around them.
@@ -74,11 +77,12 @@ impl Tooltip {
     /// as the area.
     pub fn layout(&self, area: Rect) -> TooltipBox {
         let inner_max = area.w.saturating_sub(2).max(1);
+        let cut = ellipsis(self.ascii);
         let mut lines: Vec<TooltipLine> = Vec::new();
         if let Some(title) = &self.title {
             lines.push(TooltipLine {
                 swatch: None,
-                text: fit_label(title, inner_max),
+                text: fit_label_with(title, inner_max, cut),
                 color: None,
             });
         }
@@ -92,12 +96,12 @@ impl Tooltip {
             // name is cut first, then dropped when fewer than two cells
             // remain for it.
             let swatch = if row.color.is_some() { 2 } else { 0 };
-            let value = fit_label(&row.value, inner_max.saturating_sub(swatch));
+            let value = fit_label_with(&row.value, inner_max.saturating_sub(swatch), cut);
             let room = inner_max.saturating_sub(swatch + 1 + text_width(&value));
             let text = if row.name.is_empty() {
                 value
             } else if room >= 2 {
-                format!("{} {value}", fit_label(&row.name, room))
+                format!("{} {value}", fit_label_with(&row.name, room, cut))
             } else {
                 value
             };
@@ -126,7 +130,7 @@ impl Tooltip {
                 .sum();
             lines.push(TooltipLine {
                 swatch: None,
-                text: fit_label(&format!("+{rest} more, sum {total}"), inner_max),
+                text: fit_label_with(&format!("+{rest} more, sum {total}"), inner_max, cut),
                 color: None,
             });
         }
@@ -227,7 +231,7 @@ impl TooltipBox {
                     x,
                     y0 + row,
                     room,
-                    &fit_label(&line.text, room),
+                    &fit_label_with(&line.text, room, ellipsis(style.ascii)),
                     line.color.or(style.text),
                 );
             }
@@ -243,6 +247,7 @@ mod tests {
     fn tooltip(n: usize) -> Tooltip {
         Tooltip {
             title: None,
+            ascii: false,
             rows: (0..n)
                 .map(|i| TooltipRow {
                     color: Some((1.0, 0.0, 0.0, 1.0)),

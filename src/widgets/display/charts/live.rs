@@ -925,6 +925,7 @@ impl LiveChart {
             Tooltip {
                 title: Some(title),
                 rows,
+                ascii: ascii_glyphs(props),
             },
             spoken,
         )
@@ -978,6 +979,7 @@ impl LiveChart {
                 (
                     Tooltip {
                         title: None,
+                        ascii: ascii_glyphs(props),
                         rows: vec![TooltipRow {
                             color: hit.colors.get(index).copied().flatten(),
                             name,
@@ -997,6 +999,7 @@ impl LiveChart {
                 (
                     Tooltip {
                         title: None,
+                        ascii: ascii_glyphs(props),
                         rows: vec![TooltipRow {
                             color: slice.color,
                             name: props.series[series].name.clone(),
@@ -1112,6 +1115,12 @@ fn nearest_index(positions: &[f64], at: f64) -> Option<usize> {
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
         .map(|(i, _)| i)
+}
+
+/// Whether the chart draws with ASCII glyphs only: forced by the builder or
+/// because the terminal lacks braille and block glyphs (CHT-028).
+fn ascii_glyphs(props: &ChartProps) -> bool {
+    props.ascii || !super::glyph_support()
 }
 
 /// A copy of the picture's grid with the tooltip box, crosshair, band and
