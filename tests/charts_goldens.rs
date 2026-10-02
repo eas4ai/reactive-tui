@@ -573,6 +573,25 @@ fn cht_026_empty_and_nan_input_show_a_message_and_no_shapes() {
         "NaN input must render a message and no shapes:\n{}",
         nan.text
     );
+    // A scatter's numeric x (CHT-033) is a value too: one NaN x beside
+    // finite ones is an error, not a chart with that point dropped.
+    let mut scatter = props(ChartType::Scatter, size, &[1.0, 2.0, 3.0], 10.0);
+    scatter.series[0].data[0].x = Some(0.0);
+    scatter.series[0].data[1].x = Some(f64::NAN);
+    scatter.series[0].data[2].x = Some(2.0);
+    let bad_x = app_input::run(
+        Root(Element::typed::<Chart>(scatter)),
+        size,
+        vec![(2, None)],
+    )
+    .pop()
+    .unwrap();
+    assert!(
+        !bad_x.text.trim().is_empty()
+            && count(&bad_x, |c| c == '█' || c == '•' || is_braille(c)) == 0,
+        "a NaN scatter x must render a message and no shapes:\n{}",
+        bad_x.text
+    );
     // The radial types: no series, an empty series, and a NaN or infinite
     // value each show a message and paint no slice or polygon.
     let mut bad_fill = radial_props(ChartType::Radar, size, &[1.0, 2.0, 3.0]);
