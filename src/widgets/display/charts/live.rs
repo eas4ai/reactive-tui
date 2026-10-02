@@ -878,6 +878,7 @@ impl LiveChart {
                         name: String::new(),
                         value: line.clone(),
                         value_color,
+                        numeric: None,
                     });
                 }
                 spoken.push(format!(
@@ -899,6 +900,7 @@ impl LiveChart {
                         name: name.into(),
                         value: value.to_string(),
                         value_color,
+                        numeric: Some(value),
                     });
                 }
                 spoken.push(format!(
@@ -914,6 +916,7 @@ impl LiveChart {
                 name: data.name.clone(),
                 value,
                 value_color,
+                numeric: Some(point.value),
             });
         }
         let spoken = if spoken.is_empty() {
@@ -985,6 +988,8 @@ impl LiveChart {
                             name,
                             value,
                             value_color: None,
+                            // One row: nothing to summarize.
+                            numeric: None,
                         }],
                     },
                     spoken,
@@ -1005,6 +1010,7 @@ impl LiveChart {
                             name: props.series[series].name.clone(),
                             value,
                             value_color: None,
+                            numeric: Some(point.value),
                         }],
                     },
                     spoken,
