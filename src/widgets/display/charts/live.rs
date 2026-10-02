@@ -214,7 +214,11 @@ impl Component for LiveChart {
                 .iter()
                 .any(|series| series.visible && !series.data.is_empty());
         let target = target_values(&config);
-        let (values, _transitioning) = self.transition.values(&config, &target);
+        let (values, _) = self.transition.values(&config, &target);
+        let transition = self
+            .transition
+            .in_progress()
+            .map(|(t, from)| (t, Arc::new(from)));
         let mut latest = self.latest.lock().unwrap_or_else(|e| e.into_inner());
         // The reveal plays once, when valid data first shows; data that
         // returns after an invalid frame transitions from the last valid
@@ -262,6 +266,7 @@ impl Component for LiveChart {
                     progress,
                     selected,
                     theme,
+                    transition: transition.clone(),
                 });
                 // A picture at a new size, or a Sankey chart's new
                 // selection, is worth a short wait so a small chart never
@@ -1323,6 +1328,7 @@ mod tests {
             height: 16,
             values: &values,
             progress: 1.0,
+            transition: None,
             unicode_glyphs: true,
             selected: None,
         });
@@ -1355,6 +1361,7 @@ mod tests {
                 height: 16,
                 values: &values,
                 progress: 1.0,
+                transition: None,
                 unicode_glyphs: true,
                 selected: None,
             })

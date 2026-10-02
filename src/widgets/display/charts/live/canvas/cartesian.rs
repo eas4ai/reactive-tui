@@ -5,8 +5,8 @@
 use super::super::super::mask::{Marker, MaskCanvas, DOTS_X, DOTS_Y};
 use super::super::super::plot::{
     self, band_ticks, decimate_min_max, fit_label, format_tick, label_skip, labeled_ticks,
-    linear_ticks, mix, point_ticks, polyline, spread_ticks, text_width, value_domain, Axis, Grid,
-    Ramp, Rect, Rgba, ScaleBand, ScaleLinear, ScalePoint, SizeClass, TextSink,
+    linear_ticks, mix, point_ticks, polyline, spread_ticks, text_width, Axis, Grid, Ramp, Rect,
+    Rgba, ScaleBand, ScaleLinear, ScalePoint, SizeClass, TextSink,
 };
 use super::super::super::{
     AxisLabelPlacement, BarGrowth, ChartAxis, ChartType, DataPoint, FillStyle, LineStyle,
@@ -216,7 +216,23 @@ pub(super) fn cartesian(
     } else {
         (&props.y_axis, &props.x_axis)
     };
-    let domain = value_domain(props, value_axis)?;
+    // During a transition the automatic range moves from the range of the
+    // values it started from to the target's, at the transition's own
+    // progress, so a shape keeps its height while both grow and never dips
+    // below its previous rendering (CHT-022); a pinned range stays, and a
+    // reveal keeps the target range.
+    let domain = match job.transition {
+        Some((t, from)) => {
+            let start = plot::value_domain_with(props, value_axis, Some(from))?;
+            let end = plot::value_domain_with(props, value_axis, None)?;
+            let t = t.clamp(0.0, 1.0);
+            (
+                start.0 + (end.0 - start.0) * t,
+                start.1 + (end.1 - start.1) * t,
+            )
+        }
+        None => plot::value_domain_with(props, value_axis, None)?,
+    };
     // A scatter with numeric x places its points on a linear x axis
     // (CHT-033); one without keeps its categories.
     let numeric_x = scatter

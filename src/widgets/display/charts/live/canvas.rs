@@ -387,6 +387,10 @@ pub(super) struct Job<'a> {
     pub values: &'a [Vec<f64>],
     /// Reveal progress, 0 to 1.
     pub progress: f64,
+    /// A running transition's progress and the values it started from, so
+    /// the automatic range moves from their range to the target's in step
+    /// with `values` (CHT-022).
+    pub transition: Option<(f64, &'a [Vec<f64>])>,
     /// Whether the terminal draws braille and block glyphs (the capability
     /// report); false resolves cells with ASCII (CHT-028).
     pub unicode_glyphs: bool,
@@ -707,6 +711,7 @@ mod tests {
             height: 12,
             values: &values,
             progress: 1.0,
+            transition: None,
             unicode_glyphs: true,
             selected: None,
         });
@@ -721,6 +726,7 @@ mod tests {
             height: 12,
             values: &[],
             progress: 1.0,
+            transition: None,
             unicode_glyphs: true,
             selected: None,
         });
@@ -742,6 +748,7 @@ mod tests {
             height: 10,
             values: &values,
             progress: 1.0,
+            transition: None,
             unicode_glyphs: false,
             selected: None,
         });

@@ -22,6 +22,9 @@ pub(super) struct Job {
     pub selected: Option<(usize, usize)>,
     /// The theme generation the job's colors resolve under (THM-003).
     pub theme: u64,
+    /// A running transition's progress and the values it started from, so
+    /// the automatic range moves with the values (CHT-022).
+    pub transition: Option<(f64, Arc<Vec<Vec<f64>>>)>,
 }
 
 #[derive(Default)]
@@ -151,6 +154,10 @@ fn run(shared: Arc<Shared>) {
             height: job.height,
             values: &job.values,
             progress: job.progress,
+            transition: job
+                .transition
+                .as_ref()
+                .map(|(t, from)| (*t, from.as_slice())),
             unicode_glyphs: crate::widgets::display::charts::glyph_support(),
             selected: job.selected,
         });

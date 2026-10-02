@@ -137,6 +137,8 @@ struct TransitionState {
     /// What the chart last showed, the start of the next transition.
     current: Vec<Vec<f64>>,
     started: Option<Instant>,
+    /// The progress the current values were computed at, 0 to 1.
+    t: f64,
 }
 
 /// The value transition: from the values last shown to the new target over
@@ -160,6 +162,15 @@ impl Transition {
     /// lengths) is shown at once.
     pub(super) fn values(&self, props: &ChartProps, target: &[Vec<f64>]) -> (Vec<Vec<f64>>, bool) {
         self.at(props, target, Instant::now())
+    }
+
+    /// The running transition's progress and the values it started from, as
+    /// of the last `values` call, so the renderer's automatic range can move
+    /// with the values from the old range to the new one (CHT-022); `None`
+    /// when no transition runs.
+    pub(super) fn in_progress(&self) -> Option<(f64, Vec<Vec<f64>>)> {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        state.started.map(|_| (state.t, state.from.clone()))
     }
 
     fn at(&self, props: &ChartProps, target: &[Vec<f64>], now: Instant) -> (Vec<Vec<f64>>, bool) {
@@ -199,6 +210,7 @@ impl Transition {
             .min(1.0),
             _ => 1.0,
         };
+        state.t = t;
         let values: Vec<Vec<f64>> = if t >= 1.0 {
             state.started = None;
             target.to_vec()
