@@ -51,8 +51,17 @@ pub struct ChartsBuilder {
 /// A tick label formatter, run once at `build()` (CHT-020, CHT-034).
 type TickFormat = std::sync::Arc<dyn Fn(f64) -> String + Send + Sync>;
 
+/// A bar's gradient stops from the point, the chart's value range and a
+/// mapping from a chart value to a position along the bar (0 at its base, 1
+/// at its tip); run once at `build()`, when the range is known (CHT-013).
+type GradientStops = std::sync::Arc<
+    dyn Fn(&DataPoint, (f64, f64), &dyn Fn(f64) -> f32) -> Vec<(f32, String)> + Send + Sync,
+>;
+
 #[derive(Clone, Default)]
 struct Deferred {
+    /// Fill gradients per series index, run at `build()` (CHT-013).
+    gradients: Vec<(usize, GradientStops)>,
     /// Show the band (category) axis of a bar chart.
     label_axis: Option<bool>,
     /// Show the value axis of a bar chart.
@@ -334,6 +343,92 @@ impl ChartsBuilder {
         self
     }
 
+    /// Run `apply` over every point of the series added last.
+    fn last_points(&mut self, mut apply: impl FnMut(&mut DataPoint)) {
+        if let Some(last) = self.props.series.last_mut() {
+            for point in &mut last.data {
+                apply(point);
+            }
+        }
+    }
+
+    /// The tooltip title of every point of the series added last, from the
+    /// point, in place of its category label (CHT-018): the generic route's
+    /// form of the typed `tooltip_title`, evaluated into the points so the
+    /// routes build the same props (CHT-035).
+    pub fn tooltip_title<S: Into<String>>(mut self, title: impl Fn(&DataPoint) -> S) -> Self {
+        self.last_points(|point| point.tooltip.title = Some(title(point).into()));
+        self
+    }
+
+    /// The tooltip value text of every point of the series added last, from
+    /// the point and its value, in place of the formatted value (CHT-018).
+    pub fn tooltip_value<S: Into<String>>(mut self, value: impl Fn(&DataPoint, f64) -> S) -> Self {
+        self.last_points(|point| point.tooltip.value = Some(value(point, point.value).into()));
+        self
+    }
+
+    /// The color token of the tooltip value text of every point of the
+    /// series added last, from the point and its value (CHT-018).
+    pub fn tooltip_value_color<S: Into<String>>(
+        mut self,
+        color: impl Fn(&DataPoint, f64) -> S,
+    ) -> Self {
+        self.last_points(|point| point.tooltip.color = Some(color(point, point.value).into()));
+        self
+    }
+
+    /// The whole tooltip content of every point of the series added last,
+    /// as lines from the point, in place of the series rows (CHT-018).
+    pub fn tooltip_content<S: Into<String>>(
+        mut self,
+        content: impl Fn(&DataPoint) -> Vec<S>,
+    ) -> Self {
+        self.last_points(|point| {
+            point.tooltip.lines = content(point).into_iter().map(Into::into).collect()
+        });
+        self
+    }
+
+    /// The value-label color token of every point of the series added last,
+    /// from the point (CHT-013).
+    pub fn label_color<S: Into<String>>(mut self, color: impl Fn(&DataPoint) -> S) -> Self {
+        self.last_points(|point| point.label_color = Some(color(point).into()));
+        self
+    }
+
+    /// Each bar's own fill color token, from the point, over the series fill
+    /// (CHT-013).
+    pub fn fill_with<S: Into<String>>(mut self, fill: impl Fn(&DataPoint) -> S) -> Self {
+        self.last_points(|point| point.color = Some(fill(point).into()));
+        self
+    }
+
+    /// Each bar's fill gradient from base to tip, as (offset, color token)
+    /// stops from the point, the chart's value range and a mapping from a
+    /// chart value to a position along the bar; run once at `build()`, when
+    /// every series' values are known (CHT-013).
+    pub fn fill_gradient<S: Into<String>>(
+        mut self,
+        stops: impl Fn(&DataPoint, (f64, f64), &dyn Fn(f64) -> f32) -> Vec<(f32, S)>
+            + Send
+            + Sync
+            + 'static,
+    ) -> Self {
+        if let Some(index) = self.props.series.len().checked_sub(1) {
+            self.deferred.gradients.push((
+                index,
+                std::sync::Arc::new(move |point, range, to_bar| {
+                    stops(point, range, to_bar)
+                        .into_iter()
+                        .map(|(offset, token)| (offset, token.into()))
+                        .collect()
+                }),
+            ));
+        }
+        self
+    }
+
     /// Color token for candles that close above their open.
     pub fn bullish(mut self, token: impl Into<String>) -> Self {
         self.deferred.bullish = Some(token.into());
@@ -598,6 +693,31 @@ impl ChartsBuilder {
                         if point.color.is_none() {
                             point.color = token.clone();
                         }
+                    }
+                }
+            }
+        }
+        // Fill gradients run once, over the chart's value range: every
+        // value and zero, as the typed bar builder's (CHT-013, CHT-035).
+        if !deferred.gradients.is_empty() {
+            let range = props
+                .series
+                .iter()
+                .flat_map(|s| s.data.iter().map(|p| p.value))
+                .filter(|v| v.is_finite())
+                .fold((0.0f64, 0.0f64), |(low, high), v| (low.min(v), high.max(v)));
+            for (index, stops) in &deferred.gradients {
+                if let Some(series) = props.series.get_mut(*index) {
+                    for point in &mut series.data {
+                        let value = point.value;
+                        let to_bar = move |v: f64| -> f32 {
+                            if value == 0.0 {
+                                0.0
+                            } else {
+                                (v / value).clamp(0.0, 1.0) as f32
+                            }
+                        };
+                        point.gradient = stops(point, range, &to_bar);
                     }
                 }
             }

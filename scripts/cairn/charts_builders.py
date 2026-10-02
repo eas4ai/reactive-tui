@@ -54,11 +54,12 @@ ROUTES = {
     "Radar": ("radar", ["radar_chart", "radar"]),
     "Sankey": ("sankey", ["sankey_chart", "sankey"]),
 }
-# Typed-builder methods that are data accessors or per-series and per-point
-# settings, not chart-level options.
-NOT_OPTIONS = {"new", "build", "render", "x", "y", "band", "value", "open", "high", "low", "close", "name", "stroke",
-               "fill", "fill_with", "fill_gradient", "label", "label_color", "color", "bullish", "bearish", "tooltip_title",
-               "tooltip_value", "tooltip_value_color", "tooltip_content", "value_label", "node_label", "node_color"}
+# Typed-builder methods that read the datum into the points (the generic
+# routes take finished DataPoints instead), plus the constructor and the
+# builders' own build/render. Every other typed method is an option CHT-035
+# wants on both generic builders, per-point ones (tooltip_title, label_color,
+# fill_gradient, ...) over `&DataPoint`.
+NOT_OPTIONS = {"new", "build", "render", "x", "y", "band", "value", "open", "high", "low", "close", "label"}
 # A typed option whose generic-builder method has another name.
 ALIASES = {"alignment": ["growth", "alignment"], "dot": ["dots", "dot"], "natural": ["curve"], "linear": ["curve"],
            "step_after": ["curve"], "interactive": ["show_tooltips", "interactive"]}
