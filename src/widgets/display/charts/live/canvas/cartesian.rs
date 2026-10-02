@@ -1116,9 +1116,12 @@ pub(super) fn cartesian(
                                 " "
                             }
                         }
+                        // A custom tile outside ASCII is `#` in ASCII mode
+                        // (CHT-028).
                         _ => tiles
                             .get((col + row) % tiles.len().max(1))
                             .copied()
+                            .filter(|tile| !glyphs.ascii || tile.is_ascii())
                             .unwrap_or(if glyphs.ascii { "#" } else { "▒" }),
                     };
                     text.text(col, row, 1, mark, fill_tint);

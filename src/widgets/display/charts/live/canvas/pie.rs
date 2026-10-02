@@ -10,7 +10,7 @@
 
 use super::super::super::mask::{MaskCanvas, DOTS_X, DOTS_Y};
 use super::super::super::plot::{
-    fit_label, LegendEntry, Rect, Rgba, ScaleLinear, SizeClass, TextSink,
+    ellipsis, fit_label_with, LegendEntry, Rect, Rgba, ScaleLinear, SizeClass, TextSink,
 };
 use super::super::super::{ChartProps, ChartType};
 use super::{Job, Picture, RadialHit, RadialSlice, TextLayer};
@@ -267,6 +267,7 @@ pub(super) fn pie(
             gap,
             widest_allowed,
             labels,
+            job.props.ascii || !job.unicode_glyphs,
         )
     } else {
         HashSet::new()
@@ -294,6 +295,7 @@ fn place_labels(
     gap: usize,
     widest_allowed: usize,
     labels: Vec<SliceLabel>,
+    ascii: bool,
 ) -> HashSet<(usize, usize)> {
     let row_end = area.y + area.h;
     let col_end = area.x + area.w;
@@ -379,7 +381,7 @@ fn place_labels(
         }) else {
             continue;
         };
-        let cut = fit_label(&label, width);
+        let cut = fit_label_with(&label, width, ellipsis(ascii));
         taken[side].push(row);
         labelled.insert(key);
         text.text(column, row, width, &cut, color);

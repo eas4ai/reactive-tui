@@ -2391,6 +2391,66 @@ fn cht_028_sankey_resolves_with_ascii() {
     );
 }
 
+/// CHT-028: with ASCII forced, a cut title, legend name, tick label or
+/// tooltip text ends in `~`, never `…`, and a custom area pattern tile
+/// outside ASCII is drawn as `#`: no glyph the chart draws is outside ASCII.
+#[test]
+fn cht_028_cut_labels_and_custom_patterns_stay_ascii() {
+    use reactive_tui::event::types::{MouseEvent, MouseEventKind, Position};
+    use reactive_tui::widgets::display::FillStyle;
+    let size = (40u16, 12u16);
+    let long = "a label far longer than the forty columns of this chart can hold";
+    let mut p = props(ChartType::Area, size, &[2.0, 8.0, 5.0, 7.0], 10.0);
+    p.ascii = true;
+    p.title = Some(long.into());
+    p.series[0].name = long.into();
+    p.series[0].fill_style = FillStyle::Pattern("\u{2592}".into());
+    p.series[0].fill_opacity = 1.0;
+    p.series[0].data[1].tooltip.title = Some(long.into());
+    p.x_axis.show_labels = true;
+    p.x_axis.custom_labels = (0..4).map(|i| format!("{long} {i}")).collect();
+    p.legend = ChartLegend {
+        visible: true,
+        position: LegendPosition::Bottom,
+        ..Default::default()
+    };
+    let frames = app_input::run(
+        Root(Element::typed::<Chart>(p)),
+        size,
+        vec![
+            (2, None),
+            (
+                2,
+                Some(Event::Mouse(MouseEvent::new(
+                    MouseEventKind::Move,
+                    Position::cell(13, 4),
+                ))),
+            ),
+            (3, None),
+        ],
+    );
+    for frame in &frames {
+        let outside: Vec<char> = frame.text.chars().filter(|c| !c.is_ascii()).collect();
+        assert!(
+            outside.is_empty(),
+            "ASCII mode draws nothing outside ASCII, found {:?}:\n{}",
+            &outside[..outside.len().min(8)],
+            frame.text
+        );
+    }
+    let last = frames.last().unwrap();
+    assert!(
+        last.text.contains('~'),
+        "a cut label ends in ~:\n{}",
+        last.text
+    );
+    assert!(
+        count(last, |c| c == '#') > 0,
+        "the custom pattern tile is drawn as #:\n{}",
+        last.text
+    );
+}
+
 /// CHT-012: an area's stroke and fill colors are independent, and dots are
 /// off until a series turns them on.
 #[test]

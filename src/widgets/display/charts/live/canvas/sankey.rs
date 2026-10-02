@@ -10,7 +10,7 @@
 
 use super::super::super::mask::{MaskCanvas, DOTS_X, DOTS_Y};
 use super::super::super::plot::sankey::Sankey;
-use super::super::super::plot::{fit_label, Rect, Rgba, SizeClass, TextSink};
+use super::super::super::plot::{ellipsis, fit_label_with, Rect, Rgba, SizeClass, TextSink};
 use super::super::super::{ChartProps, SankeyOptions};
 use super::{Job, Picture, SankeyHit, TextLayer};
 use unicode_width::UnicodeWidthStr;
@@ -143,6 +143,8 @@ pub(super) fn sankey(
 ) {
     let props = job.props;
     let options = &props.sankey;
+    // Labels cut to their room end in `~` in ASCII mode (CHT-028).
+    let ascii = props.ascii || !job.unicode_glyphs;
     let count = props.series[0].data.len();
     let generator = generator(options);
     // validate() reported a missing node or a cycle before any shape.
@@ -368,7 +370,13 @@ pub(super) fn sankey(
             if cut_to_nothing || !(area.y..area.bottom()).contains(&row) {
                 continue;
             }
-            text.text(start, row, width, &fit_label(line, width), *color);
+            text.text(
+                start,
+                row,
+                width,
+                &fit_label_with(line, width, ellipsis(ascii)),
+                *color,
+            );
         }
     }
 }

@@ -20,8 +20,24 @@ pub fn text_width(text: &str) -> usize {
     UnicodeWidthStr::width(text)
 }
 
-/// `text` cut to at most `max` cells, ending in an ellipsis when cut.
+/// The glyph that marks a cut label: `…`, or `~` in ASCII mode (CHT-028).
+pub fn ellipsis(ascii: bool) -> &'static str {
+    if ascii {
+        "~"
+    } else {
+        "…"
+    }
+}
+
+/// Cut `text` to at most `max` cells, ending a cut text with `…`.
 pub fn fit_label(text: &str, max: usize) -> String {
+    fit_label_with(text, max, ellipsis(false))
+}
+
+/// Cut `text` to at most `max` cells, ending a cut text with `ellipsis` (one
+/// cell wide), so an ASCII chart never cuts a label with a Unicode glyph
+/// (CHT-028).
+pub fn fit_label_with(text: &str, max: usize, ellipsis: &str) -> String {
     if text_width(text) <= max {
         return text.to_string();
     }
@@ -38,7 +54,7 @@ pub fn fit_label(text: &str, max: usize) -> String {
         out.push_str(grapheme);
         width += w;
     }
-    out.push('…');
+    out.push_str(ellipsis);
     out
 }
 
@@ -163,7 +179,7 @@ impl Axis {
                         continue;
                     }
                     let row = row.min(plot.h as f64 - 1.0);
-                    let label = fit_label(&tick.label, rect.w);
+                    let label = fit_label_with(&tick.label, rect.w, ellipsis(self.ascii));
                     let width = text_width(&label);
                     let x = rect.x + rect.w.saturating_sub(width);
                     sink.text(x, plot.y + row as usize, width, &label, color);
@@ -188,7 +204,7 @@ impl Axis {
                         continue;
                     }
                     let col = col.min(plot.w as f64 - 1.0);
-                    let label = fit_label(&tick.label, plot.w);
+                    let label = fit_label_with(&tick.label, plot.w, ellipsis(self.ascii));
                     let width = text_width(&label);
                     let centred = (col as usize).saturating_sub(width / 2);
                     let start = centred.min(plot.w.saturating_sub(width));
@@ -200,7 +216,7 @@ impl Axis {
                 }
                 if let Some(title) = &self.title {
                     if rect.h > 1 {
-                        let title = fit_label(title, plot.w);
+                        let title = fit_label_with(title, plot.w, ellipsis(self.ascii));
                         let width = text_width(&title);
                         sink.text(
                             plot.x + plot.w.saturating_sub(width) / 2,
@@ -283,6 +299,7 @@ mod tests {
     fn labels_truncate_with_an_ellipsis() {
         assert_eq!(fit_label("hello", 5), "hello");
         assert_eq!(fit_label("hello world", 6), "hello…");
+        assert_eq!(fit_label_with("hello world", 6, ellipsis(true)), "hello~");
         assert_eq!(fit_label("hi", 0), "");
     }
 

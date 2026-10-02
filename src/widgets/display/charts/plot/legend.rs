@@ -1,7 +1,7 @@
 //! Legend layout: a swatch and a name per series, on one row (medium) or
 //! wrapped over several rows (large), or stacked when placed beside the plot.
 
-use super::axis::{fit_label, text_width};
+use super::axis::{ellipsis, fit_label, fit_label_with, text_width};
 use super::layout::Rect;
 use super::{Rgba, TextSink};
 
@@ -110,7 +110,7 @@ impl Legend {
     /// Draw entries one per row inside `rect`.
     pub fn draw_stacked(&self, sink: &mut dyn TextSink, rect: Rect) {
         for (row, entry) in self.entries.iter().take(rect.h).enumerate() {
-            let name = fit_label(&entry.name, rect.w.saturating_sub(2));
+            let name = fit_label_with(&entry.name, rect.w.saturating_sub(2), ellipsis(self.ascii));
             sink.text(rect.x, rect.y + row, 1, self.swatch(), entry.color);
             sink.text(
                 rect.x + 2,
@@ -144,7 +144,7 @@ impl Legend {
         let mut x = 0;
         let mut row = 0;
         for (index, entry) in self.entries.iter().enumerate() {
-            let name = fit_label(&entry.name, max_name);
+            let name = fit_label_with(&entry.name, max_name, ellipsis(self.ascii));
             let item = 2 + text_width(&name);
             if x > 0 && x + 2 + item > rect.w {
                 if !wrap {
