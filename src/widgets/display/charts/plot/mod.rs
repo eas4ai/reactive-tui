@@ -34,8 +34,8 @@ pub use sankey::{
 };
 pub use scale::{ScaleBand, ScaleLinear, ScaleOrdinal, ScalePoint};
 pub use tick::{
-    band_ticks, format_tick, label_skip, labeled_ticks, linear_ticks, nice_step, point_ticks,
-    spread_ticks, Tick,
+    band_ticks, format_tick, label_skip, labeled_ticks, linear_ticks, nice_domain, nice_step,
+    point_ticks, spread_ticks, tick_step, Tick,
 };
 pub use tooltip::{Tooltip, TooltipBox, TooltipLine, TooltipRow, TooltipStyle, MAX_ROWS};
 

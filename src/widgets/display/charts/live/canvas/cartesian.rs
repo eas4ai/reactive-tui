@@ -182,13 +182,16 @@ pub(super) fn cartesian(
             low = low.min(x);
             high = high.max(x);
         }
-        if low > high {
+        let domain = if low > high {
             (0.0, 1.0)
         } else if low == high {
             (low - 1.0, high + 1.0)
         } else {
             (low, high)
-        }
+        };
+        // Exactly the x tick count of round ticks, as on the value axis
+        // (CHT-034): the free ends widen to a round step grid.
+        plot::nice_domain(domain, (false, false), category_axis.tick_count)
     });
     let axes = class.has_axes();
     if let Some(title) = &props.y_axis.title {

@@ -35,8 +35,9 @@ pub fn nice_step(span: f64, count: usize) -> f64 {
     factor * magnitude
 }
 
-/// Format a tick value: integers without decimals, other values with one,
-/// and scientific notation far outside the readable range.
+/// Format a tick value: integers without decimals, other values with the
+/// fewest decimals (up to three) that show them exactly, and scientific
+/// notation far outside the readable range.
 pub fn format_tick(value: f64) -> String {
     if !value.is_finite() {
         return String::new();
@@ -45,53 +46,128 @@ pub fn format_tick(value: f64) -> String {
         return format!("{value:.1e}");
     }
     if (value - value.round()).abs() < 1e-9 {
-        format!("{:.0}", value.round() + 0.0)
-    } else {
-        format!("{value:.1}")
+        return format!("{:.0}", value.round() + 0.0);
+    }
+    let decimals: usize = (1..=3)
+        .find(|d: &usize| {
+            let scaled = value * 10f64.powi(*d as i32);
+            (scaled - scaled.round()).abs() < 1e-6
+        })
+        .unwrap_or(2);
+    format!("{value:.decimals$}")
+}
+
+/// The tick steps an automatic axis may use, times a power of ten: round
+/// values that keep the headroom past the data small.
+const STEPS: [f64; 5] = [1.0, 2.0, 2.5, 4.0, 5.0];
+
+/// The smallest step from [`STEPS`] (times a power of ten) that covers
+/// `span` in `intervals` steps, so an axis of `intervals + 1` ticks lands on
+/// round values (CHT-034).
+pub fn tick_step(span: f64, intervals: usize) -> f64 {
+    if span.is_nan() || span <= 0.0 || !span.is_finite() {
+        return 1.0;
+    }
+    let raw = span / intervals.max(1) as f64;
+    let magnitude = 10f64.powf(raw.log10().floor());
+    STEPS
+        .iter()
+        .map(|s| s * magnitude)
+        .find(|step| *step >= raw * (1.0 - 1e-9))
+        .unwrap_or(10.0 * magnitude)
+}
+
+/// The step after `step` in [`STEPS`] order.
+fn next_step(step: f64) -> f64 {
+    let magnitude = 10f64.powf(step.log10().floor());
+    let residual = step / magnitude;
+    STEPS
+        .iter()
+        .map(|s| s * magnitude)
+        .find(|next| *next > residual * magnitude * (1.0 + 1e-9))
+        .unwrap_or(10.0 * magnitude)
+}
+
+/// `domain` widened so that `count` ticks fall on round values: a free end
+/// moves out to a multiple of a step from [`STEPS`] such that `count - 1`
+/// steps cover the data (CHT-034). `pinned` says which ends the builder set;
+/// both pinned, or fewer than two ticks, leaves the domain alone.
+pub fn nice_domain(domain: (f64, f64), pinned: (bool, bool), count: usize) -> (f64, f64) {
+    let (low, high) = domain;
+    if count < 2
+        || (pinned.0 && pinned.1)
+        || high.is_nan()
+        || high <= low
+        || !(high - low).is_finite()
+    {
+        return domain;
+    }
+    let intervals = (count - 1) as f64;
+    let mut step = tick_step(high - low, count - 1);
+    match pinned {
+        (true, false) => (low, low + intervals * step),
+        (false, true) => (high - intervals * step, high),
+        _ => loop {
+            let start = (low / step).floor() * step;
+            let end = start + intervals * step;
+            if end >= high * (1.0 - 1e-9) - step * 1e-9 {
+                // Zero stays zero and the ends read as the step's multiples.
+                let start = if start.abs() < step * 1e-9 {
+                    0.0
+                } else {
+                    start
+                };
+                return (start, end);
+            }
+            step = next_step(step);
+        },
     }
 }
 
-/// Ticks at round values across a linear scale, about `count` of them,
-/// always including the domain ends' nearest round values inside the domain.
+/// Exactly `count` ticks spread evenly from the domain's low end to its high
+/// end, labels formatted with [`format_tick`]; a `count` under two gives the
+/// low end alone. An automatic domain is widened by [`nice_domain`] first so
+/// these land on round values; a pinned one divides as asked (CHT-034).
 pub fn linear_ticks(scale: &ScaleLinear, count: usize) -> Vec<Tick> {
     let (a, b) = scale.domain();
     let (low, high) = (a.min(b), a.max(b));
-    if count == 0 || (high - low).is_nan() || high <= low {
-        return vec![Tick {
-            value: low,
-            position: scale.map(low),
-            label: format_tick(low),
-        }];
+    let tick = |value: f64| Tick {
+        value,
+        position: scale.map(value),
+        label: format_tick(value),
+    };
+    if count < 2 || (high - low).is_nan() || high <= low {
+        return vec![tick(low)];
     }
-    let step = nice_step(high - low, count);
-    let first = (low / step).ceil();
-    let last = (high / step).floor();
-    let mut ticks = Vec::new();
-    let mut i = first;
-    while i <= last && ticks.len() < 1000 {
-        let value = i * step;
-        let value = if value.abs() < step * 1e-9 {
-            0.0
-        } else {
-            value
-        };
-        ticks.push(Tick {
-            value,
-            position: scale.map(value),
-            label: format_tick(value),
-        });
-        i += 1.0;
+    let intervals = count - 1;
+    let step = (high - low) / intervals as f64;
+    (0..=intervals)
+        .map(|i| {
+            let value = if i == intervals {
+                high
+            } else {
+                low + step * i as f64
+            };
+            tick(snap(value, step))
+        })
+        .collect()
+}
+
+/// `value` rounded to two decimals past `step`'s magnitude, so a 0.1 step
+/// reads 0.3 rather than 0.30000000000000004, and a value within rounding of
+/// zero is zero.
+fn snap(value: f64, step: f64) -> f64 {
+    if step.is_nan() || step <= 0.0 || !step.is_finite() {
+        return value;
     }
-    if ticks.is_empty() {
-        for value in [low, high] {
-            ticks.push(Tick {
-                value,
-                position: scale.map(value),
-                label: format_tick(value),
-            });
-        }
+    let decimals = ((-step.log10().floor()).max(0.0) as i32 + 2).min(12);
+    let factor = 10f64.powi(decimals);
+    let snapped = (value * factor).round() / factor;
+    if snapped.abs() < step * 1e-9 {
+        0.0
+    } else {
+        snapped
     }
-    ticks
 }
 
 /// Ticks at fixed `labels` spread evenly across a linear scale, for axes with
@@ -245,16 +321,43 @@ mod tests {
     }
 
     #[test]
-    fn linear_ticks_land_on_round_values_inside_the_domain() {
+    fn linear_ticks_are_exactly_the_count_asked() {
         let scale = ScaleLinear::new((0.0, 10.0), (0.0, 100.0));
         let ticks = linear_ticks(&scale, 5);
         let values: Vec<f64> = ticks.iter().map(|t| t.value).collect();
-        assert_eq!(values, vec![0.0, 2.0, 4.0, 6.0, 8.0, 10.0]);
-        assert_eq!(ticks[1].position, 20.0);
-        assert_eq!(ticks[0].label, "0");
-        let negative = linear_ticks(&ScaleLinear::new((-5.0, 5.0), (0.0, 10.0)), 4);
-        assert!(negative.iter().any(|t| t.value == 0.0 && t.label == "0"));
-        assert!(negative.iter().all(|t| t.value >= -5.0 && t.value <= 5.0));
+        assert_eq!(values, vec![0.0, 2.5, 5.0, 7.5, 10.0]);
+        assert_eq!(ticks[1].position, 25.0);
+        assert_eq!(ticks[1].label, "2.5");
+        // A tick count of 3 over 0 to 8 is three ticks, never five
+        // (CHT-034's falsifier).
+        let three = linear_ticks(&ScaleLinear::new((0.0, 8.0), (0.0, 1.0)), 3);
+        let values: Vec<f64> = three.iter().map(|t| t.value).collect();
+        assert_eq!(values, vec![0.0, 4.0, 8.0]);
+        let negative = linear_ticks(&ScaleLinear::new((-5.0, 5.0), (0.0, 10.0)), 3);
+        assert_eq!(negative[1].value, 0.0);
+        assert_eq!(negative[1].label, "0");
+        assert_eq!(linear_ticks(&scale, 1).len(), 1);
+        let tenths = linear_ticks(&ScaleLinear::new((0.0, 0.3), (0.0, 1.0)), 4);
+        assert_eq!(tenths[1].value, 0.1);
+        assert_eq!(tenths[3].label, "0.3");
+    }
+
+    #[test]
+    fn nice_domain_widens_a_free_end_to_round_steps_for_the_count() {
+        assert_eq!(tick_step(8.0, 4), 2.0);
+        assert_eq!(tick_step(10.0, 4), 2.5);
+        assert_eq!(tick_step(13.0, 4), 4.0);
+        assert_eq!(tick_step(100.0, 2), 50.0);
+        assert_eq!(tick_step(0.3, 3), 0.1);
+        assert_eq!(nice_domain((0.0, 8.0), (false, false), 5), (0.0, 8.0));
+        assert_eq!(nice_domain((0.0, 10.0), (false, false), 5), (0.0, 10.0));
+        assert_eq!(nice_domain((0.0, 13.0), (false, false), 5), (0.0, 16.0));
+        assert_eq!(nice_domain((-3.0, 8.0), (false, false), 5), (-4.0, 12.0));
+        assert_eq!(nice_domain((-7.0, 7.0), (false, false), 5), (-8.0, 8.0));
+        assert_eq!(nice_domain((0.0, 7.0), (true, false), 5), (0.0, 8.0));
+        assert_eq!(nice_domain((0.0, 7.0), (false, true), 5), (-1.0, 7.0));
+        assert_eq!(nice_domain((0.0, 7.0), (true, true), 5), (0.0, 7.0));
+        assert_eq!(nice_domain((0.0, 7.0), (false, false), 1), (0.0, 7.0));
     }
 
     #[test]
@@ -262,6 +365,8 @@ mod tests {
         assert_eq!(format_tick(3.0), "3");
         assert_eq!(format_tick(-0.0), "0");
         assert_eq!(format_tick(2.5), "2.5");
+        assert_eq!(format_tick(0.25), "0.25");
+        assert_eq!(format_tick(8.0 / 3.0), "2.67");
         assert_eq!(format_tick(1e7), "1.0e7");
         assert_eq!(format_tick(f64::NAN), "");
     }
