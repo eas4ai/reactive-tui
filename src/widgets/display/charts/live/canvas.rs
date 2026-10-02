@@ -288,7 +288,10 @@ pub(super) fn validate(props: &ChartProps) -> Result<(), &'static str> {
             return Err("Invalid series color");
         }
         for point in &series.data {
+            // A value, a numeric x (CHT-033) or a candle's four values that
+            // is NaN or infinite is an error, never a shape (CHT-026).
             if !point.value.is_finite()
+                || point.x.is_some_and(|x| !x.is_finite())
                 || point.candle.is_some_and(|c| {
                     ![c.open, c.high, c.low, c.close]
                         .iter()
