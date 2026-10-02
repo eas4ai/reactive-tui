@@ -2281,13 +2281,16 @@ fn cht_012_area_stroke_and_fill_are_independent_and_dots_default_off() {
         !line.dots,
         "a line's dots are off until .dot() turns them on"
     );
-    let area = AreaChartBuilder::new(data)
+    let mut area = AreaChartBuilder::new(data)
         .x(|p: &(usize, f64)| format!("p{}", p.0))
         .y(|p: &(usize, f64)| p.1)
         .stroke("chart-1")
         .fill("chart-3")
         .size(size.0, size.1)
         .build();
+    // At full opacity the fill shows its own color exactly; the default
+    // 0.4 blends it toward the background.
+    area.series[0].fill_opacity = 1.0;
     let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(area)), size, 2)
         .pop()
         .unwrap();
@@ -2493,7 +2496,7 @@ fn cht_033_scatter_places_points_by_x_value() {
     let size = (40u16, 12u16);
     let data = vec![(1.0f64, 5.0f64), (2.0, 5.0), (10.0, 5.0)];
     let scatter = ScatterChartBuilder::new(data)
-        .x(|p: &(f64, f64)| p.0.to_string())
+        .x(|p: &(f64, f64)| p.0)
         .y(|p: &(f64, f64)| p.1)
         .size(size.0, size.1)
         .x_axis(false)

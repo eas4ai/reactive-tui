@@ -16,7 +16,7 @@ NUM = r"\d+(?:\.\d+)?(?:f32|f64)?"
 HEX = re.compile(rf'"#[0-9a-fA-F]{{3,8}}"|0x[0-9a-fA-F]{{6}}\b|Rgba?::new\(\s*\d|Rgba?\(\s*\d|\(\s*{NUM}\s*,\s*{NUM}\s*,\s*{NUM}\s*,\s*{NUM}\s*\)')
 CHART_DIRS = ("src/widgets/display/charts.rs", "src/widgets/display/charts", "src/builder/widgets/chart.rs")
 THEME_VARS = ["--color-chart-1", "--color-chart-2", "--color-chart-3", "--color-chart-4", "--color-chart-5",
-              "--color-chart-bullish", "--color-chart-bearish"]
+              "--color-chart-bullish", "--color-chart-bearish", "--color-chart-grid"]
 
 
 def main() -> int:

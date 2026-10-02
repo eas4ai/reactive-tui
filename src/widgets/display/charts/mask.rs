@@ -878,7 +878,9 @@ impl MaskCanvas {
             Some(match (glyphs, marker) {
                 (GlyphSet::Unicode, Marker::Dot) => "•",
                 (GlyphSet::Unicode, Marker::Disc) => "●",
-                (GlyphSet::Ascii, _) => "o",
+                // CHT-028: ASCII markers come from the mask's own glyph set.
+                (GlyphSet::Ascii, Marker::Dot) => ".",
+                (GlyphSet::Ascii, Marker::Disc) => "#",
             })
         } else if cell.dots != 0 {
             Some(match glyphs {

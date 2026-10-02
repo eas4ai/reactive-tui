@@ -68,6 +68,9 @@ struct JobKey {
     progress: f64,
     /// The selection the shapes show (a Sankey chart's faded links).
     selected: Option<(usize, usize)>,
+    /// How many themes had been set when the picture was drawn: colors
+    /// resolve on the worker, so a new theme needs a new picture (THM-003).
+    theme: u64,
 }
 
 impl PartialEq for JobKey {
@@ -79,6 +82,7 @@ impl PartialEq for JobKey {
             && self.height == other.height
             && self.progress.to_bits() == other.progress.to_bits()
             && self.selected == other.selected
+            && self.theme == other.theme
             && (Arc::ptr_eq(&self.values, &other.values)
                 || (self.values.len() == other.values.len()
                     && self.values.iter().zip(other.values.iter()).all(|(a, b)| {
@@ -102,17 +106,34 @@ pub(super) struct LiveChart {
     version: u64,
     seed: ChartState,
     worker: Option<worker::Worker>,
+    /// Why the worker could not start, shown in the chart's area (CHT-026).
+    worker_error: Option<String>,
     latest: Mutex<Latest>,
     reveal: motion::Reveal,
     transition: motion::Transition,
 }
 
-/// Per-series values from the props, the transition's target.
+/// Per-series values from the props, the transition's target. A candle
+/// series carries open, high, low and close for every point, four values
+/// per point in that order, so the reveal and the transitions move whole
+/// candles (CHT-014, CHT-022); the renderer reads them back per point.
 fn target_values(props: &ChartProps) -> Vec<Vec<f64>> {
     props
         .series
         .iter()
-        .map(|s| s.data.iter().map(|p| p.value).collect())
+        .map(|s| {
+            if s.data.iter().any(|p| p.candle.is_some()) {
+                s.data
+                    .iter()
+                    .flat_map(|p| {
+                        p.candle
+                            .map_or([p.value; 4], |c| [c.open, c.high, c.low, c.close])
+                    })
+                    .collect()
+            } else {
+                s.data.iter().map(|p| p.value).collect()
+            }
+        })
         .collect()
 }
 
@@ -121,12 +142,17 @@ impl Component for LiveChart {
     type State = ChartState;
 
     fn new(props: Self::Props) -> Self {
+        let (worker, worker_error) = match worker::Worker::new() {
+            Ok(worker) => (Some(worker), None),
+            Err(error) => (None, Some(error.to_string())),
+        };
         Self {
             viewport: None,
             config: props.config,
             version: 0,
             seed: props.seed,
-            worker: worker::Worker::new().ok(),
+            worker,
+            worker_error,
             latest: Mutex::new(Latest {
                 key: None,
                 next_id: 0,
@@ -214,6 +240,7 @@ impl Component for LiveChart {
             values: Arc::new(values),
             progress,
             selected,
+            theme: crate::theme::Theme::generation(),
         };
         // Before its first layout the chart has no size and nothing to draw.
         let drawable = width > 0 && height > 0;
@@ -262,12 +289,20 @@ impl Component for LiveChart {
             .unwrap_or((None, String::new()));
         // The whole picture is one element: the painter blits its cell grid
         // (BAR-005). The tooltip and crosshair are patched into a copy.
+        let ascii = config.ascii || !super::glyph_support();
         let grid = picture.as_ref().map(|picture| match &tooltip {
-            Some(overlay) => Arc::new(overlay_grid(picture, overlay)),
+            Some(overlay) => Arc::new(overlay_grid(picture, overlay, ascii)),
             None => picture.grid.clone(),
         });
         let insets = self.viewport.map_or([0.0; 4], |v| v.insets);
-        let mut content = ElementBuilder::new(ElementType::Text(String::new()))
+        // A chart whose worker could not start says so where its picture
+        // would be, instead of staying blank (CHT-026).
+        let message = self
+            .worker_error
+            .as_ref()
+            .map(|error| format!("Chart worker could not start: {error}"))
+            .unwrap_or_default();
+        let mut content = ElementBuilder::new(ElementType::Text(message))
             .styles(
                 StyleBuilder::new()
                     .position_absolute()
@@ -304,8 +339,18 @@ impl Component for LiveChart {
             .children(vec![content])
             .build();
         element.focus = Some(FocusProps::button());
+        // The screen reader is told the chart's name from `aria_label`,
+        // else its title, with no fixed English name; its type, series and
+        // state in the description; the selection as its value; and each
+        // visible series as a child (CHT-036).
         let mut node = crate::accessibility::Node::new(crate::accessibility::Role::Image);
-        node.set_label(self.description(&config, &announcement));
+        if let Some(name) = config.aria_label.as_deref().or(config.title.as_deref()) {
+            node.set_label(name);
+        }
+        node.set_description(self.description(&config, &announcement));
+        if !announcement.is_empty() {
+            node.set_value(announcement.clone());
+        }
         // The worker is still drawing the picture for this size, or for a
         // Sankey chart's new selection; its finish signal redraws the chart.
         let stale = picture
@@ -315,6 +360,18 @@ impl Component for LiveChart {
             node.set_busy();
         }
         element.metadata.accessibility = Some(node);
+        for (index, series) in config.series.iter().enumerate().filter(|(_, s)| s.visible) {
+            let mut child = Element::text(format!("{}, {} points", series.name, series.data.len()))
+                .with_key(format!("chart-series-{index}"))
+                .class("sr-only");
+            let mut item = crate::accessibility::Node::new(crate::accessibility::Role::ListItem);
+            item.set_label(format!("{}, {} points", series.name, series.data.len()));
+            if hovered.is_some_and(|(s, _)| s == index) {
+                item.set_selected(true);
+            }
+            child.metadata.accessibility = Some(item);
+            element = element.with_child(child);
+        }
         if config.show_tooltips && !announcement.is_empty() {
             element = element.with_child(
                 Element::text(announcement)
@@ -383,6 +440,8 @@ impl Component for LiveChart {
                         key.code,
                         KeyCode::Left
                             | KeyCode::Right
+                            | KeyCode::Up
+                            | KeyCode::Down
                             | KeyCode::Home
                             | KeyCode::End
                             | KeyCode::Escape
@@ -390,6 +449,40 @@ impl Component for LiveChart {
             {
                 if key.code == KeyCode::Escape {
                     state.hovered_point = None;
+                    state.tooltip = None;
+                    return EventResult::Consumed;
+                }
+                let radial = matches!(
+                    props.config.chart_type,
+                    ChartType::Pie | ChartType::Donut | ChartType::Sankey
+                );
+                if matches!(key.code, KeyCode::Up | KeyCode::Down) {
+                    if radial {
+                        return EventResult::Ignored;
+                    }
+                    // Up and Down choose the series the selection follows,
+                    // keeping the index (CHT-036).
+                    let visible: Vec<usize> = props
+                        .config
+                        .series
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, s)| s.visible && !s.data.is_empty())
+                        .map(|(i, _)| i)
+                        .collect();
+                    if visible.is_empty() {
+                        return EventResult::Ignored;
+                    }
+                    let (series, index) = state.hovered_point.unwrap_or((visible[0], 0));
+                    let at = visible.iter().position(|s| *s == series).unwrap_or(0);
+                    let next = if key.code == KeyCode::Down {
+                        (at + 1).min(visible.len() - 1)
+                    } else {
+                        at.saturating_sub(1)
+                    };
+                    let series = visible[next];
+                    let last = props.config.series[series].data.len() - 1;
+                    state.hovered_point = Some((series, index.min(last)));
                     state.tooltip = None;
                     return EventResult::Consumed;
                 }
@@ -440,14 +533,44 @@ impl Component for LiveChart {
                 if count == 0 {
                     return EventResult::Ignored;
                 }
-                let current = state.hovered_point.map(|(_, p)| p);
-                let index = match key.code {
-                    KeyCode::Home => 0,
-                    KeyCode::End => count - 1,
-                    KeyCode::Left => current.unwrap_or(1).saturating_sub(1),
-                    _ => current.map_or(0, |i| (i + 1).min(count - 1)),
+                // The keys walk the followed series (CHT-036): its points in x
+                // order on a scatter with numeric x, by index otherwise; with
+                // no series followed yet, the first that has the index.
+                let followed = state
+                    .hovered_point
+                    .map(|(s, _)| s)
+                    .filter(|s| props.config.series.get(*s).is_some_and(|d| d.visible));
+                let order: Vec<usize> = match followed {
+                    Some(s) => {
+                        let data = &props.config.series[s].data;
+                        let mut order: Vec<usize> = (0..data.len()).collect();
+                        if data.iter().any(|p| p.x.is_some()) {
+                            order.sort_by(|a, b| {
+                                let x = |i: usize| data[i].x.unwrap_or(i as f64);
+                                x(*a).total_cmp(&x(*b))
+                            });
+                        }
+                        order
+                    }
+                    None => (0..count).collect(),
                 };
-                let series = first_series_with(&props.config, index).unwrap_or(0);
+                if order.is_empty() {
+                    return EventResult::Ignored;
+                }
+                let last = order.len() - 1;
+                let current = state
+                    .hovered_point
+                    .and_then(|(_, p)| order.iter().position(|i| *i == p));
+                let at = match key.code {
+                    KeyCode::Home => 0,
+                    KeyCode::End => last,
+                    KeyCode::Left => current.unwrap_or(1).saturating_sub(1),
+                    _ => current.map_or(0, |i| (i + 1).min(last)),
+                };
+                let index = order[at];
+                let series = followed
+                    .or_else(|| first_series_with(&props.config, index))
+                    .unwrap_or(0);
                 state.hovered_point = Some((series, index));
                 state.tooltip = None;
                 EventResult::Consumed
@@ -614,6 +737,8 @@ struct Overlay {
     at: (usize, usize),
     crosshair: Option<(usize, usize, usize)>,
     band: Option<(usize, usize, usize)>,
+    /// The cell of a scatter's selected point, ringed (CHT-018).
+    ring: Option<(usize, usize)>,
     /// A radial selection's ray from the center, in cells.
     ray: Vec<(usize, usize)>,
 }
@@ -681,22 +806,109 @@ impl LiveChart {
         Some((series, index))
     }
 
-    /// The tooltip rows for `index` and their one-line announcement.
-    fn tooltip_rows(&self, props: &ChartProps, index: usize) -> (Tooltip, String) {
+    /// The title row of a point's tooltip: the point's own title, else its
+    /// label, else its numeric x, else its index (CHT-018).
+    fn point_title(props: &ChartProps, series: usize, index: usize) -> String {
+        let point = props.series.get(series).and_then(|s| s.data.get(index));
+        point
+            .and_then(|p| p.tooltip.title.clone())
+            .or_else(|| point.and_then(|p| p.label.clone()))
+            .or_else(|| point.and_then(|p| p.x).map(plot::format_tick))
+            .unwrap_or_else(|| index.to_string())
+    }
+
+    /// A point's value text: its own tooltip value, else the value, with
+    /// any metadata after it (CHT-018).
+    fn point_value(point: &DataPoint) -> String {
+        let mut text = point
+            .tooltip
+            .value
+            .clone()
+            .unwrap_or_else(|| point.value.to_string());
+        let mut metadata: Vec<_> = point.metadata.iter().collect();
+        metadata.sort();
+        for (key, value) in metadata {
+            text.push_str(&format!("; {key}={value}"));
+        }
+        text
+    }
+
+    /// The rows of a point's tooltip and their announcement (CHT-018): a
+    /// title row naming the category, then one swatch, name and value row
+    /// per visible series at `index`, the followed `series` first; a candle
+    /// as four rows, open, high, low and close; a point's own content lines
+    /// in place of its row when it has them.
+    fn tooltip_rows(&self, props: &ChartProps, series: usize, index: usize) -> (Tooltip, String) {
+        let title = Self::point_title(props, series, index);
         let mut rows = Vec::new();
         let mut spoken = Vec::new();
-        for (s, series) in props.series.iter().enumerate().filter(|(_, s)| s.visible) {
-            if let Some(point) = series.data.get(index) {
-                let value = canvas::point_text(point, index);
-                spoken.push(format!("{} / {value}", series.name));
-                rows.push(TooltipRow {
-                    color: canvas::point_color(props, s, index),
-                    name: series.name.clone(),
-                    value,
-                });
+        let order = std::iter::once(series).chain((0..props.series.len()).filter(|s| *s != series));
+        for s in order {
+            let Some(data) = props.series.get(s).filter(|d| d.visible) else {
+                continue;
+            };
+            let Some(point) = data.data.get(index) else {
+                continue;
+            };
+            let swatch = canvas::point_color(props, s, index);
+            let value_color = point.tooltip.color.as_deref().and_then(canvas::color);
+            if !point.tooltip.lines.is_empty() {
+                for line in &point.tooltip.lines {
+                    rows.push(TooltipRow {
+                        color: None,
+                        name: String::new(),
+                        value: line.clone(),
+                        value_color,
+                    });
+                }
+                spoken.push(format!(
+                    "{} / {}",
+                    data.name,
+                    point.tooltip.lines.join(", ")
+                ));
+                continue;
             }
+            if let (Some(candle), None) = (point.candle, &point.tooltip.value) {
+                for (name, value) in [
+                    ("open", candle.open),
+                    ("high", candle.high),
+                    ("low", candle.low),
+                    ("close", candle.close),
+                ] {
+                    rows.push(TooltipRow {
+                        color: swatch,
+                        name: name.into(),
+                        value: value.to_string(),
+                        value_color,
+                    });
+                }
+                spoken.push(format!(
+                    "{} / open {} high {} low {} close {}",
+                    data.name, candle.open, candle.high, candle.low, candle.close
+                ));
+                continue;
+            }
+            let value = Self::point_value(point);
+            spoken.push(format!("{} / {value}", data.name));
+            rows.push(TooltipRow {
+                color: swatch,
+                name: data.name.clone(),
+                value,
+                value_color,
+            });
         }
-        (Tooltip { title: None, rows }, spoken.join("; "))
+        let spoken = if spoken.is_empty() {
+            String::new()
+        } else {
+            format!("{title}: {}", spoken.join("; "))
+        };
+        (
+            Tooltip {
+                title: Some(title),
+                rows,
+            },
+            spoken,
+        )
     }
 
     fn tooltip_text(&self, props: &ChartProps, series: usize, index: usize) -> Option<String> {
@@ -709,7 +921,7 @@ impl LiveChart {
         Some(format!(
             "{} / {}",
             props.series[series].name,
-            canvas::point_text(point, index)
+            Self::point_value(point)
         ))
     }
 
@@ -751,6 +963,7 @@ impl LiveChart {
                             color: hit.colors.get(index).copied().flatten(),
                             name,
                             value,
+                            value_color: None,
                         }],
                     },
                     spoken,
@@ -769,12 +982,13 @@ impl LiveChart {
                             color: slice.color,
                             name: props.series[series].name.clone(),
                             value,
+                            value_color: None,
                         }],
                     },
                     spoken,
                 )
             }
-            (None, None) => self.tooltip_rows(props, index),
+            (None, None) => self.tooltip_rows(props, series, index),
         };
         if tooltip.rows.is_empty() {
             return (None, spoken);
@@ -803,6 +1017,11 @@ impl LiveChart {
         .then(|| (anchor.0, picture.plot.y, picture.plot.bottom()));
         let band = (!picture.index_rows.is_empty())
             .then(|| (anchor.1, picture.plot.x, picture.plot.right()));
+        // A scatter marks its selected point with a ring (CHT-018).
+        let ring = picture
+            .scatter
+            .then(|| picture.anchors.get(&(series, index)).copied())
+            .flatten();
         let ray = picture
             .radial
             .as_ref()
@@ -813,22 +1032,46 @@ impl LiveChart {
                 at,
                 crosshair,
                 band,
+                ring,
                 ray,
             }),
             spoken,
         )
     }
 
-    /// The accessibility description: title, series names and the hovered
-    /// values, at every size class (CHT-018).
+    /// The accessibility description: the chart's type, its series and its
+    /// state, with the selection at every size class (CHT-018, CHT-036).
     fn description(&self, props: &ChartProps, announcement: &str) -> String {
+        let kind = match props.chart_type {
+            ChartType::BarVertical | ChartType::BarHorizontal => "bar chart",
+            ChartType::Line => "line chart",
+            ChartType::Area => "area chart",
+            ChartType::Scatter => "scatter chart",
+            ChartType::Candlestick => "candlestick chart",
+            ChartType::Pie => "pie chart",
+            ChartType::Donut => "donut chart",
+            ChartType::Radar => "radar chart",
+            ChartType::Sankey => "sankey chart",
+        };
         let names: Vec<&str> = props
             .series
             .iter()
             .filter(|s| s.visible)
             .map(|s| s.name.as_str())
             .collect();
-        let mut text = props.title.clone().unwrap_or_else(|| "Chart".to_string());
+        let mut text = kind.to_string();
+        if let Some(error) = &self.worker_error {
+            text.push_str(&format!("; chart worker could not start: {error}"));
+        } else if let Err(error) = canvas::validate(props) {
+            text.push_str(&format!("; {error}"));
+        } else if props
+            .series
+            .iter()
+            .filter(|s| s.visible)
+            .all(|s| s.data.is_empty())
+        {
+            text.push_str("; no data");
+        }
         if !names.is_empty() {
             text.push_str(&format!("; series {}", names.join(", ")));
         }
@@ -852,10 +1095,40 @@ fn nearest_index(positions: &[f64], at: f64) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
-/// A copy of the picture's grid with the tooltip box, crosshair and band
-/// drawn over it.
-fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
-    struct Sink<'a>(&'a mut CellGrid);
+/// A copy of the picture's grid with the tooltip box, crosshair, band and
+/// ring drawn over it, in the chrome roles (CHT-017) and in ASCII when the
+/// chart is (CHT-028).
+fn overlay_grid(picture: &Picture, overlay: &Overlay, ascii: bool) -> CellGrid {
+    use unicode_width::UnicodeWidthStr;
+    /// Writes into the grid; a filled rectangle keeps its background under
+    /// whatever is written into it afterwards, so a box stays opaque.
+    struct Sink<'a> {
+        grid: &'a mut CellGrid,
+        fills: Vec<(usize, usize, usize, usize, Option<plot::Rgba>)>,
+    }
+    impl Sink<'_> {
+        fn background_at(&self, x: usize, y: usize) -> Option<plot::Rgba> {
+            self.fills
+                .iter()
+                .rev()
+                .find(|(fx, fy, w, h, _)| x >= *fx && x < fx + w && y >= *fy && y < fy + h)
+                .and_then(|fill| fill.4)
+        }
+        fn put(&mut self, x: usize, y: usize, glyph: &str, color: Option<plot::Rgba>) {
+            let (Ok(cx), Ok(cy)) = (u16::try_from(x), u16::try_from(y)) else {
+                return;
+            };
+            match self
+                .background_at(x, y)
+                .or_else(|| self.grid.background(cx, cy))
+            {
+                Some(bg) => self
+                    .grid
+                    .set_with_background(cx, cy, glyph, color, Some(bg)),
+                None => self.grid.set(cx, cy, glyph, color),
+            }
+        }
+    }
     impl plot::TextSink for Sink<'_> {
         fn text(
             &mut self,
@@ -866,52 +1139,115 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay) -> CellGrid {
             color: Option<plot::Rgba>,
         ) {
             use unicode_segmentation::UnicodeSegmentation;
-            for (offset, grapheme) in text.graphemes(true).enumerate() {
-                if offset >= width {
+            // Each grapheme takes its cell width, so a wide character
+            // neither overlaps its neighbour nor is cut (CHT-018).
+            let mut offset = 0;
+            for grapheme in text.graphemes(true) {
+                let cells = UnicodeWidthStr::width(grapheme).max(1);
+                if offset + cells > width {
                     break;
                 }
-                let (Ok(x), Ok(y)) = (u16::try_from(x + offset), u16::try_from(y)) else {
-                    break;
-                };
-                self.0.set(x, y, grapheme, color);
+                self.put(x + offset, y, grapheme, color);
+                for continuation in 1..cells {
+                    self.put(x + offset + continuation, y, "", color);
+                }
+                offset += cells;
             }
         }
         fn under(&mut self, x: usize, y: usize, glyph: &str, color: Option<plot::Rgba>) {
-            let (Ok(x), Ok(y)) = (u16::try_from(x), u16::try_from(y)) else {
+            let (Ok(cx), Ok(cy)) = (u16::try_from(x), u16::try_from(y)) else {
                 return;
             };
             let free = self
-                .0
-                .get(x, y)
-                .is_some_and(|(current, _)| current.is_empty() || current == "·");
+                .grid
+                .get(cx, cy)
+                .is_none_or(|(current, _)| current.is_empty() || current == "·" || current == ".");
             if free {
-                self.0.set(x, y, glyph, color);
+                self.put(x, y, glyph, color);
+            }
+        }
+        fn fill(
+            &mut self,
+            x: usize,
+            y: usize,
+            width: usize,
+            height: usize,
+            background: Option<plot::Rgba>,
+        ) {
+            self.fills.push((x, y, width, height, background));
+            for row in y..y + height {
+                for col in x..x + width {
+                    let (Ok(cx), Ok(cy)) = (u16::try_from(col), u16::try_from(row)) else {
+                        continue;
+                    };
+                    let (glyph, fg) =
+                        self.grid
+                            .get(cx, cy)
+                            .map_or((String::from(" "), None), |(g, fg)| {
+                                (
+                                    if g.is_empty() {
+                                        " ".into()
+                                    } else {
+                                        g.to_string()
+                                    },
+                                    fg,
+                                )
+                            });
+                    self.grid
+                        .set_with_background(cx, cy, &glyph, fg, background);
+                }
             }
         }
     }
     use plot::TextSink as _;
     let mut grid = (*picture.grid).clone();
-    let mut sink = Sink(&mut grid);
+    let mut sink = Sink {
+        grid: &mut grid,
+        fills: Vec::new(),
+    };
+    let muted = canvas::color("text-muted");
+    let (vertical, horizontal, ring_glyph, dot) = if ascii {
+        ("|", "-", "o", ".")
+    } else {
+        ("│", "─", "◌", "·")
+    };
     if let Some((col, top, bottom)) = overlay.crosshair {
         for row in top..bottom {
-            sink.under(col, row, "│", None);
+            sink.under(col, row, vertical, muted);
         }
     }
     if let Some((row, left, right)) = overlay.band {
+        // The band tints its row in the `hover` role and marks the empty
+        // cells with a line.
+        sink.fill(
+            left,
+            row,
+            right.saturating_sub(left),
+            1,
+            canvas::color("hover"),
+        );
         for col in left..right {
-            sink.under(col, row, "─", None);
+            sink.under(col, row, horizontal, muted);
         }
     }
     // A radial selection's ray is drawn over the shapes it crosses.
     for (col, row) in &overlay.ray {
-        sink.text(*col, *row, 1, "·", None);
+        sink.text(*col, *row, 1, dot, muted);
+    }
+    if let Some((col, row)) = overlay.ring {
+        sink.text(col, row, 1, ring_glyph, canvas::color("ring"));
     }
     if let Some(boxed) = &overlay.boxed {
         boxed.draw(
             &mut sink,
             overlay.at,
             Rect::sized(picture.width, picture.height),
-            None,
+            plot::TooltipStyle {
+                frame: canvas::color("border"),
+                text: canvas::color("foreground"),
+                background: canvas::color("surface"),
+                ascii,
+            },
         );
     }
     grid
@@ -991,6 +1327,7 @@ mod tests {
             values: Arc::new(vec![vec![f64::NAN, 5.0]]),
             progress: 1.0,
             selected: None,
+            theme: 0,
         };
         let same = JobKey {
             values: Arc::new(vec![vec![f64::NAN, 5.0]]),

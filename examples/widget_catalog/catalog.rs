@@ -24,9 +24,9 @@ use reactive_tui::{
             image::ImageDisplayMode,
             table::{Table, TableColumn, TableProps, TableRow},
             tree::TreeNode,
-            AreaChartBuilder, BarChartBuilder, CandlestickChartBuilder, DonutChartBuilder,
-            LineChartBuilder, PieChartBuilder, RadarChartBuilder, SankeyChartBuilder, SankeyLink,
-            ScatterChartBuilder, SizeClass,
+            AreaChartBuilder, BarChartBuilder, BarGrowth, CandlestickChartBuilder,
+            DonutChartBuilder, LineChartBuilder, PieChartBuilder, RadarChartBuilder,
+            SankeyChartBuilder, SankeyLink, ScatterChartBuilder, SizeClass,
         },
         menu::{DialogMenuBuilder, MenuItem},
         DialogMenu, TerminalProps, TerminalWidget,
@@ -521,11 +521,36 @@ impl Catalog {
                 })
                 .collect()
         }
-        let classes = [
-            (SizeClass::Mini, 20u16, 5u16),
-            (SizeClass::Medium, 60, 12),
-            (SizeClass::Large, 60, 14),
+        // Each card shows the three size classes (CHT-023): mini and medium
+        // forced into rectangles of their own range, and the large class at
+        // a real rectangle of at least 200 by 40 when the terminal is wide
+        // enough for one, which takes a card the full width; a narrower
+        // terminal forces the large class into the medium rectangle.
+        let wide = self.width >= 200;
+        let classes: Vec<(Option<SizeClass>, u16, u16)> = vec![
+            (Some(SizeClass::Mini), 20, 5),
+            (Some(SizeClass::Medium), 60, 12),
+            if wide {
+                (None, 0, 40)
+            } else {
+                (Some(SizeClass::Large), 60, 14)
+            },
         ];
+        let grid_class = if wide {
+            "w-full grid grid-cols-1 gap-1"
+        } else {
+            Self::card_grid_class(self.width)
+        };
+        /// A builder sized for one class: forced, or left to its rectangle.
+        macro_rules! sized {
+            ($builder:expr, $class:expr, $w:expr, $h:expr) => {{
+                let builder = $builder.size($w, $h);
+                match $class {
+                    Some(class) => builder.size_class(class).render(),
+                    None => builder.render(),
+                }
+            }};
+        }
         let stack = |charts: Vec<Element>| {
             let mut column = div().class("flex-col gap-1");
             for chart in charts {
@@ -533,135 +558,171 @@ impl Catalog {
             }
             column.build()
         };
-        let line = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    LineChartBuilder::new(samples())
-                        .x(|s| s.label)
-                        .y(|s| s.value)
-                        .name("value")
-                        .natural()
-                        .dot()
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
-        let area = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    AreaChartBuilder::new(samples())
-                        .x(|s| s.label)
-                        .y(|s| s.value)
-                        .name("value")
-                        .fill("chart-2")
-                        .step_after()
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
-        let scatter = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    ScatterChartBuilder::new(samples())
-                        .x(|s| s.label)
-                        .y(|s| s.value)
-                        .name("value")
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
-        let bar = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    BarChartBuilder::new(samples())
-                        .band(|s| s.label)
-                        .value(|s| s.value)
-                        .name("value")
-                        .fill("chart-3")
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
-        let candlestick = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    CandlestickChartBuilder::new(samples())
-                        .x(|s| s.label)
-                        .open(|s| s.open)
-                        .close(|s| s.close)
-                        .high(|s| s.open.max(s.close) + 1.0)
-                        .low(|s| s.open.min(s.close) - 1.0)
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
-        let pie = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    PieChartBuilder::new(samples())
-                        .value(|s| s.value)
-                        .label(|s| s.label)
-                        .name("value")
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
-        let donut = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    DonutChartBuilder::new(samples())
-                        .value(|s| s.value)
-                        .label(|s| s.label)
-                        .name("value")
-                        .inner_radius(0.55)
-                        .pad_angle(0.06)
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
-        let radar = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    RadarChartBuilder::new(samples())
-                        .label(|s| s.label)
-                        .value(|s| s.open)
-                        .name("open")
-                        .stroke("chart-1")
-                        .value(|s| s.close)
-                        .name("close")
-                        .stroke("chart-2")
-                        .fill("none")
-                        .dot()
-                        .grid_levels(4)
-                        .max_value(10.0)
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
+        let each = |build: &dyn Fn(Option<SizeClass>, u16, u16) -> Element| {
+            stack(classes.iter().map(|(c, w, h)| build(*c, *w, *h)).collect())
+        };
+        let line = each(&|class, w, h| {
+            sized!(
+                LineChartBuilder::new(samples())
+                    .x(|s| s.label)
+                    .y(|s| s.value)
+                    .name("value")
+                    .y(|s| s.open)
+                    .name("open")
+                    .natural(),
+                class,
+                w,
+                h
+            )
+        });
+        let area = each(&|class, w, h| {
+            sized!(
+                AreaChartBuilder::new(samples())
+                    .x(|s| s.label)
+                    .y(|s| s.value)
+                    .name("value")
+                    .fill("chart-2")
+                    .step_after(),
+                class,
+                w,
+                h
+            )
+        });
+        let area_stacked = each(&|class, w, h| {
+            sized!(
+                AreaChartBuilder::new(samples())
+                    .x(|s| s.label)
+                    .y(|s| s.value)
+                    .name("value")
+                    .y(|s| s.open)
+                    .name("open")
+                    .stacked(true),
+                class,
+                w,
+                h
+            )
+        });
+        let scatter = each(&|class, w, h| {
+            sized!(
+                ScatterChartBuilder::new(samples())
+                    .x(|s| s.open)
+                    .y(|s| s.close)
+                    .name("close by open")
+                    .y(|s| s.value)
+                    .name("value by open")
+                    .label(|s| s.label),
+                class,
+                w,
+                h
+            )
+        });
+        let bar = each(&|class, w, h| {
+            sized!(
+                BarChartBuilder::new(samples())
+                    .band(|s| s.label)
+                    .value(|s| s.value)
+                    .name("value")
+                    .fill("chart-3"),
+                class,
+                w,
+                h
+            )
+        });
+        let bar_horizontal = each(&|class, w, h| {
+            sized!(
+                BarChartBuilder::new(samples())
+                    .band(|s| s.label)
+                    .value(|s| s.value)
+                    .name("value")
+                    .alignment(BarGrowth::Left),
+                class,
+                w,
+                h
+            )
+        });
+        let bar_grouped = each(&|class, w, h| {
+            sized!(
+                BarChartBuilder::new(samples())
+                    .band(|s| s.label)
+                    .value(|s| s.value)
+                    .name("value")
+                    .value(|s| s.open)
+                    .name("open"),
+                class,
+                w,
+                h
+            )
+        });
+        let bar_stacked = each(&|class, w, h| {
+            sized!(
+                BarChartBuilder::new(samples())
+                    .band(|s| s.label)
+                    .value(|s| s.value)
+                    .name("value")
+                    .value(|s| s.open)
+                    .name("open")
+                    .stacked(true),
+                class,
+                w,
+                h
+            )
+        });
+        let candlestick = each(&|class, w, h| {
+            sized!(
+                CandlestickChartBuilder::new(samples())
+                    .x(|s| s.label)
+                    .open(|s| s.open)
+                    .close(|s| s.close)
+                    .high(|s| s.open.max(s.close) + 1.0)
+                    .low(|s| s.open.min(s.close) - 1.0),
+                class,
+                w,
+                h
+            )
+        });
+        let pie = each(&|class, w, h| {
+            sized!(
+                PieChartBuilder::new(samples())
+                    .value(|s| s.value)
+                    .label(|s| s.label)
+                    .name("value"),
+                class,
+                w,
+                h
+            )
+        });
+        let donut = each(&|class, w, h| {
+            sized!(
+                DonutChartBuilder::new(samples())
+                    .value(|s| s.value)
+                    .label(|s| s.label)
+                    .name("value")
+                    .inner_radius(0.55)
+                    .pad_angle(0.06),
+                class,
+                w,
+                h
+            )
+        });
+        let radar = each(&|class, w, h| {
+            sized!(
+                RadarChartBuilder::new(samples())
+                    .label(|s| s.label)
+                    .value(|s| s.open)
+                    .name("open")
+                    .stroke("chart-1")
+                    .value(|s| s.close)
+                    .name("close")
+                    .stroke("chart-2")
+                    .fill("none")
+                    .dot()
+                    .grid_levels(4)
+                    .max_value(10.0),
+                class,
+                w,
+                h
+            )
+        });
         // Energy flows: three sources, a power station and three uses, with
         // one flow that skips the station.
         let flows = ["coal", "gas", "solar", "power", "industry", "homes", "loss"];
@@ -675,24 +736,45 @@ impl Catalog {
             (3, 6, 1.0),
         ]
         .map(|(source, target, value)| SankeyLink::new(source, target, value));
-        let sankey = stack(
-            classes
-                .iter()
-                .map(|(class, w, h)| {
-                    SankeyChartBuilder::new(flows, links)
-                        .node_label(|n: &&str| *n)
-                        .size(*w, *h)
-                        .size_class(*class)
-                        .render()
-                })
-                .collect(),
-        );
+        let sankey = each(&|class, w, h| {
+            sized!(
+                SankeyChartBuilder::new(flows, links).node_label(|n: &&str| *n),
+                class,
+                w,
+                h
+            )
+        });
         div()
-            .class(Self::card_grid_class(self.width))
-            .child(Self::card("Line chart: mini, medium, large", line))
-            .child(Self::card("Area chart: mini, medium, large", area))
-            .child(Self::card("Scatter chart: mini, medium, large", scatter))
-            .child(Self::card("Bar chart: mini, medium, large", bar))
+            .class(grid_class)
+            .child(Self::card(
+                "Line chart: two series, mini, medium, large",
+                line,
+            ))
+            .child(Self::card(
+                "Area chart: overlaid, mini, medium, large",
+                area,
+            ))
+            .child(Self::card(
+                "Area chart: stacked, two series, mini, medium, large",
+                area_stacked,
+            ))
+            .child(Self::card(
+                "Scatter chart: two series, mini, medium, large",
+                scatter,
+            ))
+            .child(Self::card("Bar chart: vertical, mini, medium, large", bar))
+            .child(Self::card(
+                "Bar chart: horizontal, mini, medium, large",
+                bar_horizontal,
+            ))
+            .child(Self::card(
+                "Bar chart: grouped, two series, mini, medium, large",
+                bar_grouped,
+            ))
+            .child(Self::card(
+                "Bar chart: stacked, two series, mini, medium, large",
+                bar_stacked,
+            ))
             .child(Self::card(
                 "Candlestick chart: mini, medium, large",
                 candlestick,
