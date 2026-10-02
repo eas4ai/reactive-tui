@@ -89,6 +89,12 @@ pub(crate) trait RasterPlane: PartialEq + Clone + Send + 'static {
     fn quality(&self) -> crate::widgets::ImageQuality;
     fn position(&self) -> (u32, u32);
     fn raster(&self, cell: (u16, u16)) -> Result<image::RgbaImage>;
+    /// The pixels with the cells a plane above takes kept rather than
+    /// cleared: what a translucent picture made over this plane on the
+    /// picture thread blends with (GFX-009).
+    fn raster_under(&self, cell: (u16, u16)) -> Result<image::RgbaImage> {
+        self.raster(cell)
+    }
     fn background(&self, x: u32, y: u32, cell: (u16, u16)) -> image::Rgba<u8>;
     /// Whether the cell of the pixel at `x`, `y` shows the picture: no
     /// element above it covers the cell.
@@ -136,6 +142,9 @@ impl RasterPlane for Plane {
     }
     fn raster(&self, cell: (u16, u16)) -> Result<image::RgbaImage> {
         self.raster(cell)
+    }
+    fn raster_under(&self, cell: (u16, u16)) -> Result<image::RgbaImage> {
+        self.raster_under(cell)
     }
     fn background(&self, x: u32, y: u32, cell: (u16, u16)) -> image::Rgba<u8> {
         self.background(x, y, cell)
@@ -209,13 +218,41 @@ impl<P: RasterPlane> Graphics<P> {
         if !next.is_empty() {
             after.extend_from_slice(b"\x1b7");
         }
+        // The planes of this frame made ready on the picture thread, and
+        // those among them handed over this frame.
+        let mut asynchronous: Vec<usize> = Vec::new();
+        let mut remade: Vec<usize> = Vec::new();
         for (z, plane) in next.iter().enumerate() {
             // A plane that stays as it is needs its pixels again only
             // where a plane above it is blended with them.
-            let kept = match steps[z] {
+            let mut kept = match steps[z] {
                 Step::Kept(index) if in_place => Some(index),
                 _ => None,
             };
+            // The planes made ready apart below this one whose cells it
+            // shares: on a terminal that composes nothing itself, their
+            // pixels go under this plane's picture, which is made on the
+            // picture thread too, so a translucent picture shows the canvas
+            // below it and not the cell background. A picture below that
+            // was handed over again this frame changes what shows through,
+            // so this one is made again as well (GFX-009).
+            let under: Vec<P> =
+                if blend_legacy && self.apart && plane.protocol() != ImageProtocol::Kitty {
+                    asynchronous
+                        .iter()
+                        .filter(|&&lower| overlaps(&next[lower], plane))
+                        .map(|&lower| next[lower].clone())
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+            if kept.is_some()
+                && asynchronous
+                    .iter()
+                    .any(|&lower| remade.contains(&lower) && overlaps(&next[lower], plane))
+            {
+                kept = None;
+            }
             if let Some(known) = kept
                 .and_then(|index| self.coverage.get(index))
                 .filter(|_| !blend_legacy)
@@ -224,11 +261,12 @@ impl<P: RasterPlane> Graphics<P> {
                 continue;
             }
             // A canvas's picture is made ready on the picture thread and
-            // written when it is ready (GFX-009). Until then a canvas that
-            // stays in its place keeps its last picture; one that is new,
-            // moved or covered otherwise, or that this frame cleared,
-            // shows none. Planes above it are blended without its pixels.
-            if plane.canvas().is_some() && self.apart {
+            // written when it is ready (GFX-009), as is a picture over a
+            // canvas made that way. Until then a canvas that stays in its
+            // place keeps its last picture; one that is new, moved or
+            // covered otherwise, or that this frame cleared, shows none.
+            if (plane.canvas().is_some() && self.apart) || !under.is_empty() {
+                asynchronous.push(z);
                 let shown = match steps[z] {
                     Step::Kept(index) | Step::InPlace(index) if in_place => {
                         self.coverage.get(index).cloned()
@@ -236,6 +274,7 @@ impl<P: RasterPlane> Graphics<P> {
                     _ => None,
                 };
                 if kept.is_none() {
+                    remade.push(z);
                     // A frame holds 64 MiB of new pictures, counted by
                     // their size before they are made ready (GFX-007).
                     let (columns, rows) = plane.cells();
@@ -254,6 +293,7 @@ impl<P: RasterPlane> Graphics<P> {
                         cell,
                         blend_legacy,
                         below: below.clone(),
+                        under,
                     };
                     match self.maker() {
                         Ok(maker) => maker.submit(job),
@@ -386,6 +426,11 @@ impl<P: RasterPlane> Graphics<P> {
                         cell,
                         blend_legacy: self.possible_legacy,
                         below: PixelLayers::new(cell),
+                        under: if self.possible_legacy {
+                            under_planes(&self.last, index, current)
+                        } else {
+                            Vec::new()
+                        },
                     };
                     if let Some(maker) = &self.maker {
                         maker.submit(job);
@@ -663,6 +708,30 @@ impl Objects<'_> {
             }
         }
     }
+}
+
+/// Whether two planes share a cell.
+fn overlaps(a: &impl RasterPlane, b: &impl RasterPlane) -> bool {
+    let (ax, ay) = a.position();
+    let (aw, ah) = a.cells();
+    let (bx, by) = b.position();
+    let (bw, bh) = b.cells();
+    ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah
+}
+
+/// The canvases below `z` in `planes` that are drawn over cells and share a
+/// cell with `plane`: what a picture of `plane` made on the picture thread
+/// is composed over (GFX-009).
+fn under_planes<P: RasterPlane>(planes: &[P], z: usize, plane: &P) -> Vec<P> {
+    planes[..z]
+        .iter()
+        .filter(|lower| {
+            lower.canvas().is_some()
+                && lower.protocol() != ImageProtocol::Kitty
+                && overlaps(*lower, plane)
+        })
+        .cloned()
+        .collect()
 }
 
 /// Sparse cell tiles keep alpha composition proportional to painted pixels,

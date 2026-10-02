@@ -28,6 +28,8 @@ const SIXEL: &str = "\x1bP0;1q";
 
 /// What the backend writes before a picture of any kind: it saves the cursor.
 const PICTURE: &str = "\x1b7";
+/// How an iTerm2 inline picture starts.
+const INLINE: &str = "\x1b]1337;File=";
 
 /// A glyph the half-block blitter draws for a cell whose halves differ.
 const BLOCK: &str = "▄";
@@ -315,7 +317,9 @@ impl Write for SlowTerminal {
         let chunk = std::mem::take(&mut *self.pending.lock().unwrap());
         if !chunk.is_empty() {
             let text = String::from_utf8_lossy(&chunk);
-            let pictures = text.matches(SIXEL).count() + text.matches("\x1b_Ga=T").count();
+            let pictures = text.matches(SIXEL).count()
+                + text.matches("\x1b_Ga=T").count()
+                + text.matches(INLINE).count();
             self.pictures
                 .fetch_add(pictures, std::sync::atomic::Ordering::SeqCst);
             self.flushes.lock().unwrap().push(chunk);
@@ -728,6 +732,293 @@ fn gfx_005_cells_over_a_kitty_canvas_change_without_sending_it_away() {
         deleted(&flushes[first + 1..=last]),
         deleted(&flushes[last + 1..]),
         &outside[..outside.len().min(5)]
+    );
+}
+
+/// What lies over the lower canvas in [`Stacked`].
+#[derive(Clone, Copy)]
+enum Over {
+    /// A canvas of green at half alpha, Sixel like the one below.
+    Canvas,
+    /// An image of green at half alpha, Sixel or inline.
+    Image(reactive_tui::widgets::display::ImageDisplayMode),
+}
+
+/// A root with a canvas in `lower` filling a four by one terminal, a
+/// translucent green canvas or image over its middle two cells, and a black
+/// background. Once both pictures reached the terminal the lower canvas
+/// takes `then` when given, and the root stops after two more pictures or
+/// at its deadline.
+struct Stacked {
+    lower: Color,
+    then: Option<Color>,
+    over: Over,
+    mark: Option<usize>,
+    /// When the pictures the root waited for had come: it stops a moment
+    /// later, so a picture still being made ready arrives too.
+    hold: Option<std::time::Instant>,
+    pictures: Arc<std::sync::atomic::AtomicUsize>,
+    deadline: std::time::Instant,
+}
+impl RootComponent for Stacked {
+    fn render(&self) -> Element {
+        use reactive_tui::builder::core::div;
+        let solid = |color: Color| {
+            let mut scene = Scene::new();
+            scene.fill(&Path::rect(0.0, 0.0, 1000.0, 1000.0), &Paint::solid(color));
+            scene
+        };
+        let sixel = || GraphicsOptions {
+            output: Some(CanvasOutput::Sixel),
+            ..reference_options(true)
+        };
+        let green = Color::rgba(0, 255, 0, 128);
+        let over = match self.over {
+            Over::Canvas => canvas(solid(green), sixel()),
+            Over::Image(mode) => Element::from(
+                reactive_tui::widgets::display::Image::from_raw_bytes(
+                    [0u8, 255, 0, 128].repeat(8),
+                    4,
+                    2,
+                    reactive_tui::widgets::display::ImageFormat::RGBA8888,
+                )
+                .with_display_mode(mode),
+            )
+            .with_class("w-2 h-1"),
+        };
+        div()
+            .class("relative w-full h-full bg-black")
+            .children(vec![
+                canvas(solid(self.lower.clone()), sixel()),
+                div()
+                    .class("absolute left-1 top-0 w-2 h-1")
+                    .child(over)
+                    .build(),
+            ])
+            .build()
+    }
+    fn update(&mut self) -> Result<RootUpdate> {
+        let sent = self.pictures.load(std::sync::atomic::Ordering::SeqCst);
+        if std::time::Instant::now() >= self.deadline {
+            return Ok(RootUpdate::Exit);
+        }
+        if let Some(since) = self.hold {
+            return Ok(if since.elapsed() >= Duration::from_millis(300) {
+                RootUpdate::Exit
+            } else {
+                RootUpdate::Redraw
+            });
+        }
+        match (self.mark, self.then.clone()) {
+            (None, Some(next)) if sent >= 2 => {
+                self.lower = next;
+                self.then = None;
+                self.mark = Some(sent);
+            }
+            (None, None) if sent >= 2 => self.hold = Some(std::time::Instant::now()),
+            (Some(mark), _) if sent >= mark + 2 => self.hold = Some(std::time::Instant::now()),
+            _ => {}
+        }
+        Ok(RootUpdate::Redraw)
+    }
+    fn accepts_input(&self) -> bool {
+        false
+    }
+}
+
+/// What a terminal taking `images`, `delay` per flush, is sent for
+/// [`Stacked`], flush by flush.
+fn run_stacked(
+    images: ImageOutputOptions,
+    over: Over,
+    then: Option<Color>,
+    delay: Duration,
+) -> Vec<String> {
+    let terminal = SlowTerminal {
+        flushes: Arc::default(),
+        pending: Arc::default(),
+        delay,
+        pictures: Arc::default(),
+    };
+    let backend = SuprTuiBackend::with_writer_and_images(4, 1, terminal.clone(), images).unwrap();
+    App::builder()
+        .backend(backend)
+        .root(Stacked {
+            lower: Color::rgba(255, 0, 0, 255),
+            then,
+            over,
+            mark: None,
+            hold: None,
+            pictures: Arc::clone(&terminal.pictures),
+            deadline: std::time::Instant::now() + Duration::from_secs(10),
+        })
+        .build()
+        .unwrap()
+        .run()
+        .unwrap();
+    let flushes = terminal.flushes.lock().unwrap();
+    flushes
+        .iter()
+        .map(|chunk| String::from_utf8_lossy(chunk).into_owned())
+        .collect()
+}
+
+/// A color as Sixel states it: red, green and blue in percent.
+type Percent = (usize, usize, usize);
+/// A Sixel picture: its declared width, its palette colors and its text.
+type SixelPicture = (usize, Vec<Percent>, String);
+
+/// The Sixel pictures in `flushes`, in order.
+fn sixel_pictures(flushes: &[String]) -> Vec<SixelPicture> {
+    flushes
+        .iter()
+        .flat_map(|chunk| chunk.split(SIXEL).skip(1).map(str::to_owned))
+        .map(|picture| {
+            let (size, _) = canvas_support::sixel_pixels(&picture);
+            let colors = picture
+                .split('#')
+                .skip(1)
+                .filter_map(|entry| {
+                    let numbers: Vec<usize> = entry
+                        .split(|c: char| !c.is_ascii_digit())
+                        .take_while(|n| !n.is_empty())
+                        .filter_map(|n| n.parse().ok())
+                        .collect();
+                    (numbers.len() >= 5 && numbers[1] == 2)
+                        .then(|| (numbers[2], numbers[3], numbers[4]))
+                })
+                .collect();
+            (size.0, colors, picture)
+        })
+        .collect()
+}
+
+fn percent_near(a: Percent, b: Percent) -> bool {
+    a.0.abs_diff(b.0) <= 2 && a.1.abs_diff(b.1) <= 2 && a.2.abs_diff(b.2) <= 2
+}
+
+/// GFX-009: a translucent canvas over another canvas, both made ready on
+/// the picture thread, is composed over the lower canvas's pixels, not over
+/// the cell background: green at half alpha over red is sent as half red,
+/// half green. When the lower canvas changes, the picture over it is made
+/// again over the new pixels. The lower picture leaves the covered cells
+/// unset, so whichever picture arrives later, the composite stands.
+#[test]
+fn gfx_009_a_translucent_canvas_composes_over_the_canvas_below_it() {
+    let sixel = ImageOutputOptions {
+        sixel: true,
+        ..Default::default()
+    };
+    for delay in [Duration::ZERO, Duration::from_millis(20)] {
+        let flushes = run_stacked(
+            sixel,
+            Over::Canvas,
+            Some(Color::rgba(0, 0, 255, 255)),
+            delay,
+        );
+        let pictures = sixel_pictures(&flushes);
+        let uppers: Vec<_> = pictures.iter().filter(|(w, _, _)| *w == 16).collect();
+        let lowers: Vec<_> = pictures.iter().filter(|(w, _, _)| *w == 32).collect();
+        assert!(
+            uppers.len() >= 2 && !lowers.is_empty(),
+            "GFX-009: with {delay:?} per flush, both canvases are sent and the upper one again after the lower changed: {} upper and {} lower pictures of {:?}",
+            uppers.len(),
+            lowers.len(),
+            pictures.iter().map(|(w, c, _)| (*w, c.clone())).collect::<Vec<_>>()
+        );
+        assert!(
+            uppers[0].1.iter().any(|c| percent_near(*c, (50, 50, 0))),
+            "GFX-009 ({delay:?}): green at half alpha over the red canvas is half red, half green, found {:?}",
+            uppers[0].1
+        );
+        assert!(
+            uppers
+                .last()
+                .unwrap()
+                .1
+                .iter()
+                .any(|c| percent_near(*c, (0, 50, 50))),
+            "GFX-009 ({delay:?}): after the lower canvas turned blue the picture over it is made again over blue, found {:?}",
+            uppers.last().unwrap().1
+        );
+        for (_, _, picture) in &lowers {
+            let (size, set) = canvas_support::sixel_pixels(picture);
+            let covered: Vec<bool> = (0..size.1)
+                .flat_map(|y| (8..24).map(move |x| (x, y)))
+                .map(|(x, y)| set[y * size.0 + x])
+                .collect();
+            assert!(
+                covered.iter().all(|pixel| !*pixel),
+                "GFX-009: the lower canvas leaves the cells under the upper one unset:\n{picture}"
+            );
+        }
+    }
+}
+
+/// GFX-009: a translucent image over a canvas made ready on the picture
+/// thread is composed over the canvas's pixels too, as Sixel and as an
+/// inline picture.
+#[test]
+fn gfx_009_a_translucent_image_composes_over_the_canvas_below_it() {
+    use reactive_tui::widgets::display::ImageDisplayMode;
+    let sixel = ImageOutputOptions {
+        sixel: true,
+        ..Default::default()
+    };
+    let flushes = run_stacked(
+        sixel,
+        Over::Image(ImageDisplayMode::Sixel),
+        None,
+        Duration::ZERO,
+    );
+    // An image's Sixel picture is drawn from the screen's corner, so it is
+    // wider than the image's cells and carries the canvas's pixels beside it.
+    let pictures = sixel_pictures(&flushes);
+    let uppers: Vec<_> = pictures.iter().filter(|(w, _, _)| *w != 32).collect();
+    assert!(
+        !uppers.is_empty()
+            && uppers
+                .last()
+                .unwrap()
+                .1
+                .iter()
+                .any(|c| percent_near(*c, (50, 50, 0))),
+        "GFX-009: a Sixel image of green at half alpha over the red canvas is half red, half green: {:?}\n{}",
+        pictures.iter().map(|(w, c, _)| (*w, c.clone())).collect::<Vec<_>>(),
+        flushes.concat().replace('\x1b', "<ESC>")
+    );
+    let both = ImageOutputOptions {
+        sixel: true,
+        iterm2_inline: true,
+        ..Default::default()
+    };
+    let flushes = run_stacked(
+        both,
+        Over::Image(ImageDisplayMode::ITerm2Inline),
+        None,
+        Duration::ZERO,
+    );
+    use base64::Engine;
+    let inline: Vec<image::RgbaImage> = flushes
+        .iter()
+        .flat_map(|chunk| chunk.split(INLINE).skip(1).map(str::to_owned))
+        .filter_map(|payload| {
+            let encoded = payload.split(':').nth(1)?.split('\x07').next()?;
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(encoded)
+                .ok()?;
+            image::load_from_memory(&bytes)
+                .ok()
+                .map(|img| img.to_rgba8())
+        })
+        .collect();
+    let pixel = inline
+        .last()
+        .map(|picture| *picture.get_pixel(0, 0))
+        .expect("an inline picture of the image over the canvas");
+    assert!(
+        pixel[0].abs_diff(127) <= 2 && pixel[1].abs_diff(128) <= 2 && pixel[2] <= 2,
+        "GFX-009: an inline image of green at half alpha over the red canvas is half red, half green, found {pixel:?}"
     );
 }
 
