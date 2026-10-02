@@ -24,8 +24,8 @@
 //! and stay comparable.
 
 use super::{
-    AxisLabelPlacement, BarGrowth, ChartAxis, ChartProps, ChartType, ChartsBuilder, Curve,
-    DataPoint, DataSeries, RadialOptions, SankeyAlign, SankeyLabel, SankeyLink, SankeyOptions,
+    AxisLabelPlacement, BarGrowth, ChartProps, ChartType, ChartsBuilder, Curve, DataPoint,
+    DataSeries, RadialOptions, SankeyAlign, SankeyLabel, SankeyLink, SankeyOptions,
     SankeyValueScale, SizeClass,
 };
 use crate::component::Element;
@@ -44,12 +44,13 @@ type Lines<T> = Box<dyn Fn(&T) -> Vec<String>>;
 /// 1 at its tip).
 type Stops<T> = Box<dyn Fn(&T, (f64, f64), &dyn Fn(f64) -> f32) -> Vec<(f32, String)>>;
 
-/// Options every typed builder shares.
+/// Options every typed builder shares. Grid and axis choices go straight
+/// into the generic builder, so `build()` settles them by orientation with
+/// `label_axis` and `value_axis` and nothing overwrites them afterwards
+/// (CHT-020, CHT-035).
 struct Common {
     base: ChartsBuilder,
     tick_margin: usize,
-    grid: bool,
-    x_axis: bool,
 }
 
 impl Common {
@@ -57,27 +58,14 @@ impl Common {
         Self {
             base: ChartsBuilder::new().chart_type(kind),
             tick_margin: 0,
-            grid: true,
-            x_axis: true,
         }
     }
 
     fn finish(self, series: Vec<DataSeries>) -> ChartProps {
-        let mut props = self
-            .base
+        self.base
             .with_series(series)
             .tick_margin(self.tick_margin)
-            .build();
-        props.x_axis = ChartAxis {
-            show_grid: self.grid,
-            show_labels: self.x_axis,
-            ..props.x_axis
-        };
-        props.y_axis = ChartAxis {
-            show_grid: self.grid,
-            ..props.y_axis
-        };
-        props
+            .build()
     }
 }
 
@@ -147,7 +135,7 @@ macro_rules! common_methods {
 
         /// Draw the drawing's horizontal axis line and its labels.
         pub fn x_axis(mut self, show: bool) -> Self {
-            self.common.x_axis = show;
+            self.common.base = self.common.base.x_axis_labels(show);
             self
         }
 
@@ -189,7 +177,7 @@ macro_rules! cartesian_methods {
 
         /// Draw grid lines.
         pub fn grid(mut self, grid: bool) -> Self {
-            self.common.grid = grid;
+            self.common.base = self.common.base.grid(grid);
             self
         }
 
@@ -1094,7 +1082,7 @@ impl<T> PieChartBuilder<T> {
             .collect();
         let series = DataSeries::new(self.name.unwrap_or_else(|| "series 1".into()), data);
         let mut common = self.common;
-        common.x_axis = false;
+        common.base = common.base.x_axis_labels(false);
         let mut props = common.finish(vec![series]);
         props.radial = self.radial;
         props
@@ -1388,7 +1376,7 @@ impl<T> SankeyChartBuilder<T> {
         }
         let series = DataSeries::new(self.name.unwrap_or_else(|| "nodes".into()), data);
         let mut common = self.common;
-        common.x_axis = false;
+        common.base = common.base.x_axis_labels(false);
         let mut props = common.finish(vec![series]);
         props.legend.visible = false;
         props.sankey = sankey;
@@ -1496,7 +1484,7 @@ impl<T> RadarChartBuilder<T> {
     pub fn build(self) -> ChartProps {
         let series = series(&self.data, self.label.as_ref(), &self.series);
         let mut common = self.common;
-        common.x_axis = false;
+        common.base = common.base.x_axis_labels(false);
         let mut props = common.finish(series);
         props.dots = self.dots;
         props.radial = RadialOptions {
@@ -1556,6 +1544,48 @@ mod tests {
         assert_eq!(props.tick_margin, 2);
         assert!(!props.x_axis.show_grid);
         assert_eq!(props.clone(), props, "props stay comparable");
+    }
+
+    /// `label_axis(false)` and `value_axis(false)` settle by orientation at
+    /// `build()` and nothing the typed builder does afterwards puts the
+    /// labels back (CHT-020); the generic route builds the same axes
+    /// (CHT-035).
+    #[test]
+    fn label_axis_and_value_axis_hold_through_build_on_both_orientations() {
+        let vertical = BarChartBuilder::new(rows())
+            .band(|r| r.day)
+            .value(|r| r.open)
+            .label_axis(false)
+            .build();
+        assert!(
+            !vertical.x_axis.show_labels,
+            "a vertical bar chart's band axis stays hidden"
+        );
+        assert!(vertical.y_axis.show_labels);
+        let horizontal = BarChartBuilder::new(rows())
+            .band(|r| r.day)
+            .value(|r| r.open)
+            .alignment(BarGrowth::Left)
+            .value_axis(false)
+            .build();
+        assert!(
+            !horizontal.x_axis.show_labels,
+            "a horizontal bar chart's value axis stays hidden"
+        );
+        assert!(horizontal.y_axis.show_labels);
+        let generic = ChartsBuilder::new()
+            .chart_type(ChartType::BarVertical)
+            .series(DataSeries::new(
+                "s",
+                vec![
+                    DataPoint::with_label(1.0, "mon"),
+                    DataPoint::with_label(2.0, "tue"),
+                ],
+            ))
+            .label_axis(false)
+            .build();
+        assert_eq!(generic.x_axis, vertical.x_axis);
+        assert_eq!(generic.y_axis, vertical.y_axis);
     }
 
     #[test]
