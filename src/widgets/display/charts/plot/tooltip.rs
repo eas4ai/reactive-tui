@@ -23,6 +23,9 @@ pub struct TooltipRow {
     /// The color of the row's text; `None` takes the box's text color
     /// (a point's `tooltip_value_color`, CHT-018).
     pub value_color: Option<Rgba>,
+    /// The row's numeric value, which the overflow summary adds up whatever
+    /// the value text says (CHT-018); `None` adds nothing.
+    pub numeric: Option<f64>,
 }
 
 /// One laid-out line of a tooltip box.
@@ -117,22 +120,14 @@ impl Tooltip {
             });
         }
         if self.rows.len() > shown {
-            // The rest are summed by their numeric values (CHT-018); a row
-            // whose value is no number adds nothing.
+            // The rest are summed by their numeric values, whatever their
+            // value text says (CHT-018); a row without one adds nothing.
             let rest = self.rows.len() - shown;
             let total: f64 = self.rows[shown..]
                 .iter()
-                .filter_map(|r| {
-                    r.value
-                        .split(':')
-                        .next_back()?
-                        .split(';')
-                        .next()?
-                        .trim()
-                        .parse::<f64>()
-                        .ok()
-                })
-                .sum();
+                .filter_map(|r| r.numeric)
+                .sum::<f64>()
+                + 0.0;
             lines.push(TooltipLine {
                 swatch: None,
                 text: fit_label_with(&format!("+{rest} more, sum {total}"), inner_max, cut),
@@ -257,8 +252,10 @@ mod tests {
                 .map(|i| TooltipRow {
                     color: Some((1.0, 0.0, 0.0, 1.0)),
                     name: format!("series{i}"),
-                    value: format!("p1: {i}"),
+                    // Display text a number cannot be parsed back from.
+                    value: format!("p1: {i} ms"),
                     value_color: None,
+                    numeric: Some(i as f64),
                 })
                 .collect(),
         }
@@ -268,7 +265,9 @@ mod tests {
     fn rows_beyond_eight_are_summarized() {
         let boxed = tooltip(10).layout(Rect::sized(60, 20));
         assert_eq!(boxed.lines.len(), MAX_ROWS);
-        assert!(boxed.lines[7].text.starts_with("+3 more"));
+        // The summary adds the rows' numeric values (7 + 8 + 9), not
+        // whatever their value text parses to.
+        assert_eq!(boxed.lines[7].text, "+3 more, sum 24");
         assert_eq!(boxed.height, MAX_ROWS + 2);
         assert_eq!(tooltip(8).layout(Rect::sized(60, 20)).lines.len(), 8);
     }
@@ -304,7 +303,7 @@ mod tests {
         let boxed = tooltip(1).layout(Rect::sized(14, 10));
         assert!(boxed.width <= 14);
         assert!(
-            boxed.lines[0].text.ends_with("p1: 0"),
+            boxed.lines[0].text.ends_with("p1: 0 ms"),
             "{}",
             boxed.lines[0].text
         );
