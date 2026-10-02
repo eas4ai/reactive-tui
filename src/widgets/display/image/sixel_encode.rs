@@ -267,3 +267,76 @@ impl Palette {
         indices
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The declared height and, per band, the highest row bit any data
+    /// character sets, from the Sixel text `encode_fitted` wrote.
+    fn declared_height_and_band_bits(sixel: &str) -> (usize, Vec<u8>) {
+        let body = sixel.strip_prefix("\x1bP0;1q\"").expect("a Sixel picture");
+        let end = body
+            .find(|c: char| !(c.is_ascii_digit() || c == ';'))
+            .unwrap_or(body.len());
+        let height: usize = body[..end].split(';').nth(3).unwrap().parse().unwrap();
+        let data = body[end..].trim_end_matches("\x1b\\");
+        let bands = data
+            .split('-')
+            .map(|band| {
+                let mut highest = 0u8;
+                let mut bytes = band.bytes().peekable();
+                while let Some(byte) = bytes.next() {
+                    match byte {
+                        b'#' | b'!' => {
+                            while bytes
+                                .peek()
+                                .is_some_and(|b| b.is_ascii_digit() || *b == b';')
+                            {
+                                bytes.next();
+                            }
+                        }
+                        b'?'..=b'~' => highest |= byte - b'?',
+                        _ => {}
+                    }
+                }
+                highest
+            })
+            .collect();
+        (height, bands)
+    }
+
+    /// A picture whose height is not a multiple of six keeps its last rows:
+    /// the text declares the true height, the last band carries only the
+    /// rows the picture has, and nothing is set past them (GFX-005).
+    #[test]
+    fn a_partial_last_band_keeps_every_row_and_sets_none_past_the_picture() {
+        for height in [1u32, 5, 7, 16, 32] {
+            let pixels = RgbaImage::from_pixel(3, height, image::Rgba([255, 0, 0, 255]));
+            let sixel = encode_fitted(&pixels).unwrap();
+            let (declared, bands) = declared_height_and_band_bits(&sixel);
+            assert_eq!(
+                declared, height as usize,
+                "height {height}: declared height"
+            );
+            assert_eq!(
+                bands.len(),
+                (height as usize).div_ceil(6),
+                "height {height}: one band per six rows, the last partial"
+            );
+            let rows_in_last = height as usize - 6 * (bands.len() - 1);
+            let allowed = ((1u16 << rows_in_last) - 1) as u8;
+            assert_eq!(
+                *bands.last().unwrap(),
+                allowed,
+                "height {height}: the last band sets exactly its {rows_in_last} rows"
+            );
+            for band in &bands[..bands.len() - 1] {
+                assert_eq!(
+                    *band, 0x3f,
+                    "height {height}: a full band sets all six rows"
+                );
+            }
+        }
+    }
+}

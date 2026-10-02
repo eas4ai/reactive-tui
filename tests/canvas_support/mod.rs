@@ -604,6 +604,18 @@ pub fn check_reference(name: &str, frame: &GraphicsFrame) -> Option<String> {
 /// data sets, row by row; a terminal shows an unset pixel as it was before.
 /// `picture` is what follows the device control string that starts it.
 pub fn sixel_pixels(picture: &str) -> ((usize, usize), Vec<bool>) {
+    let (size, set, _) = sixel_parse(picture);
+    (size, set)
+}
+
+/// How many pixels a Sixel picture's data sets outside the size it states:
+/// rows a partial last band would reach below the picture, or columns past
+/// its width. A terminal would paint those over whatever is there.
+pub fn sixel_outside(picture: &str) -> usize {
+    sixel_parse(picture).2
+}
+
+fn sixel_parse(picture: &str) -> ((usize, usize), Vec<bool>, usize) {
     let body = picture.split('\x1b').next().unwrap_or("");
     let mut size = (0, 0);
     let mut data = body;
@@ -622,6 +634,7 @@ pub fn sixel_pixels(picture: &str) -> ((usize, usize), Vec<bool>) {
         data = &rest[end..];
     }
     let mut set = vec![false; size.0 * size.1];
+    let mut outside = 0usize;
     let (mut x, mut row, mut repeat) = (0usize, 0usize, 1usize);
     let mut bytes = data.bytes().peekable();
     while let Some(byte) = bytes.next() {
@@ -653,8 +666,12 @@ pub fn sixel_pixels(picture: &str) -> ((usize, usize), Vec<bool>) {
                 for column in x..x + repeat {
                     for bit in 0..6 {
                         let y = row + bit;
-                        if bits & (1 << bit) != 0 && column < size.0 && y < size.1 {
-                            set[y * size.0 + column] = true;
+                        if bits & (1 << bit) != 0 {
+                            if column < size.0 && y < size.1 {
+                                set[y * size.0 + column] = true;
+                            } else {
+                                outside += 1;
+                            }
                         }
                     }
                 }
@@ -664,5 +681,5 @@ pub fn sixel_pixels(picture: &str) -> ((usize, usize), Vec<bool>) {
             _ => {}
         }
     }
-    (size, set)
+    (size, set, outside)
 }
