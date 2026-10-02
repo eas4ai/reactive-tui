@@ -94,6 +94,9 @@ pub(super) struct Picture {
     /// The selection the shapes were drawn with (a Sankey chart's faded
     /// links, CHT-032).
     pub selected: Option<(usize, usize)>,
+    /// The theme generation the colors were resolved under, so a picture
+    /// drawn under an older theme is replaced, not shown (THM-003).
+    pub theme: u64,
 }
 
 impl Picture {
@@ -115,6 +118,7 @@ impl Picture {
             radial: None,
             sankey: None,
             selected: None,
+            theme: 0,
         }
     }
 }

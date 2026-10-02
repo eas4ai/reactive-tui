@@ -32,6 +32,10 @@ use canvas::{Picture, RadialHit};
 /// draw in under 1 ms and appear painted; a larger one paints an empty
 /// area for one frame, and the worker's finish signal redraws it.
 const NEW_SIZE_WAIT: Duration = Duration::from_millis(4);
+/// How long a frame waits for the repaint after a theme change, so the next
+/// frame presented is in the new theme's colors (THM-003); a picture that
+/// takes longer shows up on the frame after, and the chart reads as busy.
+const THEME_WAIT: Duration = Duration::from_millis(200);
 
 /// `picture` if it was drawn at `size`: a picture drawn for another size is
 /// stale geometry (BAR-003), neither painted nor used for hit testing.
@@ -244,6 +248,7 @@ impl Component for LiveChart {
         };
         // Before its first layout the chart has no size and nothing to draw.
         let drawable = width > 0 && height > 0;
+        let theme = key.theme;
         if drawable && latest.key.as_ref() != Some(&key) {
             latest.next_id += 1;
             let id = latest.next_id;
@@ -256,15 +261,27 @@ impl Component for LiveChart {
                     values: key.values.clone(),
                     progress,
                     selected,
+                    theme,
                 });
                 // A picture at a new size, or a Sankey chart's new
                 // selection, is worth a short wait so a small chart never
-                // paints empty and the faded links arrive with the tooltip;
-                // other frames at the same size (animation, hover) copy
+                // paints empty and the faded links arrive with the tooltip.
+                // A theme change waits for the repaint itself, since the
+                // next frame presented must be in the new colors (THM-003)
+                // and the picture at this size was drawn under the old ones.
+                // Other frames at the same size (animation, hover) copy
                 // whatever is finished.
-                let fresh = at_size(latest.picture.as_ref(), (width, height))
-                    .is_some_and(|picture| picture.selected == selected);
-                let wait = if fresh { Duration::ZERO } else { NEW_SIZE_WAIT };
+                let theme_changed = latest.key.as_ref().is_some_and(|k| k.theme != theme);
+                let fresh = !theme_changed
+                    && at_size(latest.picture.as_ref(), (width, height))
+                        .is_some_and(|picture| picture.selected == selected);
+                let wait = if theme_changed {
+                    THEME_WAIT
+                } else if fresh {
+                    Duration::ZERO
+                } else {
+                    NEW_SIZE_WAIT
+                };
                 if let Some((_, picture)) = worker.wait_for(id, wait) {
                     latest.picture = Some(picture);
                 }
@@ -351,11 +368,13 @@ impl Component for LiveChart {
         if !announcement.is_empty() {
             node.set_value(announcement.clone());
         }
-        // The worker is still drawing the picture for this size, or for a
-        // Sankey chart's new selection; its finish signal redraws the chart.
+        // The worker still owes the picture for this size, for a Sankey
+        // chart's new selection, or under the theme now active (THM-003):
+        // the chart reads as busy until it arrives (CHT-036), and the
+        // worker's finish signal redraws the chart.
         let stale = picture
             .as_ref()
-            .is_none_or(|picture| picture.selected != selected);
+            .is_none_or(|picture| picture.selected != selected || picture.theme != theme);
         if stale && drawable && self.worker.is_some() {
             node.set_busy();
         }

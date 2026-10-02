@@ -20,6 +20,8 @@ pub(super) struct Job {
     pub values: Arc<Vec<Vec<f64>>>,
     pub progress: f64,
     pub selected: Option<(usize, usize)>,
+    /// The theme generation the job's colors resolve under (THM-003).
+    pub theme: u64,
 }
 
 #[derive(Default)]
@@ -143,7 +145,7 @@ fn run(shared: Arc<Shared>) {
                 slots = shared.ready.wait(slots).unwrap_or_else(|e| e.into_inner());
             }
         };
-        let picture = canvas::draw(&canvas::Job {
+        let mut picture = canvas::draw(&canvas::Job {
             props: &job.props,
             width: job.width,
             height: job.height,
@@ -152,6 +154,7 @@ fn run(shared: Arc<Shared>) {
             unicode_glyphs: crate::widgets::display::charts::glyph_support(),
             selected: job.selected,
         });
+        picture.theme = job.theme;
         let mut slots = shared.slots.lock().unwrap_or_else(|e| e.into_inner());
         slots.response = Some((job.id, Arc::new(picture)));
         drop(slots);
