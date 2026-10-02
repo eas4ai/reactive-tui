@@ -13,8 +13,9 @@ use reactive_tui::app::RootComponent;
 use reactive_tui::component::Element;
 use reactive_tui::event::types::{Event, ResizeEvent};
 use reactive_tui::widgets::display::{
-    Chart, ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries, LegendPosition,
-    SankeyChartBuilder, SankeyLabel, SankeyLink, SizeClass,
+    AreaChartBuilder, Chart, ChartAxis, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries,
+    LegendPosition, LineChartBuilder, SankeyChartBuilder, SankeyLabel, SankeyLink,
+    ScatterChartBuilder, SizeClass,
 };
 
 struct Root(Element);
@@ -2261,6 +2262,270 @@ fn cht_028_sankey_resolves_with_ascii() {
             .any(|c| is_fill_glyph(c) || is_braille(c))
             && frame.text.chars().any(|c| "#|-.".contains(c)),
         "ASCII mode must keep the shapes without Unicode glyphs:\n{}",
+        frame.text
+    );
+}
+
+/// CHT-012: an area's stroke and fill colors are independent, and dots are
+/// off until a series turns them on.
+#[test]
+fn cht_012_area_stroke_and_fill_are_independent_and_dots_default_off() {
+    let size = (40u16, 12u16);
+    let heights = [2.0, 6.0, 4.0, 8.0, 3.0, 7.0, 5.0, 6.0];
+    let data: Vec<(usize, f64)> = heights.iter().copied().enumerate().collect();
+    let line = LineChartBuilder::new(data.clone())
+        .x(|p: &(usize, f64)| format!("p{}", p.0))
+        .y(|p: &(usize, f64)| p.1)
+        .build();
+    assert!(
+        !line.dots,
+        "a line's dots are off until .dot() turns them on"
+    );
+    let area = AreaChartBuilder::new(data)
+        .x(|p: &(usize, f64)| format!("p{}", p.0))
+        .y(|p: &(usize, f64)| p.1)
+        .stroke("chart-1")
+        .fill("chart-3")
+        .size(size.0, size.1)
+        .build();
+    let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(area)), size, 2)
+        .pop()
+        .unwrap();
+    assert!(
+        !cells_showing(&frame, &[theme_color("chart-3")]).is_empty(),
+        "the fill is drawn in chart-3:\n{}",
+        frame.text
+    );
+    assert!(
+        !cells_showing(&frame, &[theme_color("chart-1")]).is_empty(),
+        "the stroke is drawn in chart-1; .fill() must not overwrite the stroke color:\n{}",
+        frame.text
+    );
+}
+
+/// CHT-013: value labels at the large class never overlap and never leave
+/// the plot; a label that cannot be placed whole is left out, not cut.
+#[test]
+fn cht_013_value_labels_never_overlap_or_fragment() {
+    let size = (200u16, 40u16);
+    let values: Vec<f64> = (0..40).map(|_| 1000.5).collect();
+    let frame = last(ChartType::BarVertical, size, &values, 1200.0);
+    let fragments: Vec<String> = frame
+        .text
+        .lines()
+        .flat_map(|l| l.split_whitespace().map(str::to_owned))
+        .filter(|w| w.chars().any(|c| c.is_ascii_digit()) && w != "1000.5")
+        .collect();
+    assert!(
+        fragments.is_empty(),
+        "value labels overlapped or were cut: {:?}\n{}",
+        &fragments[..fragments.len().min(8)],
+        frame.text
+    );
+    assert!(
+        frame.text.contains("1000.5"),
+        "some value labels are placed:\n{}",
+        frame.text
+    );
+}
+
+/// CHT-014: candles reveal over time as the other types do, instead of
+/// appearing at their final values while the reveal has barely begun.
+#[test]
+fn cht_014_candles_reveal_over_time() {
+    let size = (40u16, 12u16);
+    let values = [3.0, 7.0, 5.0, 8.0];
+    let early = |kind: ChartType, series: DataSeries| {
+        let mut p = props(kind, size, &[], 10.0);
+        p.series = vec![series];
+        p.animated = true;
+        p.animation_duration = 10_000;
+        app_input::run(Root(Element::typed::<Chart>(p)), size, vec![(2, None)])
+            .pop()
+            .unwrap()
+    };
+    let settled = |kind: ChartType, series: DataSeries| {
+        let mut p = props(kind, size, &[], 10.0);
+        p.series = vec![series];
+        app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+            .pop()
+            .unwrap()
+    };
+    assert_ne!(
+        early(ChartType::Line, series(&values)).text,
+        settled(ChartType::Line, series(&values)).text,
+        "control: two frames into a ten-second reveal a line chart is not at its final picture"
+    );
+    let early_candles = early(ChartType::Candlestick, candles(&values));
+    let settled_candles = settled(ChartType::Candlestick, candles(&values));
+    assert_ne!(
+        early_candles.text, settled_candles.text,
+        "two frames into a ten-second reveal the candles must not already be at their final picture:\n{}",
+        early_candles.text
+    );
+}
+
+/// CHT-026: extreme finite values under tight explicit limits finish and
+/// show their in-range shapes or a message; they never panic or stall the
+/// worker and leave a blank chart.
+#[test]
+fn cht_026_extreme_values_with_tight_limits_finish_with_shapes_or_a_message() {
+    let size = (40u16, 12u16);
+    for kind in [ChartType::Line, ChartType::BarVertical] {
+        let frame = app_input::run(
+            Root(Element::typed::<Chart>(props(
+                kind.clone(),
+                size,
+                &[1e300, -1e300, 5.0],
+                10.0,
+            ))),
+            size,
+            vec![(3, None)],
+        )
+        .pop()
+        .unwrap();
+        assert!(
+            !frame.text.trim().is_empty(),
+            "{kind:?} with values of 1e300 under limits of 0 to 10 must draw its in-range shapes or say what is wrong, not stay blank"
+        );
+    }
+}
+
+/// CHT-027: a point decimation left out of the drawing can still be hovered
+/// on a scatter chart: the nearest original point wins, not the nearest
+/// drawn one.
+#[test]
+fn cht_027_a_thinned_scatter_point_is_still_hovered() {
+    use reactive_tui::event::types::{MouseEvent, MouseEventKind, Position};
+    let size = (40u16, 12u16);
+    // Several points per column: 1 and 9 are kept as the column's minimum
+    // and maximum, the 5 between them is thinned out of the drawing.
+    let values: Vec<f64> = (0..240).map(|i| [1.0, 5.0, 9.0][i % 3]).collect();
+    let frame = app_input::run(
+        Root(Element::typed::<Chart>(props(
+            ChartType::Scatter,
+            size,
+            &values,
+            10.0,
+        ))),
+        size,
+        vec![
+            (
+                2,
+                Some(Event::Mouse(MouseEvent::new(
+                    MouseEventKind::Move,
+                    Position::cell(20, 6),
+                ))),
+            ),
+            (3, None),
+        ],
+    )
+    .pop()
+    .unwrap();
+    let index = frame
+        .text
+        .split('p')
+        .filter_map(|s| {
+            s.chars()
+                .take_while(char::is_ascii_digit)
+                .collect::<String>()
+                .parse::<usize>()
+                .ok()
+        })
+        .max()
+        .expect("the tooltip names a point");
+    assert_eq!(
+        index % 3,
+        1,
+        "hovering the row of the thinned points (value 5) must select one of them, not a kept neighbour: selected p{index} with value {}:\n{}",
+        values[index],
+        frame.text
+    );
+}
+
+/// CHT-028: in ASCII mode the axes, the grid, the crosshair and the tooltip
+/// are ASCII too, not only the shapes.
+#[test]
+fn cht_028_axes_grid_and_tooltip_resolve_with_ascii() {
+    use reactive_tui::event::types::{MouseEvent, MouseEventKind, Position};
+    let size = (40u16, 14u16);
+    let mut p = props(ChartType::Line, size, &[2.0, 8.0, 5.0], 10.0);
+    p.ascii = true;
+    p.x_axis.show_labels = true;
+    p.y_axis.show_labels = true;
+    p.x_axis.show_grid = true;
+    p.y_axis.show_grid = true;
+    p.size_class = Some(SizeClass::Large);
+    let frame = app_input::run(
+        Root(Element::typed::<Chart>(p)),
+        size,
+        vec![
+            (
+                2,
+                Some(Event::Mouse(MouseEvent::new(
+                    MouseEventKind::Move,
+                    Position::cell(20, 7),
+                ))),
+            ),
+            (3, None),
+        ],
+    )
+    .pop()
+    .unwrap();
+    let foreign: Vec<char> = frame.text.chars().filter(|c| !c.is_ascii()).collect();
+    assert!(
+        foreign.is_empty(),
+        "ASCII mode must draw axes, grid, crosshair and tooltip in ASCII, found {:?}:\n{}",
+        &foreign[..foreign.len().min(12)],
+        frame.text
+    );
+    assert!(
+        frame.text.contains('|') || frame.text.contains('+'),
+        "the axes are drawn:\n{}",
+        frame.text
+    );
+}
+
+/// CHT-033: a scatter places its points by their x values, not evenly by
+/// index.
+#[test]
+fn cht_033_scatter_places_points_by_x_value() {
+    let size = (40u16, 12u16);
+    let data = vec![(1.0f64, 5.0f64), (2.0, 5.0), (10.0, 5.0)];
+    let scatter = ScatterChartBuilder::new(data)
+        .x(|p: &(f64, f64)| p.0.to_string())
+        .y(|p: &(f64, f64)| p.1)
+        .size(size.0, size.1)
+        .x_axis(false)
+        .build();
+    let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(scatter)), size, 2)
+        .pop()
+        .unwrap();
+    // Marker cells only: the legend's swatch shows the series color too.
+    let mut columns: Vec<u16> = cells_showing(&frame, &[theme_color("chart-1")])
+        .into_iter()
+        .filter(|(r, c)| {
+            frame.screen.cell(*r, *c).is_some_and(|cell| {
+                let glyph = cell.contents();
+                glyph == "•" || glyph.chars().any(is_braille)
+            })
+        })
+        .map(|(_, c)| c)
+        .collect();
+    columns.sort_unstable();
+    columns.dedup();
+    assert_eq!(
+        columns.len(),
+        3,
+        "three markers in three columns, found {columns:?}:\n{}",
+        frame.text
+    );
+    let (a, b, c) = (columns[0], columns[1], columns[2]);
+    assert!(
+        c - b >= 3 * (b - a).max(1),
+        "x of 1, 2 and 10 must be spaced by value (gaps {} and {}), not evenly by index:\n{}",
+        b - a,
+        c - b,
         frame.text
     );
 }

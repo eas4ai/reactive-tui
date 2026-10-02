@@ -1845,3 +1845,311 @@ fn cht_032_a_selection_fades_the_other_links_and_keeps_its_own() {
         "a move within the selected node must leave the frame unchanged"
     );
 }
+
+/// The theme's color for `token` as 8-bit channels.
+fn role_rgb(token: &str) -> (u8, u8, u8) {
+    let (r, g, b, _) = reactive_tui::theme::Theme::active()
+        .resolve_color(token)
+        .expect("theme color");
+    let c = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
+    (c(r), c(g), c(b))
+}
+
+/// Whether a terminal color is `rgb`, allowing one rounding step.
+fn rgb_near(color: vt100::Color, rgb: (u8, u8, u8)) -> bool {
+    match color {
+        vt100::Color::Rgb(r, g, b) => {
+            r.abs_diff(rgb.0) <= 2 && g.abs_diff(rgb.1) <= 2 && b.abs_diff(rgb.2) <= 2
+        }
+        _ => false,
+    }
+}
+
+/// Whether the cell at (`row`, `col`) shows `rgb` as its glyph or background.
+fn cell_near(frame: &Snapshot, row: u16, col: u16, rgb: (u8, u8, u8)) -> bool {
+    frame
+        .screen
+        .cell(row, col)
+        .is_some_and(|cell| rgb_near(cell.fgcolor(), rgb) || rgb_near(cell.bgcolor(), rgb))
+}
+
+/// The cells of `frame` whose glyph satisfies `pick`, as (row, column).
+fn cells_with(frame: &Snapshot, pick: impl Fn(&str) -> bool) -> Vec<(u16, u16)> {
+    let (rows, cols) = frame.screen.size();
+    (0..rows)
+        .flat_map(|r| (0..cols).map(move |c| (r, c)))
+        .filter(|(r, c)| {
+            frame
+                .screen
+                .cell(*r, *c)
+                .is_some_and(|cell| pick(&cell.contents()))
+        })
+        .collect()
+}
+
+/// The topmost row of `frame` holding a cell that shows `rgb`.
+fn top_row_showing(frame: &Snapshot, rgb: (u8, u8, u8)) -> Option<u16> {
+    let (rows, cols) = frame.screen.size();
+    (0..rows).find(|r| (0..cols).any(|c| cell_near(frame, *r, c, rgb)))
+}
+
+/// CHT-011: the automatic domain covers stacked totals, so the upper series
+/// of a stacked bar is drawn above the lower one instead of being clipped
+/// by a domain that ends at the single values.
+#[test]
+fn cht_011_stacked_totals_extend_the_automatic_domain() {
+    let size = (20u16, 12u16);
+    let mut p = props(ChartType::BarVertical, size, &[8.0]);
+    p.series.push(DataSeries::new(
+        "upper",
+        vec![DataPoint::with_label(8.0, "p0")],
+    ));
+    p.stacked = true;
+    p.y_axis.min = None;
+    p.y_axis.max = None;
+    let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+        .pop()
+        .unwrap();
+    let lower = top_row_showing(&frame, role_rgb("chart-1"));
+    let upper = top_row_showing(&frame, role_rgb("chart-2"));
+    assert!(
+        lower.is_some(),
+        "the lower series is drawn:\n{}",
+        frame.text
+    );
+    assert!(
+        upper.is_some(),
+        "the upper series of a stacked bar must be drawn, not clipped away:\n{}",
+        frame.text
+    );
+    assert!(
+        upper < lower && lower.unwrap() >= size.1 / 3,
+        "with two stacked series of 8 the axis ends at 16: the lower series reaches the middle (its top at row {:?} of {}) and the upper one sits above it (top at row {:?}):\n{}",
+        lower,
+        size.1,
+        upper,
+        frame.text
+    );
+}
+
+/// CHT-034: `tick_margin` thins the category labels on both orientations.
+#[test]
+fn cht_034_tick_margin_thins_category_labels_on_either_orientation() {
+    let size = (40u16, 20u16);
+    let values: Vec<f64> = (0..8).map(|i| i as f64 + 1.0).collect();
+    let shown = |kind: ChartType| {
+        let mut p = props(kind, size, &values);
+        p.tick_margin = 2;
+        p.x_axis.show_labels = true;
+        p.y_axis.show_labels = true;
+        let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+            .pop()
+            .unwrap();
+        let labels = (0..8)
+            .filter(|i| frame.text.contains(&format!("p{i}")))
+            .count();
+        (labels, frame.text)
+    };
+    let (vertical, text) = shown(ChartType::BarVertical);
+    assert!(
+        (2..=4).contains(&vertical),
+        "a vertical chart with tick_margin 2 shows every second category label, got {vertical} of 8:\n{text}"
+    );
+    let (horizontal, text) = shown(ChartType::BarHorizontal);
+    assert!(
+        (2..=4).contains(&horizontal),
+        "a horizontal chart with tick_margin 2 shows every second category label, got {horizontal} of 8:\n{text}"
+    );
+}
+
+/// CHT-017: the chart's axes take the `border` role and its tick labels the
+/// `text-muted` role, not whatever color the element inherits.
+#[test]
+fn cht_017_axes_take_the_border_role_and_tick_labels_the_muted_role() {
+    let size = (40u16, 14u16);
+    let mut p = props(ChartType::Line, size, &[2.0, 8.0, 5.0]);
+    p.x_axis.show_labels = true;
+    p.y_axis.show_labels = true;
+    let frame = app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+        .pop()
+        .unwrap();
+    let border = role_rgb("border");
+    let muted = role_rgb("text-muted");
+    let axis_cells = cells_with(&frame, |glyph| {
+        matches!(
+            glyph,
+            "─" | "│" | "└" | "┘" | "┌" | "┐" | "├" | "┤" | "┴" | "┬" | "┼"
+        )
+    });
+    assert!(
+        !axis_cells.is_empty(),
+        "the chart draws axis lines:\n{}",
+        frame.text
+    );
+    let in_border = axis_cells
+        .iter()
+        .filter(|(r, c)| cell_near(&frame, *r, *c, border))
+        .count();
+    assert_eq!(
+        in_border,
+        axis_cells.len(),
+        "every axis cell takes the border role {border:?}; {in_border} of {} do:\n{}",
+        axis_cells.len(),
+        frame.text
+    );
+    let label_cells = cells_with(&frame, |glyph| glyph == "p");
+    assert!(
+        !label_cells.is_empty(),
+        "tick labels present:\n{}",
+        frame.text
+    );
+    assert!(
+        label_cells
+            .iter()
+            .all(|(r, c)| cell_near(&frame, *r, *c, muted)),
+        "tick labels take the text-muted role {muted:?}:\n{}",
+        frame.text
+    );
+}
+
+/// CHT-018: the tooltip box is opaque on the `surface` role, opens with a
+/// title row naming the category, and shows a candle as four rows.
+#[test]
+fn cht_018_tooltip_is_opaque_on_surface_with_a_title_row_and_four_candle_rows() {
+    let size = (40u16, 14u16);
+    let mut p = props(ChartType::Line, size, &[2.0, 8.0, 5.0]);
+    p.series.push(DataSeries::new(
+        "second",
+        [1.0, 4.0, 9.0]
+            .iter()
+            .enumerate()
+            .map(|(i, v)| DataPoint::with_label(*v, format!("q{i}")))
+            .collect(),
+    ));
+    let frame = app_input::run(
+        Root(Element::typed::<Chart>(p)),
+        size,
+        vec![(2, hover(20, 7)), (3, None)],
+    )
+    .pop()
+    .unwrap();
+    let lines: Vec<Vec<char>> = frame.text.lines().map(|l| l.chars().collect()).collect();
+    let corner = |row: &Vec<char>, which: &str| row.iter().position(|c| which.contains(*c));
+    let top = lines
+        .iter()
+        .position(|l| corner(l, "╭┌").is_some())
+        .expect("tooltip top border");
+    let bottom = lines
+        .iter()
+        .rposition(|l| corner(l, "╰└").is_some())
+        .expect("tooltip bottom border");
+    let left = corner(&lines[top], "╭┌").unwrap();
+    let right = lines[top]
+        .iter()
+        .rposition(|c| "╮┐".contains(*c))
+        .expect("tooltip right corner");
+    let surface = role_rgb("surface");
+    for row in top..=bottom {
+        for col in left..=right {
+            let bg = frame
+                .screen
+                .cell(row as u16, col as u16)
+                .map(|c| c.bgcolor());
+            assert!(
+                bg.is_some_and(|bg| rgb_near(bg, surface)),
+                "tooltip cell ({row},{col}) must be opaque on the surface role {surface:?}, found {bg:?}:\n{}",
+                frame.text
+            );
+        }
+    }
+    let inner: Vec<String> = lines[top + 1..bottom]
+        .iter()
+        .map(|l| l[left..=right].iter().collect())
+        .collect();
+    assert!(
+        inner[0].contains("p1") && !inner[0].contains('■'),
+        "the first row is the category title without a swatch, got {:?}:\n{}",
+        inner[0],
+        frame.text
+    );
+    assert!(
+        inner[1..]
+            .iter()
+            .all(|r| !r.contains("p1:") && !r.contains("q1:")),
+        "series rows do not repeat the category, got {:?}:\n{}",
+        &inner[1..],
+        frame.text
+    );
+    let mut c = props(ChartType::Candlestick, size, &[]);
+    c.series = vec![candles(&[3.0, 6.0, 4.0])];
+    let frame = app_input::run(
+        Root(Element::typed::<Chart>(c)),
+        size,
+        vec![(2, hover(20, 7)), (3, None)],
+    )
+    .pop()
+    .unwrap();
+    let text = frame.text.to_lowercase();
+    let rows: Vec<usize> = ["open", "high", "low", "close"]
+        .iter()
+        .filter_map(|word| text.lines().position(|l| l.contains(word)))
+        .collect();
+    let mut distinct = rows.clone();
+    distinct.sort_unstable();
+    distinct.dedup();
+    assert_eq!(
+        (rows.len(), distinct.len()),
+        (4, 4),
+        "a candle's tooltip has its own open, high, low and close rows, found rows {rows:?}:\n{}",
+        frame.text
+    );
+}
+
+/// CHT-036: Up and Down choose the series the announcement follows, so the
+/// keys reach a scatter's second series.
+#[test]
+fn cht_036_down_moves_the_selection_to_the_next_series() {
+    let size = (40u16, 14u16);
+    let named = |name: &str, values: &[f64]| {
+        DataSeries::new(
+            name,
+            values
+                .iter()
+                .enumerate()
+                .map(|(i, v)| DataPoint::with_label(*v, format!("{name}{i}")))
+                .collect(),
+        )
+    };
+    let mut p = props(ChartType::Scatter, size, &[]);
+    p.series = vec![
+        named("first", &[2.0, 8.0, 5.0]),
+        named("second", &[1.0, 4.0, 9.0]),
+    ];
+    // Home after frame 2, then the rest of the keys back to back after frame
+    // 3, then the frame they produce. End always moves the index, so a frame
+    // follows even while Down is ignored.
+    let announced = |then: &[KeyCode]| {
+        let mut steps: Vec<(usize, Option<Event>)> = vec![(2, app_input::key(KeyCode::Home))];
+        steps.extend(then.iter().map(|k| (3, app_input::key(k.clone()))));
+        steps.push((4, None));
+        app_input::run(
+            Root(Element::typed::<Chart>(p.clone()).auto_focus()),
+            size,
+            steps,
+        )
+        .pop()
+        .unwrap()
+        .live
+        .join(" ")
+    };
+    let first = announced(&[KeyCode::End]);
+    assert!(
+        first.contains("first"),
+        "Home then End selects the first series' last point and announces it: {first:?}"
+    );
+    let second = announced(&[KeyCode::Down, KeyCode::End]);
+    assert!(
+        second != first && second.contains("second"),
+        "Down must move the selection to the second series, so End then lands on its last point: before {first:?}, after {second:?}"
+    );
+}

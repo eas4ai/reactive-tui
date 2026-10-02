@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: pixel-output-holds-the-app
+Current: two-axis-charts-correct
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -39,6 +39,16 @@ first (the tabs, the accordion, the breadcrumb, the scroll view and the
 stack), then data-widgets (the table, the data table, the tree, the file
 explorer and the progress bar), each with its own review, adversary and
 goldens.
+After pixel-output-holds-the-app the developer opened the sixth piece, the
+two-axis charts, on 2026-10-01, ruled that their plot areas move onto
+pixels with braille as the fallback and that every widget follows in order
+(pixel-widget-looks, 95feb091), asked for the work complete rather than
+small ("Break it up into multiple commitments if one is too large"), and
+so it is cut in three by dependency: two-axis-charts-correct (everything
+visible in braille, to the widget bar and gpui-kit 0.7.0), then
+canvas-serves-many-pictures (one drawing thread per App, pictures 1:1 up
+to the adapter's limit), then charts-plot-on-pixels (the plot areas as
+pictures, hover drawn in them).
 
 ## charts-plot-layer
 
@@ -956,3 +966,73 @@ and on rendering and the changelog say where a picture is made ready and
 what an application sees; and the review records the App's wait printed by
 canvas-pictures on the three hosts and screenshots of the widget catalog's
 Motion page in Kitty and in a Sixel terminal on a private display.
+
+## two-axis-charts-correct
+
+Requirements: CHT-010, CHT-011, CHT-012, CHT-013, CHT-014, CHT-017, CHT-018, CHT-019, CHT-020, CHT-021, CHT-022, CHT-023, CHT-024, CHT-025, CHT-026, CHT-027, CHT-028, CHT-033, CHT-034, CHT-035, CHT-036, THM-003, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010
+
+The sixth piece of the widget work, the two-axis charts, first of three
+commitments. On 2026-10-01 the developer ruled that the line, area,
+scatter, bar and candlestick charts draw their plot areas as pixel
+pictures where the terminal takes pixels, with today's braille as the
+fallback, and asked for all widgets to follow in order (item
+pixel-widget-looks, 95feb091). Two read-only surveys the same day found
+twenty-four defects and gaps in the cartesian charts against the widget
+bar and gpui-kit 0.7.0, and that the canvas serves one picture per
+drawing thread with a 4096-pixel cap; measured in release on the Linux
+host, a GPU drawing thread starts in 17 to 24 ms and a chart-like plot
+costs 1 ms at 640 by 384 and 6 to 7 ms at 1920 by 960 on the GPU against
+6 to 7 and 51 to 54 ms on the software renderer. The developer ruled:
+"do not defer... I WANT IT DONE CORRECTLY... FULLY", "Break it up into
+multiple commitments if one is too large", and, on a resolution cap for
+weak hosts, "Don't let the lowest common denominator dictate to the
+highest" and "I also can't run Crisis on the tablet". So the work is cut
+in three by dependency: this commitment, everything visible in braille;
+then canvas-serves-many-pictures (ff62d964), one drawing thread per App
+and pictures 1:1 up to the adapter's limit; then charts-plot-on-pixels
+(c5ba0fa8), the plot areas as pictures with hover drawn in them.
+
+The commitment brings the five cartesian types to the widget bar
+(BAR-003 to BAR-006) on the color roles of theme.md and to gpui-kit
+0.7.0: the stacked domain (CHT-011); dots off by default, each area
+series with its own stroke, fill and curve, the fill at 0.4 opacity and
+the gradient fading to the baseline (CHT-012); bar padding, band width,
+minimum length, label colors, gradients and labels that neither overlap
+nor leave the plot (CHT-013); the candle body ratio and candles that
+animate (CHT-014); chrome colors from roles and `--color-chart-grid` in
+every preset (CHT-017); the tooltip opaque on `surface` with a title row,
+four candle rows, cell-measured widths, per-point title, value, color and
+content, and a ring on a scatter's selected point (CHT-018); every
+reference method name per type (CHT-020); the axis options: pinned range,
+point count, tick counts and formats, labels inside or outside, dashed
+grid and grid columns, reference lines, headroom and `tick_margin` on
+both orientations (CHT-034); numeric scatter x (CHT-033); the empty,
+error and never-panic rules with the worker failure shown (CHT-026);
+hover reaching thinned points (CHT-027); ASCII for the whole chart
+(CHT-028); the three builder routes equal (CHT-035); the screen reader at
+DAT-004's depth and Up and Down choosing the series (CHT-036); the
+catalog with every variant and a real large chart at 240 columns
+(CHT-023); and the theme switch repainting a settled chart (THM-003), the
+mini title and the medium legend rows (CHT-024) and `.label()` leaking
+into the tooltip (CHT-018) fixed under the text that already binds. Each
+defect gets a test that fails on the code as it is at the start, and a
+defect the test cannot reproduce is dropped with the test kept. The
+charts-goldens, plot-layer, charts-builders and charts-interaction checks
+learn CHT-033 to CHT-036 in this spec phase, and every revised
+requirement records a fail on the code at the start.
+
+Not here, by dependency: the plot pictures, rounded bar corners, hover
+halos, bar fading and the gliding band, which cells cannot show, are the
+third commitment's; the shared drawing thread and the picture cap the
+second's; the radial and flow charts keep their behavior.
+
+Done when every named requirement passes; the four mechanisms have
+recorded a fail on a violating example, the code as it is at the start,
+for every new and every revised requirement; every golden that changed is
+regenerated and looked at; the manual's chart sections name the new
+methods and the changed defaults (dots off, the fill at 0.4 opacity, a
+numeric scatter x, what `x_axis` hides) and the changelog names what
+changed for an application; and the review records screenshots from
+Kitty of the catalog's Charts page under the five presets at 100 and 240
+columns, with a point in a scatter's second series selected by key and
+its tooltip over the plot.

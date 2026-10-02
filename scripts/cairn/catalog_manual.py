@@ -202,6 +202,40 @@ def chart_docs_problems() -> list[str]:
     return problems
 
 
+# CHT-023: the cards the Charts page must show, by a phrase in the card's
+# title, besides one card per type.
+VARIANT_CARDS = [
+    ("a line with several series", r'Self::card\(\s*"Line chart[^"]*\b(?:two|three|several|multi)'),
+    ("a stacked area", r'Self::card\(\s*"Area chart[^"]*\bstacked\b'),
+    ("a scatter with several series", r'Self::card\(\s*"Scatter chart[^"]*\b(?:two|three|several|multi)'),
+    ("horizontal bars", r'Self::card\(\s*"Bar chart[^"]*\bhorizontal\b'),
+    ("grouped bars", r'Self::card\(\s*"Bar chart[^"]*\bgrouped\b'),
+    ("stacked bars", r'Self::card\(\s*"Bar chart[^"]*\bstacked\b'),
+]
+# A forced large class in a rectangle under the class's own range (CHT-024:
+# 200 columns by 40 rows).
+FORCED_LARGE = re.compile(r"\(\s*SizeClass::Large\s*,\s*(\d+)\w*\s*,\s*(\d+)\w*\s*\)")
+
+
+def chart_variant_problems() -> list[str]:
+    """CHT-023: the Charts page has a card for every cartesian variant and
+    does not force the large class into a rectangle under 200 by 40."""
+    problems = []
+    code, prose, pages = catalog_pages()
+    charts = pages.get("Charts")
+    if charts is None:
+        return ["catalog lists no Charts page"]
+    page_prose, page_code = prose[charts[0]:charts[1]], code[charts[0]:charts[1]]
+    for what, pattern in VARIANT_CARDS:
+        if not re.search(pattern, page_prose, re.I):
+            problems.append(f"catalog's Charts page has no card for {what}")
+    for m in FORCED_LARGE.finditer(page_code):
+        width, height = int(m.group(1)), int(m.group(2))
+        if width < 200 or height < 40:
+            problems.append(f"catalog's Charts page forces the large class into {width} by {height}, under its 200 by 40 range")
+    return problems
+
+
 IMAGE_MANUAL = ROOT / "manual/images-and-clipboard.md"
 IMAGE_BUILDER = ROOT / "src/builder/specialized.rs"
 

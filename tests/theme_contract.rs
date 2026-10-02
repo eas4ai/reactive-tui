@@ -21,6 +21,7 @@ use reactive_tui::{
         Theme, ThemeVariables,
     },
     ui::paint::extract_paint_style,
+    widgets::display::{Chart, ChartLegend, ChartProps, ChartType, DataPoint, DataSeries},
     widgets::menu::{MenuBar, MenuBarProps, MenuItem},
 };
 use std::sync::Arc;
@@ -406,5 +407,116 @@ fn thm_003_the_frame_after_a_change_of_theme_holds_no_color_of_the_old_theme() {
         "THM-003: the frame after the change holds {} cells in the old theme's colors and {} in the new theme's",
         cells_of_probe(next, 0),
         cells_of_probe(next, 1)
+    );
+}
+
+/// `probe(number)` with the chart variables set in the same scheme, so a
+/// chart's own colors count as the probe theme's.
+fn probe_with_charts(number: usize) -> Theme {
+    let charts = [
+        "chart-1",
+        "chart-2",
+        "chart-3",
+        "chart-4",
+        "chart-5",
+        "chart-bullish",
+        "chart-bearish",
+    ]
+    .map(String::from);
+    let mut variables = ThemeVariables::new();
+    for (index, role) in roles().iter().chain(charts.iter()).enumerate() {
+        let level = 60 + 6 * index;
+        let hex = if number == 0 {
+            format!("#{level:02x}1414")
+        } else {
+            format!("#14{level:02x}14")
+        };
+        variables = variables.set(Theme::color_variable(role), hex);
+    }
+    Theme::new(format!("probe-charts-{number}")).with_variables(variables)
+}
+
+/// A settled bar chart; a key gives the application the second probe theme.
+struct ThemedChart;
+impl RootComponent for ThemedChart {
+    fn render(&self) -> Element {
+        Element::typed::<Chart>(ChartProps {
+            chart_type: ChartType::BarVertical,
+            width: 30,
+            height: 10,
+            series: vec![DataSeries::new(
+                "s",
+                vec![DataPoint::new(5.0), DataPoint::new(8.0)],
+            )],
+            legend: ChartLegend {
+                visible: false,
+                ..Default::default()
+            },
+            animated: false,
+            ..Default::default()
+        })
+    }
+    fn try_handle_event(&mut self, event: &Event) -> reactive_tui::error::Result<EventResult> {
+        if matches!(event, Event::Key(_)) {
+            Theme::set_active(probe_with_charts(1));
+            return Ok(EventResult::Handled);
+        }
+        Ok(EventResult::Ignored)
+    }
+    fn wake_driven(&self) -> bool {
+        true
+    }
+}
+
+/// THM-003 for a widget at the bar: a chart that has settled repaints in
+/// the new theme's colors on the frame after the change, its series colors
+/// included, instead of reusing the picture it rasterized under the old one.
+#[test]
+#[serial_test::serial(theme)]
+fn thm_003_a_settled_chart_repaints_in_the_new_theme_on_the_next_frame() {
+    let before: Arc<Theme> = Theme::active();
+    Theme::set_active(probe_with_charts(0));
+    // The key goes in once the chart's worker has painted its bars and the
+    // App is idle; the run ends once the App is idle again after it.
+    let frames = app_input::run_until(
+        ThemedChart,
+        (30, 10),
+        vec![
+            app_input::Until {
+                text: "█",
+                cell: None,
+                event: Some(Event::Key(KeyEvent::new(KeyCode::Char('t')))),
+            },
+            app_input::Until {
+                text: "█",
+                cell: None,
+                event: None,
+            },
+        ],
+        app_input::HANG_GUARD,
+    );
+    Theme::set_active((*before).clone());
+    let first = frames
+        .iter()
+        .find(|frame| frame.text.contains('█'))
+        .expect("a painted chart");
+    let next = frames.last().unwrap();
+    assert!(
+        cells_of_probe(first, 0) > 0 && cells_of_probe(first, 1) == 0,
+        "THM-003: the settled chart is painted in the first theme's colors: {} cells of it, {} of the second:\n{}",
+        cells_of_probe(first, 0),
+        cells_of_probe(first, 1),
+        first.text
+    );
+    assert_eq!(
+        cells_of_probe(next, 0),
+        0,
+        "THM-003: after the change the chart still holds cells in the old theme's colors (it reused the picture it drew under the old theme):\n{}",
+        next.text
+    );
+    assert!(
+        cells_of_probe(next, 1) > 0,
+        "THM-003: after the change the chart is painted in the new theme's colors:\n{}",
+        next.text
     );
 }

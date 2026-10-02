@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """charts-goldens: CHT-012, CHT-013, CHT-014, CHT-015, CHT-016, CHT-023, CHT-024, CHT-025,
-CHT-026, CHT-027, CHT-028, CHT-030 and BAR-004 through the tests/charts_goldens.rs binary plus file
-and doc probes. BAR-004 also covers the image widget's goldens, the graphics canvas's
+CHT-026, CHT-027, CHT-028, CHT-030, CHT-033 and BAR-004 through the tests/charts_goldens.rs binary
+plus file and doc probes (CHT-023 also asks the catalog's Charts page for every cartesian
+variant and a large class that is not forced into a small rectangle). BAR-004 also covers the image widget's goldens, the graphics canvas's
 (tests/canvas_goldens.rs, built with wgpu-graphics: three scenes at 80 by 24 and 400 by 100)
 the menus' (tests/menus_goldens.rs: the menu bar, the popup menu, the context menu and
 the dialog menu, each open, at 80 by 24 and 400 by 100), the overlays'
@@ -21,7 +22,7 @@ from pathlib import Path
 
 from _common import (ROOT, cargo_test_filtered, enclosing_block, finish, mask, matching, rust_sources,
                      statement_start, strip_test_modules)
-from catalog_manual import chart_docs_problems
+from catalog_manual import chart_docs_problems, chart_variant_problems
 
 SNAP = ROOT / "tests/snapshots/charts"
 TYPES = ["line", "area", "scatter", "bar", "candlestick", "pie", "donut", "radar", "sankey"]
@@ -296,7 +297,8 @@ def main() -> int:
     results = {}
     chart_src = "\n".join(strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(
         "src/widgets/display/charts.rs", "src/widgets/display/charts"))
-    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-026", "cht_026_")):
+    for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-026", "cht_026_"),
+                     ("CHT-033", "cht_033_")):
         results[req] = cargo_test_filtered("charts_goldens", sub)
     # CHT-025: fill cells resolve through the renderer's blitters, so the
     # chart code must call the blitter's two-color split.
@@ -330,7 +332,7 @@ def main() -> int:
     else:
         results["CHT-028"] = (False, "no ASCII glyph fallback in the chart code")
     g = golden_problems()
-    d = chart_docs_problems()
+    d = chart_docs_problems() + chart_variant_problems()
     ok_023, why_023 = cargo_test_filtered("charts_goldens", "cht_023_")
     results["CHT-023"] = (ok_023 and not g and not d, "; ".join((g + d)[:6]) or why_023)
     # BAR-004 holds only when every golden compares equal (the cht_023_ test,
