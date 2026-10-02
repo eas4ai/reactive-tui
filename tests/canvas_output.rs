@@ -762,7 +762,7 @@ fn gfx_005_a_sixel_canvas_keeps_its_last_partial_band() {
         let frames = app_input::run_when_output(
             Root(canvas(scene, options)),
             (4, rows),
-            sixel.clone(),
+            sixel,
             vec![(SIXEL.to_owned(), 1, None)],
         );
         let output: String = frames
