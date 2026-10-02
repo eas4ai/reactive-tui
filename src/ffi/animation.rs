@@ -148,7 +148,7 @@ pub extern "C" fn rtui_animation_manager_update(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+        if !(manager as usize).is_multiple_of(std::mem::align_of::<AnimationManager>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let manager_ref = &mut *(manager as *mut AnimationManager);
@@ -291,7 +291,7 @@ pub extern "C" fn rtui_animation_manager_add(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+        if !(manager as usize).is_multiple_of(std::mem::align_of::<AnimationManager>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let animation_raw = animation.cast::<Animation>();
@@ -323,7 +323,7 @@ pub extern "C" fn rtui_animation_manager_remove(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+        if !(manager as usize).is_multiple_of(std::mem::align_of::<AnimationManager>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let manager_ref = &mut *(manager as *mut AnimationManager);

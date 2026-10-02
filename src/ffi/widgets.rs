@@ -7,8 +7,8 @@ use std::boxed::Box;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-/// Simple widget creation functions without callbacks
-/// Callback support requires a registry system for function pointer management
+// Simple widget creation functions without callbacks. Callback support
+// requires a registry system for function pointer management.
 
 /// Create a simple text input element (without callbacks)
 #[no_mangle]
@@ -101,9 +101,7 @@ pub extern "C" fn rtui_progress_bar_create(
         builder = builder.class("progress-bar border rounded");
 
         let percentage = if max_value > min_value {
-            ((current_value - min_value) / (max_value - min_value) * 100.0)
-                .min(100.0)
-                .max(0.0)
+            ((current_value - min_value) / (max_value - min_value) * 100.0).clamp(0.0, 100.0)
         } else {
             0.0
         };

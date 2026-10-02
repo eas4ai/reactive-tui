@@ -178,42 +178,4 @@ pub type RTuiEventCallback = extern "C" fn(event: *const RTuiEvent, user_data: *
 /// Render callback function type
 pub type RTuiRenderCallback = extern "C" fn(surface: *mut RTuiSurface, user_data: *mut c_void);
 
-/// Validate that a pointer is not null and properly aligned
-pub(crate) fn validate_pointer<T>(ptr: *const T) -> bool {
-    !ptr.is_null() && (ptr as usize) % std::mem::align_of::<T>() == 0
-}
-
-/// Validate that a mutable pointer is not null and properly aligned
-pub(crate) fn validate_mut_pointer<T>(ptr: *mut T) -> bool {
-    !ptr.is_null() && (ptr as usize) % std::mem::align_of::<T>() == 0
-}
-
-/// Safe cast helper for opaque pointers
-pub(crate) unsafe fn safe_cast<T, U>(ptr: *mut T) -> Result<*mut U, ReactiveError> {
-    if ptr.is_null() {
-        return Err(ReactiveError::NullPointer);
-    }
-
-    // Basic alignment check
-    if (ptr as usize) % std::mem::align_of::<U>() != 0 {
-        return Err(ReactiveError::InvalidPointer);
-    }
-
-    Ok(ptr as *mut U)
-}
-
-/// Safe const cast helper for opaque pointers
-pub(crate) unsafe fn safe_cast_const<T, U>(ptr: *const T) -> Result<*const U, ReactiveError> {
-    if ptr.is_null() {
-        return Err(ReactiveError::NullPointer);
-    }
-
-    // Basic alignment check
-    if (ptr as usize) % std::mem::align_of::<U>() != 0 {
-        return Err(ReactiveError::InvalidPointer);
-    }
-
-    Ok(ptr as *const U)
-}
-
 // Cleanup function is in mod.rs to avoid duplication
