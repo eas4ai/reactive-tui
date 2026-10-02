@@ -128,6 +128,12 @@ impl SizeClass {
     pub fn multi_row_legend(self) -> bool {
         self == Self::Large
     }
+
+    /// Whether the title row is drawn: the mini class is shapes only
+    /// (CHT-024), its title reaching the screen reader as the chart's name.
+    pub fn has_title(self) -> bool {
+        self != Self::Mini
+    }
 }
 
 #[cfg(test)]

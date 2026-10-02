@@ -387,6 +387,48 @@ fn cht_024_medium_charts_draw_no_grid_and_large_charts_can_turn_theirs_off() {
     );
 }
 
+/// CHT-024: the mini class is shapes only, so a titled chart under 8 rows
+/// draws no title row and keeps every row for its shapes; the medium class
+/// draws the title.
+#[test]
+fn cht_024_a_mini_chart_draws_no_title() {
+    let titled = |size: (u16, u16)| {
+        // A bar at the range's top, so the shapes reach the first row once
+        // no title takes it.
+        let mut p = props(ChartType::BarVertical, size, &[2.0, 10.0, 5.0, 7.0], 10.0);
+        p.title = Some("Sales".into());
+        app_input::run_when_painted(Root(Element::typed::<Chart>(p)), size, 2)
+            .pop()
+            .unwrap()
+    };
+    let mini = titled((20, 5));
+    assert!(
+        !mini.text.contains("Sales"),
+        "a 20 by 5 chart is the mini class: shapes only, no title row:\n{}",
+        mini.text
+    );
+    let shape_rows = mini
+        .text
+        .lines()
+        .filter(|l| {
+            l.chars().any(|c| {
+                c == '█' || c == '▂' || is_braille(c) || ('\u{2581}'..='\u{258f}').contains(&c)
+            })
+        })
+        .count();
+    assert_eq!(
+        shape_rows, 5,
+        "every row of the mini chart holds shapes:\n{}",
+        mini.text
+    );
+    let medium = titled((80, 24));
+    assert!(
+        medium.text.contains("Sales"),
+        "the medium class draws the title:\n{}",
+        medium.text
+    );
+}
+
 /// CHT-010: pie slices take their angles from the plot layer's linear scale,
 /// so two equal values split the circle into mirror halves.
 #[test]

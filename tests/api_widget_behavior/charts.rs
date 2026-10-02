@@ -619,8 +619,24 @@ fn chart_convenience_builders_and_disabled_controls_keep_their_behavior() {
                     .render(),
                 size,
             );
-            assert!(frame.text.contains("Graph"));
+            // A 24 by 10 chart is the mini class: shapes only, no title row
+            // (CHT-024); the title names the chart for the screen reader.
+            assert!(!frame.text.contains("Graph"), "{}", frame.text);
             assert!(count(&frame, mark) > 0, "{}", frame.text);
+        }
+        if size.0 >= 48 {
+            // The medium class draws the title.
+            let frame = last(
+                ChartsBuilder::bar()
+                    .series(data.clone())
+                    .title("Graph")
+                    .width(48)
+                    .height(12)
+                    .no_legend()
+                    .render(),
+                size,
+            );
+            assert!(frame.text.contains("Graph"), "{}", frame.text);
         }
         for builder in [
             builder::chart().bar_chart(),
@@ -642,7 +658,7 @@ fn chart_convenience_builders_and_disabled_controls_keep_their_behavior() {
                     .build_with_name("Charts"),
                 size,
             );
-            assert!(frame.text.contains("Named"));
+            assert!(!frame.text.contains("Named"), "{}", frame.text);
             assert!(
                 count(&frame, '█') + count(&frame, '•') > 0,
                 "{}",

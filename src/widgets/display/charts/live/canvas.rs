@@ -432,7 +432,9 @@ pub(super) fn draw(job: &Job) -> Picture {
     let class = size_class(props, width, height);
     picture.class = Some(class);
     let mut area = Rect::sized(width, height);
-    if let Some(title) = &props.title {
+    // The title row, except at the mini class, which is shapes only
+    // (CHT-024); the screen reader still hears the title as the name.
+    if let Some(title) = props.title.as_ref().filter(|_| class.has_title()) {
         let strip = area.take_top(1);
         // The chart title takes the `foreground` role (CHT-017).
         text.text(strip.x, strip.y, strip.w, title, color("foreground"));
