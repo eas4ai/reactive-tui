@@ -41,7 +41,7 @@ fn props(kind: ChartType, size: (u16, u16)) -> ChartProps {
             ..Default::default()
         },
         // Dots are off until asked for (CHT-012); these tests look at them.
-        dots: true,
+        dots: Some(true),
         ..Default::default()
     }
 }

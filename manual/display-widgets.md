@@ -264,8 +264,8 @@ spoke per row, clockwise from twelve o'clock, and one polygon per `.value(`
 call, whose vertex on each spoke lies at the value's distance from the
 center, from zero to the largest value or `.max_value(10.0)`. `.stroke(` and
 `.fill(` color the series added last, and `.fill("none")` leaves it
-unfilled; a later series lies over an earlier one. `.dot()` marks every
-vertex. At the medium and large size classes `.grid_levels(4)` concentric
+unfilled; a later series lies over an earlier one. Every vertex carries a
+dot unless `.dots(false)` turns them off. At the medium and large size classes `.grid_levels(4)` concentric
 polygons and the spokes are drawn under the shapes, `.grid(false)` hides
 them, and each spoke's label sits at its end. The pointer selects the
 category of the nearest spoke and nothing outside the outer radius.

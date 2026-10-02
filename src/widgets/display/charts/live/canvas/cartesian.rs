@@ -1156,7 +1156,7 @@ pub(super) fn cartesian(
                 LineStyle::None => {}
             }
         }
-        let series_dots = series.dots.unwrap_or(props.dots);
+        let series_dots = series.dots.unwrap_or(props.dots.unwrap_or(false));
         let marker = match props.chart_type {
             ChartType::Scatter => Some(Marker::Dot),
             _ if series_dots && samples.len() == values.len() => Some(Marker::Disc),
