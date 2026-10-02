@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: ffi-feature-does-not-compile
+Current: thread-safe-signal-lost-update
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1060,3 +1060,31 @@ Linux host, and builds it with `ffi,wgpu-graphics` on the two test hosts.
 Done when every named requirement passes, the ffi-gates mechanism has
 recorded a fail on the tree as it was at the start, and the changelog
 names the fix for an application that builds the native library.
+
+## thread-safe-signal-lost-update
+
+Requirements: SIG-001, BAR-001, BAR-002, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011
+
+The second of the two P1 findings of the developer's independent review of
+e30afa23 (2026-10-01), promoted from the backlog on 2026-10-02 after
+ffi-feature-does-not-compile: ThreadSafeSignal::update runs its callback
+on a copy with the lock released, so two concurrent updates both start
+from the same value and the later store overwrites the earlier (two
+increments of zero leave 1), and use_reducer dispatches every action
+through it. Delivered here: ThreadSafeSignal::update_atomic runs its
+callback under the signal's lock and wakes the subscribers afterwards,
+mirroring Ref::update_atomic; use_reducer's dispatch and the framework's
+own read-modify-writes (the dialog engine's change counter and the
+wizard's visited set, the image worker's, popover's and terminal monitor's
+revision counters, the clipboard and pointer processor hooks' states) go
+through it; a call back into the same signal from an update_atomic
+callback fails at once with a message instead of waiting forever; update
+keeps running on a copy and its documentation says concurrent updates may
+overwrite each other; the manual's reactive chapter names both methods;
+and the reactive-signals mechanism (SIG-001) runs the concurrency tests
+and scans the eight files for a read-modify-write left on update.
+
+Done when every named requirement passes, the reactive-signals mechanism
+has recorded a fail on the tree as it was at the start, and the changelog
+names the fix for an application that dispatches reducer actions from
+several threads.

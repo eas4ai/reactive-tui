@@ -31,6 +31,10 @@ Terms as the code uses them. Each names where it is defined.
   each iteration (src/reactive/scheduler.rs:141).
 - **Signal.** A reactive value whose readers are re-run and whose changes
   request a redraw (src/reactive/signal.rs:22-300).
+- **ThreadSafeSignal.** A value behind a mutex that any thread may read, set or
+  update, with a version and the Apps that read it as subscribers; `update`
+  runs on a copy with the lock released, `update_atomic` under the lock
+  (src/reactive/hooks.rs:193-300).
 - **Worker.** A named thread spawned with thread::Builder, fed by a bounded
   channel, stopped by a flag and joined on drop, that publishes results
   through the AppWaker (src/backend/suprtui.rs:196, src/embedded/mod.rs:79).

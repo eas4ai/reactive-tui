@@ -63,6 +63,7 @@ component library as closely as a cell grid allows.
 | layout-widgets.md | NAV | the tabs, accordion, breadcrumb, scroll view and stack: their colors by role, the size they fill, what happens when their content does not fit, what the screen reader is told |
 | data-widgets.md | DAT | the table, data table, tree, file explorer and progress bar: their colors by role, the size they fill, numeric sorting and a revealed selection, what the screen reader is told |
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults, the demos, and pictures made ready off the App's wait |
+| reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -75,8 +76,8 @@ is contract.
 - Application loop, terminal restoration on panic and signals (src/app.rs,
   src/backend other than presentation). Orphaned runners for panic and signal fixtures,
   docs/recon.md section 8.
-- Components, elements, hooks, signals, scheduler, wake (src/component,
-  src/reactive).
+- Components, elements, hooks, the single-threaded signal, scheduler, wake
+  (src/component, src/reactive), other than reactive.md's thread-safe signal.
 - Layout and utility classes other than layout.md's (src/layout), and the
   parts of a theme other than its color roles: spacing variables, loading
   a theme from a file, the syntax colors (src/theme, src/syntax).
