@@ -7,8 +7,13 @@ use std::boxed::Box;
 use std::ffi::c_char;
 
 /// Create a new surface
+///
+/// # Safety
+///
+/// `out_surface` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_surface_create(
+pub unsafe extern "C" fn rtui_surface_create(
     width: u16,
     height: u16,
     out_surface: *mut *mut RTuiSurface,
@@ -62,8 +67,14 @@ pub extern "C" fn rtui_surface_destroy(surface: *mut RTuiSurface) {
 }
 
 /// Get surface dimensions
+///
+/// # Safety
+///
+/// `surface` must be null or a live `RTuiSurface` handle this library
+/// returned and has not destroyed. `out_dimensions` must be null or a
+/// `RTuiDimensions` the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_surface_get_dimensions(
+pub unsafe extern "C" fn rtui_surface_get_dimensions(
     surface: *const RTuiSurface,
     out_dimensions: *mut RTuiDimensions,
 ) -> ReactiveError {
@@ -122,8 +133,14 @@ pub extern "C" fn rtui_surface_clear(
 }
 
 /// Set a cell on the surface
+///
+/// # Safety
+///
+/// `surface` must be null or a live `RTuiSurface` handle this library
+/// returned and has not destroyed. `cell` must be null or a `RTuiCell` that
+/// stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_surface_set_cell(
+pub unsafe extern "C" fn rtui_surface_set_cell(
     surface: *mut RTuiSurface,
     x: u16,
     y: u16,
@@ -184,8 +201,14 @@ pub extern "C" fn rtui_surface_set_cell(
 }
 
 /// Get a cell from the surface
+///
+/// # Safety
+///
+/// `surface` must be null or a live `RTuiSurface` handle this library
+/// returned and has not destroyed. `out_cell` must be null or a `RTuiCell`
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_surface_get_cell(
+pub unsafe extern "C" fn rtui_surface_get_cell(
     surface: *const RTuiSurface,
     x: u16,
     y: u16,
@@ -233,8 +256,16 @@ pub extern "C" fn rtui_surface_get_cell(
 }
 
 /// Draw text on the surface
+///
+/// # Safety
+///
+/// `surface` must be null or a live `RTuiSurface` handle this library
+/// returned and has not destroyed. `text` must be null or a NUL-terminated
+/// string that stays readable during the call. `fg` must be null or a
+/// `RTuiColor` that stays readable during the call. `bg` must be null or a
+/// `RTuiColor` that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_surface_draw_text(
+pub unsafe extern "C" fn rtui_surface_draw_text(
     surface: *mut RTuiSurface,
     x: u16,
     y: u16,
@@ -305,8 +336,16 @@ pub extern "C" fn rtui_surface_draw_text(
 }
 
 /// Fill a rectangle on the surface
+///
+/// # Safety
+///
+/// `surface` must be null or a live `RTuiSurface` handle this library
+/// returned and has not destroyed. `rect` must be null or a `RTuiRect` that
+/// stays readable during the call. `fg` must be null or a `RTuiColor` that
+/// stays readable during the call. `bg` must be null or a `RTuiColor` that
+/// stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_surface_fill_rect(
+pub unsafe extern "C" fn rtui_surface_fill_rect(
     surface: *mut RTuiSurface,
     rect: *const RTuiRect,
     ch: u32,

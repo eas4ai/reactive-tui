@@ -119,7 +119,7 @@ pub extern "C" fn destroyRenderer(
         // by the renderer's lifecycle.
 
         // Handle split height rendering - adjust viewport if needed
-        let (width, height) = renderer_box.dims();
+        let (_, height) = renderer_box.dims();
         if height > 0 {
             // For split screen scenarios, we could render only to a portion
             // of the available height. For now, use full height but this
@@ -173,7 +173,7 @@ pub extern "C" fn resizeRenderer(renderer: *mut RTuiRenderer, width: u32, height
     }
 
     let renderer_ref = unsafe { &mut *(renderer as *mut Renderer) };
-    let _ = renderer_ref.resize(width as usize, height as usize);
+    renderer_ref.resize(width as usize, height as usize);
 }
 
 //
@@ -256,8 +256,16 @@ pub extern "C" fn bufferClear(buffer: *mut RTuiBuffer, bg: *const f32) {
 }
 
 /// Draw text to buffer
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle this library returned
+/// and has not destroyed. `text` must be null or the start of as many
+/// readable bytes as `text_len` says. `fg` must be null or four readable
+/// `f32` color components. `bg` must be null or four readable `f32` color
+/// components.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferDrawText(
+pub unsafe extern "C" fn bufferDrawText(
     buffer: *mut RTuiBuffer,
     text: *const u8,
     text_len: usize,
@@ -654,13 +662,7 @@ pub extern "C" fn renderSurfaceToTerminal(
             }
 
             // Render to terminal using begin/end frame
-            match renderer.begin_frame() {
-                Ok(_) => match renderer.end_frame() {
-                    Ok(_) => true,
-                    Err(_) => false,
-                },
-                Err(_) => false,
-            }
+            renderer.begin_frame().is_ok() && renderer.end_frame().is_ok()
         }
         Err(_) => false,
     }

@@ -76,8 +76,13 @@ pub struct RTuiElement {
 // =============================================================================
 
 /// Create a div element builder
+///
+/// # Safety
+///
+/// `out_builder` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_div(
+pub unsafe extern "C" fn rtui_element_builder_div(
     out_builder: *mut *mut RTuiElementBuilder,
 ) -> ReactiveError {
     if out_builder.is_null() {
@@ -92,8 +97,13 @@ pub extern "C" fn rtui_element_builder_div(
 }
 
 /// Create a span element builder
+///
+/// # Safety
+///
+/// `out_builder` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_span(
+pub unsafe extern "C" fn rtui_element_builder_span(
     out_builder: *mut *mut RTuiElementBuilder,
 ) -> ReactiveError {
     if out_builder.is_null() {
@@ -109,8 +119,13 @@ pub extern "C" fn rtui_element_builder_span(
 }
 
 /// Create a button element builder
+///
+/// # Safety
+///
+/// `out_builder` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_button(
+pub unsafe extern "C" fn rtui_element_builder_button(
     out_builder: *mut *mut RTuiElementBuilder,
 ) -> ReactiveError {
     if out_builder.is_null() {
@@ -132,8 +147,14 @@ pub extern "C" fn rtui_element_builder_button(
 // =============================================================================
 
 /// Add CSS classes to element builder (REAL in-place modification)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library
+/// returned and has not destroyed. `classes` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_add_class(
+pub unsafe extern "C" fn rtui_element_builder_add_class(
     builder: *mut RTuiElementBuilder,
     classes: *const c_char,
 ) -> ReactiveError {
@@ -160,8 +181,14 @@ pub extern "C" fn rtui_element_builder_add_class(
 }
 
 /// Set text content for element builder (REAL in-place modification)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library
+/// returned and has not destroyed. `text` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_set_text(
+pub unsafe extern "C" fn rtui_element_builder_set_text(
     builder: *mut RTuiElementBuilder,
     text: *const c_char,
 ) -> ReactiveError {
@@ -185,8 +212,14 @@ pub extern "C" fn rtui_element_builder_set_text(
 }
 
 /// Set key for element builder (REAL in-place modification)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library
+/// returned and has not destroyed. `key` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_set_key(
+pub unsafe extern "C" fn rtui_element_builder_set_key(
     builder: *mut RTuiElementBuilder,
     key: *const c_char,
 ) -> ReactiveError {
@@ -234,8 +267,14 @@ pub extern "C" fn rtui_element_builder_add_child(
 }
 
 /// Build the final element (consumes the builder)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library
+/// returned and has not destroyed. `out_element` must be null or a pointer
+/// slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_build(
+pub unsafe extern "C" fn rtui_element_builder_build(
     builder: *mut RTuiElementBuilder,
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {
@@ -279,21 +318,33 @@ pub extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
 // Compatibility names from the original C builder header. These delegate to
 // the existing implementation and retain its consuming ownership rules.
 /// Create a legacy div builder; the caller owns the returned builder.
+///
+/// # Safety
+///
+/// `out` must be null or a pointer slot the caller owns, which this call may write.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_div(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
-    rtui_element_builder_div(out)
+pub unsafe extern "C" fn rtui_div(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    unsafe { rtui_element_builder_div(out) }
 }
 
 /// Create a legacy inline span builder; the caller owns the returned builder.
+///
+/// # Safety
+///
+/// `out` must be null or a pointer slot the caller owns, which this call may write.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_span(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
-    rtui_element_builder_span(out)
+pub unsafe extern "C" fn rtui_span(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    unsafe { rtui_element_builder_span(out) }
 }
 
 /// Create a legacy styled button builder without a click callback.
+///
+/// # Safety
+///
+/// `out` must be null or a pointer slot the caller owns, which this call may write.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_button(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
-    rtui_element_builder_button(out)
+pub unsafe extern "C" fn rtui_button(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+    unsafe { rtui_element_builder_button(out) }
 }
 
 // The paragraph and heading factories produce plain layout containers. Preserve
@@ -345,30 +396,48 @@ pub extern "C" fn rtui_h3(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
 }
 
 /// Append classes through the legacy non-consuming builder name.
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library returned
+/// and has not destroyed. `classes` must be null or a NUL-terminated string that
+/// stays readable during the call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_element_builder_class(
+pub unsafe extern "C" fn rtui_element_builder_class(
     builder: *mut RTuiElementBuilder,
     classes: *const c_char,
 ) -> ReactiveError {
-    rtui_element_builder_add_class(builder, classes)
+    unsafe { rtui_element_builder_add_class(builder, classes) }
 }
 
 /// Set text through the legacy non-consuming builder name.
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library returned
+/// and has not destroyed. `text` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_element_builder_text(
+pub unsafe extern "C" fn rtui_element_builder_text(
     builder: *mut RTuiElementBuilder,
     text: *const c_char,
 ) -> ReactiveError {
-    rtui_element_builder_set_text(builder, text)
+    unsafe { rtui_element_builder_set_text(builder, text) }
 }
 
 /// Set the key through the legacy non-consuming builder name.
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library returned
+/// and has not destroyed. `key` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_element_builder_key(
+pub unsafe extern "C" fn rtui_element_builder_key(
     builder: *mut RTuiElementBuilder,
     key: *const c_char,
 ) -> ReactiveError {
-    rtui_element_builder_set_key(builder, key)
+    unsafe { rtui_element_builder_set_key(builder, key) }
 }
 
 /// Append and consume a live child through the legacy builder name.
@@ -412,8 +481,15 @@ unsafe fn take_children(
 }
 
 /// Append children, consuming every child after successful argument validation.
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle this library
+/// returned and has not destroyed. `children` must be null or the start of as
+/// many `RTuiElement` handles as `children_count` says, each one this library
+/// returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_children(
+pub unsafe extern "C" fn rtui_element_builder_children(
     builder: *mut RTuiElementBuilder,
     children: *const *mut RTuiElement,
     children_count: usize,
@@ -431,23 +507,40 @@ pub extern "C" fn rtui_element_builder_children(
 }
 
 /// Create a caller-owned text element through the legacy name.
+///
+/// # Safety
+///
+/// `text` must be null or a NUL-terminated string that stays readable during the
+/// call. `out` must be null or a pointer slot the caller owns, which this call may
+/// write.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_element_text(
+pub unsafe extern "C" fn rtui_element_text(
     text: *const c_char,
     out: *mut *mut RTuiElement,
 ) -> ReactiveError {
-    rtui_text_element_create(text, out)
+    unsafe { rtui_text_element_create(text, out) }
 }
 
 /// Create a caller-owned empty element through the legacy name.
+///
+/// # Safety
+///
+/// `out` must be null or a pointer slot the caller owns, which this call may write.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_element_empty(out: *mut *mut RTuiElement) -> ReactiveError {
-    rtui_element_create_empty(out)
+pub unsafe extern "C" fn rtui_element_empty(out: *mut *mut RTuiElement) -> ReactiveError {
+    unsafe { rtui_element_create_empty(out) }
 }
 
 /// Create a native card, consuming its children after argument validation.
+///
+/// # Safety
+///
+/// `children` must be null or the start of as many `RTuiElement` handles as
+/// `children_count` says, each one this library returned and has not
+/// destroyed. `out` must be null or a pointer slot the caller owns, which
+/// this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_card(
+pub unsafe extern "C" fn rtui_card(
     children: *const *mut RTuiElement,
     children_count: usize,
     out: *mut *mut RTuiElement,
@@ -467,7 +560,11 @@ pub extern "C" fn rtui_card(
 }
 
 /// Free a string allocated by native string getters; null is allowed.
+///
+/// # Safety
+///
+/// `string` must be null or a string this library returned and has not freed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_free_string(string: *mut c_char) {
-    rtui_string_free(string)
+pub unsafe extern "C" fn rtui_free_string(string: *mut c_char) {
+    unsafe { rtui_string_free(string) }
 }

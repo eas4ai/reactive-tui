@@ -5,6 +5,16 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- The native library builds with the `ffi` feature again, which the C
+  header and the TypeScript binding build it with: the pointer trackers'
+  statics no longer demand that the renderer be `Sync`, the ffi module is
+  clean under `clippy -D warnings`, and its eight test targets build and
+  run. **Breaking** for Rust code that calls the C functions directly: the
+  115 exported functions that read or write through a pointer argument are
+  `unsafe extern "C"` and say under `# Safety` what the caller must
+  guarantee; C and TypeScript callers see no change. A per-commitment gate
+  (BAR-011) builds, lints, documents and tests the crate with `ffi` and
+  builds it with `ffi,wgpu-graphics` on every test host.
 - The two-axis charts (line, area, scatter, bar, candlestick) meet the
   widget bar and gpui-kit 0.7.0 (docs/spec/charts.md, CHT-011 to CHT-036).
   **Breaking:** a line's dots are off until `.dot()` turns them on, as the

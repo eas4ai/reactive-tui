@@ -109,8 +109,13 @@ pub type RTuiAnimationCompleteCallback =
     extern "C" fn(animation_id: *const c_char, user_data: *mut std::ffi::c_void);
 
 /// Create a new animation manager
+///
+/// # Safety
+///
+/// `out_manager` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_animation_manager_create(
+pub unsafe extern "C" fn rtui_animation_manager_create(
     out_manager: *mut *mut RTuiAnimationManager,
 ) -> ReactiveError {
     if out_manager.is_null() {
@@ -148,7 +153,7 @@ pub extern "C" fn rtui_animation_manager_update(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+        if !(manager as usize).is_multiple_of(std::mem::align_of::<AnimationManager>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let manager_ref = &mut *(manager as *mut AnimationManager);
@@ -158,8 +163,14 @@ pub extern "C" fn rtui_animation_manager_update(
 }
 
 /// Create a new animation
+///
+/// # Safety
+///
+/// `id` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_animation` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_animation_create(
+pub unsafe extern "C" fn rtui_animation_create(
     id: *const c_char,
     duration_ms: u32,
     easing: RTuiEasingType,
@@ -279,8 +290,16 @@ pub extern "C" fn rtui_animation_set_property(
 }
 
 /// Add animation to manager
+///
+/// # Safety
+///
+/// `manager` must be null or a live `RTuiAnimationManager` handle this
+/// library returned and has not destroyed. `animation` must be null or a live
+/// `RTuiAnimation` handle this library returned and has not destroyed.
+/// `out_id` must be null or a pointer slot the caller owns, which this call
+/// may write.
 #[no_mangle]
-pub extern "C" fn rtui_animation_manager_add(
+pub unsafe extern "C" fn rtui_animation_manager_add(
     manager: *mut RTuiAnimationManager,
     animation: *mut RTuiAnimation,
     out_id: *mut *mut c_char,
@@ -291,7 +310,7 @@ pub extern "C" fn rtui_animation_manager_add(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+        if !(manager as usize).is_multiple_of(std::mem::align_of::<AnimationManager>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let animation_raw = animation.cast::<Animation>();
@@ -312,8 +331,14 @@ pub extern "C" fn rtui_animation_manager_add(
 }
 
 /// Remove animation from manager
+///
+/// # Safety
+///
+/// `manager` must be null or a live `RTuiAnimationManager` handle this
+/// library returned and has not destroyed. `animation_id` must be null or a
+/// NUL-terminated string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_animation_manager_remove(
+pub unsafe extern "C" fn rtui_animation_manager_remove(
     manager: *mut RTuiAnimationManager,
     animation_id: *const c_char,
 ) -> ReactiveError {
@@ -323,7 +348,7 @@ pub extern "C" fn rtui_animation_manager_remove(
 
     catch_panic(AssertUnwindSafe(|| unsafe {
         // Validate pointer alignment and basic sanity
-        if (manager as usize) % std::mem::align_of::<AnimationManager>() != 0 {
+        if !(manager as usize).is_multiple_of(std::mem::align_of::<AnimationManager>()) {
             return Err(ReactiveError::InvalidPointer);
         }
         let manager_ref = &mut *(manager as *mut AnimationManager);
@@ -391,8 +416,14 @@ pub extern "C" fn rtui_animation_stop(animation: *mut RTuiAnimation) -> Reactive
 }
 
 /// Check if animation is playing
+///
+/// # Safety
+///
+/// `animation` must be null or a live `RTuiAnimation` handle this library
+/// returned and has not destroyed. `out_playing` must be null or a `bool` the
+/// caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_animation_is_playing(
+pub unsafe extern "C" fn rtui_animation_is_playing(
     animation: *const RTuiAnimation,
     out_playing: *mut bool,
 ) -> ReactiveError {
@@ -412,8 +443,14 @@ pub extern "C" fn rtui_animation_is_playing(
 }
 
 /// Get animation progress (0.0 to 1.0)
+///
+/// # Safety
+///
+/// `animation` must be null or a live `RTuiAnimation` handle this library
+/// returned and has not destroyed. `out_progress` must be null or a `f32` the
+/// caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_animation_get_progress(
+pub unsafe extern "C" fn rtui_animation_get_progress(
     animation: *const RTuiAnimation,
     out_progress: *mut f32,
 ) -> ReactiveError {
@@ -437,8 +474,14 @@ pub extern "C" fn rtui_animation_get_progress(
 }
 
 /// Create a spring animation
+///
+/// # Safety
+///
+/// `id` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_animation` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_animation_create_spring(
+pub unsafe extern "C" fn rtui_animation_create_spring(
     id: *const c_char,
     stiffness: f32,
     damping: f32,

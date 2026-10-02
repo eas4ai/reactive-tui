@@ -11,9 +11,14 @@ use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
 
 /// Tracks valid pointers with type information to prevent use-after-free and type confusion
+///
+/// The tracker names its pointee type through `fn() -> T`, so it is `Send`
+/// and `Sync` whatever `T` is: it holds addresses, never a `T`, and the
+/// statics in [`trackers`] must not demand that a renderer or a terminal
+/// be shareable between threads.
 pub struct PointerTracker<T> {
     valid_pointers: Arc<RwLock<HashMap<usize, TypeId>>>,
-    _phantom: PhantomData<T>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 impl<T> PointerTracker<T> {
@@ -59,7 +64,7 @@ impl<T> PointerTracker<T> {
         match self.valid_pointers.read() {
             Ok(map) => map
                 .get(&addr)
-                .map_or(false, |&stored_type| stored_type == expected_type),
+                .is_some_and(|&stored_type| stored_type == expected_type),
             Err(_) => false,
         }
     }
@@ -127,7 +132,7 @@ pub fn validate_pointer<T: 'static>(ptr: *const u8) -> bool {
 
     // Basic alignment check for the type - this prevents most type confusion attacks
     let alignment = std::mem::align_of::<T>();
-    if (ptr as usize) % alignment != 0 {
+    if !(ptr as usize).is_multiple_of(alignment) {
         return false;
     }
 
@@ -148,7 +153,7 @@ pub fn register_typed_pointer<T: 'static>(ptr: *mut T) -> bool {
 
     // Basic alignment check for the type
     let alignment = std::mem::align_of::<T>();
-    (ptr as usize) % alignment == 0
+    (ptr as usize).is_multiple_of(alignment)
 }
 
 /// Global pointer trackers for different types
@@ -231,7 +236,7 @@ mod tests {
     #[test]
     fn test_multiple_pointers() {
         let tracker = PointerTracker::<i32>::new();
-        let mut values = vec![1, 2, 3];
+        let mut values = [1, 2, 3];
         let ptrs: Vec<*mut i32> = values.iter_mut().map(|v| v as *mut i32).collect();
 
         // Register all pointers

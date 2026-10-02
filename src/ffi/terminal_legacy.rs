@@ -8,8 +8,15 @@ use crate::core::terminal::Terminal;
 use crossterm::event::{Event, KeyCode, KeyModifiers, MouseButton, MouseEventKind};
 
 /// Create a terminal handle without entering raw mode.
+///
+/// # Safety
+///
+/// `out_terminal` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_terminal_create(out_terminal: *mut *mut ReactiveTerminal) -> ReactiveError {
+pub unsafe extern "C" fn rtui_terminal_create(
+    out_terminal: *mut *mut ReactiveTerminal,
+) -> ReactiveError {
     if out_terminal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -39,8 +46,14 @@ pub extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
 }
 
 /// Read the host terminal size. No synthetic dimensions are returned on error.
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `ReactiveTerminal` handle this library
+/// returned and has not destroyed. `out_dimensions` must be null or a
+/// `RTuiDimensions` the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_terminal_get_dimensions(
+pub unsafe extern "C" fn rtui_terminal_get_dimensions(
     terminal: *const ReactiveTerminal,
     out_dimensions: *mut RTuiDimensions,
 ) -> ReactiveError {
@@ -162,8 +175,13 @@ fn convert_event(event: Event) -> Result<RTuiEvent, ReactiveError> {
 }
 
 /// Poll once; zero is nonblocking. Unsupported payloads leave output unchanged.
+///
+/// # Safety
+///
+/// `out_event` must be null or a `RTuiEvent` the caller owns, which this call
+/// may write.
 #[no_mangle]
-pub extern "C" fn rtui_terminal_poll_event(
+pub unsafe extern "C" fn rtui_terminal_poll_event(
     timeout_ms: u32,
     out_event: *mut RTuiEvent,
 ) -> ReactiveError {

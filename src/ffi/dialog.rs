@@ -26,8 +26,13 @@ fn error(error: DialogEngineError) -> ReactiveError {
 }
 
 /// Create an isolated native dialog engine with default limits.
+///
+/// # Safety
+///
+/// `out_engine` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_dialog_engine_create(
+pub unsafe extern "C" fn rtui_dialog_engine_create(
     out_engine: *mut *mut RTuiDialogEngine,
 ) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -38,8 +43,15 @@ pub extern "C" fn rtui_dialog_engine_create(
 }
 
 /// Cancel all remaining sessions before releasing this controller.
+///
+/// # Safety
+///
+/// `engine` must be null or a live `RTuiDialogEngine` handle this library
+/// returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_dialog_engine_destroy(engine: *mut RTuiDialogEngine) -> ReactiveError {
+pub unsafe extern "C" fn rtui_dialog_engine_destroy(
+    engine: *mut RTuiDialogEngine,
+) -> ReactiveError {
     if engine.is_null() {
         return ReactiveError::Success;
     }
@@ -50,8 +62,14 @@ pub extern "C" fn rtui_dialog_engine_destroy(engine: *mut RTuiDialogEngine) -> R
 }
 
 /// Return the owned normal App host Element for this engine.
+///
+/// # Safety
+///
+/// `engine` must be null or a live `RTuiDialogEngine` handle this library
+/// returned and has not destroyed. `out_element` must be null or a pointer
+/// slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_dialog_engine_element(
+pub unsafe extern "C" fn rtui_dialog_engine_element(
     engine: *const RTuiDialogEngine,
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {
@@ -64,8 +82,15 @@ pub extern "C" fn rtui_dialog_engine_element(
 }
 
 /// Open one of the six native families. JSON fields are validated per family.
+///
+/// # Safety
+///
+/// `engine` must be null or a live `RTuiDialogEngine` handle this library
+/// returned and has not destroyed. `options` must be null or a NUL-terminated
+/// string that stays readable during the call. `out_id` must be null or a
+/// `u32` the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_dialog_engine_open(
+pub unsafe extern "C" fn rtui_dialog_engine_open(
     engine: *mut RTuiDialogEngine,
     options: *const c_char,
     out_id: *mut u32,
@@ -85,8 +110,14 @@ pub extern "C" fn rtui_dialog_engine_open(
 }
 
 /// Apply exactly one update: progress, input, wizardData, or zIndex.
+///
+/// # Safety
+///
+/// `engine` must be null or a live `RTuiDialogEngine` handle this library
+/// returned and has not destroyed. `update` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_dialog_engine_update(
+pub unsafe extern "C" fn rtui_dialog_engine_update(
     engine: *mut RTuiDialogEngine,
     id: u32,
     update: *const c_char,
@@ -100,8 +131,14 @@ pub extern "C" fn rtui_dialog_engine_update(
 }
 
 /// Close an active dialog once, retaining its supplied result and data.
+///
+/// # Safety
+///
+/// `engine` must be null or a live `RTuiDialogEngine` handle this library
+/// returned and has not destroyed. `result` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_dialog_engine_close(
+pub unsafe extern "C" fn rtui_dialog_engine_close(
     engine: *mut RTuiDialogEngine,
     id: u32,
     result: *const c_char,
@@ -119,8 +156,14 @@ pub extern "C" fn rtui_dialog_engine_close(
 }
 
 /// Consume one native Opened/Closed event. Success with null means empty.
+///
+/// # Safety
+///
+/// `engine` must be null or a live `RTuiDialogEngine` handle this library
+/// returned and has not destroyed. `out_event` must be null or a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_dialog_engine_take_event(
+pub unsafe extern "C" fn rtui_dialog_engine_take_event(
     engine: *mut RTuiDialogEngine,
     out_event: *mut *mut c_char,
 ) -> ReactiveError {

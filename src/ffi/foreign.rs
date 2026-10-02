@@ -199,8 +199,17 @@ impl Component for Foreign {
 }
 
 /// Create a state controller and retain callback/userdata addresses until successful destruction.
+///
+/// # Safety
+///
+/// `props` must be null or a NUL-terminated string that stays readable during
+/// the call. `state` must be null or a NUL-terminated string that stays
+/// readable during the call. `userdata` is kept and handed back to the
+/// callbacks unchanged, never dereferenced here; the caller keeps what it
+/// points to alive for as long as they can run. `out_component` must be null
+/// or a pointer slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_create(
+pub unsafe extern "C" fn rtui_foreign_component_create(
     props: *const c_char,
     state: *const c_char,
     render: RTuiForeignRenderCallback,
@@ -232,8 +241,13 @@ pub extern "C" fn rtui_foreign_component_create(
 }
 
 /// Disable callbacks and dispose userdata once; recursive or wrong-thread destruction fails.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_destroy(
+pub unsafe extern "C" fn rtui_foreign_component_destroy(
     component: *mut RTuiForeignComponent,
 ) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
@@ -249,8 +263,14 @@ pub extern "C" fn rtui_foreign_component_destroy(
 }
 
 /// Return an owned typed Element referencing this controller, without invoking callbacks.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed. `out_element` must be null or a
+/// pointer slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_element(
+pub unsafe extern "C" fn rtui_foreign_component_element(
     component: *const RTuiForeignComponent,
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {
@@ -263,8 +283,14 @@ pub extern "C" fn rtui_foreign_component_element(
 }
 
 /// Invoke render synchronously and return an owned snapshot; recursive entry is rejected.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed. `out_element` must be null or a
+/// pointer slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_render(
+pub unsafe extern "C" fn rtui_foreign_component_render(
     component: *const RTuiForeignComponent,
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {
@@ -277,8 +303,15 @@ pub extern "C" fn rtui_foreign_component_render(
 }
 
 /// Send a JSON object to the event callback; recursive entry is rejected.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed. `event` must be null or a
+/// NUL-terminated string that stays readable during the call. `out_handled`
+/// must be null or a `bool` the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_dispatch(
+pub unsafe extern "C" fn rtui_foreign_component_dispatch(
     component: *const RTuiForeignComponent,
     event: *const c_char,
     out_handled: *mut bool,
@@ -327,8 +360,14 @@ unsafe fn set_json(
 }
 
 /// Return an independently owned JSON copy of the current props.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed. `out_value` must be a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_get_props(
+pub unsafe extern "C" fn rtui_foreign_component_get_props(
     component: *const RTuiForeignComponent,
     out_value: *mut *mut c_char,
 ) -> ReactiveError {
@@ -337,8 +376,14 @@ pub extern "C" fn rtui_foreign_component_get_props(
     }))
 }
 /// Return an independently owned JSON copy of the current state.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed. `out_value` must be a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_get_state(
+pub unsafe extern "C" fn rtui_foreign_component_get_state(
     component: *const RTuiForeignComponent,
     out_value: *mut *mut c_char,
 ) -> ReactiveError {
@@ -347,8 +392,14 @@ pub extern "C" fn rtui_foreign_component_get_state(
     }))
 }
 /// Replace valid JSON props and notify subscribing Apps; callable during a callback.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed. `value` must be a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_set_props(
+pub unsafe extern "C" fn rtui_foreign_component_set_props(
     component: *const RTuiForeignComponent,
     value: *const c_char,
 ) -> ReactiveError {
@@ -357,8 +408,14 @@ pub extern "C" fn rtui_foreign_component_set_props(
     }))
 }
 /// Replace valid JSON state and notify subscribing Apps; callable during a callback.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed. `value` must be a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_set_state(
+pub unsafe extern "C" fn rtui_foreign_component_set_state(
     component: *const RTuiForeignComponent,
     value: *const c_char,
 ) -> ReactiveError {
@@ -389,8 +446,14 @@ pub extern "C" fn rtui_element_set_focus(
 
 /// Read the last callback failure, or zero. A successful explicit render clears
 /// it. App.run retains its existing generic error code; this preserves the cause.
+///
+/// # Safety
+///
+/// `component` must be null or a live `RTuiForeignComponent` handle this
+/// library returned and has not destroyed. `out_code` must be null or a `i32`
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_foreign_component_last_error(
+pub unsafe extern "C" fn rtui_foreign_component_last_error(
     component: *const RTuiForeignComponent,
     out_code: *mut i32,
 ) -> ReactiveError {

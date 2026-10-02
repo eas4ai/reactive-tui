@@ -397,8 +397,18 @@ pub extern "C" fn stopProfiling(renderer: *mut RTuiRenderer) {
 }
 
 /// Get frame timing statistics
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle this library
+/// returned and has not destroyed. `out_avg_frame_time` must be null or a
+/// `f32` the caller owns, which this call may write. `out_min_frame_time`
+/// must be null or a `f32` the caller owns, which this call may write.
+/// `out_max_frame_time` must be null or a `f32` the caller owns, which this
+/// call may write. `out_frame_count` must be null or a `u32` the caller owns,
+/// which this call may write.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn getFrameStats(
+pub unsafe extern "C" fn getFrameStats(
     renderer: *const RTuiRenderer,
     out_avg_frame_time: *mut f32,
     out_min_frame_time: *mut f32,

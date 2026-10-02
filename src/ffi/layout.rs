@@ -14,8 +14,14 @@ pub struct RTuiNativeStyle {
 }
 
 /// Parse native inline CSS; invalid declarations leave out_style null.
+///
+/// # Safety
+///
+/// `css` must be null or a NUL-terminated string that stays readable during
+/// the call. `out_style` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_native_style_create(
+pub unsafe extern "C" fn rtui_native_style_create(
     css: *const c_char,
     out_style: *mut *mut RTuiNativeStyle,
 ) -> ReactiveError {
@@ -34,8 +40,14 @@ pub extern "C" fn rtui_native_style_create(
 }
 
 /// Copy a style into a borrowed Element. Neither handle is consumed.
+///
+/// # Safety
+///
+/// `style` must be null or a live `RTuiNativeStyle` handle this library
+/// returned and has not destroyed. `element` must be null or a live
+/// `RTuiElement` handle this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_native_style_apply(
+pub unsafe extern "C" fn rtui_native_style_apply(
     style: *const RTuiNativeStyle,
     element: *mut RTuiElement,
 ) -> ReactiveError {
@@ -50,8 +62,13 @@ pub extern "C" fn rtui_native_style_apply(
 }
 
 /// Release a style handle on its creating thread; null is accepted.
+///
+/// # Safety
+///
+/// `style` must be null or a live `RTuiNativeStyle` handle this library
+/// returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_native_style_destroy(style: *mut RTuiNativeStyle) -> ReactiveError {
+pub unsafe extern "C" fn rtui_native_style_destroy(style: *mut RTuiNativeStyle) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
         Handle::<StyleSnapshot>::destroy(style)
     }))

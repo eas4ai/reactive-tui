@@ -21,8 +21,15 @@ struct Editor {
 }
 
 /// Create an empty editor with the native default viewport and line numbers.
+///
+/// # Safety
+///
+/// `out_editor` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_create(out_editor: *mut *mut RTuiTextEditor) -> ReactiveError {
+pub unsafe extern "C" fn rtui_text_editor_create(
+    out_editor: *mut *mut RTuiTextEditor,
+) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
         controller::out(out_editor)?;
         *out_editor = Box::into_raw(Box::new(Handle::new(Editor {
@@ -36,16 +43,27 @@ pub extern "C" fn rtui_text_editor_create(out_editor: *mut *mut RTuiTextEditor) 
 }
 
 /// Release an editor on its creating thread; null is accepted.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_destroy(editor: *mut RTuiTextEditor) -> ReactiveError {
+pub unsafe extern "C" fn rtui_text_editor_destroy(editor: *mut RTuiTextEditor) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
         Handle::<Editor>::destroy(editor)
     }))
 }
 
 /// Replace all text and reset cursor, selection and scroll.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed. `content` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_set_content(
+pub unsafe extern "C" fn rtui_text_editor_set_content(
     editor: *mut RTuiTextEditor,
     content: *const c_char,
 ) -> ReactiveError {
@@ -57,8 +75,14 @@ pub extern "C" fn rtui_text_editor_set_content(
 }
 
 /// Return an owned UTF-8 copy; release it with rtui_string_free.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed. `out_content` must be null or a pointer
+/// slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_get_content_owned(
+pub unsafe extern "C" fn rtui_text_editor_get_content_owned(
     editor: *const RTuiTextEditor,
     out_content: *mut *mut c_char,
 ) -> ReactiveError {
@@ -69,8 +93,14 @@ pub extern "C" fn rtui_text_editor_get_content_owned(
 }
 
 /// Insert UTF-8 text, replacing the complete selected graphemes.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed. `text` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_insert_text(
+pub unsafe extern "C" fn rtui_text_editor_insert_text(
     editor: *mut RTuiTextEditor,
     text: *const c_char,
 ) -> ReactiveError {
@@ -82,8 +112,13 @@ pub extern "C" fn rtui_text_editor_insert_text(
 }
 
 /// Delete the selection, or one preceding/following complete grapheme.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_delete(
+pub unsafe extern "C" fn rtui_text_editor_delete(
     editor: *mut RTuiTextEditor,
     backward: bool,
 ) -> ReactiveError {
@@ -100,8 +135,13 @@ pub extern "C" fn rtui_text_editor_delete(
 
 /// Movement codes: left/right/up/down=0..3, line start/end=4..5,
 /// document start/end=6..7, word backward/forward=8..9. Others are invalid.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_move(
+pub unsafe extern "C" fn rtui_text_editor_move(
     editor: *mut RTuiTextEditor,
     movement: u32,
     select: bool,
@@ -128,8 +168,13 @@ pub extern "C" fn rtui_text_editor_move(
 }
 
 /// Set a bounded viewport measured in terminal cells; invalid dimensions do not mutate it.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_set_size(
+pub unsafe extern "C" fn rtui_text_editor_set_size(
     editor: *mut RTuiTextEditor,
     width: u32,
     height: u32,
@@ -150,8 +195,13 @@ pub extern "C" fn rtui_text_editor_set_size(
 }
 
 /// Show or hide the native line-number gutter.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_set_show_line_numbers(
+pub unsafe extern "C" fn rtui_text_editor_set_show_line_numbers(
     editor: *mut RTuiTextEditor,
     show: bool,
 ) -> ReactiveError {
@@ -164,8 +214,14 @@ pub extern "C" fn rtui_text_editor_set_show_line_numbers(
 }
 
 /// Copy the visible styled lines into an owned Element snapshot.
+///
+/// # Safety
+///
+/// `editor` must be null or a live `RTuiTextEditor` handle this library
+/// returned and has not destroyed. `out_element` must be null or a pointer
+/// slot the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_text_editor_element(
+pub unsafe extern "C" fn rtui_text_editor_element(
     editor: *const RTuiTextEditor,
     out_element: *mut *mut RTuiElement,
 ) -> ReactiveError {

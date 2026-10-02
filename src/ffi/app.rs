@@ -185,8 +185,15 @@ impl RootComponent for FFIRootComponent {
 }
 
 /// Create a new app builder
+///
+/// # Safety
+///
+/// `out_builder` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_app_builder_create(out_builder: *mut *mut RTuiAppBuilder) -> ReactiveError {
+pub unsafe extern "C" fn rtui_app_builder_create(
+    out_builder: *mut *mut RTuiAppBuilder,
+) -> ReactiveError {
     if out_builder.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -329,8 +336,14 @@ pub extern "C" fn rtui_app_builder_root_component(
 }
 
 /// Build the app from the builder
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle this library
+/// returned and has not destroyed. `out_app` must be null or a pointer slot
+/// the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_app_builder_build(
+pub unsafe extern "C" fn rtui_app_builder_build(
     builder: *mut RTuiAppBuilder,
     out_app: *mut *mut RTuiApp,
 ) -> ReactiveError {
@@ -402,8 +415,14 @@ pub extern "C" fn rtui_app_quit(app: *mut RTuiApp) -> ReactiveError {
 }
 
 /// Get app terminal size
+///
+/// # Safety
+///
+/// `app` must be null or a live `RTuiApp` handle this library returned and
+/// has not destroyed. `out_dimensions` must be null or a `RTuiDimensions` the
+/// caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_app_get_size(
+pub unsafe extern "C" fn rtui_app_get_size(
     app: *const RTuiApp,
     out_dimensions: *mut RTuiDimensions,
 ) -> ReactiveError {
@@ -441,8 +460,14 @@ pub extern "C" fn rtui_app_set_performance_mode(
 }
 
 /// Get current FPS
+///
+/// # Safety
+///
+/// `app` must be null or a live `RTuiApp` handle this library returned and
+/// has not destroyed. `out_fps` must be null or a `u32` the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_app_get_current_fps(
+pub unsafe extern "C" fn rtui_app_get_current_fps(
     app: *const RTuiApp,
     out_fps: *mut u32,
 ) -> ReactiveError {
@@ -460,8 +485,14 @@ pub extern "C" fn rtui_app_get_current_fps(
 }
 
 /// Get performance metrics
+///
+/// # Safety
+///
+/// `app` must be null or a live `RTuiApp` handle this library returned and
+/// has not destroyed. `out_metrics` must be null or a
+/// `RTuiPerformanceMetrics` the caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_app_get_performance_metrics(
+pub unsafe extern "C" fn rtui_app_get_performance_metrics(
     app: *const RTuiApp,
     out_metrics: *mut RTuiPerformanceMetrics,
 ) -> ReactiveError {
@@ -493,7 +524,9 @@ mod tests {
         extern "C" fn render(_: *mut std::ffi::c_void) -> *mut super::super::builder::RTuiElement {
             let mut element = std::ptr::null_mut();
             assert_eq!(
-                super::super::rtui_text_element_create(c"callback root".as_ptr(), &mut element),
+                unsafe {
+                    super::super::rtui_text_element_create(c"callback root".as_ptr(), &mut element)
+                },
                 ReactiveError::Success,
             );
             element

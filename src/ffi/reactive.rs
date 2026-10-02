@@ -345,8 +345,14 @@ impl FFISignal {
 }
 
 /// Create a string signal
+///
+/// # Safety
+///
+/// `initial_value` must be null or a NUL-terminated string that stays
+/// readable during the call. `out_signal` must be null or a pointer slot the
+/// caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_signal_string_create(
+pub unsafe extern "C" fn rtui_signal_string_create(
     initial_value: *const c_char,
     out_signal: *mut *mut RTuiSignal,
 ) -> ReactiveError {
@@ -371,8 +377,13 @@ pub extern "C" fn rtui_signal_string_create(
 }
 
 /// Create an integer signal
+///
+/// # Safety
+///
+/// `out_signal` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_signal_int_create(
+pub unsafe extern "C" fn rtui_signal_int_create(
     initial_value: i64,
     out_signal: *mut *mut RTuiSignal,
 ) -> ReactiveError {
@@ -390,8 +401,13 @@ pub extern "C" fn rtui_signal_int_create(
 }
 
 /// Create a float signal
+///
+/// # Safety
+///
+/// `out_signal` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_signal_float_create(
+pub unsafe extern "C" fn rtui_signal_float_create(
     initial_value: f64,
     out_signal: *mut *mut RTuiSignal,
 ) -> ReactiveError {
@@ -409,8 +425,13 @@ pub extern "C" fn rtui_signal_float_create(
 }
 
 /// Create a boolean signal
+///
+/// # Safety
+///
+/// `out_signal` must be null or a pointer slot the caller owns, which this
+/// call may write.
 #[no_mangle]
-pub extern "C" fn rtui_signal_bool_create(
+pub unsafe extern "C" fn rtui_signal_bool_create(
     initial_value: bool,
     out_signal: *mut *mut RTuiSignal,
 ) -> ReactiveError {
@@ -460,8 +481,14 @@ pub extern "C" fn rtui_signal_string_get(
 }
 
 /// Set string signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle this library returned
+/// and has not destroyed. `value` must be null or a NUL-terminated string
+/// that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_signal_string_set(
+pub unsafe extern "C" fn rtui_signal_string_set(
     signal: *mut RTuiSignal,
     value: *const c_char,
 ) -> ReactiveError {
@@ -482,8 +509,14 @@ pub extern "C" fn rtui_signal_string_set(
 }
 
 /// Get integer signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle this library returned
+/// and has not destroyed. `out_value` must be null or a `i64` the caller
+/// owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_signal_int_get(
+pub unsafe extern "C" fn rtui_signal_int_get(
     signal: *const RTuiSignal,
     out_value: *mut i64,
 ) -> ReactiveError {
@@ -513,8 +546,14 @@ pub extern "C" fn rtui_signal_int_set(signal: *mut RTuiSignal, value: i64) -> Re
 }
 
 /// Get float signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle this library returned
+/// and has not destroyed. `out_value` must be null or a `f64` the caller
+/// owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_signal_float_get(
+pub unsafe extern "C" fn rtui_signal_float_get(
     signal: *const RTuiSignal,
     out_value: *mut f64,
 ) -> ReactiveError {
@@ -544,8 +583,14 @@ pub extern "C" fn rtui_signal_float_set(signal: *mut RTuiSignal, value: f64) -> 
 }
 
 /// Get boolean signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle this library returned
+/// and has not destroyed. `out_value` must be null or a `bool` the caller
+/// owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_signal_bool_get(
+pub unsafe extern "C" fn rtui_signal_bool_get(
     signal: *const RTuiSignal,
     out_value: *mut bool,
 ) -> ReactiveError {
@@ -575,8 +620,14 @@ pub extern "C" fn rtui_signal_bool_set(signal: *mut RTuiSignal, value: bool) -> 
 }
 
 /// Create a thread-safe string signal
+///
+/// # Safety
+///
+/// `initial_value` must be null or a NUL-terminated string that stays
+/// readable during the call. `out_signal` must be null or a pointer slot the
+/// caller owns, which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_thread_safe_signal_string_create(
+pub unsafe extern "C" fn rtui_thread_safe_signal_string_create(
     initial_value: *const c_char,
     out_signal: *mut *mut RTuiThreadSafeSignal,
 ) -> ReactiveError {
@@ -637,8 +688,14 @@ pub extern "C" fn rtui_thread_safe_signal_string_get(
 }
 
 /// Set thread-safe string signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiThreadSafeSignal` handle this library
+/// returned and has not destroyed. `value` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_thread_safe_signal_string_set(
+pub unsafe extern "C" fn rtui_thread_safe_signal_string_set(
     signal: *mut RTuiThreadSafeSignal,
     value: *const c_char,
 ) -> ReactiveError {
@@ -659,8 +716,15 @@ pub extern "C" fn rtui_thread_safe_signal_string_set(
 }
 
 /// Create an effect
+///
+/// # Safety
+///
+/// `user_data` is kept and handed back to the callbacks unchanged, never
+/// dereferenced here; the caller keeps what it points to alive for as long as
+/// they can run. `out_effect` must be null or a pointer slot the caller owns,
+/// which this call may write.
 #[no_mangle]
-pub extern "C" fn rtui_effect_create(
+pub unsafe extern "C" fn rtui_effect_create(
     callback: RTuiEffectCallback,
     cleanup: RTuiEffectCleanupCallback,
     user_data: *mut std::ffi::c_void,
@@ -738,8 +802,13 @@ pub extern "C" fn rtui_signal_new_int(initial_value: c_int) -> *mut RTuiSignal {
 }
 
 /// Create a new string signal (improved API)
+///
+/// # Safety
+///
+/// `initial_value` must be null or a NUL-terminated string that stays
+/// readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_signal_new_string(initial_value: *const c_char) -> *mut RTuiSignal {
+pub unsafe extern "C" fn rtui_signal_new_string(initial_value: *const c_char) -> *mut RTuiSignal {
     if initial_value.is_null() {
         return std::ptr::null_mut();
     }
@@ -832,8 +901,14 @@ pub extern "C" fn rtui_signal_get_string_owned(signal: *const RTuiSignal) -> *mu
 }
 
 /// Set the value of a string signal (improved API)
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle this library returned
+/// and has not destroyed. `value` must be null or a NUL-terminated string
+/// that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_signal_set_string_new(
+pub unsafe extern "C" fn rtui_signal_set_string_new(
     signal: *mut RTuiSignal,
     value: *const c_char,
 ) -> ReactiveError {
@@ -921,8 +996,12 @@ pub extern "C" fn rtui_signal_destroy_new(signal: *mut RTuiSignal) {
 }
 
 /// Free a string returned by rtui_signal_get_string_owned
+///
+/// # Safety
+///
+/// `string` must be null or a string this library returned and has not freed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_string_free(string: *mut c_char) {
+pub unsafe extern "C" fn rtui_string_free(string: *mut c_char) {
     if !string.is_null() {
         unsafe {
             let _ = CString::from_raw(string);
@@ -1000,8 +1079,14 @@ pub extern "C" fn rtui_hooks_destroy(hooks: *mut RTuiHooks) {
 }
 
 /// Use an integer signal in a component (React-like hook)
+///
+/// # Safety
+///
+/// `hooks` must be null or a live `RTuiHooks` handle this library returned
+/// and has not destroyed. `key` must be null or a NUL-terminated string that
+/// stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_use_signal_int(
+pub unsafe extern "C" fn rtui_use_signal_int(
     hooks: *mut RTuiHooks,
     key: *const c_char,
     initial: c_int,
@@ -1026,8 +1111,15 @@ pub extern "C" fn rtui_use_signal_int(
 }
 
 /// Use a string signal in a component (React-like hook)
+///
+/// # Safety
+///
+/// `hooks` must be null or a live `RTuiHooks` handle this library returned
+/// and has not destroyed. `key` must be null or a NUL-terminated string that
+/// stays readable during the call. `initial` must be null or a NUL-terminated
+/// string that stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_use_signal_string(
+pub unsafe extern "C" fn rtui_use_signal_string(
     hooks: *mut RTuiHooks,
     key: *const c_char,
     initial: *const c_char,
@@ -1059,8 +1151,14 @@ pub extern "C" fn rtui_use_signal_string(
 }
 
 /// Use a boolean signal in a component (React-like hook)
+///
+/// # Safety
+///
+/// `hooks` must be null or a live `RTuiHooks` handle this library returned
+/// and has not destroyed. `key` must be null or a NUL-terminated string that
+/// stays readable during the call.
 #[no_mangle]
-pub extern "C" fn rtui_use_signal_bool(
+pub unsafe extern "C" fn rtui_use_signal_bool(
     hooks: *mut RTuiHooks,
     key: *const c_char,
     initial: bool,
