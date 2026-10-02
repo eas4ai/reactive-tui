@@ -40,6 +40,8 @@ fn props(kind: ChartType, size: (u16, u16)) -> ChartProps {
             visible: false,
             ..Default::default()
         },
+        // Dots are off until asked for (CHT-012); these tests look at them.
+        dots: true,
         ..Default::default()
     }
 }
@@ -172,13 +174,15 @@ fn chart_tooltips_follow_painted_points_and_keyboard_and_can_be_disabled() {
             ],
         );
         assert!(
-            frames
-                .iter()
-                .any(|f| f.text.contains("High: 8;") && f.text.contains("unit=ms")),
+            frames.iter().any(|f| f.text.contains("High")
+                && f.text.contains("8;")
+                && f.text.contains("unit=ms")),
             "{:?}",
             frames.iter().map(|f| &f.text).collect::<Vec<_>>()
         );
-        assert!(frames.iter().any(|f| f.text.contains("Low: 2")));
+        assert!(frames
+            .iter()
+            .any(|f| f.text.contains("Low") && f.text.contains(" 2")));
         assert!(!frames.last().unwrap().text.contains("unit=ms"));
         let mut disabled = config;
         disabled.show_tooltips = false;
@@ -287,7 +291,7 @@ fn chart_builder_and_macro_draw_data_instead_of_descriptions() {
             reactive_tui::chart![line: "Signal" => [1.0, 3.0, 2.0]],
         ] {
             let frame = last(element, size);
-            assert!(count(&frame, '●') > 0, "{}", frame.text);
+            assert!(braille(&frame) > 0, "{}", frame.text);
             assert!(!frame.text.contains("Chart:"));
         }
     }
@@ -454,12 +458,14 @@ fn charts_update_props_and_resize_inside_a_padded_parent() {
         ],
     );
     assert!(
-        frames.iter().any(|f| f.text.contains("High: 8;")),
+        frames
+            .iter()
+            .any(|f| f.text.contains("High") && f.text.contains("8;")),
         "{:?}",
         frames.iter().map(|f| &f.text).collect::<Vec<_>>()
     );
     assert!(
-        frames.last().unwrap().text.contains("High:") && frames.last().unwrap().text.contains("5;"),
+        frames.last().unwrap().text.contains("High") && frames.last().unwrap().text.contains("5;"),
         "{}",
         frames.last().unwrap().text
     );
@@ -603,6 +609,7 @@ fn chart_convenience_builders_and_disabled_controls_keep_their_behavior() {
             let frame = last(
                 builder
                     .series(data.clone())
+                    .dots(true)
                     .title("Graph")
                     .width(24)
                     .height(10)
@@ -717,7 +724,7 @@ fn chart_own_padding_positions_plot_and_tooltips_in_the_content_box() {
         );
         let frame = frames.last().unwrap();
         assert!(
-            frame.text.contains("High:")
+            frame.text.contains("High")
                 && frame.text.contains("8;")
                 && frame.text.contains("unit=ms"),
             "{}",
