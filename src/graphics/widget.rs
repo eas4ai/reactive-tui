@@ -173,6 +173,48 @@ fn pixels_per_cell(
     best.map(|((across, down), _, _)| (across as u16, down as u16))
 }
 
+/// A picture budget the output taught the canvas: a picture whose Sixel
+/// text, or whose command, exceeded the room the output has is drawn next
+/// with a quarter of the pixels, and so on until it fits (GFX-010). It
+/// holds for one output and one area.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Room {
+    output: CanvasOutput,
+    cells: (u32, u32),
+    pixels: u64,
+}
+
+impl Room {
+    /// The room after a picture of `size` pixels for `cells` was refused
+    /// for its output's room: a quarter of its pixels, and never fewer than
+    /// one per cell.
+    fn after(output: CanvasOutput, cells: (u32, u32), size: (u32, u32)) -> Self {
+        let pixels = (u64::from(size.0) * u64::from(size.1) / 4)
+            .max(u64::from(cells.0) * u64::from(cells.1));
+        Self {
+            output,
+            cells,
+            pixels,
+        }
+    }
+
+    /// The budget this room leaves for `output` over `cells`, out of
+    /// `budget`; a room learned for another output or area is forgotten.
+    fn within(room: Option<Self>, output: CanvasOutput, cells: (u32, u32), budget: u64) -> u64 {
+        match room {
+            Some(room) if room.output == output && room.cells == cells => budget.min(room.pixels),
+            _ => budget,
+        }
+    }
+}
+
+/// Whether a frame refused a picture because its Sixel text or its command
+/// took more room than the output has, which fewer pixels per cell can
+/// mend, rather than for the frame's budget across pictures (GFX-007).
+fn refused_for_room(reason: &str) -> bool {
+    reason.contains("output exceeds") || reason.contains("output limit")
+}
+
 #[derive(Default)]
 struct View {
     submitted: Option<Submitted>,
@@ -181,6 +223,9 @@ struct View {
     /// Whether a render has passed with no report from a painter, after
     /// which the canvas stops waiting for one.
     waited: bool,
+    /// The budget the output taught the canvas, if it refused a picture
+    /// for its room.
+    room: Option<Room>,
 }
 
 /// A widget that draws a scene.
@@ -241,7 +286,7 @@ impl Canvas {
     /// forces fewer (GFX-010). `None` before the first layout, which gives
     /// the area its size, and before the drawing thread has made its
     /// renderer, whose limits decide the picture.
-    fn job(&self, waited: bool) -> Option<Wanted> {
+    fn job(&self, waited: bool, room: Option<Room>) -> Option<Wanted> {
         let (columns, rows) = self.cells();
         if columns == 0 || rows == 0 {
             return None;
@@ -288,6 +333,7 @@ impl Canvas {
                 } else {
                     FRAME_PIXELS
                 };
+                let budget = Room::within(room, output, (columns, rows), budget);
                 let wanted = self.props.cell_pixels.map_or(cell, |pin| {
                     (pin.0.min(cell.0).max(1), pin.1.min(cell.1).max(1))
                 });
@@ -382,16 +428,28 @@ impl Component for Canvas {
     fn render(&self, _: &Self::Props, _: &()) -> Element {
         self.link.observe();
         let mut view = self.view.lock().unwrap_or_else(|e| e.into_inner());
-        let wanted = self.job(view.waited);
+        let mut wanted = self.job(view.waited, view.room);
         view.waited = true;
         let theme = crate::theme::Theme::generation();
         // A frame that could not hold the picture said so: the canvas
         // shows why and draws no more pictures of that size (GFX-007).
-        let refused = wanted.as_ref().and_then(|(job, output, _, _)| {
-            matches!(output, CanvasOutput::Kitty | CanvasOutput::Sixel)
-                .then(|| self.link.refused(job.size))
-                .flatten()
-        });
+        let refusal = |wanted: &Option<Wanted>| {
+            wanted.as_ref().and_then(|(job, output, _, _)| {
+                matches!(output, CanvasOutput::Kitty | CanvasOutput::Sixel)
+                    .then(|| self.link.refused(job.size))
+                    .flatten()
+            })
+        };
+        let mut refused = refusal(&wanted);
+        // A picture refused for the room its output has is drawn again
+        // with fewer pixels per cell, down to one (GFX-010).
+        if let (Some(reason), Some((job, output, cells, pixels))) = (&refused, wanted.as_ref()) {
+            if refused_for_room(reason) && *pixels != (1, 1) {
+                view.room = Some(Room::after(*output, *cells, job.size));
+                wanted = self.job(view.waited, view.room);
+                refused = refusal(&wanted);
+            }
+        }
         if let Some(picture) = &self.picture {
             picture.observe();
             if let Some((job, _, _, _)) = wanted.as_ref().filter(|_| refused.is_none()) {
@@ -522,5 +580,88 @@ impl Component for Canvas {
             self.worker = None;
             *self.view.get_mut().unwrap_or_else(|e| e.into_inner()) = View::default();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const LIMITS: PictureLimits = PictureLimits::SOFTWARE;
+
+    #[test]
+    fn gfx_010_the_most_whole_pixels_per_cell_that_fit_are_chosen() {
+        // The terminal's own cell fits: one picture pixel per screen pixel.
+        assert_eq!(
+            pixels_per_cell(520, 60, (9, 18), LIMITS, FRAME_PIXELS),
+            Some((9, 18))
+        );
+        // A picture too large for a command sent in the frame: 520 by 260
+        // cells of 8 by 16 would be 17.3 million pixels; the most whole
+        // pixels per cell within 12 million are 8 by 11.
+        let chosen = pixels_per_cell(520, 260, (8, 16), LIMITS, DIRECT_PIXELS).expect("fits");
+        assert!(
+            u64::from(chosen.0) * u64::from(chosen.1) * 520 * 260 <= DIRECT_PIXELS
+                && chosen == (8, 11),
+            "chose {chosen:?}"
+        );
+        // Ties go to the cell's own proportions: 260 by 260 cells of 16 by
+        // 32 within the frame's room take 8 by 31 (248 pixels a cell).
+        assert_eq!(
+            pixels_per_cell(260, 260, (16, 32), LIMITS, FRAME_PIXELS),
+            Some((8, 31))
+        );
+        // A side the renderer cannot draw leaves fewer pixels across.
+        let narrow = PictureLimits {
+            side: 4096,
+            pixels: u64::MAX,
+        };
+        assert_eq!(
+            pixels_per_cell(1000, 10, (8, 16), narrow, FRAME_PIXELS),
+            Some((4, 16))
+        );
+        // Not even one pixel per cell: none.
+        assert_eq!(
+            pixels_per_cell(5000, 10, (8, 16), narrow, FRAME_PIXELS),
+            None
+        );
+    }
+
+    #[test]
+    fn gfx_010_a_picture_refused_for_its_outputs_room_shrinks_to_a_quarter() {
+        let cells = (512, 256);
+        let room = Room::after(CanvasOutput::Sixel, cells, (4096, 4096));
+        assert_eq!(room.pixels, 4096 * 4096 / 4);
+        assert_eq!(
+            Room::within(Some(room), CanvasOutput::Sixel, cells, FRAME_PIXELS),
+            room.pixels
+        );
+        // Learned for one output and area only.
+        assert_eq!(
+            Room::within(Some(room), CanvasOutput::Kitty, cells, FRAME_PIXELS),
+            FRAME_PIXELS
+        );
+        assert_eq!(
+            Room::within(Some(room), CanvasOutput::Sixel, (512, 255), FRAME_PIXELS),
+            FRAME_PIXELS
+        );
+        // Never fewer than one pixel per cell.
+        let floor = Room::after(CanvasOutput::Sixel, cells, (512, 256));
+        assert_eq!(floor.pixels, 512 * 256);
+        // The next picture: 4 by 8 pixels per cell, 2048 by 2048.
+        assert_eq!(
+            pixels_per_cell(cells.0, cells.1, (8, 16), LIMITS, room.pixels),
+            Some((4, 8))
+        );
+        // Which refusals teach a room: the output's, not the frame's budget.
+        assert!(refused_for_room(
+            "Resource error: image frame exceeds 64 MiB output limit"
+        ));
+        assert!(refused_for_room(
+            "Image processing error: Sixel output exceeds the 64 MiB limit"
+        ));
+        assert!(!refused_for_room(
+            "Resource error: image frame exceeds 64 MiB raster limit"
+        ));
     }
 }

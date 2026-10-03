@@ -69,10 +69,19 @@ def output() -> int:
     binary_ok, binary_why = test_group(["canvas_output"], "gfx_005_")
     lib_ok, lib_why = cargo_test_filtered(
         None, "backend::suprtui::graphics::maker::tests::gfx_005_", features=FEATURE, package=PACKAGE)
+    # GFX-010's debug tests, its unit tests of the pixels-per-cell rule, and
+    # the Sixel picture whose 84 MiB of text makes the canvas draw with fewer
+    # pixels per cell, which only a release build runs in reasonable time.
+    size_ok, size_why = test_group(["canvas_output"], "gfx_010_")
+    unit_ok, unit_why = cargo_test_filtered(None, "graphics::widget::tests::gfx_010_", features=FEATURE, package=PACKAGE)
+    heavy = run(["cargo", *f"test --locked -p {PACKAGE} --features wgpu-graphics --jobs {JOBS} --release "
+                 "--test canvas_output -- --ignored gfx_010_ --nocapture".split()], timeout=3600, interleave=True)
+    print(heavy.stdout[-2000:])
+    heavy_ok, heavy_why = test_summary(heavy.stdout)
     return finish({
         "GFX-005": (binary_ok and lib_ok, f"{binary_why}; picture thread: {lib_why}"),
         "GFX-006": cargo_test_filtered(None, "backend::suprtui::input_pty::gfx_006_", package=PACKAGE),
-        "GFX-010": test_group(["canvas_output"], "gfx_010_"),
+        "GFX-010": (size_ok and unit_ok and heavy_ok, f"{size_why}; unit: {unit_why}; release: {heavy_why}"),
     })
 
 
