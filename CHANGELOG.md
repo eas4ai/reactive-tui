@@ -17,7 +17,10 @@ This file records user-visible changes to Reactive TUI. The project follows
   the chart draws in cells as before, byte for byte.
   `charts::set_graphics_options` picks the renderer, font and output for
   every chart of the process, and `REACTIVE_TUI_CANVAS=blocks` keeps the
-  plots in cells (CHT-037, CHT-038, CHT-039).
+  plots in cells (CHT-037, CHT-038, CHT-039). While a drawing thread
+  makes its renderer and stderr is the terminal, stderr goes nowhere, so
+  a Vulkan driver's startup warning no longer lands in the frame of an
+  App whose first picture starts the thread.
 - `LayoutInfo::terminal` (`TerminalInfo`) tells a component what the
   terminal takes, the cell size in pixels and whether Kitty graphics, Kitty
   shared memory or Sixel reach the screen, before its first frame and after

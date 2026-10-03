@@ -214,6 +214,15 @@ every picture of the software renderer, so the canvas shows its message.
 
 ## The drawing thread
 
+While the thread makes its renderer and the process's stderr is the
+terminal, stderr goes nowhere: a Vulkan driver prints what it thinks of
+itself as its instance is created (Mesa's radv says it is not a
+conformant implementation), and on a running App those lines would land
+in the frame. A stderr that is a file or a pipe keeps them; anything
+another thread writes to a terminal stderr during that moment is lost.
+A thread started before the App, as the catalog does, prints before the
+App holds the screen either way.
+
 Every canvas draws on a thread named `rtui-canvas-` and a number, and the
 canvases of a process that draw with the same renderer options share one:
 it owns the adapter, the device, the pipelines, the glyph atlas and the
