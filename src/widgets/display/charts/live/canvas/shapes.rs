@@ -19,10 +19,6 @@ pub(super) enum Shapes<'a> {
     Pixels(PlotScene),
 }
 
-/// White, where a shape has no color of its own.
-#[cfg(feature = "wgpu-graphics")]
-const PLAIN: Rgba = (1.0, 1.0, 1.0, 1.0);
-
 impl Shapes<'_> {
     /// How many units a cell measures across and down.
     pub fn units(&self) -> (f64, f64) {
@@ -78,7 +74,9 @@ impl Shapes<'_> {
             Shapes::Mask(mask) => mask.rect(x0, y0, x1, y1, color, owner),
             #[cfg(feature = "wgpu-graphics")]
             Shapes::Pixels(scene) => {
-                scene.solid_rect(x0, y0, x1, y1, color.unwrap_or(PLAIN), alpha, radius)
+                if let Some(color) = color.or(scene.fallback()) {
+                    scene.solid_rect(x0, y0, x1, y1, color, alpha, radius);
+                }
             }
         }
     }
@@ -185,7 +183,10 @@ impl Shapes<'_> {
                     LineStyle::Dotted => Some(vec![0.01, width * 2.0]),
                     LineStyle::None => return,
                 };
-                scene.polyline(points, curve, tint.unwrap_or(PLAIN), width, dash.as_deref());
+                let Some(tint) = tint.or(scene.fallback()) else {
+                    return;
+                };
+                scene.polyline(points, curve, tint, width, dash.as_deref());
             }
         }
     }
@@ -209,7 +210,9 @@ impl Shapes<'_> {
                     Marker::Dot => scene.cell_height() / 4.0,
                     Marker::Disc => scene.cell_height() / 6.0,
                 };
-                scene.disc(x, y, radius, color.unwrap_or(PLAIN), 1.0);
+                if let Some(color) = color.or(scene.fallback()) {
+                    scene.disc(x, y, radius, color, 1.0);
+                }
             }
         }
     }
@@ -323,7 +326,10 @@ impl Shapes<'_> {
             #[cfg(feature = "wgpu-graphics")]
             Shapes::Pixels(scene) => {
                 let (ux, uy) = scene.units();
-                let tint = tint.unwrap_or(PLAIN);
+                // Without any color the mark is left out of the picture.
+                let Some(tint) = tint.or(scene.fallback()) else {
+                    return true;
+                };
                 let (left, top) = (col as f64 * ux, row as f64 * uy);
                 match mark {
                     " " | "" => {}
@@ -351,10 +357,13 @@ impl Shapes<'_> {
             #[cfg(feature = "wgpu-graphics")]
             Shapes::Pixels(scene) => {
                 let (_, uy) = scene.units();
+                let Some(color) = color.or(scene.fallback()) else {
+                    return;
+                };
                 scene.line(
                     (x, inner.y as f64 * uy),
                     (x, inner.bottom() as f64 * uy),
-                    color.unwrap_or(PLAIN),
+                    color,
                     None,
                     alpha,
                 );
@@ -371,7 +380,9 @@ impl Shapes<'_> {
             #[cfg(feature = "wgpu-graphics")]
             Shapes::Pixels(scene) => {
                 let height = scene.cell_height();
-                let tint = color.unwrap_or(PLAIN);
+                let Some(tint) = color.or(scene.fallback()) else {
+                    return;
+                };
                 scene.disc(x, y, height / 2.0, tint, 0.2 * alpha);
                 scene.disc(x, y, height / 4.0, tint, alpha);
             }
@@ -387,7 +398,9 @@ impl Shapes<'_> {
             #[cfg(feature = "wgpu-graphics")]
             Shapes::Pixels(scene) => {
                 let radius = scene.cell_height() / 2.0;
-                scene.ring(x, y, radius, color.unwrap_or(PLAIN), alpha);
+                if let Some(color) = color.or(scene.fallback()) {
+                    scene.ring(x, y, radius, color, alpha);
+                }
             }
         }
     }
@@ -415,7 +428,10 @@ impl Shapes<'_> {
                 } else {
                     ((plot.x as f64 * ux, at), (plot.right() as f64 * ux, at))
                 };
-                scene.line(from, to, color.unwrap_or(PLAIN), dash.as_deref(), 1.0);
+                let Some(color) = color.or(scene.fallback()) else {
+                    return;
+                };
+                scene.line(from, to, color, dash.as_deref(), 1.0);
             }
         }
     }

@@ -545,7 +545,9 @@ pub(super) fn draw(job: &Job) -> Picture {
             // (CHT-037).
             #[cfg(feature = "wgpu-graphics")]
             let mut target = match job.pixels {
-                Some(pixels) => shapes::Shapes::Pixels(pixels::PlotScene::new(pixels.cell)),
+                Some(pixels) => {
+                    shapes::Shapes::Pixels(pixels::PlotScene::new(pixels.cell, color("foreground")))
+                }
                 None => shapes::Shapes::Mask(&mut mask),
             };
             #[cfg(not(feature = "wgpu-graphics"))]
