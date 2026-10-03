@@ -306,20 +306,62 @@ impl PlotScene {
         let Some(path) = Self::area(top, bottom, curve) else {
             return;
         };
+        // Screen y grows downward: an area above its baseline has its
+        // stroke's highest point at the smallest y, an area below it (all
+        // values negative) at the largest, and an area that crosses it
+        // has both. The fill is strongest at the stroke's farthest point
+        // from the baseline on each side and transparent at the baseline.
         let highest = top.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
-        let baseline = bottom.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
-        if !(highest.is_finite() && baseline.is_finite()) || baseline <= highest {
+        let lowest = top.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
+        let base_low = bottom.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
+        let base_high = bottom.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
+        if !(highest.is_finite()
+            && lowest.is_finite()
+            && base_low.is_finite()
+            && base_high.is_finite())
+        {
             self.scene.fill(&path, &solid(tint, opacity));
             return;
         }
-        let paint = Paint::linear(
-            (0.0, highest as f32),
-            (0.0, baseline as f32),
-            vec![
-                GradientStop::new(0.0, color(tint, opacity)),
-                GradientStop::new(1.0, color(tint, 0.0)),
-            ],
-        );
+        let above = highest < base_high;
+        let below = lowest > base_low;
+        let strong = || color(tint, opacity);
+        let faded = || color(tint, 0.0);
+        let paint = match (above, below) {
+            (true, false) => Paint::linear(
+                (0.0, highest as f32),
+                (0.0, base_high as f32),
+                vec![
+                    GradientStop::new(0.0, strong()),
+                    GradientStop::new(1.0, faded()),
+                ],
+            ),
+            (false, true) => Paint::linear(
+                (0.0, lowest as f32),
+                (0.0, base_low as f32),
+                vec![
+                    GradientStop::new(0.0, strong()),
+                    GradientStop::new(1.0, faded()),
+                ],
+            ),
+            (true, true) => {
+                let base = (base_low + base_high) / 2.0;
+                let at = ((base - highest) / (lowest - highest)).clamp(0.0, 1.0) as f32;
+                Paint::linear(
+                    (0.0, highest as f32),
+                    (0.0, lowest as f32),
+                    vec![
+                        GradientStop::new(0.0, strong()),
+                        GradientStop::new(at, faded()),
+                        GradientStop::new(1.0, strong()),
+                    ],
+                )
+            }
+            (false, false) => {
+                self.scene.fill(&path, &solid(tint, opacity));
+                return;
+            }
+        };
         self.scene.fill(&path, &paint);
     }
 

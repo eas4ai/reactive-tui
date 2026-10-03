@@ -1097,6 +1097,126 @@ fn assert_references(requirement: &str, variants: Vec<(&str, Element)>) {
     );
 }
 
+/// The alpha of the picture at (`x`, `y`).
+fn alpha_at(picture: &Picture, x: f64, y: f64) -> u8 {
+    picture.pixel(x as u32, y as u32)[3]
+}
+
+#[test]
+fn cht_012_a_gradient_area_below_or_across_its_baseline_fades_toward_it() {
+    // A bare 80 by 24 area is a 640 by 384 picture with its six points at
+    // x = 0, 128, 256, 384, 512, 640. Negative values put the area below its
+    // baseline, mixed values across it: on each side the fill is strongest
+    // at the stroke and transparent at the baseline.
+    let cases: [([f64; 6], f64, f64, Vec<(f64, f64, f64)>); 2] = [
+        // (column, stroke y, baseline y) per probe, in fractions of the picture
+        (
+            [-2.0, -8.0, -5.0, -9.0, -3.0, -7.0],
+            -10.0,
+            0.0,
+            vec![(0.6, 0.9, 0.0)],
+        ),
+        (
+            [-8.0, 8.0, -8.0, 8.0, -8.0, 8.0],
+            -10.0,
+            10.0,
+            vec![(0.2, 0.1, 0.5), (0.4, 0.9, 0.5)],
+        ),
+    ];
+    for (values, min, max, probes) in cases {
+        let mut props = bare(ChartType::Area, (80, 24), &values);
+        props.series[0].fill_style = FillStyle::Gradient;
+        props.y_axis.min = Some(min);
+        props.y_axis.max = Some(max);
+        let picture = run(
+            chart(props),
+            (80, 24),
+            kitty(),
+            silent(),
+            after_pictures(1, 2),
+            true,
+        )
+        .first_picture("a gradient area");
+        let (w, h) = (f64::from(picture.size.0), f64::from(picture.size.1));
+        for (column, stroke, baseline) in probes {
+            let x = column * w;
+            // Four pixels inside the area from the stroke, and three from the baseline.
+            let toward = if stroke > baseline { -4.0 } else { 4.0 };
+            let near_stroke = alpha_at(&picture, x, stroke * h + toward);
+            let near_base = alpha_at(&picture, x, baseline * h - toward * 0.75);
+            assert!(
+                near_stroke > 60 && near_base < 25 && near_stroke > 3 * near_base,
+                "CHT-012: with values {values:?} the fill at column {column} is strongest at the stroke (alpha {near_stroke}) and fades to transparent at the baseline (alpha {near_base})"
+            );
+        }
+    }
+}
+
+#[test]
+fn cht_014_narrow_candle_bodies_keep_their_band_ratio_in_a_picture() {
+    // Forty candles in a 40-cell plot: a band is eight pixels and the
+    // default body is 0.8 of it, so every body is at most seven pixels wide
+    // and no two touch. Every body spans 4 to 6, so one row crosses them all.
+    let samples: Vec<Sample> = (0..40)
+        .map(|_| Sample {
+            label: "c",
+            value: 6.0,
+            open: 4.0,
+            close: 6.0,
+        })
+        .collect();
+    let mut props = CandlestickChartBuilder::new(samples)
+        .x(|s| s.label)
+        .open(|s| s.open)
+        .close(|s| s.close)
+        .high(|_| 7.0)
+        .low(|_| 3.0)
+        .size(40, 12)
+        .build();
+    props.x_axis.show_labels = false;
+    props.y_axis.show_labels = false;
+    props.legend.visible = false;
+    let picture = run(
+        chart(props),
+        (40, 12),
+        kitty(),
+        silent(),
+        after_pictures(1, 2),
+        true,
+    )
+    .first_picture("forty candles");
+    let runs_of = |y: u32| -> Vec<(u32, u32)> {
+        let mut runs = Vec::new();
+        let mut start = None;
+        for x in 0..=picture.size.0 {
+            let on = x < picture.size.0 && picture.pixel(x, y)[3] > 128;
+            match (on, start) {
+                (true, None) => start = Some(x),
+                (false, Some(s)) => {
+                    runs.push((s, x));
+                    start = None;
+                }
+                _ => {}
+            }
+        }
+        runs
+    };
+    let (row, runs) = (0..picture.size.1)
+        .map(|y| (y, runs_of(y)))
+        .max_by_key(|(_, runs)| runs.len())
+        .expect("rows");
+    let band = f64::from(picture.size.0) / 40.0;
+    let widest = runs.iter().map(|(a, b)| b - a).max().unwrap_or(0);
+    assert!(
+        runs.len() == 40 && f64::from(widest) <= band * 0.8 + 1.0,
+        "CHT-014: forty bodies of at most {:.1} pixels in a {} pixel wide picture; row {row} has {} runs, the widest {widest} pixels: {:?}",
+        band * 0.8,
+        picture.size.0,
+        runs.len(),
+        &runs[..runs.len().min(8)]
+    );
+}
+
 #[test]
 fn cht_037_a_candlestick_matches_its_reference_picture() {
     let candlestick = CandlestickChartBuilder::new(samples())

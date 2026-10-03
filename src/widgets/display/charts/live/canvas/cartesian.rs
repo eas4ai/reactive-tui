@@ -1116,10 +1116,12 @@ pub(super) fn cartesian(
                     .and_then(color)
                     .or(if close > open { bullish } else { bearish });
                 let (a, b) = capped_band(i);
-                // The body takes a ratio of its band (CHT-014), at least one
-                // cell, on cell boundaries like bars; the wick is one dot
-                // wide at the band's centre.
-                let unit = ux;
+                // The body takes a ratio of its band (CHT-014): on the mask
+                // at least one cell, on cell boundaries like bars; in a
+                // picture at least one pixel, on whole pixels, so narrow
+                // bands keep their ratio and their gaps. The wick is one
+                // dot wide at the band's centre.
+                let unit = if pixels { 1.0 } else { ux };
                 let ratio = f64::from(props.body_width_ratio.clamp(0.05, 1.0));
                 let center = (a + b) / 2.0;
                 let half = ((b - a) * ratio / 2.0).max(unit / 2.0);
@@ -1205,8 +1207,10 @@ pub(super) fn cartesian(
             values
         };
         // A scatter on a numeric x is not in column order, so it is thinned
-        // per plot column of its mapped x: each column keeps its lowest and
-        // highest point (CHT-027); every other point keeps its anchor below.
+        // per column of its mapped x, a cell on the mask and a pixel in a
+        // picture: each column keeps its lowest and highest point
+        // (CHT-027); every other point keeps its anchor below.
+        let column_unit = if pixels { 1.0 } else { ux };
         let samples: Vec<_> = if numeric_x {
             plot::decimate_by_column(
                 values
