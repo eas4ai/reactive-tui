@@ -431,6 +431,7 @@ mod tests {
         }
         fn canvas(&self) -> Option<crate::widgets::display::image::paint::CanvasPicture> {
             Some(crate::widgets::display::image::paint::CanvasPicture {
+                cell: (8, 16),
                 shared_memory: false,
             })
         }
@@ -519,6 +520,7 @@ mod tests {
         }
         fn canvas(&self) -> Option<crate::widgets::display::image::paint::CanvasPicture> {
             Some(crate::widgets::display::image::paint::CanvasPicture {
+                cell: (8, 16),
                 shared_memory: true,
             })
         }

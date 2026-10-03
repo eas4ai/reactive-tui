@@ -584,15 +584,19 @@ pub(crate) fn paint_frame(
                     sixel: image_options.sixel,
                     cell: image_options.cell_pixels,
                 });
-                let protocol = canvas.pixels.as_ref().and_then(|(_, output)| match output {
-                    crate::graphics::CanvasOutput::Kitty => Some(images::ImageProtocol::Kitty),
-                    crate::graphics::CanvasOutput::Sixel => Some(images::ImageProtocol::Sixel),
-                    crate::graphics::CanvasOutput::Blocks => None,
-                });
-                if let Some(((frame, _), protocol)) = canvas.pixels.as_ref().zip(protocol) {
+                let protocol = canvas
+                    .pixels
+                    .as_ref()
+                    .and_then(|pixels| match pixels.output {
+                        crate::graphics::CanvasOutput::Kitty => Some(images::ImageProtocol::Kitty),
+                        crate::graphics::CanvasOutput::Sixel => Some(images::ImageProtocol::Sixel),
+                        crate::graphics::CanvasOutput::Blocks => None,
+                    });
+                if let Some((pixels, protocol)) = canvas.pixels.as_ref().zip(protocol) {
                     // A picture the frame cannot hold is left out of it and
                     // the canvas is told why: a canvas never ends the App
                     // (GFX-007).
+                    let frame = &pixels.frame;
                     let link = canvas.link.clone();
                     let size = (frame.width(), frame.height());
                     let refused: images::Refusal =
@@ -601,6 +605,7 @@ pub(crate) fn paint_frame(
                         canvas.id,
                         frame.image().clone(),
                         image_options.kitty_shared_memory,
+                        pixels.cell,
                         refused.clone(),
                     );
                     let placed = images::Plane::new(

@@ -12,7 +12,7 @@ use super::glyphs::{Bitmap, Glyphs};
 use super::paint::{Shader, ShaderKind};
 use super::raster::Window;
 use super::scene::{CanvasImage, Transform};
-use super::{GraphicsAdapterInfo, GraphicsError};
+use super::{GraphicsAdapterInfo, GraphicsError, PictureLimits};
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::sync::{Arc, Mutex, Weak};
@@ -459,6 +459,8 @@ pub(crate) struct GpuRenderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     info: GraphicsAdapterInfo,
+    /// The largest picture the device draws and reads back (GFX-010).
+    limits: PictureLimits,
     /// Set by the device when it is lost or an operation fails.
     failure: Arc<Mutex<Option<String>>>,
     edge_pipeline: wgpu::RenderPipeline,
@@ -606,9 +608,12 @@ impl GpuRenderer {
             backend: format!("{:?}", adapter_info.backend),
             hardware: true,
         };
+        // The adapter's own limits, not wgpu's defaults: a picture is as
+        // large as the terminal, up to what the device can hold (GFX-010).
+        let limits = adapter.limits();
         let (device, queue) = wait(adapter.request_device(&wgpu::DeviceDescriptor {
             label: Some("canvas device"),
-            required_limits: wgpu::Limits::default(),
+            required_limits: limits.clone(),
             ..Default::default()
         }))?
         .map_err(|error| {
@@ -784,6 +789,7 @@ impl GpuRenderer {
             ..Default::default()
         });
         let renderer = Self {
+            limits: Self::picture_limits(&limits),
             // What a draw with no image, or under no clip, is given to
             // read: every channel at its largest value.
             blank_color: blank(&device, &queue, TARGET_FORMAT, &[u8::MAX; 4]),
@@ -812,6 +818,28 @@ impl GpuRenderer {
     /// The adapter that draws.
     pub fn info(&self) -> &GraphicsAdapterInfo {
         &self.info
+    }
+
+    /// The largest picture the device draws and reads back (GFX-010).
+    pub fn limits(&self) -> PictureLimits {
+        self.limits
+    }
+
+    /// The largest picture `limits` let a device draw into a texture and
+    /// copy out through one buffer: each side the texture limit, and the
+    /// pixels what the buffer holds with each row padded to the copy
+    /// alignment.
+    fn picture_limits(limits: &wgpu::Limits) -> PictureLimits {
+        let side = limits.max_texture_dimension_2d.max(1);
+        let padding = u64::from(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        // A row of `side` pixels is padded by less than the alignment; the
+        // buffer must hold `height` such rows.
+        let widest_row = u64::from(side) * 4 + padding;
+        let rows = (limits.max_buffer_size / widest_row).min(u64::from(side));
+        PictureLimits {
+            side,
+            pixels: (u64::from(side) * rows).min(u64::from(side) * u64::from(side)),
+        }
     }
 
     /// Lose the device, as a fault would (GFX-007).

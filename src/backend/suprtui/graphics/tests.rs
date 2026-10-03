@@ -583,6 +583,7 @@ fn gfx_009_sync_says_so_when_it_gives_up_on_pictures_still_being_made() {
             1,
             pixels,
             false,
+            (8, 16),
             Arc::new(|_| {}),
         ),
     ));

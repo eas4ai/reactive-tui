@@ -180,13 +180,21 @@ impl Plane {
             && self.protocol == previous.protocol
             && self.cover == previous.cover
     }
-    /// A canvas's picture cut to the plane's cells, when the plane shows it
-    /// pixel for pixel: only moved, opaque, and its picture the size of its
-    /// content. Cells another element covers are cleared or tinted as
-    /// `raster` does.
-    fn canvas_raster(&self, cell: (u16, u16), whole: bool) -> Option<image::RgbaImage> {
-        self.image.canvas?;
-        let (cw, ch) = (u32::from(cell.0), u32::from(cell.1));
+    /// The pixels one cell of the plane's raster holds: a canvas picture's
+    /// own pixels per cell, which may be fewer than the terminal's
+    /// (GFX-010); the terminal's `cell` for any other plane.
+    pub fn raster_cell(&self, cell: (u16, u16)) -> (u16, u16) {
+        self.image.canvas.map_or(cell, |picture| picture.cell)
+    }
+
+    /// A canvas's picture cut to the plane's cells, at the picture's own
+    /// pixels per cell, when the plane shows it as it is: only moved,
+    /// opaque, and its picture the size of its content. Cells another
+    /// element covers are cleared or tinted as `raster` does, whole cells
+    /// of the picture, so the holes stay on cell edges (GFX-010).
+    fn canvas_raster(&self, whole: bool) -> Option<image::RgbaImage> {
+        let picture = self.image.canvas?;
+        let (cw, ch) = (u32::from(picture.cell.0), u32::from(picture.cell.1));
         let content = (
             (self.content.right - self.content.left) as u32 * cw,
             (self.content.bottom - self.content.top) as u32 * ch,
@@ -347,7 +355,7 @@ impl Plane {
     }
 
     fn raster_with(&self, cell: (u16, u16), whole: bool) -> Result<image::RgbaImage> {
-        if let Some(picture) = self.canvas_raster(cell, whole) {
+        if let Some(picture) = self.canvas_raster(whole) {
             return Ok(picture);
         }
         let cw = u32::from(cell.0);
