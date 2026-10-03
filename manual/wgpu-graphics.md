@@ -89,7 +89,13 @@ before it encodes. Holes cut under text stay on cell edges either way.
 which renderer draws it. `.described_by_parent()` leaves the description
 to the widget that holds the canvas: the canvas then has no live text and
 no accessibility node of its own, which the charts use for their plot
-pictures.
+pictures. `.drawn(flag)` keeps an `AtomicBool` true while the canvas shows
+a picture of its current scene's size, output and theme and false
+otherwise, so a holder that describes the canvas can read busy until its
+picture is on screen. `.current_theme_only()` shows no picture drawn under
+a theme that is no longer the active one: after a theme change the area
+is blank until the thread has drawn the scene again, so no frame shows the
+old colors. The charts use both.
 
 A component learns what the terminal takes from its layout:
 `LayoutInfo::terminal` is a `TerminalInfo` naming the cell size in pixels
