@@ -651,12 +651,14 @@ mod tests {
         unsafe {
             let (mut master, mut slave) = (0, 0);
             assert_eq!(
+                // The termios and winsize pointers are `*mut` on macOS and
+                // `*const` on Linux; a null `*mut` suits both.
                 libc::openpty(
                     &mut master,
                     &mut slave,
                     std::ptr::null_mut(),
-                    std::ptr::null(),
-                    std::ptr::null()
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut()
                 ),
                 0,
                 "a pseudo-terminal"
