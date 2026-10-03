@@ -581,17 +581,28 @@ fn select_mouse_respects_padding_and_open_close_callbacks_after_resize() {
             },
         )
         .class("p-2 w-16");
-        let frames = run(
+        // A click inside the padded field opens the list; once the list
+        // shows Beta the terminal resizes; once the App has settled on the
+        // new size, a click on Beta where that frame shows it picks it and
+        // closes the list; the run ends at the frame where Alpha is gone,
+        // not at a fixed frame index, which on a slow host could be read
+        // before the close was painted.
+        let frames = crate::app_input::run_actions_until_hidden(
             Control(control),
             size,
             vec![
-                (1, click(4, 2)),
-                (2, Some(Event::Resize(ResizeEvent::new(32, 10)))),
-                // The list's border takes the row under the field; Beta is
-                // the second option row.
-                (3, click(5, 5)),
-                (4, None),
+                // The closed field shows its placeholder, "Select a…".
+                (
+                    "Select",
+                    crate::app_input::Action::Event(click(4, 2).unwrap()),
+                ),
+                (
+                    "Beta",
+                    crate::app_input::Action::Event(Event::Resize(ResizeEvent::new(32, 10))),
+                ),
+                ("Beta", crate::app_input::Action::ClickText("Beta", 0)),
             ],
+            "Alpha",
         );
         assert_eq!(
             *calls.lock().unwrap(),
