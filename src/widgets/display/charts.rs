@@ -30,6 +30,34 @@ pub fn glyph_support() -> bool {
     GLYPH_SUPPORT.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// How every chart of the process draws its plot picture (CHT-037): the
+/// renderer options its canvas takes, unset meaning the defaults.
+#[cfg(feature = "wgpu-graphics")]
+static GRAPHICS: std::sync::Mutex<Option<crate::graphics::GraphicsOptions>> =
+    std::sync::Mutex::new(None);
+
+/// Choose, for every chart of the process, how its plot picture is drawn
+/// (CHT-037): the renderer and font the picture's canvas uses, and its
+/// `output`, where `Some(CanvasOutput::Blocks)` keeps every plot in cells.
+/// The `REACTIVE_TUI_CANVAS` variable wins over this, as it does for a
+/// canvas. Unset, the defaults apply: the hardware adapter when the host
+/// has one and the output the terminal takes.
+#[cfg(feature = "wgpu-graphics")]
+pub fn set_graphics_options(options: crate::graphics::GraphicsOptions) {
+    *GRAPHICS.lock().unwrap_or_else(|e| e.into_inner()) = Some(options);
+}
+
+/// The renderer options every chart's plot picture is drawn with (see
+/// [`set_graphics_options`]).
+#[cfg(feature = "wgpu-graphics")]
+pub fn graphics_options() -> crate::graphics::GraphicsOptions {
+    GRAPHICS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+        .unwrap_or_default()
+}
+
 /// Tests that change or depend on a process-wide terminal choice hold this
 /// lock, so they cannot race one another under parallel test threads: the
 /// glyph report, the application's image blitter, and the terminal
@@ -640,6 +668,13 @@ impl ChartsBuilder {
     /// A candle body's width as a fraction of its band (default 0.8).
     pub fn body_width_ratio(mut self, ratio: f32) -> Self {
         self.props.body_width_ratio = ratio;
+        self
+    }
+
+    /// Round each bar's corners by `cells`, in a plot drawn as a picture
+    /// (CHT-013); the cell fallback cannot show it. Default none.
+    pub fn corner_radius(mut self, cells: f32) -> Self {
+        self.props.corner_radius = cells.max(0.0);
         self
     }
 
@@ -1361,6 +1396,10 @@ pub struct ChartProps {
     pub min_bar_length: f64,
     /// A candle body's width as a fraction of its band (CHT-014)
     pub body_width_ratio: f32,
+    /// The radius of a bar's corners, in cells, which a plot drawn as a
+    /// picture shows (CHT-013, CHT-037); cells cannot, so it has no effect
+    /// in the cell fallback. Zero draws square corners.
+    pub corner_radius: f32,
 }
 
 impl Props for ChartProps {
@@ -1406,6 +1445,7 @@ impl Default for ChartProps {
             max_band_width: None,
             min_bar_length: 0.0,
             body_width_ratio: 0.8,
+            corner_radius: 0.0,
         }
     }
 }

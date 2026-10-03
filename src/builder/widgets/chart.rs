@@ -388,6 +388,9 @@ impl ChartBuilder {
         max_band_width(width: u16);
         /// The shortest a bar is drawn, in cells.
         min_length(length: f64);
+        /// The radius of a bar's corners, in cells, where the plot is a
+        /// picture (CHT-013).
+        corner_radius(cells: f32);
         /// A candle body's width as a fraction of its band.
         body_width_ratio(ratio: f32);
     }

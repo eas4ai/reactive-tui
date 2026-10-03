@@ -17,7 +17,7 @@ use reactive_tui::builder::core::div;
 use reactive_tui::component::Element;
 use reactive_tui::error::Result;
 use reactive_tui::event::types::{Event, MouseEvent, MouseEventKind, Position};
-use reactive_tui::graphics::GraphicsFrame;
+use reactive_tui::graphics::{CanvasOutput, GraphicsFrame, GraphicsOptions};
 use reactive_tui::widgets::display::{
     AreaChartBuilder, BarChartBuilder, BarGrowth, CandlestickChartBuilder, Chart, ChartAxis,
     ChartLegend, ChartProps, ChartType, DataPoint, DataSeries, FillStyle, LineChartBuilder,
@@ -110,6 +110,35 @@ struct Frame {
     began: Instant,
     pictures: usize,
     threads: BTreeSet<String>,
+    /// How many screen-reader nodes of the Image role the frame's tree held.
+    image_nodes: usize,
+    /// The texts of the frame's live regions.
+    live: Vec<String>,
+}
+
+/// What the frame's element tree tells a screen reader: its Image nodes,
+/// and the texts of its live regions.
+fn described(element: &Element, images: &mut usize, live: &mut Vec<String>) {
+    if element
+        .metadata
+        .accessibility
+        .as_ref()
+        .is_some_and(|node| node.role() == reactive_tui::accessibility::Role::Image)
+    {
+        *images += 1;
+    }
+    let polite = element
+        .class
+        .as_deref()
+        .is_some_and(|class| class.split_whitespace().any(|c| c == "aria-live-polite"));
+    if let (true, reactive_tui::component::ElementType::Text(text)) =
+        (polite, &element.element_type)
+    {
+        live.push(text.clone());
+    }
+    for child in &element.children {
+        described(child, images, live);
+    }
 }
 
 /// The names of the process's threads, where the host tells them.
@@ -146,6 +175,8 @@ struct Timed {
     /// taking them: the content tests do, the timing test does not, since
     /// the App never waits for a picture to be made ready (GFX-009).
     sync: bool,
+    /// What the tree being rendered tells a screen reader.
+    tree: (usize, Vec<String>),
 }
 
 impl Backend for Timed {
@@ -159,6 +190,9 @@ impl Backend for Timed {
         self.inner.hit_cells()
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
+        let (mut images, mut live) = (0, Vec::new());
+        described(element, &mut images, &mut live);
+        self.tree = (images, live);
         self.inner.render_frame(element)
     }
     fn layout_frame(&mut self, element: Arc<Element>) -> Result<Option<FrameLayout>> {
@@ -197,6 +231,8 @@ impl Backend for Timed {
             began,
             pictures: self.terminal.pictures.load(Ordering::SeqCst),
             threads: thread_names(),
+            image_nodes: self.tree.0,
+            live: self.tree.1.clone(),
         });
         Ok(())
     }
@@ -286,6 +322,7 @@ fn run(
             wait_returned: None,
             read: 0,
             sync,
+            tree: (0, Vec::new()),
         })
         .root(Shown {
             element,
@@ -476,7 +513,8 @@ fn kitty_pictures(frames: &[Frame]) -> Vec<Picture> {
 /// it sets, and the cell it starts at.
 struct Raster {
     size: (usize, usize),
-    set: Vec<bool>,
+    /// The color of every pixel the data sets, none where it sets nothing.
+    colors: Vec<Option<[u8; 3]>>,
     at: Option<(usize, usize)>,
 }
 
@@ -489,10 +527,10 @@ fn sixel_rasters(frames: &[Frame]) -> Vec<Raster> {
         while let Some(found) = text[from..].find(SIXEL) {
             let start = from + found;
             let body = &text[start + SIXEL.len()..];
-            let (size, set) = canvas_support::sixel_pixels(body);
+            let (size, colors) = canvas_support::sixel_colors(body);
             rasters.push(Raster {
                 size,
-                set,
+                colors,
                 at: last_cursor_move(&text[..start]),
             });
             from = start + SIXEL.len();
@@ -815,12 +853,21 @@ fn cht_037_on_sixel_the_raster_is_the_plots_cells_at_the_cells_pixels() {
         "CHT-037: the Sixel raster is the plot's 80 by 24 cells at 8 by 16 pixels"
     );
     assert_eq!(raster.at, Some((0, 0)), "the raster starts at the plot");
+    // Sixel cannot leave a pixel to the screen, so the plot's background
+    // is painted in the cells' background color: a pixel in that color
+    // is unpainted, any other is painted.
     let opaque = picture.opaque();
-    let disagree = raster
-        .set
+    let background = raster
+        .colors
         .iter()
         .zip(&opaque)
-        .filter(|(set, opaque)| set != opaque)
+        .find(|(_, opaque)| !**opaque)
+        .and_then(|(color, _)| *color);
+    let disagree = raster
+        .colors
+        .iter()
+        .zip(&opaque)
+        .filter(|(color, opaque)| (color.is_some() && **color != background) != **opaque)
         .count();
     let total = (640 * 384) as f64;
     assert!(
@@ -883,6 +930,86 @@ fn cht_037_a_pie_chart_sends_no_picture() {
         text.chars().any(|c| ('\u{2580}'..='\u{259F}').contains(&c)),
         "the pie is drawn in cells:\n{text}"
     );
+}
+
+#[test]
+fn cht_037_the_chart_is_one_screen_reader_node_and_its_picture_says_nothing() {
+    let run = run(
+        chart(dressed(ChartType::Line, (80, 24), &VALUES)),
+        (80, 24),
+        kitty(),
+        silent(),
+        after_pictures(1, 2),
+        true,
+    );
+    let picture = run.first_picture("a line chart");
+    let frame = &run.frames[picture.frame];
+    assert_eq!(
+        frame.image_nodes, 1,
+        "CHT-037: the chart is one Image node for the screen reader; its picture adds none"
+    );
+    assert!(
+        !frame.live.iter().any(|text| text.starts_with("Canvas:")),
+        "CHT-037: the picture's canvas announces nothing of its own, found {:?}",
+        frame.live
+    );
+}
+
+/// A line chart on a Kitty host with the plots switched back to cells, by the
+/// environment the parent set or by the application's graphics options. Run
+/// in a process of its own, since both choices are made once per process.
+#[test]
+#[ignore = "run by cht_037_the_environment_and_the_options_switch_the_plots_back_to_cells"]
+fn plots_in_cells_child() {
+    if std::env::var("CHART_PICTURES_SWITCH").as_deref() == Ok("options") {
+        reactive_tui::widgets::display::charts::set_graphics_options(GraphicsOptions {
+            output: Some(CanvasOutput::Blocks),
+            ..Default::default()
+        });
+    }
+    let run = run(
+        chart(bare(ChartType::Line, (80, 24), &VALUES)),
+        (80, 24),
+        kitty(),
+        silent(),
+        after_frames(8),
+        true,
+    );
+    assert!(
+        run.pictures().is_empty(),
+        "CHT-037: with the plots switched back to cells a Kitty host is sent no picture"
+    );
+    let text = run.screen(run.frames.len() - 1).contents();
+    assert!(
+        text.chars().any(|c| ('\u{2800}'..='\u{28FF}').contains(&c)),
+        "the plot is drawn in cells:\n{text}"
+    );
+}
+
+#[test]
+fn cht_037_the_environment_and_the_options_switch_the_plots_back_to_cells() {
+    for (name, value) in [
+        ("REACTIVE_TUI_CANVAS", "blocks"),
+        ("CHART_PICTURES_SWITCH", "options"),
+    ] {
+        let child = std::process::Command::new(std::env::current_exe().expect("the test binary"))
+            .args([
+                "--exact",
+                "plots_in_cells_child",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env(name, value)
+            .output()
+            .expect("the test binary runs");
+        let said = String::from_utf8_lossy(&child.stdout).into_owned()
+            + &String::from_utf8_lossy(&child.stderr);
+        assert!(
+            child.status.success() && said.contains("1 passed"),
+            "CHT-037 with {name}={value}: {}",
+            &said[said.find("CHT-037").unwrap_or(0)..]
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1062,11 +1189,12 @@ fn cht_013_bar_pictures_match_their_references() {
         .stacked(true)
         .size(80, 24)
         .render();
-    let gradient = BarChartBuilder::new(samples())
+    let gradient_rounded = BarChartBuilder::new(samples())
         .band(|s| s.label)
         .value(|s| s.value)
         .name("value")
         .fill_gradient(|_, _, _| vec![(0.0, "chart-1"), (1.0, "chart-2")])
+        .corner_radius(0.5)
         .size(80, 24)
         .render();
     assert_references(
@@ -1076,8 +1204,55 @@ fn cht_013_bar_pictures_match_their_references() {
             ("bar_horizontal", horizontal),
             ("bar_grouped", grouped),
             ("bar_stacked", stacked),
-            ("bar_gradient", gradient),
+            ("bar_gradient_rounded", gradient_rounded),
         ],
+    );
+}
+
+#[test]
+fn cht_013_a_corner_radius_rounds_the_bars() {
+    // One bar of 8 out of 10 in a bare 40 by 12 chart, square and with
+    // corners of one cell: the rounded bar's top left pixel is empty while
+    // the top edge a cell in is still there.
+    let mut square = bare(ChartType::BarVertical, (40, 12), &[8.0]);
+    square.max_band_width = Some(20);
+    let mut rounded = square.clone();
+    rounded.corner_radius = 1.0;
+    let square = run(
+        chart(square),
+        (40, 12),
+        kitty(),
+        silent(),
+        after_pictures(1, 2),
+        true,
+    )
+    .first_picture("a square bar");
+    let rounded = run(
+        chart(rounded),
+        (40, 12),
+        kitty(),
+        silent(),
+        after_pictures(1, 2),
+        true,
+    )
+    .first_picture("a rounded bar");
+    let bars = bar_columns(&square);
+    let (left, right) = *bars.first().expect("one bar");
+    let top = (0..square.size.1)
+        .find(|&y| square.pixel((left + right) / 2, y)[3] > 128)
+        .expect("the bar's top row");
+    let corner = (square.pixel(left, top)[3], rounded.pixel(left, top)[3]);
+    let edge = (
+        square.pixel(left + 16, top)[3],
+        rounded.pixel(left + 16, top)[3],
+    );
+    assert!(
+        corner.0 > 200 && corner.1 < 100 && edge.0 > 200 && edge.1 > 200,
+        "CHT-013: a corner radius of one cell empties the bar's corner pixel and keeps its edge: corner alpha square {} rounded {}, edge alpha square {} rounded {}",
+        corner.0,
+        corner.1,
+        edge.0,
+        edge.1
     );
 }
 
@@ -1276,10 +1451,31 @@ fn cht_038_a_hovered_line_chart_draws_the_crosshair_and_dots_in_the_picture() {
         halo(before),
         halo(after)
     );
-    // Nothing of the hover is patched into the cells.
-    let marked = marked_cells(&run.screen(run.frames.len() - 1), after.rect(), |text| {
+    // Nothing of the hover is patched into the cells, apart from the
+    // tooltip, which stays cell text in its rounded box (CHT-037).
+    let screen = run.screen(run.frames.len() - 1);
+    let whole = (0, 0, run.size.1 as usize, run.size.0 as usize);
+    let boxes: Vec<((usize, usize), (usize, usize))> =
+        marked_cells(&screen, whole, |text| text == "╭")
+            .into_iter()
+            .zip(marked_cells(&screen, whole, |text| text == "╯"))
+            .map(|((r0, c0, _), (r1, c1, _))| ((r0, c0), (r1, c1)))
+            .collect();
+    assert!(
+        !boxes.is_empty(),
+        "CHT-037: the hovered chart shows its tooltip in a box of cells"
+    );
+    let in_box = |row: usize, column: usize| {
+        boxes
+            .iter()
+            .any(|((r0, c0), (r1, c1))| (*r0..=*r1).contains(&row) && (*c0..=*c1).contains(&column))
+    };
+    let marked: Vec<(usize, usize, String)> = marked_cells(&screen, after.rect(), |text| {
         ["│", "─", "◌", "·", "|", "-"].contains(&text)
-    });
+    })
+    .into_iter()
+    .filter(|(row, column, _)| !in_box(*row, *column))
+    .collect();
     assert!(
         marked.is_empty(),
         "CHT-038: the crosshair is drawn in the picture, not the cells, found {marked:?}"

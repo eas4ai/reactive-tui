@@ -39,7 +39,7 @@ pub(crate) mod anchors;
 pub mod bridge;
 mod builtin;
 mod layout_info;
-pub use layout_info::LayoutInfo;
+pub use layout_info::{LayoutInfo, TerminalInfo};
 /// State management flags for component lifecycle
 pub mod state_flags;
 

@@ -2,6 +2,46 @@
 
 use crate::event::hit::Bounds;
 
+/// What the backend knows of the terminal that shows the frame, as it
+/// learned it at startup and again on every resize: whether the terminal
+/// takes pictures, and how many pixels a cell measures. A component that
+/// can draw pixels reads it from its layout before its first picture
+/// (CHT-037); a backend that paints into memory reports none.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct TerminalInfo {
+    /// The pixels of one cell, where the backend knows them.
+    pub cell_pixels: Option<(u16, u16)>,
+    /// Whether the terminal takes Kitty graphics.
+    pub kitty_graphics: bool,
+    /// Whether Kitty graphics may travel through shared memory.
+    pub kitty_shared_memory: bool,
+    /// Whether the terminal takes Sixel.
+    pub sixel: bool,
+}
+
+impl TerminalInfo {
+    /// A terminal of `cell_pixels` cells that takes the pictures named.
+    pub fn new(
+        cell_pixels: (u16, u16),
+        kitty_graphics: bool,
+        kitty_shared_memory: bool,
+        sixel: bool,
+    ) -> Self {
+        Self {
+            cell_pixels: Some(cell_pixels),
+            kitty_graphics,
+            kitty_shared_memory,
+            sixel,
+        }
+    }
+
+    /// Whether the terminal takes any pixel picture.
+    pub fn takes_pixels(&self) -> bool {
+        self.kitty_graphics || self.sixel
+    }
+}
+
 /// Layout and placement of a component root in the last presented frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
@@ -16,6 +56,8 @@ pub struct LayoutInfo {
     pub transform: [f32; 6],
     /// Resolved padding and border, in left/top/right/bottom order.
     pub insets: [f32; 4],
+    /// What the backend knows of the terminal showing the frame.
+    pub terminal: TerminalInfo,
 }
 
 impl LayoutInfo {
@@ -27,6 +69,7 @@ impl LayoutInfo {
             clip: bounds,
             transform: [1.0, 0.0, 0.0, 1.0, bounds.x, bounds.y],
             insets: [0.0; 4],
+            terminal: TerminalInfo::default(),
         }
     }
 

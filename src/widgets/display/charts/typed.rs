@@ -11,7 +11,7 @@
 //! `label_axis`, `value_axis`, `value_tick_count`,
 //! `value_axis_label_placement`, `value_tick_format`, `band_count`,
 //! `band_tick_count`, `alignment`, `padding_inner`, `padding_outer`,
-//! `max_band_width`, `min_length` and `stacked`; and for candlesticks `x`,
+//! `max_band_width`, `min_length`, `corner_radius` and `stacked`; and for candlesticks `x`,
 //! `open`, `high`, `low`, `close`, `body_width_ratio`, `max_band_width`,
 //! `bullish` and `bearish`. The pie, donut and radar builders take the
 //! reference's own names (CHT-029): `value`, `label`, `color`,
@@ -813,6 +813,13 @@ impl<T> BarChartBuilder<T> {
     /// The shortest a bar is drawn, in cells, so a tiny value still shows.
     pub fn min_length(mut self, length: f64) -> Self {
         self.common.base = self.common.base.min_length(length);
+        self
+    }
+
+    /// Round each bar's corners by `cells` where the plot is a picture
+    /// (CHT-013); the cell fallback cannot show it. Default none.
+    pub fn corner_radius(mut self, cells: f32) -> Self {
+        self.common.base = self.common.base.corner_radius(cells);
         self
     }
 

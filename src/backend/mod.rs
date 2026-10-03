@@ -651,10 +651,12 @@ impl Backend for DebugBackend {
     fn layout_frame(&mut self, element: std::sync::Arc<Element>) -> Result<Option<FrameLayout>> {
         let size = (u32::from(self.size.0), u32::from(self.size.1));
         self.paint.run(move || {
+            // The debug backend paints into memory: no terminal, no pixels.
             crate::layout::paint_tree::suprtui::layout_frame(
                 crate::component::bridge::element_to_paintspec(&element)?,
                 size,
                 &mut crate::layout::paint_tree::suprtui::LayoutCache::default(),
+                &ImageOutputOptions::default(),
             )
             .map(Some)
         })?

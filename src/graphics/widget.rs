@@ -26,6 +26,7 @@ pub struct CanvasProps {
     label: Option<String>,
     worker: Option<Arc<GraphicsWorker>>,
     cell_pixels: Option<(u16, u16)>,
+    described_by_parent: bool,
 }
 
 impl CanvasProps {
@@ -40,6 +41,7 @@ impl CanvasProps {
             label: None,
             worker: None,
             cell_pixels: None,
+            described_by_parent: false,
         }
     }
 
@@ -81,6 +83,14 @@ impl CanvasProps {
         self.label = Some(label.into());
         self
     }
+
+    /// The canvas is part of a widget whose own screen-reader node describes
+    /// the picture, as a chart's does its plot (CHT-037): the canvas adds no
+    /// node and no status text of its own.
+    pub fn described_by_parent(mut self) -> Self {
+        self.described_by_parent = true;
+        self
+    }
 }
 
 impl PartialEq for CanvasProps {
@@ -90,6 +100,7 @@ impl PartialEq for CanvasProps {
             && self.view == other.view
             && self.label == other.label
             && self.cell_pixels == other.cell_pixels
+            && self.described_by_parent == other.described_by_parent
             && match (&self.worker, &other.worker) {
                 (Some(a), Some(b)) => Arc::ptr_eq(a, b),
                 (None, None) => true,
@@ -536,6 +547,15 @@ impl Component for Canvas {
         }));
         let renderer = self.renderer();
         let label = self.props.label.as_deref().unwrap_or("Canvas");
+        let mut children = vec![content];
+        // A canvas its parent describes says nothing of its own.
+        if !self.props.described_by_parent {
+            children.push(
+                Element::text(format!("Canvas: {label}, drawn by {renderer}"))
+                    .with_key("canvas-renderer")
+                    .class("sr-only aria-live-polite"),
+            );
+        }
         let mut root = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
             .styles(
                 StyleBuilder::new()
@@ -546,13 +566,14 @@ impl Component for Canvas {
                     .min_height_px(0.0)
                     .overflow_hidden(),
             )
-            .children(vec![
-                content,
-                Element::text(format!("Canvas: {label}, drawn by {renderer}"))
-                    .with_key("canvas-renderer")
-                    .class("sr-only aria-live-polite"),
-            ])
+            .children(children)
             .build();
+        if self.props.described_by_parent {
+            // Pointer events go to the parent, which handles them for its
+            // whole area.
+            root.metadata.inert = true;
+            return root;
+        }
         let mut node = crate::accessibility::Node::new(crate::accessibility::Role::Image);
         node.set_label(label);
         node.set_description(match &message {
