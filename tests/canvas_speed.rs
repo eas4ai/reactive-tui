@@ -263,12 +263,14 @@ fn gfx_011_fifteen_canvases_on_one_thread_each_get_thirty_pictures_a_second() {
         counts.len(),
         threads.map_or_else(|| "not counted".to_owned(), |threads| threads.to_string())
     );
-    if cfg!(target_os = "linux") {
-        assert!(
-            counts.len() == CANVASES && fewest >= EACH && threads == Some(1),
-            "GFX-011: of {CANVASES} canvases {} received pictures, the fewest {fewest:.1} a second against {EACH}, drawn on {} threads instead of one",
-            counts.len(),
-            threads.map_or_else(|| "an uncounted number of".to_owned(), |threads| threads.to_string())
-        );
-    }
+    // Every host shows all fifteen canvases their pictures; the rate and the
+    // one thread bind on the Linux development host, where the threads are
+    // counted (GFX-011).
+    let bound = !cfg!(target_os = "linux") || (fewest >= EACH && threads == Some(1));
+    assert!(
+        counts.len() == CANVASES && bound,
+        "GFX-011: of {CANVASES} canvases {} received pictures, the fewest {fewest:.1} a second against {EACH}, drawn on {} threads instead of one",
+        counts.len(),
+        threads.map_or_else(|| "an uncounted number of".to_owned(), |threads| threads.to_string())
+    );
 }
