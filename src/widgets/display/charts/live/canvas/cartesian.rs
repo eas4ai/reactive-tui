@@ -870,6 +870,10 @@ pub(super) fn cartesian(
         }
         let emphasis = |i: usize| -> f32 {
             match hover {
+                // The hovered bar keeps its full color from the first frame
+                // of the hover, while the band is still gliding toward it
+                // (CHT-038).
+                Some(h) if h.index == i => 1.0,
                 Some(h) if step_cells > 0.0 => {
                     let center = category_center(i) / band_unit;
                     let distance = ((center - h.band).abs() / step_cells).min(1.0) as f32;
@@ -1218,7 +1222,7 @@ pub(super) fn cartesian(
                     .enumerate()
                     .filter(|(index, _)| index_visible(*index))
                     .map(|(index, value)| {
-                        let column = (x_of(s, index) / ux).floor().max(0.0) as usize;
+                        let column = (x_of(s, index) / column_unit).floor().max(0.0) as usize;
                         (index, column, *value)
                     }),
             )

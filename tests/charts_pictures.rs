@@ -1670,10 +1670,24 @@ fn cht_038_a_hovered_bar_chart_fades_the_others_and_glides_the_band() {
     let last = pictures.last().unwrap();
     let series = role("chart-1");
     let y = last.size.1 - 10;
-    let full = |bar: (u32, u32)| {
-        let pixel = last.pixel((bar.0 + bar.1) / 2, y);
+    let full_in = |picture: &Picture, bar: (u32, u32)| {
+        let pixel = picture.pixel((bar.0 + bar.1) / 2, y);
         pixel[3] >= 240 && near(pixel, series, 12)
     };
+    let full = |bar: (u32, u32)| full_in(last, bar);
+    // From the first picture of the hover, while the band still glides
+    // from the second bar, the fifth bar is in its full color.
+    let faded_hovered: Vec<usize> = pictures
+        .iter()
+        .enumerate()
+        .filter(|(_, picture)| !full_in(picture, bars[4]))
+        .map(|(i, _)| i)
+        .collect();
+    assert!(
+        faded_hovered.is_empty(),
+        "CHT-038: the hovered bar keeps its full color in every picture of the glide; pictures {faded_hovered:?} of {} faded it",
+        pictures.len()
+    );
     assert!(
         full(bars[4]),
         "CHT-038: the hovered bar keeps its full color, found {:?}",
