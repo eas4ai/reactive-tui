@@ -1049,18 +1049,23 @@ fn inp_004_releases_make_counted_clicks() {
     let mut session = Session::start("pair", "RIGHT");
     click(&mut session, 5, 2);
     session.settle(Duration::from_millis(700));
-    for _ in 0..2 {
-        click(&mut session, 10, 2);
-        session.settle(Duration::from_millis(100));
-    }
+    // The clicks of a double and of a triple go to the terminal in one
+    // write each, so the child reads them together: the 500 ms window is
+    // the gap as the child sees it, and a loaded host that reads late
+    // cannot stretch a gap between clicks it reads at once. The slow pair
+    // is 1200 ms apart, so a host that delays the first read by half a
+    // second still leaves them outside the window.
+    let clicks_at = |x: u16, count: usize| {
+        [sgr(0, x, 2, true), sgr(0, x, 2, false)]
+            .concat()
+            .repeat(count)
+    };
+    session.send(&clicks_at(10, 2));
     session.settle(Duration::from_millis(700));
-    for _ in 0..3 {
-        click(&mut session, 15, 2);
-        session.settle(Duration::from_millis(100));
-    }
+    session.send(&clicks_at(15, 3));
     session.settle(Duration::from_millis(700));
     click(&mut session, 20, 2);
-    session.settle(Duration::from_millis(600));
+    session.settle(Duration::from_millis(1200));
     click(&mut session, 20, 2);
     session.settle(Duration::from_millis(700));
     session.send(&sgr(0, 25, 2, true));
