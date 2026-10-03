@@ -13,8 +13,11 @@ use unicode_width::UnicodeWidthStr;
 
 mod cartesian;
 mod pie;
+#[cfg(feature = "wgpu-graphics")]
+mod pixels;
 mod radar;
 mod sankey;
+mod shapes;
 
 pub(super) use sankey::node_text as sankey_node_text;
 
@@ -66,17 +69,52 @@ pub(super) struct SankeyHit {
     pub samples: (u32, u32),
 }
 
+/// The hover a plot picture draws (CHT-038): the selected series and index,
+/// how far the marks have eased in, and where the band's center is along
+/// the category axis, in cells, as the glide has it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(in super::super) struct HoverMarks {
+    pub series: usize,
+    pub index: usize,
+    /// 0 to 1: the dots, halo and fade easing in when the hover begins.
+    pub focus: f32,
+    /// The band's center in cells along the category axis.
+    pub band: f64,
+}
+
+/// A plot drawn as a picture (CHT-037): the pixels of a cell the scene is
+/// built for, and the hover it shows.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(in super::super) struct PlotPixels {
+    pub cell: (u16, u16),
+    pub hover: Option<HoverMarks>,
+}
+
 /// The rasterized chart plus what the main thread needs for interaction.
 #[derive(Clone, Debug)]
 pub(super) struct Picture {
     pub width: usize,
     pub height: usize,
-    /// The finished cells, painted by one element (CHT-021, BAR-005).
+    /// The finished cells, painted by one element (CHT-021, BAR-005). When
+    /// the plot is a picture they hold nothing inside `inner`.
     pub grid: Arc<CellGrid>,
+    /// The text inside the plot of a picture (value labels, tick labels
+    /// placed inside), painted over the picture (CHT-037).
+    pub over: Option<Arc<CellGrid>>,
+    /// The plot picture's scene, in the chart's pixels, when the plot is
+    /// one (CHT-037).
+    #[cfg(feature = "wgpu-graphics")]
+    pub scene: Option<Arc<crate::graphics::Scene>>,
+    /// The pixels per cell the scene was built for.
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
+    pub cell: (u16, u16),
     /// The size class the picture was drawn at.
     pub class: Option<SizeClass>,
     /// The plot rectangle.
     pub plot: Rect,
+    /// The plot without its axis lines: where the shapes are, and where
+    /// the picture sits.
+    pub inner: Rect,
     /// Column of each category index (cartesian charts), for nearest lookup.
     pub index_columns: Vec<f64>,
     /// Row of each category index (horizontal bars), for nearest lookup.
@@ -108,8 +146,13 @@ impl Picture {
                 u16::try_from(width).unwrap_or(u16::MAX),
                 u16::try_from(height).unwrap_or(u16::MAX),
             )),
+            over: None,
+            #[cfg(feature = "wgpu-graphics")]
+            scene: None,
+            cell: (0, 0),
             class: None,
             plot: Rect::default(),
+            inner: Rect::default(),
             index_columns: Vec::new(),
             index_rows: Vec::new(),
             anchors: HashMap::new(),
@@ -119,6 +162,18 @@ impl Picture {
             sankey: None,
             selected: None,
             theme: 0,
+        }
+    }
+
+    /// Whether the plot is a picture.
+    pub fn has_scene(&self) -> bool {
+        #[cfg(feature = "wgpu-graphics")]
+        {
+            self.scene.is_some()
+        }
+        #[cfg(not(feature = "wgpu-graphics"))]
+        {
+            false
         }
     }
 }
@@ -397,6 +452,10 @@ pub(super) struct Job<'a> {
     /// The selected (series, point), for charts whose shapes show the
     /// selection: a Sankey chart fades the links of other nodes (CHT-032).
     pub selected: Option<(usize, usize)>,
+    /// The plot as a picture, where the terminal takes one (CHT-037): a
+    /// cartesian chart then draws its shapes into a scene, with the hover
+    /// marks (CHT-038), and nothing inside the plot on the mask.
+    pub pixels: Option<PlotPixels>,
 }
 
 /// The size class for `props` in a `width` by `height` rectangle.
@@ -481,10 +540,28 @@ pub(super) fn draw(job: &Job) -> Picture {
             radar::radar(&mut mask, &mut text, &mut picture, job, area, class);
         } else if props.chart_type == ChartType::Sankey {
             sankey::sankey(&mut mask, &mut text, &mut picture, job, area, class);
-        } else if let Err(error) =
-            cartesian::cartesian(&mut mask, &mut text, &mut picture, job, area, class)
-        {
-            text.text(area.x, area.y, area.w, error, None);
+        } else {
+            // The shapes go to the mask, or to the scene of a plot picture
+            // (CHT-037).
+            #[cfg(feature = "wgpu-graphics")]
+            let mut target = match job.pixels {
+                Some(pixels) => shapes::Shapes::Pixels(pixels::PlotScene::new(pixels.cell)),
+                None => shapes::Shapes::Mask(&mut mask),
+            };
+            #[cfg(not(feature = "wgpu-graphics"))]
+            let mut target = shapes::Shapes::Mask(&mut mask);
+            let drawn =
+                cartesian::cartesian(&mut target, &mut text, &mut picture, job, area, class);
+            #[cfg(feature = "wgpu-graphics")]
+            if let shapes::Shapes::Pixels(scene) = target {
+                if drawn.is_ok() && !picture.inner.is_empty() {
+                    picture.scene = Some(scene.finish());
+                    picture.cell = job.pixels.map_or((0, 0), |pixels| pixels.cell);
+                }
+            }
+            if let Err(error) = drawn {
+                text.text(area.x, area.y, area.w, error, None);
+            }
         }
     }
     if let Some((rect, flowed)) = legend {
@@ -616,13 +693,26 @@ fn legend_area(
 /// Merge the mask and the text layers into the cell grid one element paints.
 fn compose(mut picture: Picture, mask: &MaskCanvas, text: &TextLayer, glyphs: GlyphSet) -> Picture {
     let (width, height) = (picture.width, picture.height);
-    let mut grid = CellGrid::new(
+    let (columns, rows) = (
         u16::try_from(width).unwrap_or(u16::MAX),
         u16::try_from(height).unwrap_or(u16::MAX),
     );
+    let mut grid = CellGrid::new(columns, rows);
+    // Inside a plot that is a picture the cells stay blank and the text
+    // goes to the grid painted over the picture (CHT-037).
+    let inner = picture.has_scene().then_some(picture.inner);
+    let mut over = inner.map(|_| CellGrid::new(columns, rows));
     for y in 0..height.min(usize::from(u16::MAX)) {
         for x in 0..width.min(usize::from(u16::MAX)) {
             let i = y * width + x;
+            if let (Some(inner), Some(over)) = (inner, over.as_mut()) {
+                if inner.contains(x, y) {
+                    if let Some((t, c)) = &text.over[i] {
+                        over.set(x as u16, y as u16, t, *c);
+                    }
+                    continue;
+                }
+            }
             let (glyph, color, background): (&str, Option<Rgba>, Option<Rgba>) =
                 if let Some((t, c)) = &text.over[i] {
                     (t.as_str(), *c, None)
@@ -645,6 +735,7 @@ fn compose(mut picture: Picture, mask: &MaskCanvas, text: &TextLayer, glyphs: Gl
         }
     }
     picture.grid = Arc::new(grid);
+    picture.over = over.map(Arc::new);
     picture
 }
 
@@ -697,6 +788,56 @@ mod tests {
         }
     }
 
+    /// CHT-027: a plot drawn as a picture is thinned per pixel column, so a
+    /// 10,000-point line on a plot 160 pixels wide is drawn from at most two
+    /// points per column.
+    #[cfg(feature = "wgpu-graphics")]
+    #[test]
+    fn cht_027_a_plot_picture_keeps_two_points_per_pixel_column() {
+        let values: Vec<f64> = (0..10_000)
+            .map(|i| 5.0 + 4.0 * ((i as f64) * 0.013).sin())
+            .collect();
+        let mut p = props(ChartType::Line, &values);
+        p.x_axis.show_labels = false;
+        p.y_axis.show_labels = false;
+        p.y_axis.min = Some(0.0);
+        p.y_axis.max = Some(10.0);
+        let picture = draw(&Job {
+            props: &p,
+            width: 20,
+            height: 12,
+            values: std::slice::from_ref(&values),
+            progress: 1.0,
+            transition: None,
+            unicode_glyphs: true,
+            selected: None,
+            pixels: Some(PlotPixels {
+                cell: (8, 16),
+                hover: None,
+            }),
+        });
+        let scene = picture.scene.expect("the plot is a picture");
+        let segments = scene
+            .commands
+            .iter()
+            .filter_map(|command| match command {
+                crate::graphics::Command::Stroke(path, _, _) => Some(path.segments.len()),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0);
+        // 20 cells of 8 pixels are 160 columns: two points each, at most.
+        assert!(
+            (100..=321).contains(&segments),
+            "the line's path has {segments} segments for 160 pixel columns"
+        );
+        assert!(
+            picture.kept[0].len() <= 320,
+            "{} points kept of 10,000",
+            picture.kept[0].len()
+        );
+    }
+
     fn text_of(picture: &Picture) -> String {
         picture.grid.to_text()
     }
@@ -714,6 +855,7 @@ mod tests {
             transition: None,
             unicode_glyphs: true,
             selected: None,
+            pixels: None,
         });
         let text = text_of(&picture);
         assert!(text.contains('█'), "{text}");
@@ -729,6 +871,7 @@ mod tests {
             transition: None,
             unicode_glyphs: true,
             selected: None,
+            pixels: None,
         });
         assert!(
             text_of(&picture).contains("No data"),
@@ -751,6 +894,7 @@ mod tests {
             transition: None,
             unicode_glyphs: false,
             selected: None,
+            pixels: None,
         });
         let text = text_of(&picture);
         assert!(

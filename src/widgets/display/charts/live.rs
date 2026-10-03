@@ -22,8 +22,10 @@ mod canvas;
 mod motion;
 mod worker;
 
+#[cfg(feature = "wgpu-graphics")]
+use crate::graphics::{Canvas, CanvasOutput, CanvasProps, HostReport};
 use crate::layout::paint_tree::cells::CellGrid;
-use canvas::{Picture, RadialHit};
+use canvas::{HoverMarks, Picture, PlotPixels, RadialHit};
 
 /// How long a chart that has just appeared or changed size, or a Sankey
 /// chart whose selection changed, waits for its picture before the frame
@@ -62,6 +64,11 @@ impl Props for LiveProps {
     }
 }
 
+/// The picture part of a job's key: the cell size, and the hover's series,
+/// index, focus bits and band bits, so every frame of a glide or an
+/// ease-in is its own picture (CHT-038).
+type PixelsKey = Option<((u16, u16), Option<(usize, usize, u32, u64)>)>;
+
 /// What the last submitted job was drawn from, to avoid resubmitting.
 #[derive(Clone)]
 struct JobKey {
@@ -75,6 +82,10 @@ struct JobKey {
     /// How many themes had been set when the picture was drawn: colors
     /// resolve on the worker, so a new theme needs a new picture (THM-003).
     theme: u64,
+    /// The plot as a picture: the cell size and the hover marks, as bits,
+    /// so every frame of the hover's motion is a job of its own (CHT-037,
+    /// CHT-038).
+    pixels: PixelsKey,
 }
 
 impl PartialEq for JobKey {
@@ -87,6 +98,7 @@ impl PartialEq for JobKey {
             && self.progress.to_bits() == other.progress.to_bits()
             && self.selected == other.selected
             && self.theme == other.theme
+            && self.pixels == other.pixels
             && (Arc::ptr_eq(&self.values, &other.values)
                 || (self.values.len() == other.values.len()
                     && self.values.iter().zip(other.values.iter()).all(|(a, b)| {
@@ -115,6 +127,8 @@ pub(super) struct LiveChart {
     latest: Mutex<Latest>,
     reveal: motion::Reveal,
     transition: motion::Transition,
+    /// The hover's motion in a plot picture (CHT-038).
+    hover: motion::Hover,
 }
 
 /// Per-series values from the props, the transition's target. A candle
@@ -165,6 +179,7 @@ impl Component for LiveChart {
             }),
             reveal: motion::Reveal::new(),
             transition: motion::Transition::new(),
+            hover: motion::Hover::new(),
         }
     }
     fn initial_state(&mut self, props: &Self::Props) -> Self::State {
@@ -194,9 +209,11 @@ impl Component for LiveChart {
         true
     }
     fn layout(&mut self, layout: LayoutInfo, _: &mut Self::Props, _: &mut Self::State) -> bool {
-        let changed = self
-            .viewport
-            .is_none_or(|old| old.content_size() != layout.content_size());
+        // A new cell size, or a terminal that now takes pixels, redraws the
+        // plot picture (CHT-037).
+        let changed = self.viewport.is_none_or(|old| {
+            old.content_size() != layout.content_size() || old.terminal != layout.terminal
+        });
         self.viewport = Some(layout);
         changed
     }
@@ -237,10 +254,40 @@ impl Component for LiveChart {
             values
         };
         // A Sankey chart draws its selection into the shapes (CHT-032);
-        // other charts patch it over the finished picture.
+        // other charts patch it over the finished picture, unless the plot
+        // is a picture, which draws its hover marks itself (CHT-038).
         let selected = state
             .hovered_point
             .filter(|_| config.show_tooltips && config.chart_type == ChartType::Sankey);
+        let cell = self.plot_pixels(&config);
+        let hovered = state.hovered_point.filter(|_| config.show_tooltips);
+        // The hovered datum with its band's center in cells, from the
+        // latest picture of this size; none until that picture exists.
+        let target = hovered.and_then(|(series, index)| {
+            let picture = at_size(latest.picture.as_ref(), (width, height))?;
+            let center = if picture.index_rows.is_empty() {
+                picture.index_columns.get(index)
+            } else {
+                picture.index_rows.get(index)
+            };
+            Some((series, index, center.copied().unwrap_or(0.0)))
+        });
+        let marks = match cell {
+            Some(_) => self.hover.frame(&config, target),
+            None => {
+                self.hover.frame(&config, None);
+                None
+            }
+        };
+        let pixels = cell.map(|cell| PlotPixels {
+            cell,
+            hover: marks.map(|m| HoverMarks {
+                series: m.series,
+                index: m.index,
+                focus: m.focus,
+                band: m.band,
+            }),
+        });
         let key = JobKey {
             version: self.version,
             width,
@@ -249,6 +296,13 @@ impl Component for LiveChart {
             progress,
             selected,
             theme: crate::theme::Theme::generation(),
+            pixels: pixels.map(|p| {
+                (
+                    p.cell,
+                    p.hover
+                        .map(|h| (h.series, h.index, h.focus.to_bits(), h.band.to_bits())),
+                )
+            }),
         };
         // Before its first layout the chart has no size and nothing to draw.
         let drawable = width > 0 && height > 0;
@@ -267,6 +321,7 @@ impl Component for LiveChart {
                     selected,
                     theme,
                     transition: transition.clone(),
+                    pixels,
                 });
                 // A picture at a new size, or a Sankey chart's new
                 // selection, is worth a short wait so a small chart never
@@ -303,18 +358,47 @@ impl Component for LiveChart {
         let picture = at_size(latest.picture.as_ref(), (width, height)).cloned();
         drop(latest);
 
-        let hovered = state.hovered_point.filter(|_| config.show_tooltips);
         let (tooltip, announcement) = picture
             .as_ref()
             .zip(hovered)
             .map(|(picture, (series, index))| self.tooltip(&config, picture, series, index))
             .unwrap_or((None, String::new()));
         // The whole picture is one element: the painter blits its cell grid
-        // (BAR-005). The tooltip and crosshair are patched into a copy.
+        // (BAR-005). In cells, the tooltip and the crosshair are patched
+        // into a copy; with the plot a picture, the hover marks are in the
+        // picture and the tooltip joins the text inside the plot in a grid
+        // painted over it (CHT-037, CHT-038).
         let ascii = config.ascii || !super::glyph_support();
-        let grid = picture.as_ref().map(|picture| match &tooltip {
-            Some(overlay) => Arc::new(overlay_grid(picture, overlay, ascii)),
-            None => picture.grid.clone(),
+        let in_picture = picture.as_ref().is_some_and(|picture| picture.has_scene());
+        let grid = picture
+            .as_ref()
+            .map(|picture| match (&tooltip, in_picture) {
+                (Some(overlay), false) => Arc::new(overlay_grid(
+                    &picture.grid,
+                    (picture.width, picture.height),
+                    overlay,
+                    ascii,
+                    true,
+                )),
+                _ => picture.grid.clone(),
+            });
+        let over = picture.as_ref().filter(|_| in_picture).map(|picture| {
+            let base = picture.over.clone().unwrap_or_else(|| {
+                Arc::new(CellGrid::new(
+                    u16::try_from(picture.width).unwrap_or(u16::MAX),
+                    u16::try_from(picture.height).unwrap_or(u16::MAX),
+                ))
+            });
+            match &tooltip {
+                Some(overlay) => Arc::new(overlay_grid(
+                    &base,
+                    (picture.width, picture.height),
+                    overlay,
+                    ascii,
+                    false,
+                )),
+                None => base,
+            }
         });
         let insets = self.viewport.map_or([0.0; 4], |v| v.insets);
         // A chart whose worker could not start says so where its picture
@@ -339,6 +423,54 @@ impl Component for LiveChart {
         if let Some(grid) = grid {
             content = content.with_cells(grid);
         }
+        let mut children = vec![content];
+        // The plot picture: a canvas on the inner plot rectangle, drawn by
+        // the drawing thread from the worker's scene, part of the chart for
+        // the screen reader and the mouse (CHT-037).
+        #[cfg(feature = "wgpu-graphics")]
+        if let Some(scene) = picture
+            .as_ref()
+            .filter(|_| in_picture)
+            .and_then(|picture| picture.scene.clone())
+        {
+            let inner = picture.as_ref().map_or(Rect::default(), |p| p.inner);
+            let mut holder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+                .styles(
+                    StyleBuilder::new()
+                        .position_absolute()
+                        .inset_left(insets[0] + inner.x as f32)
+                        .inset_top(insets[1] + inner.y as f32)
+                        .width_px(inner.w as f32)
+                        .height_px(inner.h as f32)
+                        .overflow_hidden(),
+                )
+                .children(vec![Element::typed::<Canvas>(
+                    CanvasProps::new(scene)
+                        .options(super::graphics_options())
+                        .described_by_parent(),
+                )])
+                .build();
+            holder.metadata.inert = true;
+            children.push(holder);
+        }
+        // The text inside the plot, and the tooltip, over the picture.
+        if let Some(over) = over {
+            let mut element = ElementBuilder::new(ElementType::Text(String::new()))
+                .styles(
+                    StyleBuilder::new()
+                        .position_absolute()
+                        .inset_left(insets[0])
+                        .inset_top(insets[1])
+                        .width_px(width as f32)
+                        .height_px(height as f32)
+                        .overflow_hidden(),
+                )
+                .class("whitespace-pre")
+                .build()
+                .with_cells(over);
+            element.metadata.inert = true;
+            children.push(element);
+        }
         let mut sizing = StyleBuilder::new()
             .display_flex()
             .max_width_percent(100.0)
@@ -358,7 +490,7 @@ impl Component for LiveChart {
         };
         let mut element = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
             .styles(sizing)
-            .children(vec![content])
+            .children(children)
             .build();
         element.focus = Some(FocusProps::button());
         // The screen reader is told the chart's name from `aria_label`,
@@ -606,6 +738,7 @@ impl Component for LiveChart {
         if matches!(event, LifecycleEvent::Unmount) {
             self.reveal.cancel();
             self.transition.cancel();
+            self.hover.cancel();
         }
     }
 }
@@ -768,6 +901,44 @@ struct Overlay {
 }
 
 impl LiveChart {
+    /// The pixels of a cell when the plot is drawn as a picture (CHT-037):
+    /// the chart is cartesian, the terminal takes Kitty graphics or Sixel
+    /// as the backend learned at startup, and neither the environment nor
+    /// the application's graphics options switched the plots back to cells.
+    #[cfg(feature = "wgpu-graphics")]
+    fn plot_pixels(&self, props: &ChartProps) -> Option<(u16, u16)> {
+        if !matches!(
+            props.chart_type,
+            ChartType::Line
+                | ChartType::Area
+                | ChartType::Scatter
+                | ChartType::BarVertical
+                | ChartType::BarHorizontal
+                | ChartType::Candlestick
+        ) {
+            return None;
+        }
+        let terminal = self.viewport?.terminal;
+        let cell = terminal.cell_pixels?;
+        let host = HostReport {
+            kitty: terminal.kitty_graphics,
+            kitty_shared_memory: terminal.kitty_shared_memory,
+            sixel: terminal.sixel,
+            cell,
+        };
+        let options = super::graphics_options();
+        match CanvasOutput::choose(Some(host), options.output, CanvasOutput::from_environment()) {
+            CanvasOutput::Kitty | CanvasOutput::Sixel => Some((cell.0.max(1), cell.1.max(1))),
+            CanvasOutput::Blocks => None,
+        }
+    }
+
+    /// Without the graphics feature every plot is drawn in cells.
+    #[cfg(not(feature = "wgpu-graphics"))]
+    fn plot_pixels(&self, _: &ChartProps) -> Option<(u16, u16)> {
+        None
+    }
+
     /// The chart's size in cells: the props' size where set, else the
     /// allotted rectangle.
     fn size(&self) -> (usize, usize) {
@@ -1137,7 +1308,16 @@ fn ascii_glyphs(props: &ChartProps) -> bool {
 /// A copy of the picture's grid with the tooltip box, crosshair, band and
 /// ring drawn over it, in the chrome roles (CHT-017) and in ASCII when the
 /// chart is (CHT-028).
-fn overlay_grid(picture: &Picture, overlay: &Overlay, ascii: bool) -> CellGrid {
+/// `base` with `overlay` drawn into a copy: the tooltip box always, and the
+/// crosshair, band, ring and ray when `marks`, which a plot picture draws
+/// itself (CHT-038). `size` is the chart's size in cells.
+fn overlay_grid(
+    base: &CellGrid,
+    size: (usize, usize),
+    overlay: &Overlay,
+    ascii: bool,
+    marks: bool,
+) -> CellGrid {
     use unicode_width::UnicodeWidthStr;
     /// Writes into the grid; a filled rectangle keeps its background under
     /// whatever is written into it afterwards, so a box stays opaque.
@@ -1239,7 +1419,7 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay, ascii: bool) -> CellGrid {
         }
     }
     use plot::TextSink as _;
-    let mut grid = (*picture.grid).clone();
+    let mut grid = base.clone();
     let mut sink = Sink {
         grid: &mut grid,
         fills: Vec::new(),
@@ -1250,12 +1430,16 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay, ascii: bool) -> CellGrid {
     } else {
         ("│", "─", "◌", "·")
     };
-    if let Some((col, top, bottom)) = overlay.crosshair {
+    let crosshair = overlay.crosshair.filter(|_| marks);
+    let band = overlay.band.filter(|_| marks);
+    let ring = overlay.ring.filter(|_| marks);
+    let ray: &[(usize, usize)] = if marks { &overlay.ray } else { &[] };
+    if let Some((col, top, bottom)) = crosshair {
         for row in top..bottom {
             sink.under(col, row, vertical, muted);
         }
     }
-    if let Some((row, left, right)) = overlay.band {
+    if let Some((row, left, right)) = band {
         // The band tints its row in the `hover` role and marks the empty
         // cells with a line.
         sink.fill(
@@ -1270,17 +1454,17 @@ fn overlay_grid(picture: &Picture, overlay: &Overlay, ascii: bool) -> CellGrid {
         }
     }
     // A radial selection's ray is drawn over the shapes it crosses.
-    for (col, row) in &overlay.ray {
+    for (col, row) in ray {
         sink.text(*col, *row, 1, dot, muted);
     }
-    if let Some((col, row)) = overlay.ring {
+    if let Some((col, row)) = ring {
         sink.text(col, row, 1, ring_glyph, canvas::color("ring"));
     }
     if let Some(boxed) = &overlay.boxed {
         boxed.draw(
             &mut sink,
             overlay.at,
-            Rect::sized(picture.width, picture.height),
+            Rect::sized(size.0, size.1),
             plot::TooltipStyle {
                 frame: canvas::color("border"),
                 text: canvas::color("foreground"),
@@ -1331,6 +1515,7 @@ mod tests {
             transition: None,
             unicode_glyphs: true,
             selected: None,
+            pixels: None,
         });
         assert!(
             picture.kept[0].len() <= 2 * picture.plot.w,
@@ -1364,6 +1549,7 @@ mod tests {
                 transition: None,
                 unicode_glyphs: true,
                 selected: None,
+                pixels: None,
             })
         };
         let nodes = |count: usize| {
@@ -1405,6 +1591,26 @@ mod tests {
         }
     }
 
+    /// CHT-037: a layout whose terminal changed, a new cell size or pixels
+    /// now taken, changes the chart, so the next picture is drawn for it.
+    #[test]
+    fn cht_037_a_new_cell_size_changes_the_charts_layout() {
+        use crate::component::{Component, LayoutInfo, TerminalInfo};
+        let mut props = LiveProps {
+            config: Arc::new(ChartProps::default()),
+            seed: ChartState::default(),
+        };
+        let mut state = ChartState::default();
+        let mut chart = LiveChart::new(props.clone());
+        let bounds = crate::event::hit::Bounds::new(0.0, 0.0, 80.0, 24.0);
+        let mut layout = LayoutInfo::from_bounds(bounds);
+        assert!(chart.layout(layout, &mut props, &mut state));
+        assert!(!chart.layout(layout, &mut props, &mut state));
+        layout.terminal = TerminalInfo::new((9, 18), true, false, false);
+        assert!(chart.layout(layout, &mut props, &mut state));
+        assert!(!chart.layout(layout, &mut props, &mut state));
+    }
+
     /// A NaN value equals itself in the job key, so a chart holding invalid
     /// data does not resubmit a worker job every frame.
     #[test]
@@ -1417,6 +1623,7 @@ mod tests {
             progress: 1.0,
             selected: None,
             theme: 0,
+            pixels: None,
         };
         let same = JobKey {
             values: Arc::new(vec![vec![f64::NAN, 5.0]]),

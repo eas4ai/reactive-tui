@@ -336,3 +336,193 @@ mod tests {
         assert!(!running);
     }
 }
+
+/// How long the hover marks of a plot picture take to ease in when the hover
+/// begins, and the band to glide to another bar (CHT-038).
+const HOVER_MOTION: Duration = Duration::from_millis(150);
+
+/// What the hover marks of a plot picture show now (CHT-038).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct HoverFrame {
+    pub series: usize,
+    pub index: usize,
+    /// 0 to 1: how far the dots, halo and fade have eased in.
+    pub focus: f32,
+    /// The band's center along the category axis, in cells, where the
+    /// glide has it.
+    pub band: f64,
+}
+
+#[derive(Default)]
+struct HoverState {
+    /// The hovered (series, index) the marks are for.
+    target: Option<(usize, usize)>,
+    /// The band center the glide started from, and the one it goes to.
+    from: f64,
+    to: f64,
+    /// When the current motion began; none while nothing moves.
+    started: Option<Instant>,
+    /// Whether the motion eases the marks in (the hover began) rather than
+    /// gliding the band (the hover moved to another datum).
+    entering: bool,
+    /// The band's center and the focus as of the last frame.
+    band: f64,
+    focus: f32,
+}
+
+/// The hover's motion: the marks ease in over [`HOVER_MOTION`] when the
+/// hover begins, with the band on the datum at once; when it moves to
+/// another datum the band glides there over the same time. Both snap under
+/// `reduced-motion` (CHT-038).
+pub(super) struct Hover {
+    ticker: Ticker,
+    state: Mutex<HoverState>,
+}
+
+impl Hover {
+    pub(super) fn new() -> Self {
+        Self {
+            ticker: Ticker::new(),
+            state: Mutex::new(HoverState::default()),
+        }
+    }
+
+    /// The marks to draw now for `target`: the hovered series and index and
+    /// its band's center in cells, or none when nothing is hovered.
+    pub(super) fn frame(
+        &self,
+        props: &ChartProps,
+        target: Option<(usize, usize, f64)>,
+    ) -> Option<HoverFrame> {
+        self.at(props, target, Instant::now())
+    }
+
+    fn at(
+        &self,
+        props: &ChartProps,
+        target: Option<(usize, usize, f64)>,
+        now: Instant,
+    ) -> Option<HoverFrame> {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let Some((series, index, band)) = target else {
+            *state = HoverState::default();
+            drop(state);
+            self.ticker.drive(false, now);
+            return None;
+        };
+        let instant = reduced_motion(props) || !self.ticker.available();
+        let key = (series, index);
+        if state.target != Some(key) {
+            if state.target.is_none() {
+                // The hover begins: the band is on the datum, the marks
+                // ease in.
+                state.from = band;
+                state.to = band;
+                state.band = band;
+                state.focus = 0.0;
+                state.entering = true;
+            } else {
+                // Another datum: the band glides from where it is.
+                state.from = state.band;
+                state.to = band;
+                state.focus = 1.0;
+                state.entering = false;
+            }
+            state.target = Some(key);
+            state.started = (!instant).then_some(now);
+        } else if state.to != band && state.started.is_none() {
+            // The same datum at another place (a resize): there at once.
+            state.from = band;
+            state.to = band;
+            state.band = band;
+        }
+        let progress = match state.started {
+            Some(start) => (now.saturating_duration_since(start).as_secs_f64()
+                / HOVER_MOTION.as_secs_f64())
+            .min(1.0),
+            None => 1.0,
+        };
+        // Eased out: quick at first, settling at the end.
+        let eased = 1.0 - (1.0 - progress).powi(3);
+        state.band = state.from + (state.to - state.from) * eased;
+        state.focus = if state.entering { eased as f32 } else { 1.0 };
+        if progress >= 1.0 {
+            state.started = None;
+            state.band = state.to;
+            state.focus = 1.0;
+        }
+        let running = state.started.is_some();
+        let frame = HoverFrame {
+            series,
+            index,
+            focus: state.focus,
+            band: state.band,
+        };
+        drop(state);
+        self.ticker.drive(running, now);
+        Some(frame)
+    }
+
+    pub(super) fn cancel(&self) {
+        self.ticker.cancel();
+    }
+}
+
+#[cfg(test)]
+mod hover_tests {
+    use super::*;
+
+    fn props(class: Option<&str>) -> ChartProps {
+        ChartProps {
+            class: class.map(str::to_owned),
+            ..Default::default()
+        }
+    }
+
+    /// CHT-038: the band glides from the bar hovered before to the new one
+    /// over 150 ms and the marks ease in when the hover begins; under
+    /// reduced-motion both snap.
+    #[test]
+    fn cht_038_the_band_glides_and_the_marks_ease_in_unless_motion_is_reduced() {
+        let hover = Hover::new();
+        let start = Instant::now();
+        // No scheduler in a unit test: the ticker is unavailable, so the
+        // motion is instant. The reduced-motion rule is the same path.
+        let first = hover.at(&props(None), Some((0, 1, 10.0)), start).unwrap();
+        assert_eq!((first.focus, first.band), (1.0, 10.0));
+        let moved = hover
+            .at(&props(Some("reduced-motion")), Some((0, 4, 40.0)), start)
+            .unwrap();
+        assert_eq!((moved.focus, moved.band), (1.0, 40.0));
+        assert!(hover.at(&props(None), None, start).is_none());
+    }
+
+    /// The glide's arithmetic: half way through the motion the band is most
+    /// of the way there (eased out), and at the end exactly there.
+    #[test]
+    fn cht_038_the_glide_eases_out_and_ends_on_the_target() {
+        let hover = Hover::new();
+        let start = Instant::now();
+        {
+            let mut state = hover.state.lock().unwrap();
+            state.target = Some((0, 1));
+            state.from = 10.0;
+            state.to = 40.0;
+            state.band = 10.0;
+            state.focus = 1.0;
+            state.started = Some(start);
+        }
+        let halfway = hover
+            .at(&props(None), Some((0, 1, 40.0)), start + HOVER_MOTION / 2)
+            .unwrap();
+        assert!(
+            halfway.band > 25.0 && halfway.band < 40.0,
+            "half way: {}",
+            halfway.band
+        );
+        let done = hover
+            .at(&props(None), Some((0, 1, 40.0)), start + HOVER_MOTION)
+            .unwrap();
+        assert_eq!(done.band, 40.0);
+    }
+}

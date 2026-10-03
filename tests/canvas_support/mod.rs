@@ -604,8 +604,16 @@ pub fn check_reference(name: &str, frame: &GraphicsFrame) -> Option<String> {
 /// data sets, row by row; a terminal shows an unset pixel as it was before.
 /// `picture` is what follows the device control string that starts it.
 pub fn sixel_pixels(picture: &str) -> ((usize, usize), Vec<bool>) {
-    let (size, set, _) = sixel_parse(picture);
-    (size, set)
+    let (size, colors, _) = sixel_parse(picture);
+    (size, colors.iter().map(Option::is_some).collect())
+}
+
+/// The size a Sixel picture states and the color of every pixel its data
+/// sets, none where it sets nothing: a register's `#n;2;r;g;b` definition
+/// in percentages, as the terminal would show it.
+pub fn sixel_colors(picture: &str) -> ((usize, usize), Vec<Option<[u8; 3]>>) {
+    let (size, colors, _) = sixel_parse(picture);
+    (size, colors)
 }
 
 /// How many pixels a Sixel picture's data sets outside the size it states:
@@ -615,7 +623,7 @@ pub fn sixel_outside(picture: &str) -> usize {
     sixel_parse(picture).2
 }
 
-fn sixel_parse(picture: &str) -> ((usize, usize), Vec<bool>, usize) {
+fn sixel_parse(picture: &str) -> ((usize, usize), Vec<Option<[u8; 3]>>, usize) {
     let body = picture.split('\x1b').next().unwrap_or("");
     let mut size = (0, 0);
     let mut data = body;
@@ -633,19 +641,36 @@ fn sixel_parse(picture: &str) -> ((usize, usize), Vec<bool>, usize) {
         );
         data = &rest[end..];
     }
-    let mut set = vec![false; size.0 * size.1];
+    let mut set = vec![None; size.0 * size.1];
     let mut outside = 0usize;
     let (mut x, mut row, mut repeat) = (0usize, 0usize, 1usize);
+    let mut palette: std::collections::HashMap<usize, [u8; 3]> = std::collections::HashMap::new();
+    let mut current = [0u8; 3];
     let mut bytes = data.bytes().peekable();
     while let Some(byte) = bytes.next() {
         match byte {
             // A color: its number, and its definition when one follows.
             b'#' => {
-                while bytes
-                    .peek()
-                    .is_some_and(|b| b.is_ascii_digit() || *b == b';')
-                {
+                let mut numbers = String::new();
+                while let Some(b) = bytes.peek().filter(|b| b.is_ascii_digit() || **b == b';') {
+                    numbers.push(char::from(*b));
                     bytes.next();
+                }
+                let numbers: Vec<usize> =
+                    numbers.split(';').filter_map(|n| n.parse().ok()).collect();
+                if let Some(&register) = numbers.first() {
+                    if numbers.len() >= 5 && numbers[1] == 2 {
+                        let channel = |p: usize| ((p.min(100) * 255 + 50) / 100) as u8;
+                        palette.insert(
+                            register,
+                            [
+                                channel(numbers[2]),
+                                channel(numbers[3]),
+                                channel(numbers[4]),
+                            ],
+                        );
+                    }
+                    current = palette.get(&register).copied().unwrap_or([0; 3]);
                 }
             }
             b'!' => {
@@ -668,7 +693,7 @@ fn sixel_parse(picture: &str) -> ((usize, usize), Vec<bool>, usize) {
                         let y = row + bit;
                         if bits & (1 << bit) != 0 {
                             if column < size.0 && y < size.1 {
-                                set[y * size.0 + column] = true;
+                                set[y * size.0 + column] = Some(current);
                             } else {
                                 outside += 1;
                             }

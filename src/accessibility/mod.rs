@@ -26,6 +26,11 @@ impl Node {
             text_selection: None,
         }
     }
+
+    /// The semantic role the node was made with.
+    pub fn role(&self) -> Role {
+        self.inner.role()
+    }
     /// Label announced independently of the painted text.
     pub fn set_label(&mut self, label: impl Into<String>) {
         self.inner.set_label(label.into());

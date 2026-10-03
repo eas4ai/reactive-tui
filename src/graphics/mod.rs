@@ -24,6 +24,8 @@ mod worker;
 pub use hybrid::{GraphicsFault, GraphicsMode, GraphicsOptions, HybridRenderer};
 pub use output::CanvasOutput;
 pub(crate) use output::{CanvasPaint, HostReport};
+#[cfg(all(test, feature = "wgpu-graphics"))]
+pub(crate) use scene::Command;
 pub use scene::{
     CanvasImage, Color, GradientStop, LineCap, LineJoin, Paint, Path, PathBuilder, Scene, Stroke,
     Transform,

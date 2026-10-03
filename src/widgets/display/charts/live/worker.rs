@@ -25,6 +25,9 @@ pub(super) struct Job {
     /// A running transition's progress and the values it started from, so
     /// the automatic range moves with the values (CHT-022).
     pub transition: Option<(f64, Arc<Vec<Vec<f64>>>)>,
+    /// The plot as a picture, with its hover, where the terminal takes one
+    /// (CHT-037, CHT-038).
+    pub pixels: Option<canvas::PlotPixels>,
 }
 
 #[derive(Default)]
@@ -160,6 +163,7 @@ fn run(shared: Arc<Shared>) {
                 .map(|(t, from)| (*t, from.as_slice())),
             unicode_glyphs: crate::widgets::display::charts::glyph_support(),
             selected: job.selected,
+            pixels: job.pixels,
         });
         picture.theme = job.theme;
         let mut slots = shared.slots.lock().unwrap_or_else(|e| e.into_inner());
