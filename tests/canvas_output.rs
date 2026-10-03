@@ -1337,3 +1337,41 @@ fn gfx_010_a_pinned_picture_reaches_sixel_at_the_cells_pixels_with_holes_on_cell
         "GFX-010: a pinned Sixel canvas on 520 by 60 cells of 9 by 18 pixels was sent a raster of {width} by {height}; the hole under the note covers its cells: {hole}; the pixels just outside it are drawn: {edges}"
     );
 }
+
+#[test]
+fn gfx_010_a_pin_holds_under_a_translucent_parent() {
+    // A parent at half opacity takes the canvas off the plane's fast path;
+    // the picture keeps its pinned 4 by 8 pixels per cell all the same, and
+    // its placement its 520 by 60 cells.
+    struct Dimmed;
+    impl RootComponent for Dimmed {
+        fn render(&self) -> Element {
+            use reactive_tui::builder::core::div;
+            let props = CanvasProps::new(Arc::new(canvas_support::shapes()))
+                .options(reference_options(true))
+                .cell_pixels(4, 8);
+            div()
+                .class("w-full h-full opacity-50")
+                .children(vec![Element::typed::<Canvas>(props)])
+                .build()
+        }
+    }
+    half_blocks();
+    let host = ImageOutputOptions {
+        kitty_graphics: true,
+        kitty_shared_memory: true,
+        cell_pixels: (9, 18),
+        ..Default::default()
+    };
+    let output: String =
+        app_input::run_when_output(Dimmed, (520, 60), host, vec![("a=T".to_owned(), 1, None)])
+            .iter()
+            .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
+            .collect();
+    let controls = first_picture_controls(&output);
+    let got = ["s", "v", "c", "r"].map(|key| control(&controls, key));
+    assert!(
+        got == [Some(2080), Some(480), Some(520), Some(60)],
+        "GFX-010: under a parent at half opacity, a canvas pinned to 4 by 8 pixels per cell on 520 by 60 cells of 9 by 18 was sent a picture whose s, v, c and r are {got:?}, not 2080, 480, 520 and 60"
+    );
+}
