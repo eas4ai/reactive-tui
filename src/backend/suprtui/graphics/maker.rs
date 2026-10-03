@@ -194,10 +194,16 @@ fn run<P: RasterPlane>(queue: &(Mutex<Queue<P>>, Condvar), made: &mpsc::Sender<M
             under,
         } = job;
         // The pixels of the planes below are copied here, on this thread,
-        // never where the App waits (GFX-009).
+        // never where the App waits (GFX-009). The layers are screen
+        // pixels: a picture with fewer pixels per cell is scaled to its
+        // cells first (GFX-010).
         for lower in &under {
             if let Ok(pixels) = lower.raster_under(cell) {
-                below.add(lower, &pixels);
+                if lower.raster_cell(cell) == cell {
+                    below.add(lower, &pixels);
+                } else {
+                    below.add(lower, &super::scale_to_cells(&pixels, lower.cells(), cell));
+                }
             }
         }
         let mut rastered = 0;

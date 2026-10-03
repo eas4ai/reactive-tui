@@ -756,7 +756,7 @@ impl Objects<'_> {
 /// `pixels`, a picture of `cells` columns and rows with fewer pixels per
 /// cell than the terminal's, scaled to the terminal's `cell` pixels, each
 /// picture pixel to the screen pixels it covers (GFX-010).
-fn scale_to_cells(
+pub(super) fn scale_to_cells(
     pixels: &image::RgbaImage,
     cells: (u32, u32),
     cell: (u16, u16),
