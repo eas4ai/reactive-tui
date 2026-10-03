@@ -325,23 +325,23 @@ impl PlotScene {
         }
         let above = highest < base_high;
         let below = lowest > base_low;
-        let strong = color(tint, opacity);
-        let faded = color(tint, 0.0);
+        let strong = || color(tint, opacity);
+        let faded = || color(tint, 0.0);
         let paint = match (above, below) {
             (true, false) => Paint::linear(
                 (0.0, highest as f32),
                 (0.0, base_high as f32),
                 vec![
-                    GradientStop::new(0.0, strong),
-                    GradientStop::new(1.0, faded),
+                    GradientStop::new(0.0, strong()),
+                    GradientStop::new(1.0, faded()),
                 ],
             ),
             (false, true) => Paint::linear(
                 (0.0, lowest as f32),
                 (0.0, base_low as f32),
                 vec![
-                    GradientStop::new(0.0, strong),
-                    GradientStop::new(1.0, faded),
+                    GradientStop::new(0.0, strong()),
+                    GradientStop::new(1.0, faded()),
                 ],
             ),
             (true, true) => {
@@ -351,9 +351,9 @@ impl PlotScene {
                     (0.0, highest as f32),
                     (0.0, lowest as f32),
                     vec![
-                        GradientStop::new(0.0, strong),
-                        GradientStop::new(at, faded),
-                        GradientStop::new(1.0, strong),
+                        GradientStop::new(0.0, strong()),
+                        GradientStop::new(at, faded()),
+                        GradientStop::new(1.0, strong()),
                     ],
                 )
             }
