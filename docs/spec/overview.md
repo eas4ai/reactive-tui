@@ -62,7 +62,7 @@ component library as closely as a cell grid allows.
 | input-widgets.md | CTL | the text input, checkbox, radio button, select, slider and button: their colors by role, the width they fill, where a select's list opens and what it is painted over, what the screen reader is told |
 | layout-widgets.md | NAV | the tabs, accordion, breadcrumb, scroll view and stack: their colors by role, the size they fill, what happens when their content does not fit, what the screen reader is told |
 | data-widgets.md | DAT | the table, data table, tree, file explorer and progress bar: their colors by role, the size they fill, numeric sorting and a revealed selection, what the screen reader is told |
-| canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults, the demos, and pictures made ready off the App's wait |
+| canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults, the demos, pictures made ready off the App's wait, the drawing thread every canvas shares, and pictures one pixel per screen pixel |
 | reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.

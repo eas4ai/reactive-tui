@@ -60,6 +60,15 @@ Terms as the code uses them. Each names where it is defined.
   lavapipe are software adapters and do not count.
 - **Software renderer.** The CPU renderer that draws every canvas scene the
   GPU would when no hardware adapter is usable (src/graphics/cpu.rs).
+- **Drawing thread.** The `rtui-canvas-*` thread that draws the pictures
+  of every canvas in the process that shares its renderer options, with
+  one adapter, device, set of pipelines and glyph atlas
+  (src/graphics/worker.rs); a worker an application starts and hands to
+  its canvases is one (GFX-003).
+- **Pixels per cell.** How many picture pixels a canvas draws for one
+  cell: the terminal's cell size, learned at startup and on resize, unless
+  the application pins fewer or a hard limit forces fewer, whole in each
+  direction, and the terminal scales the picture to its cells (GFX-010).
 - **Glyph atlas.** A texture holding each glyph a CellGrid uses once, so the
   GPU draws the whole grid as one instanced draw.
 - **Cell canvas.** The chart's shared mask canvas, which resolves each cell

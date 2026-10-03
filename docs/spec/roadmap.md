@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: thread-safe-signal-lost-update
+Current: canvas-serves-many-pictures
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1088,3 +1088,57 @@ Done when every named requirement passes, the reactive-signals mechanism
 has recorded a fail on the tree as it was at the start, and the changelog
 names the fix for an application that dispatches reducer actions from
 several threads.
+
+## canvas-serves-many-pictures
+
+Requirements: GFX-001, GFX-002, GFX-003, GFX-004, GFX-005, GFX-006, GFX-007, GFX-008, GFX-009, GFX-010, GFX-011, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011
+
+The second of the three commitments for the two-axis charts (item
+ff62d964), after two-axis-charts-correct and before charts-plot-on-pixels,
+opened on 2026-10-02 after the developer's ok let three backlog items wait
+(escalation cbd3f018). Until now each canvas drew on a thread of its own
+with its own GPU connection, a picture was capped at 4096 by 4096 pixels,
+and a picture's pixels were taken to match its cells one to one. The
+developer said on 2026-10-01 "It may be that we need to make the canvas
+more capable" and ruled, when a fixed 1440p cap was proposed, "Don't let
+the lowest common denominator dictate to the highest", "I am not concerned
+with users that have a potato" and "I also can't run Crisis on the
+tablet": no fixed resolution cap, no automatic step-down for a slow host,
+speed bounds bind on the Linux development host and the tablet's numbers
+are recorded.
+
+The commitment makes one drawing thread serve every canvas in the process
+that draws with the same renderer options, with one adapter and device,
+shared pipelines and glyph atlas, and a waiting scene per canvas that only
+that canvas's newer scene replaces (GFX-003 revised); draws pictures one
+pixel per screen pixel at the terminal's cell size up to the adapter's
+limits, lets an application pin fewer whole pixels per cell, and where a
+hard limit stands in the way (the renderer's, the frame's room for a
+picture, a Kitty command's room, a Sixel picture's text) draws the
+largest whole pixels per cell that fit, the
+terminal scaling the picture to its cells through the Kitty placement's
+`c` and `r` keys and our Sixel encoder scaling before it encodes (GFX-010,
+GFX-001 revised); and shows that fifteen canvases on one thread each still
+receive 30 new pictures a second on the Linux host, with the tablet's and
+the Mac's numbers recorded (GFX-011). The canvas keeps its scenes and
+renderers (GFX-001, GFX-002), the tablet's speed floor (GFX-004), its
+output choice and in-place replacement (GFX-005, GFX-006), its fault
+handling (GFX-007), the demos (GFX-008) and pictures made ready off the
+App's wait (GFX-009).
+
+Not here, by dependency: the charts' plot areas as pictures and the hover
+drawn in them are the third commitment's, so the Charts page itself draws
+no pictures yet; the proof that many pictures share one thread is a tree
+of fifteen canvases and the catalog's Motion page. Shared memory and the
+frame's 64 MiB budget for new pictures keep their rules. iTerm2 is not an
+output of the canvas (GFX-005), so no scaling keys are written for it.
+
+Done when every named requirement passes; canvas-scenes, canvas-output and
+canvas-hosts have recorded a fail on a violating example, the code as it
+is at the start, for GFX-001, GFX-003, GFX-010 and GFX-011; the manual's
+canvas chapter says that one thread serves every canvas, how an
+application pins pixels per cell, and the limits as they now are, and the
+changelog names what changed for an application; and the review records
+GFX-011's numbers from the three hosts and screenshots from Kitty on the
+private display of the catalog's Motion page and of a canvas at 520
+columns shown one pixel per screen pixel.
