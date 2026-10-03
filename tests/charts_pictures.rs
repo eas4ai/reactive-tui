@@ -1166,9 +1166,21 @@ fn reference_path(name: &str) -> std::path::PathBuf {
         .join(format!("{name}.png"))
 }
 
+/// The process's graphics options while a reference picture is drawn: the
+/// software renderer, which the references are drawn by on every host
+/// (CHT-012, CHT-013, CHT-037). Held across the run, so another test's App
+/// that starts meanwhile draws on it too, consistently, and never sees the
+/// options change under it.
+static SOFTWARE: Mutex<()> = Mutex::new(());
+
 /// The difference between `element`'s first picture and its reference, or
 /// none; with REGENERATE=1 the reference is written instead (BAR-004).
 fn reference_problem(name: &str, element: Element) -> Option<String> {
+    let _software = SOFTWARE.lock().unwrap_or_else(|e| e.into_inner());
+    reactive_tui::widgets::display::charts::set_graphics_options(GraphicsOptions {
+        force_cpu: true,
+        ..Default::default()
+    });
     let run = run(
         element,
         (80, 24),
@@ -1177,6 +1189,7 @@ fn reference_problem(name: &str, element: Element) -> Option<String> {
         after_pictures(1, 2),
         true,
     );
+    reactive_tui::widgets::display::charts::set_graphics_options(GraphicsOptions::default());
     let Some(picture) = run.pictures().into_iter().next() else {
         return Some(format!("{name}: no picture was sent"));
     };
@@ -1370,11 +1383,14 @@ fn cht_012_line_area_and_scatter_pictures_match_their_references() {
         .natural()
         .size(80, 24)
         .render();
+    // Two series overlaid, not stacked: the second's steps cross the first's.
     let area = AreaChartBuilder::new(samples())
         .x(|s| s.label)
         .y(|s| s.value)
         .name("value")
         .fill("chart-2")
+        .y(|s| s.open)
+        .name("open")
         .step_after()
         .size(80, 24)
         .render();
@@ -1391,12 +1407,14 @@ fn cht_012_line_area_and_scatter_pictures_match_their_references() {
     gradient.series[0].fill_style = FillStyle::Gradient;
     let mut pattern = dressed(ChartType::Area, (80, 24), &VALUES);
     pattern.series[0].fill_style = FillStyle::Pattern("diagonal".into());
+    // Two series at distinct points: open differs from value after the
+    // first sample, so neither series hides the other.
     let scatter = ScatterChartBuilder::new(samples())
         .x(|s| s.open)
-        .y(|s| s.close)
-        .name("close by open")
         .y(|s| s.value)
         .name("value by open")
+        .y(|s| s.open)
+        .name("open by open")
         .size(80, 24)
         .render();
     assert_references(
