@@ -5,6 +5,25 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- On a terminal that takes Kitty graphics or Sixel, a line, area, scatter,
+  bar or candlestick chart built with `wgpu-graphics` draws its plot area
+  as one pixel picture at the terminal's cell size: strokes an eighth of a
+  cell high with round joins, discs for markers, one-pixel grid, reference
+  and crosshair lines, gradient and pattern area fills, bars with
+  whole-pixel edges and `.corner_radius(cells)`, candles, and the hover's
+  crosshair, dots in halos, gliding band with faded neighbours and ring,
+  eased over 150 ms (`reduced-motion` snaps). Axis text, the legend, value
+  labels and the tooltip stay cell text over the picture; without pixels
+  the chart draws in cells as before, byte for byte.
+  `charts::set_graphics_options` picks the renderer, font and output for
+  every chart of the process, and `REACTIVE_TUI_CANVAS=blocks` keeps the
+  plots in cells (CHT-037, CHT-038, CHT-039).
+- `LayoutInfo::terminal` (`TerminalInfo`) tells a component what the
+  terminal takes, the cell size in pixels and whether Kitty graphics, Kitty
+  shared memory or Sixel reach the screen, before its first frame and after
+  every resize. `CanvasProps::described_by_parent()` leaves a canvas's
+  screen-reader description to the widget that holds it.
+
 - Every canvas of a process that draws with the same renderer options draws
   on one `rtui-canvas-*` thread, with one adapter, device, set of pipelines
   and glyph atlas, instead of a thread and a GPU connection per canvas; a

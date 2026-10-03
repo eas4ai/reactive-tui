@@ -204,6 +204,9 @@ impl Catalog {
         // Called before SuprTuiBackend::new: the worker makes its renderer
         // now, so what a graphics driver prints while it starts does not
         // land on the App's screen.
+        // The charts' plot pictures draw with the same options, so --cpu
+        // and the font apply to them too (CHT-037).
+        reactive_tui::widgets::display::charts::set_graphics_options(options.clone());
         let worker = GraphicsWorker::spawn(options.clone()).ok().map(Arc::new);
         if let Some(worker) = &worker {
             worker.wait_ready(std::time::Duration::from_secs(10));
