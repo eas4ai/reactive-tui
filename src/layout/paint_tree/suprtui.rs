@@ -444,11 +444,25 @@ fn lay_out(
     Ok(reused)
 }
 
+/// What the frame's components are told of the terminal: the pictures it
+/// takes and its cell size, as the backend has them (CHT-037).
+fn terminal_info(
+    image_options: &crate::backend::ImageOutputOptions,
+) -> crate::component::TerminalInfo {
+    crate::component::TerminalInfo::new(
+        image_options.cell_pixels,
+        image_options.kitty_graphics,
+        image_options.kitty_shared_memory,
+        image_options.sixel,
+    )
+}
+
 /// The layout a component receives for `node`: its size, content extent,
-/// clip, transform and insets.
+/// clip, transform, insets and what the terminal takes.
 fn presented_layout(
     tree: &TaffyTree<()>,
     node: &PaintNode,
+    terminal: crate::component::TerminalInfo,
 ) -> Result<crate::backend::PresentedLayout> {
     tree.layout(node.id)
         .map_err(|error| ReactiveError::layout(error.to_string()))?;
@@ -478,6 +492,7 @@ fn presented_layout(
                 (node.clip.bottom - node.clip.top).max(0) as f32,
             ),
             transform: node.transform.coefficients(),
+            terminal,
             insets: [
                 cell_edge(x + layout.padding.left + layout.border.left) - left,
                 cell_edge(y + layout.padding.top + layout.border.top) - top,
@@ -515,14 +530,16 @@ pub(crate) fn layout_frame(
     spec: crate::component::bridge::PaintSpec,
     size: (u32, u32),
     cache: &mut LayoutCache,
+    image_options: &crate::backend::ImageOutputOptions,
 ) -> Result<crate::backend::FrameLayout> {
     lay_out(spec, size, cache)?;
+    let terminal = terminal_info(image_options);
     Ok(crate::backend::FrameLayout {
         nodes: cache.nodes.iter().map(painted_node).collect(),
         layouts: cache
             .nodes
             .iter()
-            .map(|node| presented_layout(&cache.tree, node))
+            .map(|node| presented_layout(&cache.tree, node, terminal))
             .collect::<Result<_>>()?,
     })
 }
@@ -536,6 +553,7 @@ pub(crate) fn paint_frame(
 ) -> Result<crate::backend::PresentedGeometry> {
     target.clear(ansi::rgb_color(0, 0, 0, 255), None);
     let size = (target.width(), target.height());
+    let terminal = terminal_info(&image_options);
     let reused = lay_out(spec, size, cache)?;
     let spec = cache.spec.as_ref().expect("lay_out stores the spec");
     let (tree, paints, nodes) = (&cache.tree, &cache.paints, &cache.nodes);
@@ -638,7 +656,7 @@ pub(crate) fn paint_frame(
             }
         }
         mark_hits(hits, size.0, node, &mut inverse_cells);
-        layouts.push(presented_layout(tree, node)?);
+        layouts.push(presented_layout(tree, node, terminal)?);
         geometry.push(painted_node(node));
     }
     Ok(crate::backend::PresentedGeometry {

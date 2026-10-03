@@ -960,6 +960,7 @@ fn run_worker<W: Write>(
                         spec,
                         (width as u32, height as u32),
                         &mut layout_cache,
+                        &images,
                     )
                 }));
             }
@@ -1208,6 +1209,51 @@ mod cursor_tests;
 
 #[cfg(all(test, unix))]
 mod input_pty;
+
+#[cfg(test)]
+mod terminal_info_tests {
+    use super::{ImageOutputOptions, SuprTuiBackend};
+    use crate::backend::Backend;
+    use crate::component::{Element, TerminalInfo};
+    use std::sync::Arc;
+
+    /// CHT-037: a component learns from its layout what the terminal takes
+    /// and how big a cell is, as the backend learned them; a writer that
+    /// takes no pictures says so.
+    #[test]
+    fn cht_037_the_frames_layout_names_what_the_terminal_takes() {
+        let pixels = ImageOutputOptions {
+            kitty_graphics: true,
+            kitty_shared_memory: true,
+            cell_pixels: (9, 18),
+            ..Default::default()
+        };
+        let mut backend =
+            SuprTuiBackend::with_writer_and_images(10, 4, std::io::sink(), pixels).unwrap();
+        let layout = backend
+            .layout_frame(Arc::new(Element::text("a")))
+            .unwrap()
+            .expect("the backend lays out ahead of a present");
+        let terminal = layout
+            .layouts
+            .first()
+            .expect("a root layout")
+            .layout
+            .terminal;
+        assert_eq!(terminal, TerminalInfo::new((9, 18), true, true, false));
+        assert!(terminal.takes_pixels());
+        let mut plain = SuprTuiBackend::with_writer(10, 4, std::io::sink()).unwrap();
+        let layout = plain
+            .layout_frame(Arc::new(Element::text("a")))
+            .unwrap()
+            .unwrap();
+        let terminal = layout.layouts.first().unwrap().layout.terminal;
+        assert!(
+            !terminal.takes_pixels() && terminal.cell_pixels == Some((8, 16)),
+            "a writer that takes no pictures: {terminal:?}"
+        );
+    }
+}
 
 #[cfg(test)]
 mod raw_mode_tests {
