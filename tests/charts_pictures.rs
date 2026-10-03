@@ -1582,11 +1582,19 @@ fn cht_039_the_nine_charts_keep_the_frame_budget_with_every_plot_a_picture() {
         .map(|frame| frame.began - first.began);
     let from = ready.lock().unwrap().unwrap_or(run.frames.len());
     let measured: Vec<&Frame> = run.frames.iter().skip(from).take(MEASURED).collect();
-    let work = p95(measured.iter().map(|frame| frame.work).collect::<Vec<_>>());
-    let waited = p95(measured
-        .iter()
-        .map(|frame| frame.waited)
-        .collect::<Vec<_>>());
+    // No frame to measure, because the pictures never all came, counts as
+    // over the bound.
+    let (work, waited) = if measured.is_empty() {
+        (Duration::MAX, Duration::MAX)
+    } else {
+        (
+            p95(measured.iter().map(|frame| frame.work).collect::<Vec<_>>()),
+            p95(measured
+                .iter()
+                .map(|frame| frame.waited)
+                .collect::<Vec<_>>()),
+        )
+    };
     let pictures = run.frames.last().map_or(0, |frame| frame.pictures);
     println!(
         "CHT-039 nine charts at 240 by 60 as pictures: all {CHARTS} first pictures after {}, then over {} frames of hovering a bar every frame the App's work per frame p95 {:.2} ms and its wait in present p95 {:.2} ms; {pictures} pictures in {:.2} s",
