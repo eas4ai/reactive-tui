@@ -257,6 +257,11 @@ def main() -> int:
               "(performance cores)" if cpus else "(no performance cores named: any core)", flush=True)
     results = {req: cargo_test_filtered("charts_contract", sub, release=release) for req, sub in GROUPS[group]}
     if group == "frame-budget":
+        # CHT-021's plot picture is drawn on the canvas's drawing thread:
+        # observed through tests/charts_pictures.rs, built with wgpu-graphics.
+        ok, why = results["CHT-021"]
+        pictures = cargo_test_filtered("charts_pictures", "cht_021_", features=["wgpu-graphics"], release=True)
+        results["CHT-021"] = (ok and pictures[0], f"cells: {why}; picture: {pictures[1]}")
         ok, why = results["BAR-005"]
         canvas = cargo_test_filtered("canvas_widget", "bar_005_", features=["wgpu-graphics"], release=True)
         overlays = cargo_test_filtered("overlays_contract", "bar_005_", release=True)
