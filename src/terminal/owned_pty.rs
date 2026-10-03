@@ -182,3 +182,65 @@ fn cloexec(fd: RawFd) -> io::Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PtyChild;
+    use std::io::Read;
+    use std::os::unix::fs::PermissionsExt;
+    use std::process::Command;
+    use std::time::{Duration, Instant};
+
+    /// TRM-001 at the child itself, with no worker in between: a flooding
+    /// child whose master was read once and then left alone is stopped
+    /// within a second, on Linux and on macOS, where a process that exits
+    /// with unread pseudo-terminal output stays in exit until it is read.
+    #[test]
+    fn trm_001_stop_reaps_a_flooding_child_whose_output_went_unread() {
+        let fixture = tempfile::tempdir().unwrap();
+        let path = fixture.path().join("flood");
+        std::fs::write(&path, "#!/bin/sh\nwhile :; do printf 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; done\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let mut child = PtyChild::spawn(Command::new(&path), 80, 24).unwrap();
+        let pid = child.id();
+        // Setup: one read proves the flood runs; then nothing reads for a
+        // while, so the child blocks in write with output unread.
+        let mut bytes = [0; 256];
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            match child.master.read(&mut bytes) {
+                Ok(n) if n > 0 => break,
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(error) => panic!("reading the flood: {error}"),
+            }
+            assert!(
+                Instant::now() < deadline,
+                "the flood printed nothing in 30 s"
+            );
+            child.wait_ready(false).unwrap();
+        }
+        std::thread::sleep(Duration::from_millis(300));
+        let (done, finished) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let started = Instant::now();
+            let status = child.stop();
+            let _ = done.send((started.elapsed(), status.map(|s| s.success())));
+        });
+        let (took, status) = finished
+            .recv_timeout(Duration::from_secs(10))
+            .expect("TRM-001: stop did not return within 10 s");
+        assert!(status.is_ok(), "stop failed: {status:?}");
+        assert!(took < Duration::from_secs(1), "stop took {took:?}");
+        // SAFETY: a liveness query of the process this test created.
+        assert_eq!(
+            unsafe { libc::kill(pid as i32, 0) },
+            -1,
+            "the child still exists"
+        );
+        assert_eq!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(libc::ESRCH)
+        );
+    }
+}

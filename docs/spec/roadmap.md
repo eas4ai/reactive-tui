@@ -1204,3 +1204,37 @@ names what changed for an application; and the review records screenshots
 of the catalog's Charts page from Kitty on the private display at 100 and
 240 columns in the five presets, with a bar hovered, and from a Sixel
 terminal.
+
+## macos-pty-stop-hang
+
+Requirements: TRM-001, BAR-001, BAR-002, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011
+
+Promoted from the backlog item macos-pty-stop-hang (64ffce50) by the
+developer's choice on 2026-10-03, with TRM-001 agreed the same day, since
+no agreed requirement covered the stop of a pseudo-terminal child. The
+terminal widget's worker (src/terminal/pty/unix.rs) and the embedded
+session's worker (src/embedded/worker.rs) stop reading the child's output
+and then call PtyChild::stop (src/terminal/owned_pty.rs), which kills the
+child and waits for it without reading the master. On macOS a process that
+exits with output still unread on its pseudo-terminal stays in exit until
+that output is read, so a child that printed faster than it was read never
+finishes exiting, and the stop, the worker and whatever joins it wait
+forever: the Mac run of the INP-011 tests at a9231484 hung 20 minutes this
+way, the macOS CI runner ran the flooding-child test until its 45-minute
+limit on 2026-10-03 (run 37151822540), and the Mac test host ran it for
+nine minutes with no exit the same day. Delivered here: while
+PtyChild::stop waits for the killed child it reads and discards what the
+child left unread on the master until the child is reaped, so the stop
+returns within a second on Linux and on macOS (TRM-001), for the terminal
+widget, PseudoTerminal::kill and its drop, and the embedded session alike;
+the tests stop a flooding child on a thread of their own with a ten-second
+guard, so a hang is a failed test and not a stuck run; the pty-stop
+mechanism runs them here and on the macOS test host over SSH, and records
+the run unverified when the host cannot be reached; the manual's terminal
+widget and embedded session chapters say what stopping a printing child
+does; and the changelog names the fix.
+
+Done when every named requirement passes, the pty-stop mechanism has
+recorded a fail on the tree as it was at the start, on the macOS test
+host, and the changelog names the fix for an application that closes a
+terminal widget or an embedded session while its shell is still printing.

@@ -64,6 +64,7 @@ component library as closely as a cell grid allows.
 | data-widgets.md | DAT | the table, data table, tree, file explorer and progress bar: their colors by role, the size they fill, numeric sorting and a revealed selection, what the screen reader is told |
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults, the demos, pictures made ready off the App's wait, the drawing thread every canvas shares, and pictures one pixel per screen pixel |
 | reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter |
+| terminal.md | TRM | the terminal widget's and the embedded session's pseudo-terminal child: stopping it ends and reaps the child within a bound on Linux and macOS, also when its output went unread |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -86,7 +87,8 @@ is contract.
   images and the embedded terminal.
 - Image protocols and terminal capability detection (src/widgets/display/image
   other than fallback, src/core/capabilities).
-- Embedded terminal and PTY, Windows ConPTY (src/embedded, src/terminal).
+- Embedded terminal and PTY other than terminal.md's stop of a child, Windows
+  ConPTY (src/embedded, src/terminal).
 - Accessibility (src/accessibility).
 - C ABI and TypeScript binding (src/ffi, include, bindings/typescript).
 - Build, CI and release packaging (Cargo.toml, .github/workflows, scripts).

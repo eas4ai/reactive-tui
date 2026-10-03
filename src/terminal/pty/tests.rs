@@ -126,3 +126,87 @@ fn api_terminal_pty_backpressure_and_drop_reap_a_flooding_child() {
         Some(libc::ESRCH)
     );
 }
+
+/// A shell that prints without pause, for TRM-001: once nothing reads the
+/// pseudo-terminal, its output fills the buffer and the shell blocks in
+/// write with bytes still unread.
+#[cfg(unix)]
+fn flooding_shell(dir: &std::path::Path) -> String {
+    use std::os::unix::fs::PermissionsExt;
+    let path = dir.join("flood");
+    std::fs::write(&path, "#!/bin/sh\nwhile :; do printf 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; done\n").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    path.to_str().unwrap().to_owned()
+}
+
+/// A terminal whose flooding child has been read once and then no more:
+/// the child is known to be printing, and after a pause its unread output
+/// fills the pseudo-terminal.
+#[cfg(unix)]
+fn flooding_terminal(dir: &std::path::Path) -> (PseudoTerminal, u32) {
+    let mut pty = PseudoTerminal::new();
+    pty.spawn(&TerminalConfig {
+        shell: Some(flooding_shell(dir)),
+        ..Default::default()
+    })
+    .unwrap();
+    // Setup, with a hang guard: the first output proves the flood runs.
+    assert!(pty
+        .read_output(Some(Duration::from_secs(30)))
+        .unwrap()
+        .is_some_and(|bytes| !bytes.is_empty()));
+    std::thread::sleep(Duration::from_millis(300));
+    let pid = pty.child_id().unwrap();
+    (pty, pid)
+}
+
+/// Runs the stop on a thread of its own and returns how long it took. A
+/// stop that has not returned after 10 s is the defect TRM-001 names, and
+/// fails the test instead of hanging the run; the test process's exit then
+/// closes the master, which lets the child finish exiting.
+#[cfg(unix)]
+fn stop_within_guard(stop: impl FnOnce() + Send + 'static) -> Duration {
+    let (done, finished) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let started = std::time::Instant::now();
+        stop();
+        let _ = done.send(started.elapsed());
+    });
+    finished
+        .recv_timeout(Duration::from_secs(10))
+        .expect("TRM-001: stopping the flooding child did not return within 10 s")
+}
+
+#[cfg(unix)]
+fn assert_reaped(pid: u32) {
+    // SAFETY: a liveness query of the process this test created.
+    assert_eq!(
+        unsafe { libc::kill(pid as i32, 0) },
+        -1,
+        "the child still exists"
+    );
+    assert_eq!(
+        std::io::Error::last_os_error().raw_os_error(),
+        Some(libc::ESRCH)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn trm_001_kill_reaps_a_flooding_child_within_a_second() {
+    let fixture = tempfile::tempdir().unwrap();
+    let (mut pty, pid) = flooding_terminal(fixture.path());
+    let took = stop_within_guard(move || pty.kill().unwrap());
+    assert!(took < Duration::from_secs(1), "kill took {took:?}");
+    assert_reaped(pid);
+}
+
+#[cfg(unix)]
+#[test]
+fn trm_001_drop_reaps_a_flooding_child_within_a_second() {
+    let fixture = tempfile::tempdir().unwrap();
+    let (pty, pid) = flooding_terminal(fixture.path());
+    let took = stop_within_guard(move || drop(pty));
+    assert!(took < Duration::from_secs(1), "drop took {took:?}");
+    assert_reaped(pid);
+}
