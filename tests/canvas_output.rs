@@ -263,13 +263,19 @@ fn hold(held: &mut Option<std::time::Instant>) -> RootUpdate {
 }
 
 /// A root that draws the scene of each frame beside a fixed label for
-/// `frames` frames, holds the last, and stops.
+/// `frames` frames, and on until the terminal has been sent two pictures
+/// or ten seconds have passed, holds the last, and stops. The canvases of
+/// every test in this process draw on one thread (GFX-003), so under load
+/// a canvas's pictures come slower than its frames.
 struct Spinner {
     frame: usize,
     frames: usize,
     held: Option<std::time::Instant>,
     options: GraphicsOptions,
     scene: fn(usize) -> Scene,
+    /// The pictures the terminal has been sent.
+    pictures: Arc<std::sync::atomic::AtomicUsize>,
+    deadline: std::time::Instant,
 }
 impl RootComponent for Spinner {
     fn render(&self) -> Element {
@@ -286,7 +292,10 @@ impl RootComponent for Spinner {
             .build()
     }
     fn update(&mut self) -> Result<RootUpdate> {
-        if self.frame + 1 < self.frames {
+        let sent = self.pictures.load(std::sync::atomic::Ordering::SeqCst);
+        if self.frame + 1 < self.frames
+            || (self.held.is_none() && sent < 2 && std::time::Instant::now() < self.deadline)
+        {
             self.frame += 1;
             return Ok(RootUpdate::Redraw);
         }
@@ -349,6 +358,8 @@ fn run_spinner(
             held: None,
             options: reference_options(true),
             scene,
+            pictures: Arc::clone(&terminal.pictures),
+            deadline: std::time::Instant::now() + Duration::from_secs(10),
         })
         .build()
         .unwrap()
@@ -516,6 +527,9 @@ fn gfx_005_a_slow_terminal_finds_the_shared_memory_of_every_picture_it_is_sent()
             held: None,
             options: reference_options(true),
             scene: spinning_cube,
+            // Forty frames are enough here; the reader counts its own.
+            pictures: Arc::default(),
+            deadline: std::time::Instant::now(),
         })
         .build()
         .unwrap()
