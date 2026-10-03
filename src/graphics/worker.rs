@@ -366,20 +366,35 @@ impl Drop for GraphicsWorker {
 #[cfg(unix)]
 struct QuietTerminalStderr {
     saved: Option<libc::c_int>,
+    /// Held for the guard's life: two threads making renderers at once
+    /// take turns, so neither can save the other's /dev/null as the
+    /// terminal and leave stderr there.
+    _turn: std::sync::MutexGuard<'static, ()>,
 }
+
+/// The one guard at a time.
+#[cfg(unix)]
+static QUIET_STDERR: Mutex<()> = Mutex::new(());
 
 #[cfg(unix)]
 impl QuietTerminalStderr {
     fn start() -> Self {
+        let turn = QUIET_STDERR.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: plain descriptor calls on the process's own stderr; every
         // descriptor opened here is closed here or in `drop`.
         unsafe {
             if libc::isatty(libc::STDERR_FILENO) != 1 {
-                return Self { saved: None };
+                return Self {
+                    saved: None,
+                    _turn: turn,
+                };
             }
             let null = libc::open(c"/dev/null".as_ptr(), libc::O_WRONLY | libc::O_CLOEXEC);
             if null < 0 {
-                return Self { saved: None };
+                return Self {
+                    saved: None,
+                    _turn: turn,
+                };
             }
             let saved = libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0);
             let moved = saved >= 0 && libc::dup2(null, libc::STDERR_FILENO) == libc::STDERR_FILENO;
@@ -388,9 +403,15 @@ impl QuietTerminalStderr {
                 if saved >= 0 {
                     libc::close(saved);
                 }
-                return Self { saved: None };
+                return Self {
+                    saved: None,
+                    _turn: turn,
+                };
             }
-            Self { saved: Some(saved) }
+            Self {
+                saved: Some(saved),
+                _turn: turn,
+            }
         }
     }
 }
@@ -616,5 +637,61 @@ mod tests {
         );
         let fresh = GraphicsWorker::shared(&options).expect("a new thread");
         assert!(!Arc::ptr_eq(&fresh, &other));
+    }
+
+    /// Two threads that quiet a terminal stderr at the same time take turns,
+    /// so neither saves the other's /dev/null as the terminal: afterwards
+    /// stderr is on the terminal it was on. A pseudo-terminal stands in for
+    /// the terminal for the test's few milliseconds.
+    #[cfg(unix)]
+    #[test]
+    fn two_guards_at_once_leave_stderr_on_the_terminal() {
+        // SAFETY: descriptor calls on a pseudo-terminal this test opens and
+        // closes, and on stderr, which it saves first and restores last.
+        unsafe {
+            let (mut master, mut slave) = (0, 0);
+            assert_eq!(
+                libc::openpty(
+                    &mut master,
+                    &mut slave,
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                    std::ptr::null()
+                ),
+                0,
+                "a pseudo-terminal"
+            );
+            let saved = libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+            assert!(saved >= 0);
+            assert_eq!(libc::dup2(slave, libc::STDERR_FILENO), libc::STDERR_FILENO);
+            let file_of = |fd: libc::c_int| {
+                let mut stat: libc::stat = std::mem::zeroed();
+                assert_eq!(libc::fstat(fd, &mut stat), 0);
+                (stat.st_dev, stat.st_ino)
+            };
+            let terminal = file_of(libc::STDERR_FILENO);
+            assert_eq!(libc::isatty(libc::STDERR_FILENO), 1);
+            let guards: Vec<_> = (0..2)
+                .map(|_| {
+                    std::thread::spawn(|| {
+                        let quiet = QuietTerminalStderr::start();
+                        std::thread::sleep(std::time::Duration::from_millis(30));
+                        drop(quiet);
+                    })
+                })
+                .collect();
+            for guard in guards {
+                guard.join().expect("a guard's thread");
+            }
+            let after = file_of(libc::STDERR_FILENO);
+            libc::dup2(saved, libc::STDERR_FILENO);
+            libc::close(saved);
+            libc::close(slave);
+            libc::close(master);
+            assert_eq!(
+                after, terminal,
+                "stderr is on the terminal again after both guards, not on /dev/null"
+            );
+        }
     }
 }

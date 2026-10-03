@@ -27,6 +27,14 @@ pub struct CanvasProps {
     worker: Option<Arc<GraphicsWorker>>,
     cell_pixels: Option<(u16, u16)>,
     described_by_parent: bool,
+    /// Set true while the canvas shows a picture of its current size,
+    /// output and theme, false otherwise: how a holder that describes the
+    /// canvas knows when its picture is on screen (CHT-036).
+    drawn: Option<Arc<std::sync::atomic::AtomicBool>>,
+    /// Show no picture drawn under a theme that is no longer the active
+    /// one: the area stays blank until the thread has drawn the scene in
+    /// the new theme's colors (THM-003).
+    current_theme_only: bool,
 }
 
 impl CanvasProps {
@@ -42,6 +50,8 @@ impl CanvasProps {
             worker: None,
             cell_pixels: None,
             described_by_parent: false,
+            drawn: None,
+            current_theme_only: false,
         }
     }
 
@@ -91,6 +101,23 @@ impl CanvasProps {
         self.described_by_parent = true;
         self
     }
+
+    /// Tell the holder, through `flag`, whether a picture of the current
+    /// scene's size, output and theme is being shown: true while it is,
+    /// false before the first picture and after a size or theme change,
+    /// until the next picture (CHT-036).
+    pub fn drawn(mut self, flag: Arc<std::sync::atomic::AtomicBool>) -> Self {
+        self.drawn = Some(flag);
+        self
+    }
+
+    /// Show no picture whose colors are an older theme's: after a theme
+    /// change the area is blank until the scene is drawn again, so no
+    /// frame shows the old theme (THM-003).
+    pub fn current_theme_only(mut self) -> Self {
+        self.current_theme_only = true;
+        self
+    }
 }
 
 impl PartialEq for CanvasProps {
@@ -101,6 +128,12 @@ impl PartialEq for CanvasProps {
             && self.label == other.label
             && self.cell_pixels == other.cell_pixels
             && self.described_by_parent == other.described_by_parent
+            && self.current_theme_only == other.current_theme_only
+            && match (&self.drawn, &other.drawn) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                _ => false,
+            }
             && match (&self.worker, &other.worker) {
                 (Some(a), Some(b)) => Arc::ptr_eq(a, b),
                 (None, None) => true,
@@ -489,8 +522,18 @@ impl Component for Canvas {
             .shown
             .clone()
             .zip(wanted.as_ref())
-            .filter(|(shown, (job, _, _, _))| shown.size == job.size && shown.want == job.want);
+            .filter(|(shown, (job, _, _, _))| shown.size == job.size && shown.want == job.want)
+            // A picture in an older theme's colors is not shown when the
+            // holder asked for the current theme only (THM-003).
+            .filter(|(shown, _)| !self.props.current_theme_only || shown.theme == theme);
         drop(view);
+        if let Some(flag) = &self.props.drawn {
+            let drawn = refused.is_none()
+                && shown.as_ref().is_some_and(|(shown, _)| {
+                    shown.theme == theme && (shown.frame.is_some() || shown.cells.is_some())
+                });
+            flag.store(drawn, std::sync::atomic::Ordering::SeqCst);
+        }
 
         // The picture's cells: the area's, up to the largest picture. The
         // painter shows the picture over them, one picture pixel per screen
