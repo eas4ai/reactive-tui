@@ -358,8 +358,13 @@ impl Plane {
         if let Some(picture) = self.canvas_raster(whole) {
             return Ok(picture);
         }
-        let cw = u32::from(cell.0);
-        let ch = u32::from(cell.1);
+        // A canvas picture under a transform or an opacity its fast path
+        // does not take is still rastered at its own pixels per cell, the
+        // size its placement and its coverage are computed for (GFX-010).
+        let (cw, ch) = {
+            let cell = self.raster_cell(cell);
+            (u32::from(cell.0), u32::from(cell.1))
+        };
         let width = (self.bounds.right - self.bounds.left) as u32 * cw;
         let height = (self.bounds.bottom - self.bounds.top) as u32 * ch;
         check_pixels(width, height)?;
