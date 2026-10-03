@@ -1,6 +1,6 @@
 //! Unix PTY ownership. All descriptors and the direct child have one owner.
 use std::fs::File;
-use std::io;
+use std::io::{self, Read};
 use std::os::fd::{AsRawFd, FromRawFd, RawFd};
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -144,7 +144,7 @@ impl PtyChild {
             Some(status) => status,
             None => {
                 let killed = self.child.kill();
-                match (killed, self.child.wait()) {
+                match (killed, self.reap()) {
                     (_, Ok(status)) => status,
                     (Err(error), _) | (_, Err(error)) => return Err(error),
                 }
@@ -154,6 +154,33 @@ impl PtyChild {
         match foreground_error {
             Some(error) => Err(error),
             None => Ok(status),
+        }
+    }
+
+    /// Wait for the killed child while reading and discarding what it left
+    /// unread on the master. A plain wait never returns on macOS for a child
+    /// that printed faster than it was read: a process that exits with output
+    /// still unread on its pseudo-terminal stays in exit until that output is
+    /// read, and by the time `stop` runs nothing else reads it (TRM-001). The
+    /// master is non-blocking, so each turn takes what is there and otherwise
+    /// pauses a millisecond before asking for the exit status again.
+    fn reap(&mut self) -> io::Result<ExitStatus> {
+        let mut unread = [0u8; 4096];
+        loop {
+            if let Some(status) = self.child.try_wait()? {
+                return Ok(status);
+            }
+            match self.master.read(&mut unread) {
+                Ok(0) => {}
+                Ok(_) => continue,
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                    ) || error.raw_os_error() == Some(libc::EIO) => {}
+                Err(error) => return Err(error),
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
     }
 }
