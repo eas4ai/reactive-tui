@@ -299,6 +299,12 @@ struct Run {
     frames: Vec<Frame>,
 }
 
+/// One run at a time in this process: the hover tests count pictures per
+/// frame of a 150 ms motion, and twenty Apps drawing at once on the one
+/// drawing thread would starve them when a gate runs the suite on every
+/// test thread (BAR-010).
+static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
+
 /// Run `element` on a terminal of `size` cells that takes `images`, feeding
 /// it `script`'s events, until `stop` says so.
 fn run(
@@ -309,6 +315,7 @@ fn run(
     stop: Stop,
     sync: bool,
 ) -> Run {
+    let _one = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
     let terminal = Terminal::default();
     let frames = Arc::new(Mutex::new(Vec::new()));
     let inner = SuprTuiBackend::with_writer_and_images(size.0, size.1, terminal.clone(), images)
@@ -1306,6 +1313,8 @@ fn cht_021_the_plot_picture_is_drawn_on_the_drawing_thread() {
             named("rtui-canvas") && named("rtui-chart"),
             "CHT-021: the plot picture is drawn on the canvas's drawing thread and the cells on the chart worker; threads alive with the picture: {threads:?}"
         );
+    } else {
+        println!("SKIP: thread names are read from /proc, which only Linux has");
     }
 }
 

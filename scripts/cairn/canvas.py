@@ -41,6 +41,7 @@ import tempfile
 from pathlib import Path
 
 from _common import JOBS, cargo_test_filtered, finish, report, run
+from workspace_gates import toolchain_crashes
 from host_builds import BUILD, CONFIG, HOSTS, Unreachable, build_on, run_on, snapshot
 
 FEATURE = ["wgpu-graphics"]
@@ -219,13 +220,33 @@ def gates() -> int:
         ["cargo", "test", "--locked", "--no-fail-fast", *feature],
     ]
     failing = []
+    crashed = []
     for command in commands:
         result = run(command, timeout=3600, interleave=True)
+        # A host that kills rustc or the linker shows nothing about the
+        # code: the run is unverified and a rerun decides (as BAR-001's
+        # gate reads it).
+        crashes = toolchain_crashes(result.stdout) if result.returncode != 0 else []
+        if crashes:
+            crashed.append(f"{' '.join(command[:2])}: {', '.join(crashes)}")
+            print(result.stdout[-6000:])
+            continue
+        # The failing tests by name, which a long run's tail would cut off.
+        failed = [
+            line
+            for line in result.stdout.splitlines()
+            if " ... FAILED" in line or "panicked at" in line or "test result: FAILED" in line
+        ]
+        if failed:
+            print("\n".join(failed[:40]))
         print(result.stdout[-6000:])
         if result.returncode != 0:
             failing.append(" ".join(command[:2]))
     if failing:
         return finish({"BAR-010": (False, f"failing on Linux: {', '.join(failing)}")})
+    if crashed:
+        print(f"BAR-010 unverified: the toolchain crashed on Linux: {'; '.join(crashed)}")
+        return 0
     try:
         config = json.loads(CONFIG.read_text())
     except (OSError, ValueError) as error:

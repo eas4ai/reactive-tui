@@ -19,6 +19,8 @@ pub(in super::super) struct PlotScene {
     /// Whether the inner rectangle has been begun: the picture's origin and
     /// clip are in force.
     begun: bool,
+    /// The theme's foreground, for a shape without a color of its own.
+    fallback: Option<Rgba>,
 }
 
 /// `color` as the scene draws it, its alpha scaled by `alpha`.
@@ -38,13 +40,21 @@ fn solid(color_: Rgba, alpha: f32) -> Paint {
 }
 
 impl PlotScene {
-    /// An empty scene for cells of `cell` pixels.
-    pub fn new(cell: (u16, u16)) -> Self {
+    /// An empty scene for cells of `cell` pixels; `fallback` is the color
+    /// a shape takes when its own token resolves to none, the theme's
+    /// foreground as the chart resolved it (CHT-017).
+    pub fn new(cell: (u16, u16), fallback: Option<Rgba>) -> Self {
         Self {
             scene: Scene::new(),
             cell: (f32::from(cell.0.max(1)), f32::from(cell.1.max(1))),
             begun: false,
+            fallback,
         }
+    }
+
+    /// The color for a shape whose own token resolved to none.
+    pub fn fallback(&self) -> Option<Rgba> {
+        self.fallback
     }
 
     /// Pixels per cell, as the plot's scales measure.
