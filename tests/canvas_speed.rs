@@ -20,7 +20,7 @@ use reactive_tui::app::{App, RootComponent, RootUpdate};
 use reactive_tui::backend::{ImageOutputOptions, SuprTuiBackend};
 use reactive_tui::component::Element;
 use reactive_tui::error::Result;
-use reactive_tui::graphics::{Canvas, CanvasProps, GraphicsMode, HybridRenderer};
+use reactive_tui::graphics::{Canvas, CanvasProps, GraphicsMode, GraphicsWorker, HybridRenderer};
 use std::collections::BTreeMap;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
@@ -163,18 +163,21 @@ impl Write for Counter {
     }
 }
 
-/// Fifteen canvases of 80 by 24 cells, each a new cube angle every frame,
-/// for the warm-up and the run; then the root counts the drawing threads
-/// and stops.
+/// Fifteen canvases of 80 by 24 cells, each given a new cube angle every
+/// 16 ms by the clock (GFX-011), for the warm-up and the run; then the
+/// root counts the drawing threads and stops. The App renders as often
+/// as it can; `frames` counts its renders.
 struct Grid {
     started: Instant,
-    frame: usize,
+    frames: usize,
     threads: Arc<Mutex<Option<Option<usize>>>>,
 }
 impl RootComponent for Grid {
     fn render(&self) -> Element {
         use reactive_tui::builder::core::div;
-        let angle = self.frame as f32 * 0.02;
+        // The scene of the 16 ms slot the clock is in.
+        let slot = self.started.elapsed().as_millis() / 16;
+        let angle = slot as f32 * 0.02;
         div()
             .class("flex flex-col w-full h-full")
             .children(
@@ -208,7 +211,7 @@ impl RootComponent for Grid {
     }
     fn update(&mut self) -> Result<RootUpdate> {
         if self.started.elapsed() < WARM + RUN {
-            self.frame += 1;
+            self.frames += 1;
             return Ok(RootUpdate::Redraw);
         }
         // Counted while the canvases are still shown, so their threads are
@@ -233,44 +236,77 @@ fn gfx_011_fifteen_canvases_on_one_thread_each_get_thirty_pictures_a_second() {
         cell_pixels: (8, 16),
         ..Default::default()
     };
+    // The thread the fifteen canvases share: the process's for their
+    // options. Held here, it is the one they draw on, and it says which
+    // renderer drew throughout (GFX-002: the hardware adapter).
+    let worker = GraphicsWorker::shared(&reference_options(false)).expect("the drawing thread");
+    worker.wait_ready(Duration::from_secs(10));
     let started = Instant::now();
     let counter = Counter {
         counts: Arc::default(),
         from: started + WARM,
     };
     let threads = Arc::new(Mutex::new(None));
+    let frames = Arc::new(Mutex::new(0usize));
     let backend = SuprTuiBackend::with_writer_and_images(400, 72, counter.clone(), images)
         .expect("a backend that writes to memory");
-    App::builder()
+    let root = Grid {
+        started,
+        frames: 0,
+        threads: Arc::clone(&threads),
+    };
+    let app = App::builder()
         .backend(backend)
-        .root(Grid {
-            started,
-            frame: 0,
-            threads: Arc::clone(&threads),
+        .root(Counting {
+            inner: root,
+            frames: Arc::clone(&frames),
         })
         .build()
-        .expect("an App")
-        .run()
-        .expect("the App runs to its end");
+        .expect("an App");
+    app.run().expect("the App runs to its end");
     let counts = counter.counts.lock().unwrap().clone();
     let threads = threads.lock().unwrap().flatten();
+    let frames = *frames.lock().unwrap();
+    let mode = worker.mode();
+    let hardware = matches!(&mode, Some(GraphicsMode::Gpu(info)) if info.is_hardware());
     let seconds = RUN.as_secs_f64();
+    let slots = ((WARM + RUN).as_millis() / 16) as usize;
     let rates: Vec<f64> = counts.values().map(|&n| n as f64 / seconds).collect();
     let fewest = rates.iter().copied().fold(f64::INFINITY, f64::min);
     let most = rates.iter().copied().fold(0.0, f64::max);
     println!(
-        "GFX-011 fifteen canvases of 80 by 24 cells with a new scene every frame for {seconds:.0} s: {} canvases received pictures, the fewest {fewest:.1} a second and the most {most:.1}; drawing threads: {}",
+        "GFX-011 fifteen canvases of 80 by 24 cells, a new scene every 16 ms ({slots} slots) for {seconds:.0} s after a warm-up, drawn by {}: {} canvases received pictures, the fewest {fewest:.1} a second and the most {most:.1}; the App rendered {frames} frames; drawing threads: {}",
+        mode.as_ref().map_or_else(|| "no renderer".to_owned(), |mode| mode.label()),
         counts.len(),
         threads.map_or_else(|| "not counted".to_owned(), |threads| threads.to_string())
     );
-    // Every host shows all fifteen canvases their pictures; the rate and the
-    // one thread bind on the Linux development host, where the threads are
-    // counted (GFX-011).
+    // Every host shows all fifteen canvases their pictures on the hardware
+    // adapter; the rate and the one thread bind on the Linux development
+    // host, where the threads are counted (GFX-011).
     let bound = !cfg!(target_os = "linux") || (fewest >= EACH && threads == Some(1));
     assert!(
-        counts.len() == CANVASES && bound,
-        "GFX-011: of {CANVASES} canvases {} received pictures, the fewest {fewest:.1} a second against {EACH}, drawn on {} threads instead of one",
+        counts.len() == CANVASES && hardware && bound,
+        "GFX-011: of {CANVASES} canvases {} received pictures, the fewest {fewest:.1} a second against {EACH}, drawn by {:?} on {} threads instead of one",
         counts.len(),
+        mode,
         threads.map_or_else(|| "an uncounted number of".to_owned(), |threads| threads.to_string())
     );
+}
+
+/// A root that counts the frames the App renders of the root it wraps.
+struct Counting {
+    inner: Grid,
+    frames: Arc<Mutex<usize>>,
+}
+impl RootComponent for Counting {
+    fn render(&self) -> Element {
+        *self.frames.lock().unwrap() += 1;
+        self.inner.render()
+    }
+    fn update(&mut self) -> Result<RootUpdate> {
+        self.inner.update()
+    }
+    fn accepts_input(&self) -> bool {
+        false
+    }
 }
