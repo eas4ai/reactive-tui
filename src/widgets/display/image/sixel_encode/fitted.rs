@@ -27,11 +27,13 @@ const THRESHOLDS: [[u8; 8]; 8] = [
 ];
 
 /// The colors of one cell: how many pixels and the sum of each channel.
-/// The largest picture, 4096 by 4096 pixels of one color, fits.
+/// A canvas picture is as large as the terminal's screen (GFX-010), and a
+/// Sixel raster of 16,777,216 pixels of one color sums past a 32-bit
+/// integer, so the sums are 64-bit.
 #[derive(Clone, Copy, Default)]
 struct Cell {
     count: u32,
-    sums: [u32; 3],
+    sums: [u64; 3],
 }
 
 fn cell_of([r, g, b]: [u8; 3]) -> usize {
@@ -62,7 +64,7 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
         let cell = &mut cells[cell_of([pixel[0], pixel[1], pixel[2]])];
         cell.count += 1;
         for (sum, channel) in cell.sums.iter_mut().zip(&pixel.0[..3]) {
-            *sum += u32::from(*channel);
+            *sum += u64::from(*channel);
         }
     }
     let used: Vec<usize> = (0..CELLS).filter(|&index| cells[index].count > 0).collect();
@@ -116,10 +118,7 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
                 .map(|&index| u64::from(cells[index].count))
                 .sum();
             std::array::from_fn(|channel| {
-                let sum: u64 = group
-                    .iter()
-                    .map(|&index| u64::from(cells[index].sums[channel]))
-                    .sum();
+                let sum: u64 = group.iter().map(|&index| cells[index].sums[channel]).sum();
                 ((sum + count / 2) / count.max(1)) as u8
             })
         })
@@ -169,6 +168,16 @@ pub(super) fn palette(pixels: &RgbaImage) -> (Vec<[u8; 3]>, Vec<u8>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A Sixel raster of 4160 by 4160 pixels of one color: more than the
+    /// 16,777,216 pixels whose channel sums fit a 32-bit integer (GFX-010).
+    #[test]
+    fn a_solid_picture_of_more_than_sixteen_million_pixels_keeps_its_color() {
+        let pixels = RgbaImage::from_pixel(4160, 4160, image::Rgba([255, 255, 255, 255]));
+        let (colors, indices) = palette(&pixels);
+        assert_eq!(colors.len(), 1);
+        assert_eq!(colors[usize::from(indices[0])], [255, 255, 255]);
+    }
 
     #[test]
     fn a_picture_of_few_colors_keeps_each_of_them() {
