@@ -86,7 +86,17 @@ smaller picture is cheaper to draw, to copy out of the GPU and to send;
 Kitty terminals scale it themselves, and for Sixel the canvas scales it
 before it encodes. Holes cut under text stay on cell edges either way.
 `.label(text)` names the picture for a screen reader, which also hears
-which renderer draws it.
+which renderer draws it. `.described_by_parent()` leaves the description
+to the widget that holds the canvas: the canvas then has no live text and
+no accessibility node of its own, which the charts use for their plot
+pictures.
+
+A component learns what the terminal takes from its layout:
+`LayoutInfo::terminal` is a `TerminalInfo` naming the cell size in pixels
+and whether the terminal takes Kitty graphics, Kitty shared memory or
+Sixel, and `takes_pixels()` says whether a picture would reach the
+screen. The backend fills it before the first frame and after every
+resize; the debug backend reports none.
 
 A scene is a list of drawing commands in painting order:
 

@@ -92,7 +92,8 @@ a box that clips its content.
 
 Charts draw through one plot layer (`reactive_tui::widgets::display::plot`:
 scales, ticks, axes, grid, legend, tooltip, curve interpolation and min/max
-decimation) and one mask canvas at two by four dots per cell. The canvas
+decimation) and one mask canvas at two by four dots per cell, or a pixel
+picture where the terminal takes one (see Plot pictures). The mask canvas
 resolves each cell to a full block, an eighth block where a rectangle edge
 crosses the cell, a marker, or braille, and to `#`, `|`, `-` and `.` when the
 builder forces ASCII with `.ascii(true)` or the terminal capability report
@@ -136,6 +137,55 @@ series added last, so the same chart built either way has the same props.
 The `chart!` macro has a form per type (`chart![line: "name" => [1.0, 2.0]]`,
 `chart![candlestick: "name" => [(o, h, l, c)]]`,
 `chart![sankey: nodes => [(from, to, value)]]`).
+
+### Plot pictures
+
+Where the terminal takes Kitty graphics or Sixel and the crate is built with
+`wgpu-graphics`, a line, area, scatter, bar or candlestick chart draws its
+plot area as one pixel picture instead of braille (CHT-037): the grid and
+reference lines, the strokes, area fills, markers, bars and candles, and the
+hover marks, drawn on the canvas's drawing thread (wgpu-graphics.md), one
+picture pixel per screen pixel at the terminal's cell size. The chart reads
+what the terminal takes and how big a cell is from its layout
+(`LayoutInfo::terminal`, a `TerminalInfo`), which the backend fills before
+the first frame and after every resize; the chart's `rtui-chart-*` worker
+still lays the chart out and builds the picture's scene, and the main
+thread copies. Axes, ticks, titles, the legend, value labels, tick labels
+placed inside the plot and the tooltip stay cell text, the text inside the
+plot painted over the picture. Until a chart's first picture is ready its
+plot is blank with the text already drawn; where the terminal takes no
+pixels, or the feature is off, the chart draws in cells as before, byte for
+byte. Pie, donut, radar and sankey charts draw in cells.
+
+In the picture a stroke is an eighth of a cell high (at least one pixel)
+with round joins and caps, drawn as one curve segment per pair of points; a
+dashed or dotted line keeps its pattern; a scatter marker is a disc half a
+cell high and a line's dot a third; grid, reference and crosshair lines are
+one pixel; a gradient area fades from the stroke to transparent at the
+baseline; a pattern fill draws its lines, dots or tile glyphs inside the
+area; bars have whole-pixel edges, a gradient from base to tip and corners
+rounded by `.corner_radius(cells)` (default none). Thinning keeps two
+points per pixel column (CHT-027).
+
+The hover is drawn in the picture (CHT-038): on a line or area chart a
+crosshair through the hovered index with a dot in a halo on every series
+there; on a bar chart a band in the `hover` role over the hovered band,
+under the bars, whose center glides from the bar hovered before to the new
+one over 150 ms while the other bars fade toward the background, 45 percent
+at one band away; on a scatter a ring in the `ring` role around the
+selected point; on a candlestick the crosshair through the candle. The
+dots, halo and fade ease in over 150 ms when the hover begins. Each change
+of the hovered index is a new picture, and one picture per frame while the
+band glides or the marks ease in; `reduced-motion` snaps both; a mouse move
+that keeps the index sends nothing (CHT-019). The tooltip box stays cell
+text over the picture.
+
+Switches: `charts::set_graphics_options(GraphicsOptions)` chooses, for
+every chart of the process, the renderer and font the picture's canvas
+uses, and `output: Some(CanvasOutput::Blocks)` keeps every plot in cells;
+`REACTIVE_TUI_CANVAS=blocks` does the same from the environment and wins
+over it, as it does for a canvas. The catalog's `--cpu` draws the plots on
+the software renderer.
 
 ### Line chart
 
@@ -188,7 +238,8 @@ vertical bars; `.alignment(BarGrowth::Left)` or `Right` turns them
 horizontal, `Top` hangs them from the top. Several `.value(` calls group
 bars; `.stacked(true)` stacks them, and the value axis covers the stacked
 totals. A bar tip resolves to an eighth block, so 3.5 of 8 differs from 3
-and 4. `.label(|r| ..)` and the large size class show value labels, placed
+and 4; in a plot picture it lands on its nearest whole pixel, and
+`.corner_radius(cells)` rounds the bars' corners there. `.label(|r| ..)` and the large size class show value labels, placed
 tallest first so none overlaps another or leaves the plot; `.label_color(|r|
 ..)` colors each; `.fill_with(|r| ..)` colors each bar from its row and
 `.fill_gradient(|r, range, to_bar| ..)` shades it from base to tip.
