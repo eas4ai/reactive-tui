@@ -1,0 +1,94 @@
+name: ffi gates
+run-name: ffi gates at ${{ inputs.sha }}
+
+# BAR-011's commands on GitHub's runners, for one commit, started by hand
+# (`gh workflow run ffi-gates.yml -f sha=<commit>`): the five Linux commands
+# with the ffi feature, and the all-targets build with ffi,wgpu-graphics on
+# macOS and Windows with warnings denied. Evidence beside the gate that
+# runs on the development host and the two test hosts, for a day when that
+# host's toolchain crashes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: The commit to build
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ffi-gates-${{ inputs.sha }}
+  cancel-in-progress: false
+
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_BUILD_JOBS: '4'
+  CARGO_TERM_COLOR: never
+
+jobs:
+  linux:
+    name: linux (ffi build, clippy, doc, test; ffi,wgpu-graphics build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
+      - name: Install the Rust the gates run with
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --component clippy
+          rustup default 1.95.0
+      - name: cargo build (ffi)
+        run: cargo build --locked -p reactive-tui --features ffi
+      - name: cargo clippy (ffi)
+        run: cargo clippy --locked --all-targets -p reactive-tui --features ffi -- -D warnings
+      - name: cargo doc (ffi)
+        run: cargo doc --locked --no-deps -p reactive-tui --features ffi
+      - name: cargo test (ffi)
+        run: cargo test --locked --no-fail-fast -p reactive-tui --features ffi
+      - name: cargo build (ffi,wgpu-graphics)
+        run: cargo build --locked -p reactive-tui --features ffi,wgpu-graphics
+
+  hosts:
+    name: ${{ matrix.name }} (all targets, ffi,wgpu-graphics, no warnings)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            name: macos
+          - os: windows-2022
+            name: windows
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
+      - name: Windows native build prerequisites
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          rustup set default-host x86_64-pc-windows-gnu
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          'C:\msys64\mingw64\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          'C:\msys64\usr\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Install the Rust the gates run with
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup default 1.95.0
+      - name: cargo build (all targets, ffi,wgpu-graphics)
+        run: cargo build --locked -p reactive-tui --all-targets --features ffi,wgpu-graphics --message-format short
