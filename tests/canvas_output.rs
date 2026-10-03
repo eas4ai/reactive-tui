@@ -751,6 +751,8 @@ enum Over {
 /// at its deadline.
 struct Stacked {
     lower: Color,
+    /// Pixels per cell the lower canvas is pinned to, if any (GFX-010).
+    pin: Option<(u16, u16)>,
     then: Option<Color>,
     over: Over,
     mark: Option<usize>,
@@ -786,10 +788,14 @@ impl RootComponent for Stacked {
             )
             .with_class("w-2 h-1"),
         };
+        let mut lower = CanvasProps::new(Arc::new(solid(self.lower.clone()))).options(sixel());
+        if let Some((width, height)) = self.pin {
+            lower = lower.cell_pixels(width, height);
+        }
         div()
             .class("relative w-full h-full bg-black")
             .children(vec![
-                canvas(solid(self.lower.clone()), sixel()),
+                Element::typed::<Canvas>(lower),
                 div()
                     .class("absolute left-1 top-0 w-2 h-1")
                     .child(over)
@@ -834,6 +840,17 @@ fn run_stacked(
     then: Option<Color>,
     delay: Duration,
 ) -> Vec<String> {
+    run_stacked_pinned(images, over, then, delay, None)
+}
+
+/// [`run_stacked`] with the lower canvas pinned to `pin` pixels per cell.
+fn run_stacked_pinned(
+    images: ImageOutputOptions,
+    over: Over,
+    then: Option<Color>,
+    delay: Duration,
+    pin: Option<(u16, u16)>,
+) -> Vec<String> {
     let terminal = SlowTerminal {
         flushes: Arc::default(),
         pending: Arc::default(),
@@ -845,6 +862,7 @@ fn run_stacked(
         .backend(backend)
         .root(Stacked {
             lower: Color::rgba(255, 0, 0, 255),
+            pin,
             then,
             over,
             mark: None,
@@ -1373,5 +1391,35 @@ fn gfx_010_a_pin_holds_under_a_translucent_parent() {
     assert!(
         got == [Some(2080), Some(480), Some(520), Some(60)],
         "GFX-010: under a parent at half opacity, a canvas pinned to 4 by 8 pixels per cell on 520 by 60 cells of 9 by 18 was sent a picture whose s, v, c and r are {got:?}, not 2080, 480, 520 and 60"
+    );
+}
+
+#[test]
+fn gfx_010_a_translucent_canvas_over_a_pinned_canvas_blends_with_its_pixels() {
+    // The lower canvas, red, is pinned to 4 by 8 pixels per cell on cells
+    // of 8 by 16; the green canvas at half alpha over its second and third
+    // cells is composed over red everywhere, not over red in the cells the
+    // unscaled picture would have covered and over black elsewhere.
+    let sixel = ImageOutputOptions {
+        sixel: true,
+        ..Default::default()
+    };
+    let flushes = run_stacked_pinned(sixel, Over::Canvas, None, Duration::ZERO, Some((4, 8)));
+    let pictures = sixel_pictures(&flushes);
+    let uppers: Vec<_> = pictures.iter().filter(|(w, _, _)| *w == 16).collect();
+    assert!(
+        !uppers.is_empty(),
+        "GFX-010: the upper canvas was sent: {:?}",
+        pictures
+            .iter()
+            .map(|(w, c, _)| (*w, c.clone()))
+            .collect::<Vec<_>>()
+    );
+    let colors = &uppers.last().unwrap().1;
+    let over_red = colors.iter().any(|c| percent_near(*c, (50, 50, 0)));
+    let over_black = colors.iter().any(|c| percent_near(*c, (0, 50, 0)));
+    assert!(
+        over_red && !over_black,
+        "GFX-010: green at half alpha over a red canvas pinned to 4 by 8 pixels per cell is half red, half green in every cell; found {colors:?}"
     );
 }
