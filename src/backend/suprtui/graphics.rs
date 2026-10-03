@@ -95,6 +95,11 @@ pub(crate) trait RasterPlane: PartialEq + Clone + Send + 'static {
     fn raster_under(&self, cell: (u16, u16)) -> Result<image::RgbaImage> {
         self.raster(cell)
     }
+    /// The pixels one cell of `raster` holds: the terminal's `cell`, unless
+    /// a canvas picture has fewer pixels per cell (GFX-010).
+    fn raster_cell(&self, cell: (u16, u16)) -> (u16, u16) {
+        cell
+    }
     fn background(&self, x: u32, y: u32, cell: (u16, u16)) -> image::Rgba<u8>;
     /// Whether the cell of the pixel at `x`, `y` shows the picture: no
     /// element above it covers the cell.
@@ -145,6 +150,9 @@ impl RasterPlane for Plane {
     }
     fn raster_under(&self, cell: (u16, u16)) -> Result<image::RgbaImage> {
         self.raster_under(cell)
+    }
+    fn raster_cell(&self, cell: (u16, u16)) -> (u16, u16) {
+        self.raster_cell(cell)
     }
     fn background(&self, x: u32, y: u32, cell: (u16, u16)) -> image::Rgba<u8> {
         self.background(x, y, cell)
@@ -276,10 +284,14 @@ impl<P: RasterPlane> Graphics<P> {
                 if kept.is_none() {
                     remade.push(z);
                     // A frame holds 64 MiB of new pictures, counted by
-                    // their size before they are made ready (GFX-007).
+                    // their size before they are made ready (GFX-007), at
+                    // the picture's own pixels per cell (GFX-010).
                     let (columns, rows) = plane.cells();
-                    let size = u64::from(columns * u32::from(cell.0))
-                        * u64::from(rows * u32::from(cell.1))
+                    let raster_cell = plane.raster_cell(cell);
+                    let size = u64::from(columns)
+                        * u64::from(raster_cell.0)
+                        * u64::from(rows)
+                        * u64::from(raster_cell.1)
                         * 4;
                     raster_bytes = raster_bytes.saturating_add(size as usize);
                     if raster_bytes > 64 * 1024 * 1024 {
@@ -610,21 +622,46 @@ fn draw_plane<P: RasterPlane>(
     }
     *raster_bytes = rastered;
     let (x, y) = plane.position();
-    let covered = coverage::Coverage::new((x, y), &pixels, cell);
+    // A canvas picture with fewer pixels per cell than the terminal's is
+    // sent to a Kitty host as it is, placed over its cells for the host to
+    // scale; everything drawn in screen pixels, Sixel and the layers under
+    // translucent pictures, takes it scaled to the cells (GFX-010).
+    let raster_cell = plane.raster_cell(cell);
+    let covered = coverage::Coverage::new((x, y), &pixels, raster_cell);
+    // Made only where screen pixels are needed: a Kitty picture on a frame
+    // without translucent layers over it is sent as it is.
+    let screen = || -> std::borrow::Cow<'_, image::RgbaImage> {
+        if raster_cell == cell {
+            std::borrow::Cow::Borrowed(&pixels)
+        } else {
+            std::borrow::Cow::Owned(scale_to_cells(&pixels, plane.cells(), cell))
+        }
+    };
     if kept {
-        below.add(plane, &pixels);
+        below.add(plane, &screen());
         return Ok((covered, Vec::new()));
     }
     let output = match plane.protocol() {
-        ImageProtocol::Kitty => plane
-            .canvas()
-            .filter(|picture| picture.shared_memory)
-            .and_then(|_| objects.kitty(&pixels, plane.id(), plane.z_index(z)))
-            .unwrap_or_else(|| {
-                ProtocolRenderer::kitty_pixels(&pixels, plane.id(), plane.z_index(z), true)
-            }),
+        ImageProtocol::Kitty => {
+            // A canvas's placement names the cells it covers (GFX-010).
+            let cells = plane.canvas().map(|_| plane.cells());
+            plane
+                .canvas()
+                .filter(|picture| picture.shared_memory)
+                .and_then(|_| objects.kitty(&pixels, plane.id(), plane.z_index(z), cells))
+                .unwrap_or_else(|| {
+                    ProtocolRenderer::kitty_pixels_placed(
+                        &pixels,
+                        plane.id(),
+                        plane.z_index(z),
+                        true,
+                        None,
+                        cells,
+                    )
+                })
+        }
         ImageProtocol::Inline => {
-            ProtocolRenderer::iterm_pixels(&below.flatten(plane, &pixels, false), false)?
+            ProtocolRenderer::iterm_pixels(&below.flatten(plane, &screen(), false), false)?
         }
         ImageProtocol::Sixel if plane.canvas().is_some() => {
             // A canvas's picture is drawn from the cursor, so it
@@ -633,7 +670,7 @@ fn draw_plane<P: RasterPlane>(
             // past the picture, and an unset pixel is left as it is, so
             // nothing reaches below the canvas and no row of the
             // picture is lost (the review's finding on Sixel bands).
-            let mut pixels = below.flatten(plane, &pixels, true);
+            let mut pixels = below.flatten(plane, &screen(), true);
             // Sixel leaves a pixel it is not given as the screen
             // shows it, which after the first picture is the last
             // picture. So every pixel of a cell that shows the
@@ -651,7 +688,7 @@ fn draw_plane<P: RasterPlane>(
             }
         }
         ImageProtocol::Sixel => {
-            let pixels = below.flatten(plane, &pixels, true);
+            let pixels = below.flatten(plane, &screen(), true);
             let pixels = below.absolute(plane, &pixels)?;
             let rastered = raster_bytes.saturating_add(pixels.as_raw().len());
             if rastered > 64 * 1024 * 1024 {
@@ -669,7 +706,7 @@ fn draw_plane<P: RasterPlane>(
         ));
     }
     if blend_legacy {
-        below.add(plane, &pixels);
+        below.add(plane, &screen());
     }
     let mut bytes = format!("\x1b[{};{}H", y + 1, x + 1).into_bytes();
     // Sixel display mode (80) draws from the screen's corner; a
@@ -698,16 +735,37 @@ enum Objects<'a> {
 }
 
 impl Objects<'_> {
-    fn kitty(&mut self, pixels: &image::RgbaImage, id: u32, z: i32) -> Option<String> {
+    fn kitty(
+        &mut self,
+        pixels: &image::RgbaImage,
+        id: u32,
+        z: i32,
+        cells: Option<(u32, u32)>,
+    ) -> Option<String> {
         match self {
-            Self::Written(pictures) => pictures.kitty(pixels, id, z),
+            Self::Written(pictures) => pictures.kitty(pixels, id, z, cells),
             Self::Made(object) => {
-                let (command, name) = shared::make(pixels, id, z)?;
+                let (command, name) = shared::make(pixels, id, z, cells)?;
                 **object = Some(name);
                 Some(command)
             }
         }
     }
+}
+
+/// `pixels`, a picture of `cells` columns and rows with fewer pixels per
+/// cell than the terminal's, scaled to the terminal's `cell` pixels, each
+/// picture pixel to the screen pixels it covers (GFX-010).
+fn scale_to_cells(
+    pixels: &image::RgbaImage,
+    cells: (u32, u32),
+    cell: (u16, u16),
+) -> image::RgbaImage {
+    let (width, height) = (cells.0 * u32::from(cell.0), cells.1 * u32::from(cell.1));
+    if width == 0 || height == 0 || pixels.dimensions() == (width, height) {
+        return pixels.clone();
+    }
+    image::imageops::resize(pixels, width, height, image::imageops::FilterType::Nearest)
 }
 
 /// Whether two planes share a cell.

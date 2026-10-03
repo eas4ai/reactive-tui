@@ -71,6 +71,21 @@ impl ProtocolRenderer {
         keep_cursor: bool,
         offset: Option<(u16, u16)>,
     ) -> String {
+        Self::kitty_pixels_placed(pixels, image_id, z, keep_cursor, offset, None)
+    }
+
+    /// The Kitty command that shows `pixels` as image `image_id` at the
+    /// cursor, over `cells` columns and rows when given: the terminal
+    /// scales the picture to them, so a picture with fewer pixels per cell
+    /// than the terminal's still covers its cells (GFX-010).
+    pub(crate) fn kitty_pixels_placed(
+        pixels: &image::RgbaImage,
+        image_id: u32,
+        z: i32,
+        keep_cursor: bool,
+        offset: Option<(u16, u16)>,
+        cells: Option<(u32, u32)>,
+    ) -> String {
         use base64::Engine;
         let base64_data = base64::engine::general_purpose::STANDARD.encode(pixels.as_raw());
         let (width, height) = pixels.dimensions();
@@ -78,6 +93,7 @@ impl ProtocolRenderer {
         let offset = offset
             .map(|(x, y)| format!(",X={x},Y={y}"))
             .unwrap_or_default();
+        let placement = Self::kitty_cells(cells);
         let mut sequence = String::new();
         let mut chunks = base64_data.as_bytes().chunks(4096).peekable();
         let mut first = true;
@@ -85,7 +101,7 @@ impl ProtocolRenderer {
             let more = u8::from(chunks.peek().is_some());
             if first {
                 sequence.push_str(&format!(
-                    "\x1b_Ga=T,f=32,s={width},v={height},i={image_id},q=2{cursor},z={z}{offset},m={more};"
+                    "\x1b_Ga=T,f=32,s={width},v={height},i={image_id},q=2{cursor},z={z}{offset}{placement},m={more};"
                 ));
                 first = false;
             } else {
@@ -95,6 +111,15 @@ impl ProtocolRenderer {
             sequence.push_str("\x1b\\");
         }
         sequence
+    }
+
+    /// The placement keys that name the `cells` a picture covers, for the
+    /// terminal to scale it to; nothing when no cells are named.
+    pub(crate) fn kitty_cells(cells: Option<(u32, u32)>) -> String {
+        cells
+            .filter(|(columns, rows)| *columns > 0 && *rows > 0)
+            .map(|(columns, rows)| format!(",c={columns},r={rows}"))
+            .unwrap_or_default()
     }
 
     /// Render image using iTerm2 inline images protocol

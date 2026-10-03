@@ -903,42 +903,90 @@ fn gfx_003_fifteen_canvases_share_one_drawing_thread() {
     );
 }
 
+/// Two canvases side by side, each on a worker of its own, that trade
+/// places when a key arrives: both pictures are then placed anew in one
+/// frame.
+struct Swapping {
+    halves: [Element; 2],
+    swapped: bool,
+}
+impl RootComponent for Swapping {
+    fn render(&self) -> Element {
+        use reactive_tui::builder::core::div;
+        let [left, right] = &self.halves;
+        let children = if self.swapped {
+            vec![right.clone(), left.clone()]
+        } else {
+            vec![left.clone(), right.clone()]
+        };
+        div()
+            .class("flex flex-row w-full h-full")
+            .children(children)
+            .build()
+    }
+    fn try_handle_event(&mut self, event: &Event) -> reactive_tui::error::Result<EventResult> {
+        if matches!(event, Event::Key(_)) {
+            self.swapped = true;
+            return Ok(EventResult::Handled);
+        }
+        Ok(EventResult::Ignored)
+    }
+    fn update(&mut self) -> reactive_tui::error::Result<RootUpdate> {
+        Ok(RootUpdate::Unchanged)
+    }
+    fn wake_driven(&self) -> bool {
+        true
+    }
+}
+
 #[test]
 fn gfx_007_a_picture_the_frame_cannot_hold_shows_a_message_and_the_app_goes_on() {
     use reactive_tui::builder::core::div;
-    // Two canvases side by side, each 260 by 260 cells of 16 by 32 pixels:
-    // each draws the largest picture, 4096 by 4096 pixels, and a frame
-    // holds 64 MiB of pictures, which is one of them. The pictures come
-    // one after the other and each frame shows the one that is new; after
-    // a resize one frame has to show both.
+    // Two canvases side by side, each 260 by 260 cells of 16 by 32 pixels.
+    // One pixel per screen pixel would be 4160 by 8320, more than the 64
+    // MiB a frame holds for one picture, so each is drawn with the most
+    // whole pixels per cell that fit, 8 by 31, as 2080 by 8060 pixels
+    // (GFX-010); a frame holds one such picture and not two. The pictures
+    // come one after the other and each frame shows the one that is new;
+    // when the canvases trade places, one frame has to show both.
     let large_cells = ImageOutputOptions {
         kitty_graphics: true,
         kitty_shared_memory: true,
         cell_pixels: (16, 32),
         ..Default::default()
     };
-    let half = || {
+    let half = |key: &str| {
+        let worker = Arc::new(GraphicsWorker::spawn(reference_options(true)).expect("a worker"));
+        let props = CanvasProps::new(Arc::new(canvas_support::shapes()))
+            .options(reference_options(true))
+            .worker(worker);
         div()
             .class("w-1/2 h-full")
-            .children(vec![shapes_canvas()])
+            .children(vec![Element::typed::<Canvas>(props)])
             .build()
+            .with_key(key)
     };
-    let root = div()
-        .class("flex flex-row w-full h-full")
-        .children(vec![half(), half()])
-        .build();
-    let resize = Event::Resize(reactive_tui::event::types::ResizeEvent::new(520, 259));
-    let output = sent_until(
-        root,
+    let frames = app_input::run_when_output(
+        Swapping {
+            halves: [half("left"), half("right")],
+            swapped: false,
+        },
         (520, 260),
         large_cells,
         // The renderer steps over blank cells, so the message's words
         // are apart in the output: its first word is what is waited for.
-        vec![("a=T", Some(resize)), ("Canvas:", None)],
+        vec![
+            ("a=T".to_owned(), 1, app_input::key(KeyCode::Enter)),
+            ("Canvas:".to_owned(), 1, None),
+        ],
     );
+    let output: String = frames
+        .iter()
+        .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
+        .collect();
     let sizes = kitty_sizes(&output);
     assert!(
-        output.contains("limit") && sizes.len() >= 3 && sizes.contains(&(4096, 4096)),
+        output.contains("limit") && sizes.len() >= 3 && sizes.contains(&(2080, 8060)),
         "GFX-007: of two canvases whose pictures one frame cannot hold, the pictures sent were {sizes:?}"
     );
 }

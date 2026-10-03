@@ -31,8 +31,10 @@ cargo run --locked --features wgpu-graphics --example canvas_gallery
 ## Canvas widget
 
 Build a `Scene`, wrap it in `CanvasProps`, and place the canvas like any
-other widget. The canvas fills the area its parent gives it, up to 4096 by
-4096 pixels.
+other widget. The canvas fills the area its parent gives it, with one
+picture pixel per screen pixel: a canvas of 520 columns on a terminal whose
+cells are 9 pixels wide draws a picture 4680 pixels wide. There is no fixed
+cap; the limits are the renderer's own (see Limits).
 
 ```rust
 use reactive_tui::component::Element;
@@ -76,6 +78,13 @@ Scene coordinates are pixels from the top left corner. One terminal cell is
 as many pixels as the terminal reports, and 8 by 16 where it reports none.
 With `.view(width, height)` the scene is drawn for a picture of that size:
 the canvas scales it to fit its area, keeps its shape and centres it.
+With `.cell_pixels(width, height)` the picture is drawn with that many
+pixels per cell instead of the terminal's, fewer in each direction, and the
+terminal scales it to the cells it covers; the scene keeps its coordinates,
+so a cell is still as many scene pixels as the terminal's cell measures. A
+smaller picture is cheaper to draw, to copy out of the GPU and to send;
+Kitty terminals scale it themselves, and for Sixel the canvas scales it
+before it encodes. Holes cut under text stay on cell edges either way.
 `.label(text)` names the picture for a screen reader, which also hears
 which renderer draws it.
 
@@ -193,16 +202,21 @@ The first three faults leave the software renderer to draw. The `software`
 fault makes both renderers fail: the hardware renderer's first picture and
 every picture of the software renderer, so the canvas shows its message.
 
-## The worker
+## The drawing thread
 
-Each canvas draws on its own thread, named `rtui-canvas-` and a number. The
-thread owns the adapter, the device and the software renderer. The App's
-thread only submits the scene and shows the newest finished picture. It
-never waits for the GPU or for a software render.
+Every canvas draws on a thread named `rtui-canvas-` and a number, and the
+canvases of a process that draw with the same renderer options share one:
+it owns the adapter, the device, the pipelines, the glyph atlas and the
+software renderer for all of them. A tree of fifteen canvases starts one
+thread and one GPU connection. The App's thread only submits each canvas's
+scene and shows the newest finished picture. It never waits for the GPU or
+for a software render.
 
-A scene submitted while the worker draws replaces the scene that still
-waits. The worker waits for nothing between pictures: it draws as fast as
-scenes arrive. When a picture is finished, the worker wakes the App.
+Each canvas has a place of its own on the thread for the scene that waits.
+A scene a canvas submits while an earlier scene of that canvas still waits
+replaces it, and never another canvas's. The thread draws the oldest
+submission first, so every canvas gets its turn, and waits for nothing
+between pictures. When a picture is finished, the thread wakes the App.
 
 On Windows the thread that makes a renderer, and the thread that makes the
 pictures ready for the terminal, ask the system not to slow them down to
@@ -212,8 +226,8 @@ as long. A canvas that animates therefore keeps one thread on the
 performance cores; a canvas that does not animate draws nothing.
 
 A graphics driver may print to the terminal while it starts. To keep that
-off the App's screen, start the worker before the terminal is set up and
-hand it to the canvas:
+off the App's screen, start the thread before the terminal is set up and
+hand it to the canvases:
 
 ```rust
 use reactive_tui::graphics::{GraphicsOptions, GraphicsWorker};
@@ -222,16 +236,29 @@ use std::time::Duration;
 
 let worker = Arc::new(GraphicsWorker::spawn(GraphicsOptions::default())?);
 worker.wait_ready(Duration::from_secs(10));
-// Set the terminal up and start the App here. Give each canvas its
-// worker with CanvasProps::worker.
+// Set the terminal up and start the App here. Give every canvas the same
+// worker with CanvasProps::worker; it serves them all.
 ```
 
-One worker serves one canvas. Both demos start theirs this way.
+`GraphicsWorker::shared(&options)` gives the thread the process already
+shares for those options, starting it when none runs; it ends when its last
+handle is dropped. A canvas that names no worker draws on it. Both demos
+start their worker before the terminal and hand it to their canvas.
 
 ## Limits
 
-- A picture is at most 4096 by 4096 pixels. A larger area is drawn up to
-  that size in whole cells, from its top left corner.
+- A picture is as large as the renderer draws: on the hardware adapter
+  the device's limits as the adapter reports them (`GraphicsWorker::limits`
+  and `HybridRenderer::limits` say what they are, as a `PictureLimits`), on
+  the software renderer 16384 by 16384 pixels. A terminal's screen is
+  smaller than that on any host we know.
+- When a canvas's picture at one pixel per screen pixel would not fit a
+  hard limit, the renderer's, the frame's room for one picture (64 MiB),
+  the 12 million pixels a Kitty picture sent in the command may have, or
+  the 64 MiB a Sixel picture's text may take, the canvas draws it with the
+  most whole pixels per cell that fit, and the terminal scales it to the
+  cells, as for `.cell_pixels`. This is a hard limit, not a speed step:
+  a slow host draws at full size and drops frames.
 - A Kitty picture that is sent in the command itself, because the terminal
   does not take shared memory, is at most 12 million pixels, so that a
   frame's output holds it.

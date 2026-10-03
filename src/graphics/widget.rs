@@ -1,13 +1,15 @@
 //! The `Canvas` widget (GFX-001): placed in an Element tree like a chart,
 //! it fills the rectangle its parent allots and shows the picture of its
-//! scene there. Its worker draws; the App's thread submits the scene and
-//! shows the newest finished picture (GFX-003).
+//! scene there, one picture pixel per screen pixel unless the application
+//! pins fewer pixels per cell or a hard limit forces fewer (GFX-010). The
+//! drawing thread draws; the App's thread submits the scene and shows the
+//! newest finished picture (GFX-003).
 
 use super::hybrid::{GraphicsOptions, CELL_PIXELS};
-use super::output::{CanvasLink, CanvasOutput, CanvasPaint};
+use super::output::{CanvasLink, CanvasOutput, CanvasPaint, CanvasPixels};
 use super::scene::{Scene, Transform};
-use super::worker::{Finished, GraphicsWorker, Job, Want};
-use super::{MAX_HEIGHT, MAX_WIDTH};
+use super::worker::{Finished, GraphicsWorker, Job, Picture, Want};
+use super::PictureLimits;
 use crate::builder::ElementBuilder;
 use crate::component::{
     Component, Element, ElementType, LayoutInfo, LayoutType, LifecycleEvent, Props,
@@ -23,6 +25,7 @@ pub struct CanvasProps {
     view: Option<(f32, f32)>,
     label: Option<String>,
     worker: Option<Arc<GraphicsWorker>>,
+    cell_pixels: Option<(u16, u16)>,
 }
 
 impl CanvasProps {
@@ -36,15 +39,27 @@ impl CanvasProps {
             view: None,
             label: None,
             worker: None,
+            cell_pixels: None,
         }
     }
 
-    /// Draw on `worker` instead of a worker the canvas starts itself. An
-    /// application starts one before it sets the terminal up
-    /// ([`GraphicsWorker::wait_ready`]); the worker's own options decide
-    /// its renderer and font. One worker serves one canvas.
+    /// Draw on `worker` instead of the drawing thread the process shares
+    /// for the canvas's options. An application starts one before it sets
+    /// the terminal up ([`GraphicsWorker::wait_ready`]); the worker's own
+    /// options decide its renderer and font, and it serves every canvas it
+    /// is handed (GFX-003).
     pub fn worker(mut self, worker: Arc<GraphicsWorker>) -> Self {
         self.worker = Some(worker);
+        self
+    }
+
+    /// Draw the picture with `width` by `height` pixels per cell instead
+    /// of the terminal's, fewer in each direction; the terminal scales the
+    /// picture to the cells it covers (GFX-010). The scene keeps its
+    /// coordinates: a cell is still as many scene pixels as the terminal's
+    /// cell measures. A pin of zero in either direction is ignored.
+    pub fn cell_pixels(mut self, width: u16, height: u16) -> Self {
+        self.cell_pixels = (width > 0 && height > 0).then_some((width, height));
         self
     }
 
@@ -74,6 +89,7 @@ impl PartialEq for CanvasProps {
             && self.options == other.options
             && self.view == other.view
             && self.label == other.label
+            && self.cell_pixels == other.cell_pixels
             && match (&self.worker, &other.worker) {
                 (Some(a), Some(b)) => Arc::ptr_eq(a, b),
                 (None, None) => true,
@@ -113,11 +129,49 @@ impl Submitted {
 /// The most pixels of a picture that is sent in the command itself. Such a
 /// picture is written as base64, four bytes for three, and a frame's output
 /// holds 64 MiB.
-const DIRECT_PIXELS: u32 = 12_000_000;
+const DIRECT_PIXELS: u64 = 12_000_000;
 
-/// What a canvas asks of its worker, for which output, and the columns and
-/// rows its picture covers.
-type Wanted = (Job, CanvasOutput, (u32, u32));
+/// The most pixels of one picture a frame holds: 64 MiB of them (GFX-007).
+const FRAME_PIXELS: u64 = 64 * 1024 * 1024 / 4;
+
+/// What a canvas asks of its drawing thread, for which output, the columns
+/// and rows its picture covers, and the picture's pixels per cell.
+type Wanted = (Job, CanvasOutput, (u32, u32), (u16, u16));
+
+/// The most whole pixels per cell, at most `wanted` in each direction, for
+/// which `columns` by `rows` cells make a picture within `limits` and
+/// `budget` pixels: the most pixels first, the cell's own proportions
+/// second (GFX-010). `None` when not even one pixel per cell fits.
+fn pixels_per_cell(
+    columns: u32,
+    rows: u32,
+    wanted: (u16, u16),
+    limits: PictureLimits,
+    budget: u64,
+) -> Option<(u16, u16)> {
+    let wanted = (u32::from(wanted.0.max(1)), u32::from(wanted.1.max(1)));
+    let pixels = limits.pixels.min(budget);
+    let proportion = wanted.0 as f64 / wanted.1 as f64;
+    let mut best: Option<((u32, u32), u64, f64)> = None;
+    for across in (1..=wanted.0).rev() {
+        let width = u64::from(columns) * u64::from(across);
+        if width > u64::from(limits.side) {
+            continue;
+        }
+        let down = (pixels / width / u64::from(rows))
+            .min(u64::from(limits.side / rows.max(1)))
+            .min(u64::from(wanted.1)) as u32;
+        if down == 0 {
+            continue;
+        }
+        let area = u64::from(across) * u64::from(down);
+        let skew = ((across as f64 / down as f64) / proportion).ln().abs();
+        if best.is_none_or(|(_, most, least)| area > most || (area == most && skew < least)) {
+            best = Some(((across, down), area, skew));
+        }
+    }
+    best.map(|((across, down), _, _)| (across as u16, down as u16))
+}
 
 #[derive(Default)]
 struct View {
@@ -133,7 +187,9 @@ struct View {
 pub struct Canvas {
     props: CanvasProps,
     worker: Option<Arc<GraphicsWorker>>,
-    /// Why there is no worker.
+    /// The canvas's picture on the drawing thread.
+    picture: Option<Picture>,
+    /// Why there is no drawing thread.
     failure: Option<String>,
     link: Arc<CanvasLink>,
     image_id: u32,
@@ -142,15 +198,22 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    /// The worker `props` names, else one started for them, or why there
-    /// is none.
-    fn start(props: &CanvasProps) -> (Option<Arc<GraphicsWorker>>, Option<String>) {
-        if let Some(worker) = &props.worker {
-            return (Some(worker.clone()), None);
-        }
-        match GraphicsWorker::spawn(props.options.clone()) {
-            Ok(worker) => (Some(Arc::new(worker)), None),
-            Err(error) => (None, Some(error.to_string())),
+    /// The worker `props` names, else the drawing thread the process
+    /// shares for their options (GFX-003), with a picture of the canvas's
+    /// own on it; or why there is none.
+    fn start(
+        props: &CanvasProps,
+    ) -> (Option<Arc<GraphicsWorker>>, Option<Picture>, Option<String>) {
+        let worker = match &props.worker {
+            Some(worker) => Ok(worker.clone()),
+            None => GraphicsWorker::shared(&props.options),
+        };
+        match worker {
+            Ok(worker) => {
+                let picture = worker.picture();
+                (Some(worker), Some(picture), None)
+            }
+            Err(error) => (None, None, Some(error.to_string())),
         }
     }
 
@@ -172,14 +235,18 @@ impl Canvas {
         })
     }
 
-    /// The job for the canvas's area as it is, the output it is for and the
-    /// cells its picture covers: the area's, up to the largest picture.
-    /// `None` before the first layout, which gives the area its size.
+    /// The job for the canvas's area as it is, the output it is for, the
+    /// cells its picture covers and the picture's pixels per cell: the
+    /// terminal's, unless the application pinned fewer or a hard limit
+    /// forces fewer (GFX-010). `None` before the first layout, which gives
+    /// the area its size, and before the drawing thread has made its
+    /// renderer, whose limits decide the picture.
     fn job(&self, waited: bool) -> Option<Wanted> {
         let (columns, rows) = self.cells();
         if columns == 0 || rows == 0 {
             return None;
         }
+        let limits = self.worker.as_ref()?.limits()?;
         let host = self.link.host();
         // Until a painter has reported what the host takes, only an
         // override says how to show the picture; a canvas no painter
@@ -191,43 +258,61 @@ impl Canvas {
             return None;
         }
         let cell = host.map_or(CELL_PIXELS, |host| host.cell);
-        let (cell_width, cell_height) = (u32::from(cell.0.max(1)), u32::from(cell.1.max(1)));
-        let (want, size, columns, rows) = match output {
+        let cell = (cell.0.max(1), cell.1.max(1));
+        let (want, size, columns, rows, pixels) = match output {
             CanvasOutput::Blocks => {
                 let blitter = crate::widgets::display::image::image_blitter();
                 let (across, down) = blitter.cell_pixels();
-                let columns = columns.min(MAX_WIDTH / across);
-                let rows = rows.min(MAX_HEIGHT / down);
+                let columns = columns.min(limits.side / across.max(1));
+                let rows = rows.min(limits.side / down.max(1)).min(
+                    (limits.pixels
+                        / u64::from(columns.max(1) * across.max(1))
+                        / u64::from(down.max(1))) as u32,
+                );
                 (
                     Want::Blocks { blitter, cell },
                     (columns, rows),
                     columns,
                     rows,
+                    cell,
                 )
             }
             CanvasOutput::Kitty | CanvasOutput::Sixel => {
-                let columns = columns.min(MAX_WIDTH / cell_width);
-                let mut rows = rows.min(MAX_HEIGHT / cell_height);
+                // What the output can carry: a Kitty picture sent in the
+                // command has the room its base64 takes in the frame's
+                // output; a picture through shared memory, or as Sixel, the
+                // frame's room for one picture.
                 let shared = host.is_some_and(|host| host.kitty_shared_memory);
-                if output == CanvasOutput::Kitty && !shared {
-                    rows = rows.min(DIRECT_PIXELS / (columns * cell_width).max(1) / cell_height);
-                }
-                (
-                    Want::Pixels,
-                    (columns * cell_width, rows * cell_height),
-                    columns,
-                    rows,
-                )
+                let budget = if output == CanvasOutput::Kitty && !shared {
+                    DIRECT_PIXELS
+                } else {
+                    FRAME_PIXELS
+                };
+                let wanted = self.props.cell_pixels.map_or(cell, |pin| {
+                    (pin.0.min(cell.0).max(1), pin.1.min(cell.1).max(1))
+                });
+                let pixels = pixels_per_cell(columns, rows, wanted, limits, budget)?;
+                let size = (columns * u32::from(pixels.0), rows * u32::from(pixels.1));
+                (Want::Pixels, size, columns, rows, pixels)
             }
         };
         if size.0 == 0 || size.1 == 0 {
             return None;
         }
-        let picture = ((columns * cell_width) as f32, (rows * cell_height) as f32);
-        let base = self
-            .props
-            .view
-            .map_or(Transform::identity(), |view| Transform::fit(view, picture));
+        // The scene's coordinates are the terminal's pixels; a picture with
+        // fewer pixels per cell is drawn smaller by the same ratio.
+        let picture = (
+            (columns * u32::from(pixels.0)) as f32,
+            (rows * u32::from(pixels.1)) as f32,
+        );
+        let base = match (self.props.view, want) {
+            (Some(view), _) => Transform::fit(view, picture),
+            (None, Want::Pixels) if pixels != cell => Transform::scale(
+                f32::from(pixels.0) / f32::from(cell.0),
+                f32::from(pixels.1) / f32::from(cell.1),
+            ),
+            (None, _) => Transform::identity(),
+        };
         Some((
             Job {
                 scene: self.props.scene.clone(),
@@ -237,6 +322,7 @@ impl Canvas {
             },
             output,
             (columns, rows),
+            pixels,
         ))
     }
 
@@ -257,10 +343,11 @@ impl Component for Canvas {
     type State = ();
 
     fn new(props: Self::Props) -> Self {
-        let (worker, failure) = Self::start(&props);
+        let (worker, picture, failure) = Self::start(&props);
         Self {
             props,
             worker,
+            picture,
             failure,
             link: Arc::default(),
             image_id: crate::widgets::display::image::ProtocolRenderer::new().generate_image_id(),
@@ -271,9 +358,12 @@ impl Component for Canvas {
 
     fn update(&mut self, props: &Self::Props, _: &mut ()) -> bool {
         if !Self::same_worker(&self.props, props) {
-            // Other options are another renderer: the worker starts anew.
-            let (worker, failure) = Self::start(props);
+            // Other options are another renderer: the canvas moves to its
+            // thread.
+            let (worker, picture, failure) = Self::start(props);
+            self.picture = None;
             self.worker = worker;
+            self.picture = picture;
             self.failure = failure;
             *self.view.get_mut().unwrap_or_else(|e| e.into_inner()) = View::default();
         }
@@ -297,20 +387,20 @@ impl Component for Canvas {
         let theme = crate::theme::Theme::generation();
         // A frame that could not hold the picture said so: the canvas
         // shows why and draws no more pictures of that size (GFX-007).
-        let refused = wanted.as_ref().and_then(|(job, output, _)| {
+        let refused = wanted.as_ref().and_then(|(job, output, _, _)| {
             matches!(output, CanvasOutput::Kitty | CanvasOutput::Sixel)
                 .then(|| self.link.refused(job.size))
                 .flatten()
         });
-        if let Some(worker) = &self.worker {
-            worker.observe();
-            if let Some((job, _, _)) = wanted.as_ref().filter(|_| refused.is_none()) {
+        if let Some(picture) = &self.picture {
+            picture.observe();
+            if let Some((job, _, _, _)) = wanted.as_ref().filter(|_| refused.is_none()) {
                 if !view
                     .submitted
                     .as_ref()
                     .is_some_and(|last| last.is(job, theme))
                 {
-                    worker.submit_job(job.clone());
+                    picture.submit_job(job.clone());
                     view.submitted = Some(Submitted {
                         scene: job.scene.clone(),
                         size: job.size,
@@ -320,7 +410,7 @@ impl Component for Canvas {
                     });
                 }
             }
-            if let Some(finished) = worker.latest() {
+            if let Some(finished) = picture.latest() {
                 view.shown = Some(finished);
             }
         }
@@ -330,13 +420,15 @@ impl Component for Canvas {
             .shown
             .clone()
             .zip(wanted.as_ref())
-            .filter(|(shown, (job, _, _))| shown.size == job.size && shown.want == job.want);
+            .filter(|(shown, (job, _, _, _))| shown.size == job.size && shown.want == job.want);
         drop(view);
 
         // The picture's cells: the area's, up to the largest picture. The
-        // painter shows the picture over them pixel for pixel (GFX-001).
+        // painter shows the picture over them, one picture pixel per screen
+        // pixel unless the picture has fewer pixels per cell, which the
+        // terminal scales to the cells (GFX-010).
         let area = self.cells();
-        let (columns, rows) = wanted.as_ref().map_or(area, |(_, _, cells)| *cells);
+        let (columns, rows) = wanted.as_ref().map_or(area, |(_, _, cells, _)| *cells);
         let insets = self.viewport.map_or([0.0; 4], |viewport| viewport.insets);
         let failure = self
             .failure
@@ -363,13 +455,17 @@ impl Component for Canvas {
                 .build();
         content.metadata.inert = true;
         let mut pixels = None;
-        if let (Some((shown, (_, output, _))), None) = (&shown, &message) {
+        if let (Some((shown, (_, output, _, cell))), None) = (&shown, &message) {
             match (output, &shown.cells, &shown.frame) {
                 (CanvasOutput::Blocks, Some(grid), _) => {
                     content = content.with_cells(grid.clone());
                 }
                 (CanvasOutput::Kitty | CanvasOutput::Sixel, _, Some(frame)) => {
-                    pixels = Some((frame.clone(), *output));
+                    pixels = Some(CanvasPixels {
+                        frame: frame.clone(),
+                        output: *output,
+                        cell: *cell,
+                    });
                 }
                 _ => {}
             }
@@ -422,6 +518,7 @@ impl Component for Canvas {
 
     fn on_lifecycle(&mut self, event: LifecycleEvent, _: &mut ()) {
         if event == LifecycleEvent::Unmount {
+            self.picture = None;
             self.worker = None;
             *self.view.get_mut().unwrap_or_else(|e| e.into_inner()) = View::default();
         }

@@ -50,8 +50,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     // Scenes are drawn for cells of 8 by 16 pixels.
     let pixels = (u32::from(columns) * 8, u32::from(rows) * 16);
-    if columns == 0 || rows == 0 || pixels.0 > 4096 || pixels.1 > 4096 {
-        return Err("columns must be 1 to 512 and rows 1 to 256".into());
+    if columns == 0 || rows == 0 {
+        return Err("columns and rows must be at least 1".into());
     }
     if !std::io::stdout().is_terminal() {
         return Err("run in a real terminal, not a redirected writer".into());
@@ -61,6 +61,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .transpose()?;
     let initialization_started = Instant::now();
     let mut hardware = HybridRenderer::new(GraphicsOptions::default());
+    // The picture is as large as the adapter draws (GFX-010).
+    if !hardware.limits().holds(pixels.0, pixels.1) {
+        let limits = hardware.limits();
+        return Err(format!(
+            "{} by {} pixels is more than this adapter draws: at most {} a side and {} pixels",
+            pixels.0, pixels.1, limits.side, limits.pixels
+        )
+        .into());
+    }
     let comparison = match hardware.mode() {
         GraphicsMode::Gpu(info) if info.is_hardware() => info.clone(),
         other => {

@@ -28,7 +28,12 @@ const WAITING: usize = 2;
 /// owns the object: [`Pictures::written`] takes it once its picture is
 /// written, and [`unlink`] removes it when it is not.
 #[cfg(unix)]
-pub fn make(pixels: &image::RgbaImage, id: u32, z: i32) -> Option<(String, String)> {
+pub fn make(
+    pixels: &image::RgbaImage,
+    id: u32,
+    z: i32,
+    cells: Option<(u32, u32)>,
+) -> Option<(String, String)> {
     use base64::Engine;
     use rustix::fs::Mode;
     use rustix::shm;
@@ -48,8 +53,11 @@ pub fn make(pixels: &image::RgbaImage, id: u32, z: i32) -> Option<(String, Strin
     }
     let (width, height) = pixels.dimensions();
     let encoded = base64::engine::general_purpose::STANDARD.encode(name.as_bytes());
+    let placement = crate::widgets::display::image::ProtocolRenderer::kitty_cells(cells);
     Some((
-        format!("\x1b_Ga=T,f=32,t=s,s={width},v={height},i={id},q=2,C=1,z={z};{encoded}\x1b\\"),
+        format!(
+            "\x1b_Ga=T,f=32,t=s,s={width},v={height},i={id},q=2,C=1,z={z}{placement};{encoded}\x1b\\"
+        ),
         name,
     ))
 }
@@ -65,8 +73,14 @@ impl Pictures {
     /// The Kitty command that shows `pixels` from shared memory as image
     /// `id` at the cursor, its picture written now; `None` when the object
     /// cannot be made, and the picture is then sent in the command itself.
-    pub fn kitty(&mut self, pixels: &image::RgbaImage, id: u32, z: i32) -> Option<String> {
-        let (command, name) = make(pixels, id, z)?;
+    pub fn kitty(
+        &mut self,
+        pixels: &image::RgbaImage,
+        id: u32,
+        z: i32,
+        cells: Option<(u32, u32)>,
+    ) -> Option<String> {
+        let (command, name) = make(pixels, id, z, cells)?;
         self.written(id, name);
         Some(command)
     }
@@ -153,7 +167,12 @@ impl Drop for Pictures {
 /// Shared memory is sent on Unix only; elsewhere the picture is sent in the
 /// command itself.
 #[cfg(not(unix))]
-pub fn make(_: &image::RgbaImage, _: u32, _: i32) -> Option<(String, String)> {
+pub fn make(
+    _: &image::RgbaImage,
+    _: u32,
+    _: i32,
+    _: Option<(u32, u32)>,
+) -> Option<(String, String)> {
     None
 }
 
@@ -162,7 +181,13 @@ pub fn unlink(_: &str) {}
 
 #[cfg(not(unix))]
 impl Pictures {
-    pub fn kitty(&mut self, _: &image::RgbaImage, _: u32, _: i32) -> Option<String> {
+    pub fn kitty(
+        &mut self,
+        _: &image::RgbaImage,
+        _: u32,
+        _: i32,
+        _: Option<(u32, u32)>,
+    ) -> Option<String> {
         None
     }
 

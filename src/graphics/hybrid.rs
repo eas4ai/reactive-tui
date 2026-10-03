@@ -8,7 +8,10 @@ use super::glyphs::Glyphs;
 use super::gpu::GpuRenderer;
 use super::output::CanvasOutput;
 use super::scene::{Scene, Transform};
-use super::{cpu, pixel_count, GraphicsAdapterInfo, GraphicsError, GraphicsFrame, GraphicsTimings};
+use super::{
+    cpu, pixel_count, GraphicsAdapterInfo, GraphicsError, GraphicsFrame, GraphicsTimings,
+    PictureLimits,
+};
 use crate::layout::CellGrid;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::time::Instant;
@@ -139,8 +142,17 @@ impl HybridRenderer {
         &self.glyphs.font().source
     }
 
-    /// The picture of `scene` at `width` by `height` pixels, each at most
-    /// 4096.
+    /// The largest picture the renderer that draws next can draw: the
+    /// device's limits on the hardware adapter, 16384 by 16384 pixels on
+    /// the software renderer (GFX-010).
+    pub fn limits(&self) -> PictureLimits {
+        self.gpu
+            .as_ref()
+            .map_or(PictureLimits::SOFTWARE, |gpu| gpu.limits())
+    }
+
+    /// The picture of `scene` at `width` by `height` pixels, within
+    /// [`HybridRenderer::limits`].
     pub fn render(
         &mut self,
         scene: &Scene,
@@ -220,7 +232,7 @@ impl HybridRenderer {
         size: (u32, u32),
         base: &Transform,
     ) -> Result<GraphicsFrame, GraphicsError> {
-        pixel_count(size.0, size.1)?;
+        pixel_count(size.0, size.1, self.limits())?;
         let started = Instant::now();
         self.glyphs.trim();
         let glyphs = &mut self.glyphs;

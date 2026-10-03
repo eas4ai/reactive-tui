@@ -5,6 +5,24 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- Every canvas of a process that draws with the same renderer options draws
+  on one `rtui-canvas-*` thread, with one adapter, device, set of pipelines
+  and glyph atlas, instead of a thread and a GPU connection per canvas; a
+  worker an application starts and hands to several canvases serves them
+  all, each with its own waiting scene. `GraphicsWorker::shared(&options)`
+  gives the process's thread for those options (GFX-003).
+- Canvas pictures are drawn one pixel per screen pixel at the terminal's
+  cell size with no fixed cap; the 4096-pixel limit and the constants
+  `graphics::MAX_WIDTH` and `MAX_HEIGHT` are gone, and the renderer's
+  limits are `GraphicsWorker::limits` and `HybridRenderer::limits`
+  (`PictureLimits`). `CanvasProps::cell_pixels(width, height)` pins fewer
+  pixels per cell, and a picture that would exceed a hard limit (the
+  renderer's, a frame's 64 MiB, a Kitty command's 12 million pixels, a
+  Sixel picture's 64 MiB of text) is drawn with the most whole pixels per
+  cell that fit; the terminal scales such a picture to its cells through
+  the Kitty placement's `c` and `r` keys, and the Sixel encoder scales it
+  before encoding (GFX-010).
+
 - Actions dispatched to a `use_reducer` state from several threads are all
   applied: `ThreadSafeSignal::update_atomic` runs its callback under the
   signal's lock, so concurrent read-modify-writes lose nothing, and the

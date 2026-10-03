@@ -32,11 +32,16 @@ pub(crate) struct ImagePaint {
 /// Tells a canvas why a frame cannot show its picture.
 pub(crate) type Refusal = Arc<dyn Fn(&str) + Send + Sync>;
 
-/// How a canvas's picture is sent.
+/// How a canvas's picture is sent, and how many of its pixels make one
+/// cell.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CanvasPicture {
     /// Whether Kitty graphics may travel through shared memory.
     pub shared_memory: bool,
+    /// The picture's pixels per cell: the terminal's cell size, or fewer
+    /// when the application pinned fewer or a hard limit forced fewer, and
+    /// then the terminal scales the picture to its cells (GFX-010).
+    pub cell: (u16, u16),
 }
 
 impl ImagePaint {
@@ -46,6 +51,7 @@ impl ImagePaint {
         id: u32,
         pixels: Arc<image::RgbaImage>,
         shared_memory: bool,
+        cell: (u16, u16),
         refused: Refusal,
     ) -> Self {
         Self {
@@ -56,7 +62,10 @@ impl ImagePaint {
             background: None,
             quality: ImageQuality::Fast,
             max_size: None,
-            canvas: Some(CanvasPicture { shared_memory }),
+            canvas: Some(CanvasPicture {
+                shared_memory,
+                cell: (cell.0.max(1), cell.1.max(1)),
+            }),
             refused: Some(refused),
         }
     }

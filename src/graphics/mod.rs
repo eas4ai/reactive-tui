@@ -4,8 +4,8 @@
 //! grids, on a hardware
 //! wgpu adapter when the host has one and on the software renderer
 //! otherwise, and shows the picture as Kitty graphics, Sixel or block
-//! glyphs. Rendering runs on a named worker thread; the App's thread never
-//! waits for it.
+//! glyphs. Rendering runs on a named drawing thread that every canvas of
+//! the process shares; the App's thread never waits for it.
 
 mod compile;
 mod cpu;
@@ -33,10 +33,32 @@ pub use worker::{GraphicsWorker, WorkerStats};
 
 use std::time::Duration;
 
-/// The widest picture the canvas draws, in pixels.
-pub const MAX_WIDTH: u32 = 4096;
-/// The tallest picture the canvas draws, in pixels.
-pub const MAX_HEIGHT: u32 = 4096;
+/// The largest picture a renderer draws (GFX-010): on the hardware adapter
+/// the device's limits as the adapter reports them, on the software
+/// renderer [`PictureLimits::SOFTWARE`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PictureLimits {
+    /// The most pixels across, and the most down.
+    pub side: u32,
+    /// The most pixels in one picture.
+    pub pixels: u64,
+}
+
+impl PictureLimits {
+    /// What the software renderer draws: 16384 by 16384 pixels.
+    pub const SOFTWARE: Self = Self {
+        side: 16_384,
+        pixels: 16_384 * 16_384,
+    };
+
+    /// Whether a picture of `width` by `height` pixels is within the
+    /// limits.
+    pub fn holds(self, width: u32, height: u32) -> bool {
+        width <= self.side
+            && height <= self.side
+            && u64::from(width) * u64::from(height) <= self.pixels
+    }
+}
 
 /// Why the canvas could not draw.
 #[derive(Debug, Clone, thiserror::Error)]
@@ -64,11 +86,13 @@ pub enum GraphicsError {
     Worker(String),
 }
 
-/// The pixels of a `width` by `height` picture, or why it cannot be drawn.
-fn pixel_count(width: u32, height: u32) -> Result<usize, GraphicsError> {
-    if width == 0 || height == 0 || width > MAX_WIDTH || height > MAX_HEIGHT {
+/// The pixels of a `width` by `height` picture within `limits`, or why it
+/// cannot be drawn.
+fn pixel_count(width: u32, height: u32, limits: PictureLimits) -> Result<usize, GraphicsError> {
+    if width == 0 || height == 0 || !limits.holds(width, height) {
         return Err(GraphicsError::Dimensions(format!(
-            "{width}x{height}; at least 1x1 and at most {MAX_WIDTH}x{MAX_HEIGHT}"
+            "{width}x{height}; at least 1x1, at most {}x{} and {} pixels",
+            limits.side, limits.side, limits.pixels
         )));
     }
     Ok(width as usize * height as usize)
@@ -104,7 +128,7 @@ pub struct GraphicsFrame {
 impl GraphicsFrame {
     /// A picture from pixels drawn elsewhere, row by row.
     pub fn from_rgba(width: u32, height: u32, pixels: Vec<[u8; 4]>) -> Result<Self, GraphicsError> {
-        if pixel_count(width, height)? != pixels.len() {
+        if pixel_count(width, height, PictureLimits::SOFTWARE)? != pixels.len() {
             return Err(GraphicsError::Dimensions(format!(
                 "{} pixels for {width}x{height}",
                 pixels.len()

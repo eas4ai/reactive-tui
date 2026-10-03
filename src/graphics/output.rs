@@ -160,13 +160,24 @@ impl CanvasLink {
     }
 }
 
+/// A picture to show as pixels: how, and how many of its pixels make one
+/// cell, which is the terminal's cell size unless the application pinned
+/// fewer or a hard limit forced fewer (GFX-010).
+#[derive(Clone)]
+pub(crate) struct CanvasPixels {
+    pub frame: Arc<GraphicsFrame>,
+    pub output: CanvasOutput,
+    /// The picture's pixels per cell.
+    pub cell: (u16, u16),
+}
+
 /// What a canvas's element hands the painter.
 pub(crate) struct CanvasPaint {
     /// Names the picture to the terminal; one per canvas.
     pub id: u32,
     pub link: Arc<CanvasLink>,
-    /// The picture to show as pixels, and how: Kitty graphics or Sixel.
-    pub pixels: Option<(Arc<GraphicsFrame>, CanvasOutput)>,
+    /// The picture to show as pixels: Kitty graphics or Sixel.
+    pub pixels: Option<CanvasPixels>,
 }
 
 impl PartialEq for CanvasPaint {
@@ -174,7 +185,9 @@ impl PartialEq for CanvasPaint {
         self.id == other.id
             && Arc::ptr_eq(&self.link, &other.link)
             && match (&self.pixels, &other.pixels) {
-                (Some(a), Some(b)) => Arc::ptr_eq(&a.0, &b.0) && a.1 == b.1,
+                (Some(a), Some(b)) => {
+                    Arc::ptr_eq(&a.frame, &b.frame) && a.output == b.output && a.cell == b.cell
+                }
                 (None, None) => true,
                 _ => false,
             }

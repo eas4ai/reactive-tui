@@ -1237,3 +1237,103 @@ fn gfx_010_on_sixel_the_picture_is_the_cells_pixels() {
         "GFX-010: a Sixel canvas of 520 by 60 cells of 9 by 18 pixels was sent a raster of {size:?}"
     );
 }
+
+/// A scene that paints every pixel of any picture it is drawn in.
+fn opaque() -> Scene {
+    let mut scene = Scene::new();
+    scene.fill(
+        &Path::rect(0.0, 0.0, 16_384.0, 16_384.0),
+        &Paint::solid(Color::rgba(200, 40, 40, 255)),
+    );
+    scene
+}
+
+#[test]
+fn gfx_010_pinned_pixels_per_cell_are_scaled_by_the_terminal() {
+    // The application pins 4 by 8 pixels per cell on a terminal of 9 by 18:
+    // the picture is 2080 by 480 pixels and its placement names the 520 by
+    // 60 cells, which the terminal scales it to.
+    half_blocks();
+    let host = ImageOutputOptions {
+        kitty_graphics: true,
+        kitty_shared_memory: true,
+        cell_pixels: (9, 18),
+        ..Default::default()
+    };
+    let props = CanvasProps::new(Arc::new(canvas_support::shapes()))
+        .options(reference_options(true))
+        .cell_pixels(4, 8);
+    let output: String = app_input::run_when_output(
+        Root(Element::typed::<Canvas>(props)),
+        (520, 60),
+        host,
+        vec![("a=T".to_owned(), 1, None)],
+    )
+    .iter()
+    .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
+    .collect();
+    let controls = first_picture_controls(&output);
+    let got = ["s", "v", "c", "r"].map(|key| control(&controls, key));
+    assert!(
+        got == [Some(2080), Some(480), Some(520), Some(60)],
+        "GFX-010: with 4 by 8 pixels per cell pinned on 520 by 60 cells of 9 by 18, the picture's s, v, c and r are {got:?}, not 2080, 480, 520 and 60"
+    );
+}
+
+/// A root that shows one opaque canvas filling the screen with a note over
+/// the cells 10 to 21 of rows 2 to 4.
+struct Noted(GraphicsOptions, Option<(u16, u16)>);
+impl RootComponent for Noted {
+    fn render(&self) -> Element {
+        use reactive_tui::builder::core::div;
+        let mut props = CanvasProps::new(Arc::new(opaque())).options(self.0.clone());
+        if let Some((width, height)) = self.1 {
+            props = props.cell_pixels(width, height);
+        }
+        div()
+            .class("relative w-full h-full")
+            .children(vec![
+                Element::typed::<Canvas>(props),
+                div()
+                    .class("absolute left-10 top-2 w-12 h-3 bg-blue-900")
+                    .text("a note")
+                    .build(),
+            ])
+            .build()
+    }
+}
+
+#[test]
+fn gfx_010_a_pinned_picture_reaches_sixel_at_the_cells_pixels_with_holes_on_cell_edges() {
+    // Sixel has no scaling of its own: the encoder scales the 2080 by 480
+    // picture to the cells' 4680 by 1080 pixels, and the hole under the
+    // note covers whole cells of 9 by 18.
+    half_blocks();
+    let host = ImageOutputOptions {
+        sixel: true,
+        cell_pixels: (9, 18),
+        ..Default::default()
+    };
+    let output: String = app_input::run_when_output(
+        Noted(reference_options(true), Some((4, 8))),
+        (520, 60),
+        host,
+        vec![(SIXEL.to_owned(), 1, None)],
+    )
+    .iter()
+    .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
+    .collect();
+    let picture = output.split(SIXEL).nth(1).expect("a Sixel picture");
+    let ((width, height), set) = canvas_support::sixel_pixels(picture);
+    let at = |x: usize, y: usize| set.get(y * width + x).copied().unwrap_or(false);
+    // The note's cells: columns 10 to 21, rows 2 to 4, in pixels 90 to 197
+    // across and 36 to 89 down.
+    let hole = (90..198).all(|x| (36..90).all(|y| !at(x, y)));
+    let edges = [(89, 60), (198, 60), (100, 35), (100, 90)]
+        .iter()
+        .all(|&(x, y)| at(x, y));
+    assert!(
+        (width, height) == (4680, 1080) && hole && edges,
+        "GFX-010: a pinned Sixel canvas on 520 by 60 cells of 9 by 18 pixels was sent a raster of {width} by {height}; the hole under the note covers its cells: {hole}; the pixels just outside it are drawn: {edges}"
+    );
+}
