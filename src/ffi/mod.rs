@@ -229,7 +229,3 @@ unsafe fn c_str_to_string(s: *const c_char) -> Result<String, ReactiveError> {
             .map_err(|_| ReactiveError::InvalidUtf8)
     }
 }
-
-fn _violating_example() -> u32 {
-    "not a number"
-}
