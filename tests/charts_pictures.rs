@@ -114,18 +114,21 @@ struct Frame {
     image_nodes: usize,
     /// The texts of the frame's live regions.
     live: Vec<String>,
+    /// Whether an Image node of the frame's tree read busy.
+    busy: bool,
 }
 
 /// What the frame's element tree tells a screen reader: its Image nodes,
 /// and the texts of its live regions.
-fn described(element: &Element, images: &mut usize, live: &mut Vec<String>) {
-    if element
+fn described(element: &Element, images: &mut usize, live: &mut Vec<String>, busy: &mut bool) {
+    if let Some(node) = element
         .metadata
         .accessibility
         .as_ref()
-        .is_some_and(|node| node.role() == reactive_tui::accessibility::Role::Image)
+        .filter(|node| node.role() == reactive_tui::accessibility::Role::Image)
     {
         *images += 1;
+        *busy |= node.is_busy();
     }
     let polite = element
         .class
@@ -137,7 +140,7 @@ fn described(element: &Element, images: &mut usize, live: &mut Vec<String>) {
         live.push(text.clone());
     }
     for child in &element.children {
-        described(child, images, live);
+        described(child, images, live, busy);
     }
 }
 
@@ -176,7 +179,7 @@ struct Timed {
     /// the App never waits for a picture to be made ready (GFX-009).
     sync: bool,
     /// What the tree being rendered tells a screen reader.
-    tree: (usize, Vec<String>),
+    tree: (usize, Vec<String>, bool),
 }
 
 impl Backend for Timed {
@@ -190,9 +193,9 @@ impl Backend for Timed {
         self.inner.hit_cells()
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
-        let (mut images, mut live) = (0, Vec::new());
-        described(element, &mut images, &mut live);
-        self.tree = (images, live);
+        let (mut images, mut live, mut busy) = (0, Vec::new(), false);
+        described(element, &mut images, &mut live, &mut busy);
+        self.tree = (images, live, busy);
         self.inner.render_frame(element)
     }
     fn layout_frame(&mut self, element: Arc<Element>) -> Result<Option<FrameLayout>> {
@@ -233,6 +236,7 @@ impl Backend for Timed {
             threads: thread_names(),
             image_nodes: self.tree.0,
             live: self.tree.1.clone(),
+            busy: self.tree.2,
         });
         Ok(())
     }
@@ -329,7 +333,7 @@ fn run(
             wait_returned: None,
             read: 0,
             sync,
-            tree: (0, Vec::new()),
+            tree: (0, Vec::new(), false),
         })
         .root(Shown {
             element,
@@ -959,6 +963,128 @@ fn cht_037_the_chart_is_one_screen_reader_node_and_its_picture_says_nothing() {
         !frame.live.iter().any(|text| text.starts_with("Canvas:")),
         "CHT-037: the picture's canvas announces nothing of its own, found {:?}",
         frame.live
+    );
+}
+
+#[test]
+fn cht_036_the_chart_reads_busy_until_its_first_picture_is_shown() {
+    let run = run(
+        chart(dressed(ChartType::Line, (80, 24), &VALUES)),
+        (80, 24),
+        kitty(),
+        silent(),
+        after_pictures(1, 3),
+        true,
+    );
+    let picture = run.first_picture("a line chart");
+    // Every frame from the chart's first layout up to and including the one
+    // that carries the first picture reads busy: the chart's node is laid
+    // out before its canvas reports the picture shown. Frame 0 is drawn
+    // before the chart has a size, so nothing is awaited in it. The frame
+    // after the picture's does not read busy.
+    let not_busy: Vec<usize> = (1..=picture.frame)
+        .filter(|&frame| !run.frames[frame].busy)
+        .collect();
+    assert!(
+        not_busy.is_empty(),
+        "CHT-036: frames {not_busy:?} before the first picture (frame {}) did not read busy",
+        picture.frame
+    );
+    let after = picture.frame + 1;
+    assert!(
+        run.frames.get(after).is_some_and(|frame| !frame.busy),
+        "CHT-036: the frame after the first picture still reads busy ({} frames)",
+        run.frames.len()
+    );
+}
+
+/// The most common opaque color of a picture: a line chart's stroke.
+fn dominant(picture: &Picture) -> [u8; 3] {
+    let mut counts: std::collections::HashMap<[u8; 3], usize> = std::collections::HashMap::new();
+    for pixel in &picture.pixels {
+        if pixel[3] > 200 {
+            *counts.entry([pixel[0], pixel[1], pixel[2]]).or_default() += 1;
+        }
+    }
+    counts
+        .into_iter()
+        .max_by_key(|(_, count)| *count)
+        .map_or([0; 3], |(color, _)| color)
+}
+
+/// A line chart whose theme switches to light after its first picture:
+/// no later frame carries a picture in the old theme's colors. Run in a
+/// process of its own, since the theme is the process's.
+#[test]
+#[ignore = "run by thm_003_after_a_theme_change_no_frame_shows_the_old_theme_picture"]
+fn theme_change_child() {
+    use reactive_tui::theme::{dark_theme, light_theme, Theme};
+    Theme::set_active(dark_theme());
+    let old = role("chart-1");
+    let switched = Arc::new(Mutex::new(None::<usize>));
+    let flag = switched.clone();
+    let script: Script = Box::new(move |presented, pictures| {
+        let mut at = flag.lock().unwrap();
+        if at.is_none() && pictures >= 1 && presented >= 4 {
+            Theme::set_active(light_theme());
+            *at = Some(presented);
+        }
+        None
+    });
+    let run = run(
+        chart(bare(ChartType::Line, (80, 24), &VALUES)),
+        (80, 24),
+        kitty(),
+        script,
+        after_pictures(2, 8),
+        true,
+    );
+    let at = switched
+        .lock()
+        .unwrap()
+        .expect("the theme switched during the run");
+    let new = role("chart-1");
+    assert!(
+        !near([old[0], old[1], old[2], 255], new, 12),
+        "the two themes differ in chart-1"
+    );
+    let pictures = run.pictures();
+    let after: Vec<&Picture> = pictures.iter().filter(|p| p.frame >= at).collect();
+    let old_colored: Vec<usize> = after
+        .iter()
+        .filter(|p| {
+            let c = dominant(p);
+            near([c[0], c[1], c[2], 255], old, 12)
+        })
+        .map(|p| p.frame)
+        .collect();
+    assert!(
+        old_colored.is_empty(),
+        "THM-003: frames {old_colored:?} after the theme change at frame {at} carried a picture in the old theme's colors"
+    );
+    assert!(
+        after.iter().any(|p| {
+            let c = dominant(p);
+            near([c[0], c[1], c[2], 255], new, 12)
+        }),
+        "THM-003: a picture in the new theme's colors followed the change ({} pictures after frame {at})",
+        after.len()
+    );
+    Theme::set_active(dark_theme());
+}
+
+#[test]
+fn thm_003_after_a_theme_change_no_frame_shows_the_old_theme_picture() {
+    let child = std::process::Command::new(std::env::current_exe().expect("the test binary"))
+        .args(["--exact", "theme_change_child", "--ignored", "--nocapture"])
+        .output()
+        .expect("the test binary runs");
+    let said = String::from_utf8_lossy(&child.stdout).into_owned()
+        + &String::from_utf8_lossy(&child.stderr);
+    assert!(
+        child.status.success() && said.contains("1 passed"),
+        "THM-003: {}",
+        &said[said.find("THM-003").unwrap_or(0)..]
     );
 }
 

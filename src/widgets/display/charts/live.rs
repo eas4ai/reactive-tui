@@ -15,6 +15,7 @@ use crate::{
     layout::style::StyleBuilder,
 };
 use plot::{Rect, Tooltip, TooltipRow};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -129,6 +130,9 @@ pub(super) struct LiveChart {
     transition: motion::Transition,
     /// The hover's motion in a plot picture (CHT-038).
     hover: motion::Hover,
+    /// Whether the plot's canvas shows a picture of the current scene, size
+    /// and theme: the chart reads busy until it does (CHT-036).
+    drawn: Arc<AtomicBool>,
 }
 
 /// Per-series values from the props, the transition's target. A candle
@@ -180,6 +184,7 @@ impl Component for LiveChart {
             reveal: motion::Reveal::new(),
             transition: motion::Transition::new(),
             hover: motion::Hover::new(),
+            drawn: Arc::new(AtomicBool::new(false)),
         }
     }
     fn initial_state(&mut self, props: &Self::Props) -> Self::State {
@@ -447,7 +452,9 @@ impl Component for LiveChart {
                 .children(vec![Element::typed::<Canvas>(
                     CanvasProps::new(scene)
                         .options(super::graphics_options())
-                        .described_by_parent(),
+                        .described_by_parent()
+                        .drawn(self.drawn.clone())
+                        .current_theme_only(),
                 )])
                 .build();
             holder.metadata.inert = true;
@@ -512,7 +519,10 @@ impl Component for LiveChart {
         let stale = picture
             .as_ref()
             .is_none_or(|picture| picture.selected != selected || picture.theme != theme);
-        if stale && drawable && self.worker.is_some() {
+        // A plot drawn as a picture is awaited until the canvas shows it,
+        // which the canvas reports through `drawn` (CHT-036, CHT-037).
+        let awaiting_picture = in_picture && !self.drawn.load(Ordering::SeqCst);
+        if (stale || awaiting_picture) && drawable && self.worker.is_some() {
             node.set_busy();
         }
         element.metadata.accessibility = Some(node);
