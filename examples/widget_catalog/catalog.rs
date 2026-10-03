@@ -201,13 +201,13 @@ impl Default for Catalog {
 impl Catalog {
     #[cfg(feature = "wgpu-graphics")]
     pub fn with_graphics(options: GraphicsOptions, start_motion: bool) -> Self {
-        // Called before SuprTuiBackend::new: the worker makes its renderer
-        // now, so what a graphics driver prints while it starts does not
-        // land on the App's screen.
-        // The charts' plot pictures draw with the same options, so --cpu
-        // and the font apply to them too (CHT-037).
+        // Called before SuprTuiBackend::new: the process's drawing thread
+        // for these options makes its renderer now, before the App holds
+        // the screen, and the charts' plot pictures draw on the same thread
+        // with the same options, so --cpu and the font apply to them too
+        // (GFX-003, CHT-037).
         reactive_tui::widgets::display::charts::set_graphics_options(options.clone());
-        let worker = GraphicsWorker::spawn(options.clone()).ok().map(Arc::new);
+        let worker = GraphicsWorker::shared(&options).ok();
         if let Some(worker) = &worker {
             worker.wait_ready(std::time::Duration::from_secs(10));
         }

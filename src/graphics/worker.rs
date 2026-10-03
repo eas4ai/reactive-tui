@@ -356,8 +356,64 @@ impl Drop for GraphicsWorker {
     }
 }
 
+/// Stderr sent to nowhere while a renderer is made, when stderr is the
+/// terminal: a Vulkan driver prints what it thinks of itself as its
+/// instance is created (Mesa's radv: "not a conformant Vulkan
+/// implementation"), and once an App holds the screen those lines land in
+/// the frame and scroll it. A stderr that is a file or a pipe keeps them.
+/// Anything another thread writes to a terminal stderr meanwhile is lost
+/// with them.
+#[cfg(unix)]
+struct QuietTerminalStderr {
+    saved: Option<libc::c_int>,
+}
+
+#[cfg(unix)]
+impl QuietTerminalStderr {
+    fn start() -> Self {
+        // SAFETY: plain descriptor calls on the process's own stderr; every
+        // descriptor opened here is closed here or in `drop`.
+        unsafe {
+            if libc::isatty(libc::STDERR_FILENO) != 1 {
+                return Self { saved: None };
+            }
+            let null = libc::open(c"/dev/null".as_ptr(), libc::O_WRONLY | libc::O_CLOEXEC);
+            if null < 0 {
+                return Self { saved: None };
+            }
+            let saved = libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+            let moved = saved >= 0 && libc::dup2(null, libc::STDERR_FILENO) == libc::STDERR_FILENO;
+            libc::close(null);
+            if !moved {
+                if saved >= 0 {
+                    libc::close(saved);
+                }
+                return Self { saved: None };
+            }
+            Self { saved: Some(saved) }
+        }
+    }
+}
+
+#[cfg(unix)]
+impl Drop for QuietTerminalStderr {
+    fn drop(&mut self) {
+        if let Some(saved) = self.saved.take() {
+            // SAFETY: `saved` is the duplicate `start` made of stderr.
+            unsafe {
+                libc::dup2(saved, libc::STDERR_FILENO);
+                libc::close(saved);
+            }
+        }
+    }
+}
+
 fn run(shared: Arc<Shared>, options: GraphicsOptions) {
-    let mut renderer = HybridRenderer::new(options);
+    let mut renderer = {
+        #[cfg(unix)]
+        let _quiet = QuietTerminalStderr::start();
+        HybridRenderer::new(options)
+    };
     {
         let mut slots = shared.slots();
         slots.mode = Some(renderer.mode().clone());
