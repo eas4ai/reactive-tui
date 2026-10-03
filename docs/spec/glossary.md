@@ -74,6 +74,11 @@ Terms as the code uses them. Each names where it is defined.
 - **Cell canvas.** The chart's shared mask canvas, which resolves each cell
   to a glyph and its colors (src/widgets/display/charts/mask.rs) and hands
   them to the painter as a CellGrid.
+- **Plot picture.** The pixel picture a line, area, scatter, bar or
+  candlestick chart draws its plot area as where the terminal takes Kitty
+  graphics or Sixel: a canvas at the plot rectangle, drawn on the drawing
+  thread from the chart worker's scene, with the axes, labels, legend and
+  tooltip left as cell text (CHT-037).
 - **Cell.** One character position of the terminal's grid, the unit of
   every length in the layout: a width of 24 is 24 cells across, a height
   of 3 is 3 rows.

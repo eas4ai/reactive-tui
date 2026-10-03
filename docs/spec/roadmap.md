@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: canvas-serves-many-pictures
+Current: charts-plot-on-pixels
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1142,3 +1142,65 @@ changelog names what changed for an application; and the review records
 GFX-011's numbers from the three hosts and screenshots from Kitty on the
 private display of the catalog's Motion page and of a canvas at 520
 columns shown one pixel per screen pixel.
+
+## charts-plot-on-pixels
+
+Requirements: CHT-012, CHT-013, CHT-014, CHT-017, CHT-018, CHT-019, CHT-021, CHT-022, CHT-023, CHT-024, CHT-025, CHT-026, CHT-027, CHT-028, CHT-035, CHT-036, CHT-037, CHT-038, CHT-039, GFX-003, GFX-005, GFX-009, GFX-010, THM-003, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011
+
+The third of the three commitments for the two-axis charts (item c5ba0fa8),
+after two-axis-charts-correct and canvas-serves-many-pictures, opened on
+2026-10-03 after the developer's ok let three backlog items wait again
+(escalation 37eb2e8d). The developer ruled on 2026-10-01 that the line,
+area, scatter, bar and candlestick charts draw their plot areas as pixel
+pictures where the terminal takes pixels, with today's braille as the
+fallback, and confirmed the contract draft on 2026-10-03.
+
+The commitment makes each of the five chart types draw its plot area, the
+grid, reference lines, strokes, fills, markers, bars, candles and the hover
+marks, as one picture per chart where the backend reports Kitty graphics
+or Sixel at startup: a canvas at the plot rectangle, drawn on the drawing
+thread every canvas shares from a scene the chart's worker builds, one
+pixel per screen pixel at the terminal's cell size, redrawn when the cell
+size changes (CHT-037, CHT-021 revised); axes, ticks, titles, legend,
+value labels, inside tick labels and the tooltip stay cell text, painted
+over the picture. The plot is blank until its first picture, never braille
+that then switches, and without pixels, or with the feature off, the bytes
+are the fallback's. The hover moves into the picture as gpui-kit 0.7.0
+draws it: a crosshair with dots in halos, a band that glides between bars
+while the other bars fade, a ring on a scatter's point, one new picture per
+hover change and per frame of the glide, snapped under `reduced-motion`
+(CHT-038). Strokes, markers, gradients and pattern fills take sizes from
+the cell height (CHT-012 revised); bars get exact pixel edges, pixel
+gradients and a `corner_radius` option (CHT-013 revised); thinning is per
+pixel column (CHT-027 revised); the mask canvas is the cell path and draws
+nothing inside a plot that is a picture (CHT-025 revised). On the Linux
+host in release, the nine cartesian charts of the catalog's Charts page in
+a 3 by 3 grid at 240 by 60 cells all show their pictures within a second
+and keep the App's work per frame and its wait in present within a frame
+while a bar chart is hovered every frame, with the tablet's and the Mac's
+numbers recorded (CHT-039); the page itself at 240 columns shows one card
+at a time, so the measurement puts every chart on screen. The backend records what it learned at startup, pixels
+and the cell size, in a process-wide report the chart reads on its first
+frame; a canvas can be told that a parent describes it to the screen
+reader; `REACTIVE_TUI_CANVAS=blocks` and a process-wide `GraphicsOptions`
+for charts turn the plots back to cells or choose the renderer, which the
+catalog's `--cpu` uses. The canvas keeps its rules (GFX-003, GFX-005,
+GFX-009, GFX-010), the charts keep theirs (CHT-014, CHT-017 to CHT-019,
+CHT-022 to CHT-024, CHT-026, CHT-028, CHT-035, CHT-036, THM-003), and the
+chart goldens on the debug backend, which takes no pixels, stay as they are.
+
+Not here: pie, donut, radar and sankey charts in pixels; pixels under real
+text; the shared groundwork for the other widgets, which is item
+pixel-widget-looks (95feb091), though the process-wide report and the
+silent canvas are built so it can reuse them.
+
+Done when every named requirement passes; charts-pictures has recorded a
+fail on a violating example, the code as it is at the start, for CHT-037,
+CHT-038 and CHT-039, and charts-goldens and frame-budget for the revised
+CHT-012, CHT-013, CHT-021, CHT-025 and CHT-027; every reference picture is
+checked in and looked at; the manual's chart sections say when the plot is
+a picture, what the hover looks like and the switches, and the changelog
+names what changed for an application; and the review records screenshots
+of the catalog's Charts page from Kitty on the private display at 100 and
+240 columns in the five presets, with a bar hovered, and from a Sixel
+terminal.

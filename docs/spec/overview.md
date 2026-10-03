@@ -49,7 +49,7 @@ component library as closely as a cell grid allows.
 | File | Prefix | Covers |
 |---|---|---|
 | quality-bar.md | BAR | the bar every commitment must clear: gates, assertions, widget behavior, goldens, frame budget, docs, dangling paths, dependency checks |
-| charts.md | CHT | the plot layer and the chart widget family modeled on gpui-kit |
+| charts.md | CHT | the plot layer and the chart widget family modeled on gpui-kit, the two-axis charts' plot areas as pixel pictures where the terminal takes them |
 | rasterizer.md | RAS | the SuprTUI rasterizer: cursor and style elision, allocation-free emission, replay equivalence, byte and time bounds |
 | painter.md | PNT | the frame painter's fast path, the per-cell hit grid, one element copy per present, layout reuse |
 | presentation.md | PIP | pipelined presentation: geometry returned before the terminal write, one frame in flight, flush failure reporting |
