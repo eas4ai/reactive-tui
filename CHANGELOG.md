@@ -25,7 +25,10 @@ This file records user-visible changes to Reactive TUI. The project follows
   terminal takes, the cell size in pixels and whether Kitty graphics, Kitty
   shared memory or Sixel reach the screen, before its first frame and after
   every resize. `CanvasProps::described_by_parent()` leaves a canvas's
-  screen-reader description to the widget that holds it.
+  screen-reader description to the widget that holds it;
+  `CanvasProps::drawn(flag)` tells the holder while a picture of the
+  current scene is shown; `CanvasProps::current_theme_only()` shows no
+  picture in an older theme's colors after a theme change.
 
 - Every canvas of a process that draws with the same renderer options draws
   on one `rtui-canvas-*` thread, with one adapter, device, set of pipelines
