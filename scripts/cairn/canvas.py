@@ -6,13 +6,16 @@ scenes (canvas-scenes): GFX-001, GFX-003, GFX-007 and GFX-008 through
     tests/canvas_scenes.rs, and GFX-008's demo tests in
     tests/widget_catalog_behavior.rs and tests/animation_showcase_behavior.rs.
 output (canvas-output): GFX-005 through tests/canvas_output.rs and the
-    picture thread's unit tests, and GFX-006 through the library's
-    pseudo-terminal tests (src/backend/suprtui/input_pty.rs).
+    picture thread's unit tests, GFX-006 through the library's
+    pseudo-terminal tests (src/backend/suprtui/input_pty.rs), and GFX-010,
+    pictures one pixel per screen pixel, through tests/canvas_output.rs.
 hosts (canvas-hosts): GFX-002 through tests/canvas_hosts.rs on this host, the
-    macOS host and the Windows tablet, each of which has a hardware adapter,
-    and GFX-004 through tests/canvas_speed.rs in a release build on the
-    tablet, whose 95th percentiles it prints. A failure on any host it
-    reached decides GFX-002.
+    macOS host and the Windows tablet, each of which has a hardware adapter;
+    GFX-004 through tests/canvas_speed.rs in a release build on the tablet,
+    whose 95th percentiles it prints; and GFX-011, fifteen canvases on one
+    drawing thread, through tests/canvas_speed.rs in a release build on this
+    host, where its bound binds, and on the two test hosts, whose numbers it
+    records. A failure on any host it reached decides GFX-002.
 pictures (canvas-pictures): GFX-009 through tests/canvas_pictures.rs, every
     test, the ignored ones too, in a release build on this host, the macOS
     host and the Windows tablet, with the App's wait in present printed for
@@ -69,6 +72,7 @@ def output() -> int:
     return finish({
         "GFX-005": (binary_ok and lib_ok, f"{binary_why}; picture thread: {lib_why}"),
         "GFX-006": cargo_test_filtered(None, "backend::suprtui::input_pty::gfx_006_", package=PACKAGE),
+        "GFX-010": test_group(["canvas_output"], "gfx_010_"),
     })
 
 
@@ -87,25 +91,42 @@ def test_summary(output: str) -> tuple[bool, str]:
     return False, "; ".join(messages)[:300] or f"{failed} failed"
 
 
+def speed_lines(output: str) -> str:
+    """The lines a canvas_speed run prints for GFX-004 and GFX-011."""
+    return "; ".join(re.findall(r"GFX-01[14] .*", output))
+
+
 def hosts() -> int:
     results = {"linux": test_group(["canvas_hosts"], "gfx_002_")}
     missing = []
     speed = None
+    recorded = []
+    tests = f"test --locked -p {PACKAGE} --features wgpu-graphics --jobs {JOBS}"
+    # GFX-011 binds here: fifteen canvases on one drawing thread, in release
+    # on the hardware adapter.
+    local = run(["cargo", *f"{tests} --release --test canvas_speed -- --ignored gfx_011_ --nocapture".split()],
+                timeout=3600, interleave=True)
+    print(local.stdout[-3000:])
+    many_ok, many_why = test_summary(local.stdout + local.stderr)
+    many = (many_ok, f"{speed_lines(local.stdout)}; {many_why}")
     try:
         config = json.loads(CONFIG.read_text())
     except (OSError, ValueError) as error:
         print(f"no readable test host file at {CONFIG} ({error})")
         config = {}
-    tests = f"test --locked -p {PACKAGE} --features wgpu-graphics --jobs {JOBS}"
     with tempfile.TemporaryDirectory(prefix="canvas-hosts-") as scratch:
         commit, bundle = snapshot(Path(scratch))
         for name in HOSTS:
             try:
                 _, out = run_on(name, config[name], commit, bundle, f"{tests} --test canvas_hosts")
                 results[name] = test_summary(out)
+                # The tablet's GFX-004 bound, and the GFX-011 numbers of both
+                # hosts, recorded and not binding there.
+                _, out = run_on(name, config[name], commit, bundle,
+                                f"{tests} --release --test canvas_speed -- --ignored --nocapture")
+                lines = speed_lines(out)
+                recorded.append(f"{name}: {lines or 'no GFX-011 line'}")
                 if name == "windows":
-                    _, out = run_on(name, config[name], commit, bundle,
-                                    f"{tests} --release --test canvas_speed -- --ignored --nocapture")
                     speed = test_summary(out)
                     timing = re.search(r"GFX-004 .*", out)
                     if timing:
@@ -126,7 +147,8 @@ def hosts() -> int:
         print("GFX-004 unverified: the Windows tablet was not reached")
     else:
         report("GFX-004", speed[0], f"windows: {speed[1]}")
-    return 0 if not failed and not missing and speed and speed[0] else 1
+    report("GFX-011", many[0], "; ".join([f"linux: {many[1]}", *recorded]))
+    return 0 if not failed and not missing and speed and speed[0] and many[0] else 1
 
 
 def picture_summary(output: str) -> tuple[bool, str]:
