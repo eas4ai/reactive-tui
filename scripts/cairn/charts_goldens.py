@@ -287,6 +287,9 @@ def wide_problems() -> list[str]:
     problems.extend(regeneration_problems("tests/input_widgets_goldens.rs"))
     problems.extend(regeneration_problems("tests/layout_widgets_goldens.rs"))
     problems.extend(regeneration_problems("tests/data_widgets_goldens.rs"))
+    # The chart's plot pictures (CHT-037): their references are regenerated
+    # under the same rule.
+    problems.extend(regeneration_problems("tests/charts_pictures.rs"))
     return problems
 
 
@@ -300,6 +303,15 @@ def main() -> int:
     for req, sub in (("CHT-012", "cht_012_"), ("CHT-013", "cht_013_"), ("CHT-024", "cht_024_"), ("CHT-026", "cht_026_"),
                      ("CHT-033", "cht_033_")):
         results[req] = cargo_test_filtered("charts_goldens", sub)
+    # The revised CHT-012, CHT-013, CHT-025 and CHT-027 also hold in a plot
+    # drawn as a picture (CHT-037): tests/charts_pictures.rs, built with
+    # wgpu-graphics, joins the cell goldens for them.
+    def with_pictures(req: str, sub: str) -> None:
+        ok, why = results[req]
+        pictures = cargo_test_filtered("charts_pictures", sub, features=CANVAS)
+        results[req] = (ok and pictures[0], f"cells: {why}; pictures: {pictures[1]}")
+    with_pictures("CHT-012", "cht_012_")
+    with_pictures("CHT-013", "cht_013_")
     # CHT-025: fill cells resolve through the renderer's blitters, so the
     # chart code must call the blitter's two-color split.
     if not re.search(r"\bblit_block\b", chart_src):
@@ -307,6 +319,7 @@ def main() -> int:
                                      "(no blit_block call in chart code)")
     else:
         results["CHT-025"] = cargo_test_filtered("charts_goldens", "cht_025_")
+        with_pictures("CHT-025", "cht_025_")
     # CHT-015: the pie and donut expose inner and outer radius and a pad angle.
     absent = [name for name in ("inner_radius", "outer_radius", "pad_angle") if not re.search(rf"\b{name}\b", chart_src)]
     if absent:
@@ -323,6 +336,7 @@ def main() -> int:
         results["CHT-030"] = cargo_test_filtered("charts_goldens", "cht_030_")
     # The decimation cost ratio is a property of the optimized build.
     results["CHT-027"] = cargo_test_filtered("charts_goldens", "cht_027_", release=True)
+    with_pictures("CHT-027", "cht_027_")
     if not re.search(r"enum ChartType\s*\{[^}]*\bCandlestick\b", chart_src, re.S):
         results["CHT-014"] = (False, "no candlestick chart type in chart code")
     else:

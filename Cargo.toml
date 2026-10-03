@@ -167,6 +167,11 @@ name = "canvas_widget"
 path = "tests/canvas_widget.rs"
 required-features = ["wgpu-graphics"]
 
+[[test]]
+name = "charts_pictures"
+path = "tests/charts_pictures.rs"
+required-features = ["wgpu-graphics"]
+
 [[example]]
 name = "wgpu_benchmark"
 path = "examples/wgpu_benchmark.rs"
