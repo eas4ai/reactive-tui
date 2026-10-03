@@ -212,12 +212,15 @@ impl Backend for Timed {
         self.inner.clear()
     }
     fn present(&mut self) -> Result<()> {
-        let work = self
-            .wait_returned
-            .map_or(Duration::ZERO, |returned| returned.elapsed());
         let began = Instant::now();
         self.inner.present()?;
         let waited = began.elapsed();
+        // The App's work for the frame runs from the input wait returning
+        // through the frame being presented (BAR-005), so it includes the
+        // wait in present, which is also measured on its own (CHT-039).
+        let work = self
+            .wait_returned
+            .map_or(Duration::ZERO, |returned| returned.elapsed());
         if self.sync {
             self.inner.sync()?;
         }
@@ -2040,11 +2043,20 @@ fn cht_039_the_nine_charts_keep_the_frame_budget_with_every_plot_a_picture() {
     });
     let run = run(charts_grid(), (240, 60), host, script, stop, false);
     let first = run.frames.first().expect("a first frame");
-    let all_sent = run
-        .frames
-        .iter()
-        .find(|frame| frame.pictures >= CHARTS)
-        .map(|frame| frame.began - first.began);
+    // Every chart has sent its first picture when pictures at nine distinct
+    // placements have been seen: a chart's repeated pictures share one.
+    let placed = run.pictures();
+    let all_sent = (0..run.frames.len())
+        .find(|&frame| {
+            placed
+                .iter()
+                .filter(|picture| picture.frame <= frame)
+                .filter_map(|picture| picture.at)
+                .collect::<BTreeSet<_>>()
+                .len()
+                >= CHARTS
+        })
+        .map(|frame| run.frames[frame].began - first.began);
     let from = ready.lock().unwrap().unwrap_or(run.frames.len());
     let measured: Vec<&Frame> = run.frames.iter().skip(from).take(MEASURED).collect();
     // No frame to measure, because the pictures never all came, counts as
