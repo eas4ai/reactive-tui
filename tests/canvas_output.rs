@@ -1130,3 +1130,110 @@ fn gfx_005_a_slow_terminal_gets_no_backlog() {
         "GFX-005: with a terminal taking 60 ms per flush, canvas frames per flush were {per_flush:?}"
     );
 }
+
+/// The control keys of the first Kitty command in `output` that starts a
+/// picture, each as (key, value).
+fn first_picture_controls(output: &str) -> Vec<(String, String)> {
+    output
+        .split(KITTY)
+        .skip(1)
+        .find(|command| command.contains("a=T"))
+        .map(|command| {
+            command
+                .split(';')
+                .next()
+                .unwrap_or("")
+                .split(',')
+                .filter_map(|pair| pair.split_once('='))
+                .map(|(key, value)| (key.to_owned(), value.to_owned()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The number `key` has among `controls`, if it has one.
+fn control(controls: &[(String, String)], key: &str) -> Option<u32> {
+    controls
+        .iter()
+        .find(|(name, _)| name == key)
+        .and_then(|(_, value)| value.parse().ok())
+}
+
+/// What a terminal of `size` cells that takes `images` is sent by an App
+/// whose one canvas, of the shapes scene on the software renderer, fills
+/// the screen, up to the first frame whose output holds `needle`.
+fn canvas_output_at(size: (u16, u16), images: ImageOutputOptions, needle: &str) -> String {
+    half_blocks();
+    app_input::run_when_output(
+        Root(canvas(canvas_support::shapes(), reference_options(true))),
+        size,
+        images,
+        vec![(needle.to_owned(), 1, None)],
+    )
+    .iter()
+    .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
+    .collect()
+}
+
+#[test]
+fn gfx_010_a_wide_terminal_gets_its_picture_one_pixel_per_screen_pixel() {
+    // 520 columns of 9-pixel cells are 4680 pixels, wider than the 4096 the
+    // canvas once drew at most; the placement names the cells it covers.
+    let host = ImageOutputOptions {
+        kitty_graphics: true,
+        kitty_shared_memory: true,
+        cell_pixels: (9, 18),
+        ..Default::default()
+    };
+    let controls = first_picture_controls(&canvas_output_at((520, 60), host, "a=T"));
+    let got = ["s", "v", "c", "r"].map(|key| control(&controls, key));
+    assert!(
+        got == [Some(4680), Some(1080), Some(520), Some(60)],
+        "GFX-010: a canvas of 520 by 60 cells of 9 by 18 pixels was sent a picture whose s, v, c and r are {got:?}, not 4680, 1080, 520 and 60"
+    );
+}
+
+#[test]
+fn gfx_010_a_picture_too_large_for_the_command_keeps_whole_pixels_per_cell() {
+    // 520 by 260 cells of 8 by 16 pixels are 17.3 million pixels, and a
+    // picture sent in the command itself has room for 12 million: the
+    // canvas draws the largest whole pixels per cell that fit, and the
+    // placement names the cells, which the terminal scales the picture to.
+    let host = ImageOutputOptions {
+        kitty_graphics: true,
+        ..Default::default()
+    };
+    let controls = first_picture_controls(&canvas_output_at((520, 260), host, "a=T"));
+    let got = ["s", "v", "c", "r"].map(|key| control(&controls, key));
+    let [width, height, columns, rows] = got;
+    let whole = width.zip(height).is_some_and(|(width, height)| {
+        width > 0
+            && height > 0
+            && width % 520 == 0
+            && height % 260 == 0
+            && u64::from(width) * u64::from(height) <= 12_000_000
+    });
+    assert!(
+        whole && columns == Some(520) && rows == Some(260),
+        "GFX-010: a canvas of 520 by 260 cells of 8 by 16 pixels sent in the command was given a picture whose s, v, c and r are {got:?}: not whole pixels per cell within 12 million pixels, or a placement that does not name its 520 by 260 cells"
+    );
+}
+
+#[test]
+fn gfx_010_on_sixel_the_picture_is_the_cells_pixels() {
+    // The same 520 by 60 cells of 9 by 18 pixels as Sixel: the raster is
+    // 4680 by 1080 pixels, one per screen pixel.
+    let host = ImageOutputOptions {
+        sixel: true,
+        cell_pixels: (9, 18),
+        ..Default::default()
+    };
+    let output = canvas_output_at((520, 60), host, SIXEL);
+    let picture = output.split(SIXEL).nth(1).expect("a Sixel picture");
+    let (size, _) = canvas_support::sixel_pixels(picture);
+    assert_eq!(
+        size,
+        (4680, 1080),
+        "GFX-010: a Sixel canvas of 520 by 60 cells of 9 by 18 pixels was sent a raster of {size:?}"
+    );
+}

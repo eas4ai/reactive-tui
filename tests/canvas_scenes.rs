@@ -12,8 +12,8 @@ mod common;
 
 use canvas_support::{check_reference, reference_options, references, SIZE};
 use common::app_input;
-use reactive_tui::app::{RootComponent, RootUpdate};
-use reactive_tui::backend::ImageOutputOptions;
+use reactive_tui::app::{App, RootComponent, RootUpdate};
+use reactive_tui::backend::{ImageOutputOptions, SuprTuiBackend};
 use reactive_tui::component::Element;
 use reactive_tui::event::router::EventResult;
 use reactive_tui::event::types::{Event, KeyCode, KeyEvent};
@@ -22,7 +22,7 @@ use reactive_tui::graphics::{
     HybridRenderer, Paint, Path, PathBuilder, Scene, Stroke,
 };
 use reactive_tui::theme::{Theme, ThemeVariables};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// A scene that fills the picture with one color.
@@ -626,9 +626,10 @@ fn kitty_sizes(output: &str) -> Vec<(u32, u32)> {
 }
 
 #[test]
-fn gfx_001_an_area_above_the_largest_picture_shows_that_picture() {
-    // 700 by 200 cells of 8 by 16 pixels are 5600 by 3200 pixels; the
-    // largest picture is 4096 pixels wide, which is 512 of those cells.
+fn gfx_001_an_area_wider_than_4096_pixels_is_drawn_whole() {
+    // 600 by 200 cells of 8 by 16 pixels are 4800 by 3200 pixels: wider
+    // than the 4096 the canvas once drew at most, and within the 64 MiB a
+    // frame holds for one picture (GFX-010).
     let shared = ImageOutputOptions {
         kitty_graphics: true,
         kitty_shared_memory: true,
@@ -636,31 +637,269 @@ fn gfx_001_an_area_above_the_largest_picture_shows_that_picture() {
     };
     let sizes = kitty_sizes(&sent_until(
         shapes_canvas(),
-        (700, 200),
+        (600, 200),
         shared,
         vec![("a=T", None)],
     ));
-    // Sent in the command itself a picture is written as base64, and a
-    // frame's output holds 64 MiB: 520 by 260 cells, 4160 by 4160 pixels,
-    // are drawn as far as that allows.
-    let direct = ImageOutputOptions {
-        kitty_graphics: true,
-        ..Default::default()
-    };
-    let sent = kitty_sizes(&sent_until(
-        shapes_canvas(),
-        (520, 260),
-        direct,
-        vec![("a=T", None)],
-    ));
-    let fits = |&(width, height): &(u32, u32)| {
-        width == 4096
-            && height % 16 == 0
-            && u64::from(width) * u64::from(height) * 16 / 3 < 64 << 20
-    };
     assert!(
-        sizes.first() == Some(&(4096, 3200)) && sent.first().is_some_and(fits),
-        "GFX-001: an area of 5600 by 3200 pixels was sent pictures of {sizes:?} through shared memory, and one of 4160 by 4160 pixels was sent pictures of {sent:?} in the command itself"
+        sizes.first() == Some(&(4800, 3200)),
+        "GFX-001: an area of 600 by 200 cells of 8 by 16 pixels was sent pictures of {sizes:?}, not one of 4800 by 3200"
+    );
+}
+
+/// A terminal that keeps the screen the App's output paints, so a root can
+/// look at what each canvas shows.
+#[derive(Clone)]
+struct ScreenTerminal {
+    parser: Arc<Mutex<vt100::Parser>>,
+}
+impl ScreenTerminal {
+    fn new(columns: u16, rows: u16) -> Self {
+        Self {
+            parser: Arc::new(Mutex::new(vt100::Parser::new(rows, columns, 0))),
+        }
+    }
+    /// The RGB colors of the cell at `column`, `row`: its glyph's and its
+    /// background's, those that are RGB.
+    fn colors(&self, column: u16, row: u16) -> Vec<[u8; 3]> {
+        let parser = self.parser.lock().unwrap();
+        let Some(cell) = parser.screen().cell(row, column) else {
+            return Vec::new();
+        };
+        [cell.fgcolor(), cell.bgcolor()]
+            .into_iter()
+            .filter_map(|color| match color {
+                vt100::Color::Rgb(r, g, b) => Some([r, g, b]),
+                _ => None,
+            })
+            .collect()
+    }
+}
+impl std::io::Write for ScreenTerminal {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.parser.lock().unwrap().process(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// The canvases of GFX-003's sharing tests, side by side.
+const MANY: usize = 15;
+
+/// The color canvas `n` of the fifteen draws: no two alike, and none a
+/// part of another's name in the output.
+fn own_rgb(n: usize) -> [u8; 3] {
+    [(16 * n + 15) as u8, 90, 60]
+}
+
+/// Whether each of the fifteen canvases, 10 cells wide from the left,
+/// shows its own color in its middle.
+fn shows_own_color(terminal: &ScreenTerminal) -> Vec<bool> {
+    (0..MANY)
+        .map(|n| terminal.colors(10 * n as u16 + 5, 6).contains(&own_rgb(n)))
+        .collect()
+}
+
+/// Fifteen canvases side by side, each a solid color of its own, all
+/// drawing on one worker the application started. The root looks at the
+/// screen each frame and stops once every canvas shows its color, or at
+/// its deadline.
+struct Fifteen {
+    worker: Arc<GraphicsWorker>,
+    terminal: ScreenTerminal,
+    deadline: Instant,
+}
+impl RootComponent for Fifteen {
+    fn render(&self) -> Element {
+        use reactive_tui::builder::core::div;
+        div()
+            .class("flex flex-row w-full h-full")
+            .children(
+                (0..MANY)
+                    .map(|n| {
+                        let [r, g, b] = own_rgb(n);
+                        let props = CanvasProps::new(Arc::new(solid(Color::rgba(r, g, b, 255))))
+                            .options(reference_options(true))
+                            .worker(self.worker.clone());
+                        div()
+                            .class("w-10 h-full")
+                            .children(vec![Element::typed::<Canvas>(props)])
+                            .build()
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .build()
+    }
+    fn update(&mut self) -> reactive_tui::error::Result<RootUpdate> {
+        let shown = shows_own_color(&self.terminal);
+        if shown.iter().all(|shown| *shown) || Instant::now() >= self.deadline {
+            return Ok(RootUpdate::Exit);
+        }
+        Ok(RootUpdate::Redraw)
+    }
+    /// The backend writes to memory and has no terminal to read keys from.
+    fn accepts_input(&self) -> bool {
+        false
+    }
+}
+
+#[test]
+fn gfx_003_canvases_sharing_a_worker_each_show_their_own_picture() {
+    let worker = Arc::new(GraphicsWorker::spawn(reference_options(true)).expect("a worker"));
+    let terminal = ScreenTerminal::new(150, 12);
+    let backend = SuprTuiBackend::with_writer_and_images(
+        150,
+        12,
+        terminal.clone(),
+        ImageOutputOptions::default(),
+    )
+    .expect("a backend that writes to memory");
+    App::builder()
+        .backend(backend)
+        .root(Fifteen {
+            worker,
+            terminal: terminal.clone(),
+            deadline: Instant::now() + Duration::from_secs(20),
+        })
+        .build()
+        .expect("an App")
+        .run()
+        .expect("the App runs to its end");
+    let shown = shows_own_color(&terminal);
+    let wrong: Vec<(usize, Vec<[u8; 3]>)> = (0..MANY)
+        .filter(|&n| !shown[n])
+        .map(|n| (n, terminal.colors(10 * n as u16 + 5, 6)))
+        .collect();
+    assert!(
+        wrong.is_empty(),
+        "GFX-003: of fifteen canvases on one worker, these did not show their own color (canvas, colors shown): {wrong:?}"
+    );
+}
+
+/// How many threads of this process are named `rtui-canvas-*`, read from
+/// /proc, so Linux counts.
+#[cfg(target_os = "linux")]
+fn drawing_threads() -> usize {
+    std::fs::read_dir("/proc/self/task")
+        .map(|tasks| {
+            tasks
+                .flatten()
+                .filter(|task| {
+                    std::fs::read_to_string(task.path().join("comm"))
+                        .unwrap_or_default()
+                        .starts_with("rtui-canvas")
+                })
+                .count()
+        })
+        .unwrap_or(0)
+}
+
+/// Fifteen canvases of the shapes scene in a grid of five by three, each
+/// on the worker it starts itself; after a few frames the root counts the
+/// drawing threads and stops.
+#[cfg(target_os = "linux")]
+struct Counting {
+    frame: usize,
+    threads: Arc<Mutex<Option<usize>>>,
+}
+#[cfg(target_os = "linux")]
+impl RootComponent for Counting {
+    fn render(&self) -> Element {
+        use reactive_tui::builder::core::div;
+        div()
+            .class("flex flex-col w-full h-full")
+            .children(
+                (0..3)
+                    .map(|_| {
+                        div()
+                            .class("flex flex-row w-full h-12")
+                            .children(
+                                (0..5)
+                                    .map(|_| {
+                                        div()
+                                            .class("w-30 h-12")
+                                            .children(vec![shapes_canvas()])
+                                            .build()
+                                    })
+                                    .collect::<Vec<_>>(),
+                            )
+                            .build()
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .build()
+    }
+    fn update(&mut self) -> reactive_tui::error::Result<RootUpdate> {
+        self.frame += 1;
+        if self.frame < 4 {
+            return Ok(RootUpdate::Redraw);
+        }
+        // Counted while the canvases are shown, so their threads are alive.
+        *self.threads.lock().unwrap() = Some(drawing_threads());
+        Ok(RootUpdate::Exit)
+    }
+    /// The backend writes to memory and has no terminal to read keys from.
+    fn accepts_input(&self) -> bool {
+        false
+    }
+}
+
+/// One App of fifteen canvases, in a process of its own: the other tests of
+/// this binary start workers too, which would be counted.
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "run by gfx_003_fifteen_canvases_share_one_drawing_thread in a process of its own"]
+fn fifteen_canvases_child() {
+    let threads = Arc::new(Mutex::new(None));
+    let backend = SuprTuiBackend::with_writer_and_images(
+        150,
+        36,
+        ScreenTerminal::new(150, 36),
+        ImageOutputOptions::default(),
+    )
+    .expect("a backend that writes to memory");
+    App::builder()
+        .backend(backend)
+        .root(Counting {
+            frame: 0,
+            threads: Arc::clone(&threads),
+        })
+        .build()
+        .expect("an App")
+        .run()
+        .expect("the App runs to its end");
+    let threads = threads
+        .lock()
+        .unwrap()
+        .expect("the root counted the threads");
+    println!("GFX-003 drawing threads for fifteen canvases: {threads}");
+    assert!(
+        threads == 1,
+        "GFX-003: fifteen canvases drawn with the same options started {threads} drawing threads, not one"
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn gfx_003_fifteen_canvases_share_one_drawing_thread() {
+    let child = std::process::Command::new(std::env::current_exe().expect("the test binary"))
+        .args([
+            "--exact",
+            "fifteen_canvases_child",
+            "--ignored",
+            "--nocapture",
+        ])
+        .output()
+        .expect("the test binary runs");
+    let said = String::from_utf8_lossy(&child.stdout).into_owned()
+        + &String::from_utf8_lossy(&child.stderr);
+    let from = said.find("GFX-003").unwrap_or(0);
+    assert!(
+        child.status.success() && said.contains("1 passed"),
+        "GFX-003: {}",
+        &said[from..]
     );
 }
 
