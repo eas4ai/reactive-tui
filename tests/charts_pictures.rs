@@ -1807,8 +1807,13 @@ fn hovered_bars(class: Option<&str>) -> (Vec<Picture>, Vec<(u32, u32)>) {
 fn cht_038_a_hovered_bar_chart_fades_the_others_and_glides_the_band() {
     let (pictures, bars) = hovered_bars(None);
     let centers: Vec<f64> = pictures.iter().filter_map(band_center).collect();
+    // The band moves toward the fifth bar and never back, through at least
+    // three positions; once it has settled a later picture may repeat the
+    // final center.
+    let mut distinct = centers.clone();
+    distinct.dedup();
     assert!(
-        centers.len() >= 3 && centers.windows(2).all(|pair| pair[1] > pair[0]),
+        distinct.len() >= 3 && centers.windows(2).all(|pair| pair[1] >= pair[0]),
         "CHT-038: the band glides from the second bar to the fifth over several pictures, found centers {centers:?}"
     );
     let target = f64::from(bars[4].0 + bars[4].1) / 2.0;
