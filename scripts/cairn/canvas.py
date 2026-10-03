@@ -107,7 +107,8 @@ def hosts() -> int:
     local = run(["cargo", *f"{tests} --release --test canvas_speed -- --ignored gfx_011_ --nocapture".split()],
                 timeout=3600, interleave=True)
     print(local.stdout[-3000:])
-    many_ok, many_why = test_summary(local.stdout + local.stderr)
+    # An interleaved run has its stderr in stdout.
+    many_ok, many_why = test_summary(local.stdout)
     many = (many_ok, f"{speed_lines(local.stdout)}; {many_why}")
     try:
         config = json.loads(CONFIG.read_text())
