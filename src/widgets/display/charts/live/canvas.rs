@@ -859,6 +859,47 @@ mod tests {
         }
     }
 
+    /// CHT-027: a scatter on a numeric x drawn as a picture is thinned per
+    /// pixel column, not per cell column: 10,000 points over a plot 160
+    /// pixels wide keep more than two per cell could and at most two per
+    /// pixel column.
+    #[cfg(feature = "wgpu-graphics")]
+    #[test]
+    fn cht_027_a_numeric_scatter_picture_keeps_two_points_per_pixel_column() {
+        let points: Vec<DataPoint> = (0..10_000)
+            .map(|i| {
+                DataPoint::xy(
+                    (i as f64 * 0.37) % 100.0,
+                    ((i as f64) * 0.01).sin() * 4.0 + 5.0,
+                )
+            })
+            .collect();
+        let mut p = props(ChartType::Scatter, &[]);
+        p.series = vec![DataSeries::new("s", points)];
+        p.x_axis.show_labels = false;
+        p.y_axis.show_labels = false;
+        let values: Vec<Vec<f64>> = vec![p.series[0].data.iter().map(|q| q.value).collect()];
+        let picture = draw(&Job {
+            props: &p,
+            width: 20,
+            height: 12,
+            values: &values,
+            progress: 1.0,
+            transition: None,
+            unicode_glyphs: true,
+            selected: None,
+            pixels: Some(PlotPixels {
+                cell: (8, 16),
+                hover: None,
+            }),
+        });
+        let kept = picture.kept[0].len();
+        assert!(
+            kept > 40 && kept <= 320,
+            "{kept} points kept of 10,000 for 160 pixel columns (two per cell column would be 40)"
+        );
+    }
+
     /// CHT-027: a plot drawn as a picture is thinned per pixel column, so a
     /// 10,000-point line on a plot 160 pixels wide is drawn from at most two
     /// points per column.
