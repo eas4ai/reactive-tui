@@ -1244,13 +1244,17 @@ fn alpha_at(picture: &Picture, x: f64, y: f64) -> u8 {
     picture.pixel(x as u32, y as u32)[3]
 }
 
+/// A gradient case: the values, the value axis's limits, and probes as
+/// (column, stroke y, baseline y) in fractions of the picture.
+type GradientCase = ([f64; 6], f64, f64, Vec<(f64, f64, f64)>);
+
 #[test]
 fn cht_012_a_gradient_area_below_or_across_its_baseline_fades_toward_it() {
     // A bare 80 by 24 area is a 640 by 384 picture with its six points at
     // x = 0, 128, 256, 384, 512, 640. Negative values put the area below its
     // baseline, mixed values across it: on each side the fill is strongest
     // at the stroke and transparent at the baseline.
-    let cases: [([f64; 6], f64, f64, Vec<(f64, f64, f64)>); 2] = [
+    let cases: [GradientCase; 2] = [
         // (column, stroke y, baseline y) per probe, in fractions of the picture
         (
             [-2.0, -8.0, -5.0, -9.0, -3.0, -7.0],
