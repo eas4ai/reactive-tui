@@ -1032,20 +1032,19 @@ pub(super) fn cartesian(
                         .clone()
                         .unwrap_or_else(|| format_tick(point.value));
                     let label_color = point.label_color.as_deref().and_then(color).or(tint);
-                    let outward = (growth == BarGrowth::Bottom || growth == BarGrowth::Right)
-                        == (value >= 0.0);
-                    labels.push((tip.0, tip.1, label, label_color, outward, value.abs()));
+                    labels.push((tip.0, tip.1, label, label_color, value >= 0.0, value.abs()));
                 }
             }
         }
         labels.sort_by(|a, b| b.5.total_cmp(&a.5));
-        for (tip_x, tip_y, label, label_color, outward, _) in labels {
+        for (tip_x, tip_y, label, label_color, positive, _) in labels {
             let width = text_width(&label);
             if horizontal {
-                // Beside the tip, past it in the growth direction, on the
-                // bar's row; a bar sharing its row with another takes the
-                // next free span along the row.
-                let rightward = (growth == BarGrowth::Left) == outward;
+                // Beside the tip, past it in the direction the bar grew (a
+                // positive bar from the left and a negative bar from the
+                // right grow rightward), on the bar's row; a bar sharing its
+                // row with another takes the next free span along the row.
+                let rightward = (growth == BarGrowth::Left) == positive;
                 let x = if rightward {
                     tip_x + 1
                 } else {
@@ -1059,6 +1058,7 @@ pub(super) fn cartesian(
                 // in the headroom rows the plot kept, one row further out
                 // when a neighbour's label is in the way; the tip row itself
                 // when no row past it has room.
+                let outward = (growth == BarGrowth::Bottom) == positive;
                 let rows: Vec<usize> = if outward {
                     (1..=label_room.max(1))
                         .filter_map(|k| tip_y.checked_sub(k))

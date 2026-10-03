@@ -788,6 +788,75 @@ mod tests {
         }
     }
 
+    /// CHT-013: a horizontal bar's value label starts in the cell after its
+    /// tip, in the direction the bar grew, on the mask and in a picture; it
+    /// never sits inside the bar.
+    fn label_cell(grid: &CellGrid, row: usize, label: &str) -> Option<usize> {
+        (0..grid.width())
+            .find(|&x| grid.get(x, row as u16).is_some_and(|(g, _)| g == label))
+            .map(usize::from)
+    }
+
+    #[test]
+    fn cht_013_a_horizontal_bars_label_starts_after_its_tip() {
+        let mut p = props(ChartType::BarHorizontal, &[2.0, 8.0]);
+        p.value_labels = Some(true);
+        let values = vec![vec![2.0, 8.0]];
+        let job = |pixels| Job {
+            props: &p,
+            width: 40,
+            height: 8,
+            values: &values,
+            progress: 1.0,
+            transition: None,
+            unicode_glyphs: true,
+            selected: None,
+            pixels,
+        };
+        let cells = draw(&job(None));
+        for (i, label) in [(0usize, "2"), (1, "8")] {
+            let (tip_x, tip_y) = cells.anchors[&(0, i)];
+            let at = label_cell(&cells.grid, tip_y, label)
+                .unwrap_or_else(|| panic!("the label {label} is on the bar's row {tip_y}"));
+            assert_eq!(
+                at,
+                tip_x + 1,
+                "on the mask the label {label} starts right after the tip cell {tip_x}:\n{}",
+                cells.grid.to_text()
+            );
+            let (tip_glyph, _) = cells
+                .grid
+                .get(tip_x as u16, tip_y as u16)
+                .unwrap_or(("", None));
+            assert!(
+                tip_glyph
+                    .chars()
+                    .all(|c| ('\u{2588}'..='\u{258f}').contains(&c)),
+                "the tip cell keeps its block, found {tip_glyph:?}"
+            );
+        }
+        #[cfg(feature = "wgpu-graphics")]
+        {
+            let picture = draw(&job(Some(PlotPixels {
+                cell: (8, 16),
+                hover: None,
+            })));
+            let over = picture
+                .over
+                .as_ref()
+                .expect("the in-plot text over the picture");
+            for (i, label) in [(0usize, "2"), (1, "8")] {
+                let (tip_x, tip_y) = picture.anchors[&(0, i)];
+                assert_eq!(
+                    label_cell(over, tip_y, label),
+                    Some(tip_x + 1),
+                    "in a picture the label {label} starts right after the tip cell {tip_x}:\n{}",
+                    over.to_text()
+                );
+            }
+        }
+    }
+
     /// CHT-027: a plot drawn as a picture is thinned per pixel column, so a
     /// 10,000-point line on a plot 160 pixels wide is drawn from at most two
     /// points per column.
