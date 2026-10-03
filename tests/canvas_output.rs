@@ -1423,3 +1423,65 @@ fn gfx_010_a_translucent_canvas_over_a_pinned_canvas_blends_with_its_pixels() {
         "GFX-010: green at half alpha over a red canvas pinned to 4 by 8 pixels per cell is half red, half green in every cell; found {colors:?}"
     );
 }
+
+/// A scene whose Sixel text at one pixel per screen pixel is more than the
+/// 64 MiB a picture may take, within the frame's room for its pixels: a
+/// 4096 by 4096 image of 256 colors, each on columns of its own in every
+/// band, so each color's pass in each band is a gap and a glyph per
+/// occurrence (about 84 MiB of text).
+fn separated_colors() -> Scene {
+    const SIDE: u32 = 4096;
+    let pixels: Vec<[u8; 4]> = (0..SIDE * SIDE)
+        .map(|i| {
+            let (x, y) = (i % SIDE, i / SIDE);
+            let index = (x + 37 * y) % 256;
+            [
+                index as u8,
+                (index * 7 % 256) as u8,
+                (255 - index) as u8,
+                255,
+            ]
+        })
+        .collect();
+    let image = Arc::new(
+        reactive_tui::graphics::CanvasImage::from_rgba(SIDE, SIDE, pixels).expect("an image"),
+    );
+    let mut scene = Scene::new();
+    scene.image((0.0, 0.0, SIDE as f32, SIDE as f32), image);
+    scene
+}
+
+#[test]
+#[ignore = "a release-build run of an 84 MiB Sixel text; canvas-output runs it in release"]
+fn gfx_010_a_sixel_picture_whose_text_overflows_is_drawn_with_fewer_pixels_per_cell() {
+    // 512 by 256 cells of 8 by 16 pixels: 4096 by 4096 at one pixel per
+    // screen pixel, within the frame's room for the pixels, yet the Sixel
+    // text overflows the 64 MiB a picture may take. The canvas learns the
+    // room and draws the next picture with 4 by 8 pixels per cell, whose
+    // text fits; the terminal gets one raster of 4096 by 4096 and no
+    // message.
+    half_blocks();
+    let host = ImageOutputOptions {
+        sixel: true,
+        cell_pixels: (8, 16),
+        ..Default::default()
+    };
+    let frames = app_input::run_when_output(
+        Root(canvas(separated_colors(), reference_options(true))),
+        (512, 256),
+        host,
+        vec![(SIXEL.to_owned(), 1, None)],
+    );
+    let output: String = frames
+        .iter()
+        .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
+        .collect();
+    let picture = output.split(SIXEL).nth(1).expect("a Sixel picture");
+    let ((width, height), _) = canvas_support::sixel_pixels(picture);
+    let text = picture.find('\x1b').unwrap_or(picture.len());
+    let message = frames.iter().any(|frame| frame.text.contains("Canvas:"));
+    assert!(
+        (width, height) == (4096, 4096) && text <= 64 * 1024 * 1024 && !message,
+        "GFX-010: a Sixel picture whose text overflows at one pixel per screen pixel: the raster sent is {width} by {height}, its text {text} bytes, and the canvas shows a message: {message}"
+    );
+}
