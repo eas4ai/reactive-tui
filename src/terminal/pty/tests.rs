@@ -210,3 +210,39 @@ fn trm_001_drop_reaps_a_flooding_child_within_a_second() {
     assert!(took < Duration::from_secs(1), "drop took {took:?}");
     assert_reaped(pid);
 }
+
+/// Finding 1 of the adversary's report: output a stop character (Ctrl-S,
+/// `stty ixon`) has paused never drains, and macOS holds the child's exit
+/// for it all the same, so a stop that only reads the master would wait
+/// forever here. The flood enables flow control, is read once, is paused
+/// with Ctrl-S through the terminal's input, and is then killed.
+#[cfg(unix)]
+#[test]
+fn trm_001_kill_reaps_a_child_whose_output_a_stop_character_paused() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = tempfile::tempdir().unwrap();
+    let path = fixture.path().join("paused-flood");
+    std::fs::write(
+        &path,
+        "#!/bin/sh\nstty ixon -ixany\nwhile :; do printf 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; done\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let mut pty = PseudoTerminal::new();
+    pty.spawn(&TerminalConfig {
+        shell: Some(path.to_str().unwrap().to_owned()),
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(pty
+        .read_output(Some(Duration::from_secs(30)))
+        .unwrap()
+        .is_some_and(|bytes| !bytes.is_empty()));
+    // Setup: the stop character pauses the output while unread bytes queue.
+    pty.write_input(&[0x13]).unwrap();
+    std::thread::sleep(Duration::from_millis(500));
+    let pid = pty.child_id().unwrap();
+    let took = stop_within_guard(move || pty.kill().unwrap());
+    assert!(took < Duration::from_secs(1), "kill took {took:?}");
+    assert_reaped(pid);
+}
