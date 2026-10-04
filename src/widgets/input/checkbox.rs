@@ -156,7 +156,7 @@ impl Component for Checkbox {
         ];
         let pieces = [
             ("[", frame),
-            (mark, look::MARK),
+            (mark, look::label(true)),
             ("]", frame),
             label_pieces[0],
             label_pieces[1],
