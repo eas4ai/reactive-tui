@@ -830,40 +830,55 @@ fn cht_027_ten_thousand_points_cost_at_most_twice_one_thousand() {
                 point.x = Some((i as f64 * 0.37) % 100.0);
             }
         }
-        // The quietest frame is the cost of the chart itself; every other
-        // frame also measures whatever else the machine was doing at that
-        // moment, and a loaded host (another project's build beside this
-        // test) once made two frames of one run look like no decimation.
-        // The two settled frames of each of five runs leave the noise little
-        // room to hide in: it can only raise a frame's cost, never lower it.
-        let mut quietest = f64::INFINITY;
-        for _ in 0..5 {
-            let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                app_input::run(
-                    Root(Element::typed::<Chart>(p.clone())),
-                    size,
-                    vec![(3, None)],
-                )
-            }));
-            match run {
-                Ok(frames) => {
-                    quietest = frames
-                        .iter()
-                        .skip(1)
-                        .map(|f| f.work_ms)
-                        .fold(quietest, f64::min)
-                }
-                Err(_) => panic!(
-                    "{n} points did not paint three frames inside the harness's {:?} hang guard: the chart does not decimate to its column count",
-                    app_input::HANG_GUARD
-                ),
-            }
+        // The run ends once the App is idle with the chart settled, not after
+        // a count of settled frames: on a loaded host the raster worker
+        // outlasts the frame interval, the frames of the value transition
+        // present busy, and a count of settled frames may never be reached.
+        // A run's quietest frame after the first is the cost of the chart
+        // itself; every other frame also measures whatever else the machine
+        // was doing at that moment, and that noise can only raise a frame's
+        // cost, never lower it.
+        let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            app_input::run_until(
+                Root(Element::typed::<Chart>(p.clone())),
+                size,
+                vec![app_input::Until {
+                    text: "",
+                    cell: None,
+                    event: None,
+                }],
+                app_input::HANG_GUARD,
+            )
+        }));
+        match run {
+            Ok(frames) => frames
+                .iter()
+                .skip(usize::from(frames.len() > 1))
+                .map(|f| f.work_ms)
+                .fold(f64::INFINITY, f64::min),
+            Err(_) => panic!(
+                "{n} points did not settle inside the harness's {:?} hang guard: the chart does not decimate to its column count",
+                app_input::HANG_GUARD
+            ),
         }
-        quietest
     };
     for (kind, numeric_x) in [(ChartType::Line, false), (ChartType::Scatter, true)] {
-        let small = work(1_000, kind.clone(), numeric_x).max(0.5);
-        let big = work(10_000, kind.clone(), numeric_x);
+        // The two sizes are measured back to back in each of five rounds and
+        // the round with the smallest ratio decides, so both sizes meet the
+        // same machine: a loaded host (another project's build beside this
+        // test) once slowed only the large chart's runs, after the small
+        // chart's runs had finished, and made decimation look absent. Without
+        // decimation the large chart costs ten times the small one in every
+        // round.
+        let mut best: Option<(f64, f64)> = None;
+        for _ in 0..5 {
+            let small = work(1_000, kind.clone(), numeric_x).max(0.5);
+            let big = work(10_000, kind.clone(), numeric_x);
+            if best.is_none_or(|(b, s)| big / small < b / s) {
+                best = Some((big, small));
+            }
+        }
+        let (big, small) = best.unwrap();
         assert!(
             big <= small * 2.0,
             "{kind:?}: 10,000 points took {big:.1} ms per frame against {small:.1} ms for 1,000: no decimation"
