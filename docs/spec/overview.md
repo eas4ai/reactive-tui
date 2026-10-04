@@ -65,6 +65,7 @@ component library as closely as a cell grid allows.
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults, the demos, pictures made ready off the App's wait, the drawing thread every canvas shares, and pictures one pixel per screen pixel |
 | reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter |
 | terminal.md | TRM | the terminal widget's and the embedded session's pseudo-terminal child: stopping it ends and reaps the child within a bound on Linux and macOS, also when its output went unread |
+| pixel-looks.md | PIX | a widget's or element's look as a pixel picture where the terminal takes pixels, around its text, kept and sent only when it changes, hidden under what covers it, back to cells by a switch; the looks of rounded containers, buttons, cards, text inputs, checkboxes, radios, sliders and progress bars; their speed and scale |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -79,7 +80,8 @@ is contract.
   docs/recon.md section 8.
 - Components, elements, hooks, the single-threaded signal, scheduler, wake
   (src/component, src/reactive), other than reactive.md's thread-safe signal.
-- Layout and utility classes other than layout.md's (src/layout), and the
+- Layout and utility classes other than layout.md's and the rounded, border
+  and ring classes of pixel-looks.md (src/layout), and the
   parts of a theme other than its color roles: spacing variables, loading
   a theme from a file, the syntax colors (src/theme, src/syntax).
 - Widgets other than the charts, the canvas, the menus, the overlays, the

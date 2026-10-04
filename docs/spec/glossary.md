@@ -74,6 +74,13 @@ Terms as the code uses them. Each names where it is defined.
 - **Cell canvas.** The chart's shared mask canvas, which resolves each cell
   to a glyph and its colors (src/widgets/display/charts/mask.rs) and hands
   them to the painter as a CellGrid.
+- **Pixel look.** A widget's or an element's appearance drawn as one pixel
+  picture over the rectangle it paints where the terminal takes pixels,
+  around its text, with its cell look as the fallback (pixel-looks.md).
+- **Cut-out cell.** A cell of a picture's rectangle that holds text: the
+  picture's pixels there are cut out on the cell's edges and the cell is
+  painted in the flat color the look names, so text reads over a picture
+  on Kitty graphics and on Sixel alike (PIX-001).
 - **Plot picture.** The pixel picture a line, area, scatter, bar or
   candlestick chart draws its plot area as where the terminal takes Kitty
   graphics or Sixel: a canvas at the plot rectangle, drawn on the drawing

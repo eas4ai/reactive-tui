@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: push-ci-workflow-repair
+Current: pixel-widget-looks
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -49,6 +49,12 @@ visible in braille, to the widget bar and gpui-kit 0.7.0), then
 canvas-serves-many-pictures (one drawing thread per App, pictures 1:1 up
 to the adapter's limit), then charts-plot-on-pixels (the plot areas as
 pictures, hover drawn in them).
+After push-ci-workflow-repair the developer confirmed on 2026-10-04 that
+pixel-widget-looks goes first while two backlog items wait (escalation
+ecdb2397): the shared groundwork of the pixel looks, proven on buttons,
+cards, text inputs, checkboxes, radios, sliders and progress bars; each
+other family follows in a commitment of its own, its cell look kept as
+the fallback.
 
 ## charts-plot-layer
 
@@ -1283,3 +1289,61 @@ recorded a fail on the tree as it was at the start, the workflow's run for
 the final commit is green on the three runners, and the changelog names the
 two fixes for an application that validates dialogs over HTTP on Windows or
 draws radar charts on Apple Silicon.
+
+## pixel-widget-looks
+
+Requirements: PIX-001, PIX-002, PIX-003, PIX-004, PIX-005, PIX-006, CTL-001, CTL-002, CTL-004, DAT-001, THM-003, GFX-003, GFX-005, GFX-009, GFX-010, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The first of the pixel-look commitments (item pixel-widget-looks, 95feb091),
+opened on 2026-10-04 after the developer's ok let two backlog items wait
+(escalation ecdb2397). The developer asked on 2026-10-01 for every widget to
+move onto the pixel canvas with its cell look as the fallback, and agreed
+that the shared groundwork comes first, proven on six kinds of widget, and
+that pixels under real text wait: pictures around text are clean in Kitty,
+Konsole, WezTerm and Sixel, pictures under text are not.
+
+The commitment builds the groundwork: a look is one picture over the
+widget's rectangle, drawn on the drawing thread every canvas shares, one
+pixel per screen pixel, with every cell that holds text cut out and painted
+in the look's flat color so text reads over it on Kitty graphics and Sixel
+alike, in theme roles, with no screen-reader node of its own, and back to
+cells where the terminal takes no pixels or the switch says so, byte for
+byte the fallback (PIX-001); pictures kept and drawn only when their look
+changes, placed again rather than sent again when they move under Kitty,
+deleted when they leave, redrawn when the cell size changes, and hidden
+under panels, lists, modals, popovers, toasts and dialogs (PIX-002). On it,
+the six kinds: rounded containers with borders and rings from their
+classes, which gives `builder::button()`, `builder::primary_button()`,
+`builder::card()` and `card_builder()` their rounded fills, borders and
+focus rings and brings the card helpers to theme roles (PIX-003); the text
+input's field, the checkbox's box and the radio's circle (PIX-004); the
+slider's track and thumb and the progress bar's track and fill at the exact
+pixel of their values, with the indeterminate bar's glide (PIX-005); and the
+proof of speed and scale on the catalog's Input page and on a page of 192
+looks, binding on the Linux host, measured on the tablet and the Mac
+(PIX-006). CTL-001 says that where a control draws its pixel look the frame,
+mark, dot, track and thumb are the picture's in the same roles. The controls
+keep their widths, keys and screen-reader nodes (CTL-002, CTL-004), the
+progress bar its roles (DAT-001), a theme change repaints the pictures
+(THM-003), and the canvas keeps its rules (GFX-003, GFX-005, GFX-009,
+GFX-010).
+
+Not here: pixels under real text; the select's list, the menus, the
+overlays, the tabs, the accordion, the breadcrumb, the scroll view, the
+stack, the data widgets, the radial and flow charts, the images and the
+terminal, each a later commitment on this groundwork; shadows (`shadow-*`)
+and animation beyond the indeterminate bar's glide; a switch widget, which
+the crate does not have; pixel-shaped hit testing, so a click and a drag
+keep their cell targets.
+
+Done when every named requirement passes; pixel-looks has recorded a fail on
+a violating example, the code as it is at the start, for PIX-001 to PIX-006
+(CTL-001's revision is a cross-reference whose observation is PIX-004's and
+PIX-005's); every reference picture is checked in and looked at; the
+manual's input, data and layout chapters say when a look is a picture, what
+it looks like and the switches back to cells, and the changelog names what
+changed for an application; and the review records PIX-006's numbers from
+the three hosts and screenshots from Kitty on the private display of the
+catalog's Input page at 240 and 100 columns under the dark and the light
+preset, with a text input focused and a button under the pointer, and the
+same page from a Sixel terminal.
