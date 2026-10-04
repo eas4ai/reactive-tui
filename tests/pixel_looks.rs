@@ -1195,6 +1195,94 @@ fn pix_004_a_disabled_text_input_is_drawn_at_half_over_what_is_under_it() {
     );
 }
 
+/// PIX-003 to PIX-005 at a cell height other than 16: a border is one pixel
+/// wide and a ring two, a checkbox's box and a slider's thumb are the cell
+/// height less two pixels, and a slider's track is four pixels tall; only
+/// the radii follow the cell height.
+#[test]
+fn pix_004_005_strokes_and_control_sizes_follow_the_text_at_32_pixel_cells() {
+    let options = ImageOutputOptions {
+        cell_pixels: (16, 32),
+        ..kitty()
+    };
+    // The look's picture for `element` in a box of `width` by 1 cells.
+    let picture_of = |element: Element, width: u16, what: &str| -> Picture {
+        let run = run(
+            sized(width, 1, element),
+            (60, 3),
+            options,
+            Box::new(|_, _| None),
+            pictures_or_frames(1, 4, 120),
+            true,
+        );
+        run.first_picture(what)
+    };
+    let opaque_rows = |picture: &Picture, x: u32| -> u32 {
+        (0..picture.size.1)
+            .filter(|&y| picture.pixel(x, y)[3] > 127)
+            .count() as u32
+    };
+    let opaque_columns = |picture: &Picture, y: u32, from: u32, to: u32| -> u32 {
+        (from..to).filter(|&x| picture.pixel(x, y)[3] > 127).count() as u32
+    };
+    // A checkbox's box, centered on its middle cell: 30 pixels square when
+    // checked and filled, its border one pixel wide when unchecked.
+    let checked = picture_of(
+        checkbox("Accept", true),
+        20,
+        "PIX-004: a checked checkbox at 32-pixel cells",
+    );
+    assert_eq!(
+        opaque_rows(&checked, 24),
+        30,
+        "PIX-004: a checkbox's box at a cell height of 32 is not 30 pixels tall"
+    );
+    let unchecked = picture_of(
+        checkbox("Accept", false),
+        20,
+        "PIX-004: a checkbox at 32-pixel cells",
+    );
+    assert_eq!(
+        opaque_columns(&unchecked, 16, 0, 48),
+        2,
+        "PIX-004: a checkbox's border at a cell height of 32 is not one pixel wide on each side"
+    );
+    // A slider at 37 of 100 over 40 cells: its track four pixels tall, its
+    // thumb 30 pixels across.
+    let slider_picture = picture_of(slider(37.0), 40, "PIX-005: a slider at 32-pixel cells");
+    assert_eq!(
+        opaque_rows(&slider_picture, 35 * 16 + 8),
+        4,
+        "PIX-005: a slider's track at a cell height of 32 is not four pixels tall"
+    );
+    // The thumb is the tallest thing the slider draws.
+    let thumb_rows = (0..slider_picture.size.0)
+        .map(|x| opaque_rows(&slider_picture, x))
+        .max()
+        .unwrap_or(0);
+    assert!(
+        (29..=31).contains(&thumb_rows),
+        "PIX-005: a slider's thumb at a cell height of 32 is {thumb_rows} pixels tall, not the cell height less two"
+    );
+    // A text input's field: its border one pixel wide at the top edge.
+    let field = picture_of(
+        text_input("", "Name"),
+        30,
+        "PIX-004: a text input at 32-pixel cells",
+    );
+    let border = role("border");
+    let edge = (0..8)
+        .filter(|&y| {
+            let pixel = field.pixel(15 * 16 + 8, y);
+            pixel[3] > 200 && near(pixel, border, 24)
+        })
+        .count();
+    assert_eq!(
+        edge, 1,
+        "PIX-004: a text input's border at a cell height of 32 is {edge} pixels wide, not one"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Reference pictures (PIX-003 to PIX-005): a look's picture on a Kitty host
 // against tests/snapshots/pixel-looks/<name>.png, within GFX-002's tolerance.
