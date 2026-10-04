@@ -588,12 +588,15 @@ fn cht_024_size_classes_follow_the_rectangle_and_switch_on_resize() {
     let mut filling = full_axes((80, 24));
     filling.width = 0;
     filling.height = 0;
-    let frames = app_input::run(
+    // The medium class shows its legend; the large class its grid. A host whose
+    // chart worker finishes inside the resize's frame paints no frame after it,
+    // so the wait is on the content, not on a frame count.
+    let frames = app_input::run_when(
         Root(Element::typed::<Chart>(filling)),
         (80, 24),
         vec![
-            (2, Some(Event::Resize(ResizeEvent::new(200, 40)))),
-            (4, None),
+            ("■", Some(Event::Resize(ResizeEvent::new(200, 40)))),
+            ("·", None),
         ],
     );
     let after = frames.last().unwrap();

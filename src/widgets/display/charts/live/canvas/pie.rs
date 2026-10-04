@@ -247,8 +247,8 @@ pub(super) fn pie(
         picture.anchors.insert(
             (*s, *i),
             (
-                ((cx + mid.sin() * r) / DOTS_X as f64) as usize,
-                ((cy - mid.cos() * r) / DOTS_Y as f64) as usize,
+                ((cx + libm::sin(mid) * r) / DOTS_X as f64) as usize,
+                ((cy - libm::cos(mid) * r) / DOTS_Y as f64) as usize,
             ),
         );
         if labelled && drawn {
@@ -332,7 +332,7 @@ fn place_labels(
     for (mid, key, label, color) in labels {
         let right = mid < PI;
         let side = usize::from(right);
-        let anchor_row = ((cy - mid.cos() * outer) / DOTS_Y as f64)
+        let anchor_row = ((cy - libm::cos(mid) * outer) / DOTS_Y as f64)
             .floor()
             .clamp(area.y as f64, row_end.saturating_sub(1) as f64)
             as usize;

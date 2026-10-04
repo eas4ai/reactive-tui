@@ -158,7 +158,7 @@ pub(super) fn radar(
             let (x, y) = at(spokes[k], radius + DOTS_Y as f64);
             let (col, row) = ((x / DOTS_X as f64) as usize, (y / DOTS_Y as f64) as usize);
             let width = UnicodeWidthStr::width(label.as_str()).min(widest_allowed);
-            let sin = spokes[k].sin();
+            let sin = libm::sin(spokes[k]);
             let start = if sin > 0.2 {
                 col
             } else if sin < -0.2 {

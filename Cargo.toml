@@ -81,6 +81,7 @@ zvariant = { version = "5.4", default-features = false }
 # Platform-specific dependencies
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+libm = "0.2"
 signal-hook = "0.3.18"
 libghostty-vt = { package = "reactive-tui-libghostty-vt", path = "crates/libghostty-vt", version = "=1.0.0", optional = true }
 rustix = { version = "1", features = ["fs", "mm", "shm"] }

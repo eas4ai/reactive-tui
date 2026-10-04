@@ -179,8 +179,25 @@ fn configuration(
     Ok(result)
 }
 
+/// The curl to run: on Windows the system's own, `%SystemRoot%\System32\curl.exe`,
+/// when it exists, since a PATH that puts an MSYS2 curl first hands the client
+/// a curl that returns nothing for a configuration read from a Windows pipe
+/// (the GitHub Windows runner); elsewhere, and without it, `curl` from PATH.
+fn curl_program() -> std::ffi::OsString {
+    #[cfg(windows)]
+    if let Some(root) = std::env::var_os("SystemRoot") {
+        let system = std::path::Path::new(&root)
+            .join("System32")
+            .join("curl.exe");
+        if system.is_file() {
+            return system.into_os_string();
+        }
+    }
+    "curl".into()
+}
+
 fn curl_command() -> Command {
-    let mut command = Command::new("curl");
+    let mut command = Command::new(curl_program());
     command.env_clear();
     for name in CURL_ENVIRONMENT {
         if let Some(value) = std::env::var_os(name) {
