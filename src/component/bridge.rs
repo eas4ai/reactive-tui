@@ -12,6 +12,14 @@ pub(crate) struct PaintSpec {
     /// The canvas each element shows; it takes no part in layout.
     #[cfg(feature = "wgpu-graphics")]
     pub canvases: Vec<Option<std::sync::Arc<crate::graphics::CanvasPaint>>>,
+    /// The pixel look each element draws where the terminal takes pixels
+    /// (PIX-001), and a number that names the element across frames so its
+    /// picture is kept (PIX-002): its id, else its component instance, else
+    /// its place in the tree.
+    #[cfg(feature = "wgpu-graphics")]
+    pub looks: Vec<Option<std::sync::Arc<crate::graphics::look::Look>>>,
+    #[cfg(feature = "wgpu-graphics")]
+    pub look_ids: Vec<u64>,
 }
 
 pub(crate) fn resolve_viewport_styles(
@@ -65,6 +73,38 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
             canvases(child, found);
         }
     }
+    /// The looks of `element` and its descendants with the numbers that
+    /// name them, in the order `collect` visits them: a control's own look,
+    /// else the look its classes describe (PIX-003).
+    #[cfg(feature = "wgpu-graphics")]
+    fn looks(
+        element: &Element,
+        path: &mut Vec<usize>,
+        found: &mut Vec<Option<std::sync::Arc<crate::graphics::look::Look>>>,
+        ids: &mut Vec<u64>,
+    ) {
+        use std::hash::{Hash, Hasher};
+        let look = element.metadata.look.clone().or_else(|| {
+            element
+                .class
+                .as_deref()
+                .and_then(crate::graphics::look::Look::from_classes)
+                .map(std::sync::Arc::new)
+        });
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        match (&element.key, element.metadata.component_instances.first()) {
+            (Some(key), _) => (0u8, key).hash(&mut hasher),
+            (None, Some(instance)) => (1u8, instance).hash(&mut hasher),
+            (None, None) => (2u8, &*path).hash(&mut hasher),
+        }
+        found.push(look);
+        ids.push(hasher.finish());
+        for (index, child) in element.children.iter().enumerate() {
+            path.push(index);
+            looks(child, path, found, ids);
+            path.pop();
+        }
+    }
     let mut styles = Vec::new();
     let mut images = Vec::new();
     let mut image_fallbacks = Vec::new();
@@ -79,6 +119,12 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         &mut cursors,
         &mut cells,
     )?;
+    #[cfg(feature = "wgpu-graphics")]
+    let looks_and_ids = {
+        let (mut found, mut ids, mut path) = (Vec::new(), Vec::new(), Vec::new());
+        looks(element, &mut path, &mut found, &mut ids);
+        (found, ids)
+    };
     Ok(PaintSpec {
         root: element_to_nodespec(element),
         styles,
@@ -92,6 +138,10 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
             canvases(element, &mut found);
             found
         },
+        #[cfg(feature = "wgpu-graphics")]
+        looks: looks_and_ids.0,
+        #[cfg(feature = "wgpu-graphics")]
+        look_ids: looks_and_ids.1,
     })
 }
 

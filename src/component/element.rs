@@ -63,6 +63,11 @@ pub struct ElementMetadata {
     /// The canvas this element shows, for the painter.
     #[cfg(feature = "wgpu-graphics")]
     pub(crate) canvas: Option<Arc<crate::graphics::CanvasPaint>>,
+    /// The pixel look this element draws where the terminal takes pixels
+    /// (docs/spec/pixel-looks.md), set by the control that paints it; an
+    /// element without one may still get a look from its classes.
+    #[cfg(feature = "wgpu-graphics")]
+    pub(crate) look: Option<Arc<crate::graphics::look::Look>>,
     /// A prepared cell grid this element paints in one step.
     pub(crate) cells: Option<Arc<crate::layout::paint_tree::cells::CellGrid>>,
     pub(crate) text_cursor: Option<TextCursor>,

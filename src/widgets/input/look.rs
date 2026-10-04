@@ -46,10 +46,14 @@ pub const PANEL: &str = "bg-surface text-foreground";
 pub const CURRENT_ROW: &str = "bg-selection text-selection-foreground";
 /// The look of `builder::button()`: one row, one cell of padding at each
 /// side, `secondary` with its text, `selection` while focused, its text
-/// `text-muted` when disabled.
-pub const BUTTON: &str = "h-1 px-1 bg-secondary text-secondary-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground disabled:text-muted";
+/// `text-muted` when disabled. Where the terminal takes pixels the same
+/// classes draw its pixel look (PIX-003): a rounded fill, a two-pixel ring
+/// in `ring` while focused, the fill at 90 percent under the pointer and at
+/// half when disabled. The ring tokens come before `focus:bg-selection`, so
+/// in cells the focused fill stays `selection`.
+pub const BUTTON: &str = "h-1 px-1 bg-secondary text-secondary-foreground cursor-pointer rounded focus:ring-2 focus:ring-ring focus:bg-selection focus:text-selection-foreground hover:bg-opacity-90 disabled:text-muted disabled:bg-opacity-50";
 /// The look of `builder::primary_button()`: as `BUTTON`, in `primary`.
-pub const PRIMARY_BUTTON: &str = "h-1 px-1 bg-primary text-primary-foreground cursor-pointer focus:bg-selection focus:text-selection-foreground disabled:text-muted";
+pub const PRIMARY_BUTTON: &str = "h-1 px-1 bg-primary text-primary-foreground cursor-pointer rounded focus:ring-2 focus:ring-ring focus:bg-selection focus:text-selection-foreground hover:bg-opacity-90 disabled:text-muted disabled:bg-opacity-50";
 
 /// One row of colored text pieces: each piece is drawn in the classes
 /// beside it, so a frame, a mark and a label take their own roles. Pieces

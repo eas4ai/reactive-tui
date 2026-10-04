@@ -18,9 +18,10 @@ pub fn container() -> ElementBuilder {
     div().class("container mx-auto")
 }
 
-/// Create a card-like container
+/// Create a card-like container: a rounded box in `surface` with a border
+/// in `border`, drawn as pixels where the terminal takes them (PIX-003).
 pub fn card_builder() -> ElementBuilder {
-    div().class("bg-white border border-gray-200 rounded-lg shadow-sm")
+    div().class("bg-surface border border-border rounded-lg")
 }
 
 /// Create a sidebar layout
@@ -84,7 +85,7 @@ pub fn label(content: &str) -> Element {
 ///
 pub fn card(children: Vec<Element>) -> Element {
     div()
-        .class("bg-white rounded-lg shadow-md border border-gray-200 p-2")
+        .class("bg-surface border border-border rounded-lg p-2")
         .children(children)
         .build()
 }

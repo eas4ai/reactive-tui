@@ -76,6 +76,9 @@ pub(crate) struct LayoutCache {
     /// The cached spec's elements with their layout nodes, which a changed
     /// spec at the same size updates instead of building again (PNT-005).
     retained: Option<Retained>,
+    /// The pixel looks' pictures, kept across frames (PIX-002).
+    #[cfg(feature = "wgpu-graphics")]
+    looks: crate::graphics::look::Looks,
 }
 
 /// What a parent passes its children: the text style, foreground and width
@@ -555,6 +558,10 @@ pub(crate) fn paint_frame(
     let size = (target.width(), target.height());
     let terminal = terminal_info(&image_options);
     let reused = lay_out(spec, size, cache)?;
+    #[cfg(feature = "wgpu-graphics")]
+    let mut looks = std::mem::take(&mut cache.looks);
+    #[cfg(feature = "wgpu-graphics")]
+    looks.begin_frame();
     let spec = cache.spec.as_ref().expect("lay_out stores the spec");
     let (tree, paints, nodes) = (&cache.tree, &cache.paints, &cache.nodes);
     let mut geometry = Vec::with_capacity(nodes.len());
@@ -573,6 +580,17 @@ pub(crate) fn paint_frame(
         let fallback =
             spec.image_fallbacks[node.element_index].is_some_and(|id| selected.contains(&id));
         if !fallback {
+            // A pixel look: its picture over the node's box, its corner
+            // cells left to what is under the element (PIX-001, PIX-003).
+            #[cfg(feature = "wgpu-graphics")]
+            let look = prepare_look(
+                spec,
+                node,
+                &paints[&node.id],
+                &mut looks,
+                target,
+                &image_options,
+            );
             paint_node(
                 target,
                 &paints[&node.id],
@@ -582,6 +600,10 @@ pub(crate) fn paint_frame(
                 spec.cursors[node.element_index],
                 &mut inverse_cells,
             )?;
+            #[cfg(feature = "wgpu-graphics")]
+            if let Some(look) = look {
+                look.finish(target, &paints[&node.id], node, &mut images, &image_options)?;
+            }
             if let Some(grid) = &spec.cells[node.element_index] {
                 paint_cells(
                     target,
@@ -658,6 +680,11 @@ pub(crate) fn paint_frame(
         mark_hits(hits, size.0, node, &mut inverse_cells);
         layouts.push(presented_layout(tree, node, terminal)?);
         geometry.push(painted_node(node));
+    }
+    #[cfg(feature = "wgpu-graphics")]
+    {
+        looks.end_frame();
+        cache.looks = looks;
     }
     Ok(crate::backend::PresentedGeometry {
         nodes: geometry,
@@ -1184,9 +1211,11 @@ fn paint_node(
                             ansi::rgb_color(0, 0, 0, 255),
                         );
                     }
-                    let bg = target
-                        .get(paint_x as u32, paint_y as u32)
-                        .map_or(bg, |cell| cell.bg);
+                    let bg = images.corner_fill(paint_x, paint_y).unwrap_or_else(|| {
+                        target
+                            .get(paint_x as u32, paint_y as u32)
+                            .map_or(bg, |cell| cell.bg)
+                    });
                     let width = u8::try_from(width)
                         .map_err(|_| ReactiveError::layout("grapheme exceeds 255 cells"))?;
                     target
@@ -1337,6 +1366,142 @@ fn paint_cells(
             .map_err(|error| ReactiveError::resource(format!("SuprTUI paint: {error:?}")))?;
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Pixel looks (docs/spec/pixel-looks.md).
+
+/// How a pixel look's picture reaches this terminal, or none: the output
+/// the canvases use, chosen as a canvas chooses it (GFX-005), with the
+/// environment and the charts' process-wide options as the switch back to
+/// cells (PIX-001).
+#[cfg(feature = "wgpu-graphics")]
+fn look_protocol(options: &crate::backend::ImageOutputOptions) -> Option<images::ImageProtocol> {
+    use crate::graphics::{CanvasOutput, HostReport};
+    let host = HostReport {
+        kitty: options.kitty_graphics,
+        kitty_shared_memory: options.kitty_shared_memory,
+        sixel: options.sixel,
+        cell: options.cell_pixels,
+    };
+    match CanvasOutput::choose(
+        Some(host),
+        crate::widgets::display::charts::graphics_options().output,
+        CanvasOutput::from_environment(),
+    ) {
+        CanvasOutput::Kitty => Some(images::ImageProtocol::Kitty),
+        CanvasOutput::Sixel => Some(images::ImageProtocol::Sixel),
+        CanvasOutput::Blocks => None,
+    }
+}
+
+/// A look being painted: the picture to place after the node's cells are
+/// painted, and the corner cells to give back to what was under them.
+#[cfg(feature = "wgpu-graphics")]
+struct LookPass {
+    protocol: images::ImageProtocol,
+    image_id: u32,
+    frame: Option<Arc<crate::graphics::GraphicsFrame>>,
+    cell: (u16, u16),
+    /// Each corner cell on the screen with what it held before the node
+    /// painted, and the fill text in it takes.
+    corners: Vec<((u32, u32), ::suprtui::buffer::Cell, Option<ansi::Rgba>)>,
+}
+
+/// Prepare the look of `node`, when it has one and the terminal takes
+/// pixels: its picture for the box's size at the terminal's cell size, drawn
+/// on the drawing thread and kept across frames (PIX-001, PIX-002), and the
+/// state of its corner cells before the node paints.
+#[cfg(feature = "wgpu-graphics")]
+fn prepare_look(
+    spec: &crate::component::bridge::PaintSpec,
+    node: &PaintNode,
+    paint: &NodePaint,
+    looks: &mut crate::graphics::look::Looks,
+    target: &OptimizedBuffer<'_>,
+    options: &crate::backend::ImageOutputOptions,
+) -> Option<LookPass> {
+    let look = spec.looks[node.element_index].as_ref()?;
+    let protocol = look_protocol(options)?;
+    let cell = (options.cell_pixels.0.max(1), options.cell_pixels.1.max(1));
+    let columns = (node.local.right - node.local.left).max(0) as u32;
+    let rows = (node.local.bottom - node.local.top).max(0) as u32;
+    if columns == 0 || rows == 0 || paint.opacity * node.parent_opacity <= 0.0 {
+        return None;
+    }
+    let size = (columns * u32::from(cell.0), rows * u32::from(cell.1));
+    let (image_id, frame) = looks.picture(spec.look_ids[node.element_index], look, size, cell)?;
+    let mut corners = Vec::new();
+    for (column, row) in look.corner_cells(columns, rows, cell) {
+        let local = (node.local.left + column as i32, node.local.top + row as i32);
+        let (x, y) = node.transform.point(local.0 as f32, local.1 as f32);
+        let (x, y) = (x.round() as i32, y.round() as i32);
+        if x < node.clip.left
+            || y < node.clip.top
+            || x >= node.clip.right
+            || y >= node.clip.bottom
+            || x < 0
+            || y < 0
+        {
+            continue;
+        }
+        let Some(before) = target.get(x as u32, y as u32) else {
+            continue;
+        };
+        let fill = background(paint, node.local, local.0, local.1)
+            .map(|source| with_opacity(source, node.parent_opacity));
+        corners.push(((x as u32, y as u32), before, fill));
+    }
+    Some(LookPass {
+        protocol,
+        image_id,
+        frame,
+        cell,
+        corners,
+    })
+}
+
+#[cfg(feature = "wgpu-graphics")]
+impl LookPass {
+    /// After the node painted its cells: give the corner cells back what
+    /// they held, so what is under the element shows outside the arcs, let
+    /// text in them take the fill, and place the picture over the box when
+    /// the drawing thread has made it; until then the cells show the look's
+    /// text on its flat colors (PIX-001).
+    fn finish(
+        self,
+        target: &mut OptimizedBuffer<'_>,
+        paint: &NodePaint,
+        node: &PaintNode,
+        images: &mut images::Layers,
+        options: &crate::backend::ImageOutputOptions,
+    ) -> Result<()> {
+        for ((x, y), before, fill) in self.corners {
+            target.set_raw(x, y, before);
+            if let Some(fill) = fill {
+                images.set_corner_fill(x as i32, y as i32, fill);
+            }
+        }
+        let Some(frame) = self.frame else {
+            return Ok(());
+        };
+        let refused: images::Refusal = Arc::new(move |reason: &str| {
+            log::debug!("a pixel look's picture was left out of the frame: {reason}");
+        });
+        let picture = images::ImagePaint::canvas(
+            self.image_id,
+            frame.image().clone(),
+            options.kitty_shared_memory,
+            self.cell,
+            refused,
+        );
+        if let Some(plane) =
+            images::Plane::covering(Arc::new(picture), paint, node, target, self.protocol)?
+        {
+            images.push(plane)?;
+        }
+        Ok(())
+    }
 }
 
 /// RAS-007: painting a frame clears the next buffer exactly once, whether
