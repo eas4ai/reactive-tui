@@ -122,7 +122,11 @@ fn scroll_resize_preserves_position_then_clamps_to_new_viewport() {
             (size.0, 3),
             vec![
                 ("zero", None, key(KeyCode::Down)),
-                ("three", None, Some(Event::Resize(ResizeEvent::new(size.0, 2)))),
+                (
+                    "three",
+                    None,
+                    Some(Event::Resize(ResizeEvent::new(size.0, 2))),
+                ),
                 ("two", Some("three"), key(KeyCode::End)),
                 (
                     "five",
@@ -138,7 +142,10 @@ fn scroll_resize_preserves_position_then_clamps_to_new_viewport() {
                 .any(|f| f.text.contains(text) && !f.text.contains(hidden))
         };
         assert!(shows("three", "zero"), "Down did not scroll a row");
-        assert!(shows("two", "three"), "the two-row viewport lost the position");
+        assert!(
+            shows("two", "three"),
+            "the two-row viewport lost the position"
+        );
         assert!(shows("five", "three"), "End did not reach the last row");
         assert!(
             frames.last().unwrap().text.contains("zero"),
