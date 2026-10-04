@@ -13,7 +13,10 @@
 //! role (PIX-003), or from the control that paints it (PIX-004, PIX-005).
 
 use super::worker::{Job, Picture, Want};
-use super::{Color, GraphicsFrame, GraphicsWorker, Paint, Path, Scene, Stroke, Transform};
+use super::{
+    CanvasOutput, Color, GraphicsFrame, GraphicsWorker, HostReport, Paint, Path, Scene, Stroke,
+    Transform,
+};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -131,6 +134,9 @@ pub struct Look {
     pub fill: Option<String>,
     /// The fill's opacity over what is under the element: 1 is opaque.
     pub fill_opacity: f32,
+    /// The whole look's opacity over what is under the element: a disabled
+    /// control is drawn at half (PIX-004, PIX-005).
+    pub opacity: f32,
     /// The corners' radius.
     pub radius: Radius,
     /// A line along the edge, inside the ring when both are drawn.
@@ -146,6 +152,7 @@ impl Default for Look {
         Self {
             fill: None,
             fill_opacity: 1.0,
+            opacity: 1.0,
             radius: Radius::None,
             border: None,
             ring: None,
@@ -265,7 +272,8 @@ impl Look {
         if let Some(fill) = &self.fill {
             scene.fill(
                 &Path::rounded_rect(0.0, 0.0, width, height, radius),
-                &Paint::solid(Color::token(fill.as_str())).opacity(self.fill_opacity),
+                &Paint::solid(Color::token(fill.as_str()))
+                    .opacity(self.fill_opacity * self.opacity),
             );
         }
         let mut inset = 0.0;
@@ -284,65 +292,19 @@ impl Look {
                     (radius - half).max(0.0),
                 ),
                 &Stroke::new(line_width),
-                &Paint::solid(Color::token(line.role.as_str())),
+                &Paint::solid(Color::token(line.role.as_str())).opacity(self.opacity),
             );
             inset += line_width;
         }
         for shape in &self.shapes {
-            shape.draw(&mut scene, cell, scale);
+            shape.draw(&mut scene, cell, scale, self.opacity);
         }
         scene
-    }
-
-    /// The cells of a box of `columns` by `rows` whose outer corner pixel
-    /// the rounded corners leave transparent: the painter leaves their cell
-    /// background unpainted, so what is under the element shows there
-    /// (PIX-003), and gives text in them the fill's color.
-    pub(crate) fn corner_cells(
-        &self,
-        columns: u32,
-        rows: u32,
-        cell: (u16, u16),
-    ) -> Vec<(u32, u32)> {
-        let (cw, ch) = (f32::from(cell.0.max(1)), f32::from(cell.1.max(1)));
-        let (width, height) = (columns as f32 * cw, rows as f32 * ch);
-        let radius = self.radius_px(width, height, cell);
-        if radius <= 0.0 || columns == 0 || rows == 0 {
-            return Vec::new();
-        }
-        let mut cells = Vec::new();
-        // Whether the pixel at (dx, dy) from a corner, inside the box, is
-        // outside the arc of that corner.
-        let outside = |dx: f32, dy: f32| {
-            dx < radius
-                && dy < radius
-                && (radius - dx).powi(2) + (radius - dy).powi(2) > radius * radius
-        };
-        let span_x = (radius / cw).ceil() as u32;
-        let span_y = (radius / ch).ceil() as u32;
-        for row in 0..span_y.min(rows) {
-            for column in 0..span_x.min(columns) {
-                if !outside(column as f32 * cw, row as f32 * ch) {
-                    continue;
-                }
-                for (x, y) in [
-                    (column, row),
-                    (columns - 1 - column, row),
-                    (column, rows - 1 - row),
-                    (columns - 1 - column, rows - 1 - row),
-                ] {
-                    if !cells.contains(&(x, y)) {
-                        cells.push((x, y));
-                    }
-                }
-            }
-        }
-        cells
     }
 }
 
 impl Shape {
-    fn draw(&self, scene: &mut Scene, cell: (u16, u16), scale: f32) {
+    fn draw(&self, scene: &mut Scene, cell: (u16, u16), scale: f32, opacity: f32) {
         let (cw, ch) = (f32::from(cell.0.max(1)), f32::from(cell.1.max(1)));
         let at = |(x, y): (f32, f32)| (x * cw, y * ch);
         let px = |size: f32| (size * scale).max(1.0);
@@ -364,7 +326,10 @@ impl Shape {
                     px(*radius).min(side / 2.0),
                 );
                 if let Some(fill) = fill {
-                    scene.fill(&path, &Paint::solid(Color::token(fill.as_str())));
+                    scene.fill(
+                        &path,
+                        &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
+                    );
                 }
                 if let Some(line) = border {
                     let width = px(line.width).round();
@@ -378,7 +343,7 @@ impl Shape {
                     scene.stroke(
                         &inner,
                         &Stroke::new(width),
-                        &Paint::solid(Color::token(line.role.as_str())),
+                        &Paint::solid(Color::token(line.role.as_str())).opacity(opacity),
                     );
                 }
             }
@@ -393,7 +358,7 @@ impl Shape {
                 if let Some(fill) = fill {
                     scene.fill(
                         &Path::ellipse(cx, cy, r, r),
-                        &Paint::solid(Color::token(fill.as_str())),
+                        &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
                     );
                 }
                 if let Some(line) = border {
@@ -401,7 +366,7 @@ impl Shape {
                     scene.stroke(
                         &Path::ellipse(cx, cy, r - width / 2.0, r - width / 2.0),
                         &Stroke::new(width),
-                        &Paint::solid(Color::token(line.role.as_str())),
+                        &Paint::solid(Color::token(line.role.as_str())).opacity(opacity),
                     );
                 }
             }
@@ -418,8 +383,14 @@ impl Shape {
                 let y = row * ch - h / 2.0;
                 if x1 > x0 {
                     scene.fill(
-                        &Path::rounded_rect(x0, y, x1 - x0, h, px(*radius).min(h / 2.0)),
-                        &Paint::solid(Color::token(fill.as_str())),
+                        &Path::rounded_rect(
+                            x0,
+                            y,
+                            x1 - x0,
+                            h,
+                            px(*radius).min(h / 2.0).min((x1 - x0) / 2.0),
+                        ),
+                        &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
                     );
                 }
             }
@@ -441,7 +412,7 @@ impl Shape {
                     &Stroke::new(px(*width).round())
                         .cap(super::LineCap::Round)
                         .join(super::LineJoin::Round),
-                    &Paint::solid(Color::token(role.as_str())),
+                    &Paint::solid(Color::token(role.as_str())).opacity(opacity),
                 );
             }
             Shape::Dash {
@@ -459,7 +430,7 @@ impl Shape {
                 scene.stroke(
                     &path,
                     &Stroke::new(px(*width).round()).cap(super::LineCap::Round),
-                    &Paint::solid(Color::token(role.as_str())),
+                    &Paint::solid(Color::token(role.as_str())).opacity(opacity),
                 );
             }
         }
@@ -570,12 +541,246 @@ impl Looks {
                 }
             }
         }
+        // While the drawing thread makes the next picture of a look that
+        // changed (the focus, the pointer, a value, the theme), the last one
+        // stays placed: it fits the box, so the frame keeps its pixels and
+        // sends nothing until the new picture is ready (PIX-002). A picture
+        // of another size or cell size is never stretched.
         let shown = slot
             .shown
             .as_ref()
-            .filter(|(drawn, _)| *drawn == wanted)
+            .filter(|(drawn, _)| drawn.size == wanted.size && drawn.cell == wanted.cell)
             .map(|(_, frame)| frame.clone());
         Some((slot.image_id, shown))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// What the controls read to choose their look, and the looks they draw.
+
+thread_local! {
+    /// What the terminal of the App rendering on this thread takes, set
+    /// around a frame's render so a control can choose its pixel look
+    /// (PIX-001).
+    static HOST: std::cell::Cell<Option<HostReport>> = const { std::cell::Cell::new(None) };
+}
+
+/// The host report a backend's image output options describe.
+pub(crate) fn host_report(options: &crate::backend::ImageOutputOptions) -> HostReport {
+    HostReport {
+        kitty: options.kitty_graphics,
+        kitty_shared_memory: options.kitty_shared_memory,
+        sixel: options.sixel,
+        cell: options.cell_pixels,
+    }
+}
+
+/// How a look's picture reaches `host`: as the canvas output is chosen,
+/// from the host report, the process-wide graphics options and
+/// `REACTIVE_TUI_CANVAS` (GFX-005, CHT-037); blocks means cells (PIX-001).
+pub(crate) fn output_for(host: HostReport) -> CanvasOutput {
+    CanvasOutput::choose(
+        Some(host),
+        crate::widgets::display::charts::graphics_options().output,
+        CanvasOutput::from_environment(),
+    )
+}
+
+/// The host of the frame being rendered, until the guard drops: the App
+/// enters it before its root renders, with what its backend reports.
+pub(crate) struct HostScope(Option<HostReport>);
+
+impl Drop for HostScope {
+    fn drop(&mut self) {
+        HOST.with(|host| host.set(self.0));
+    }
+}
+
+/// Enter the host `options` describe for the frame being rendered on this
+/// thread; none when the backend reports no terminal.
+pub(crate) fn enter_host(options: Option<&crate::backend::ImageOutputOptions>) -> HostScope {
+    HostScope(HOST.with(|host| host.replace(options.map(host_report))))
+}
+
+/// Whether a control rendering now draws its pixel look: the frame's host
+/// takes pixels and no switch turns the looks back to cells (PIX-001).
+pub fn pixels_on() -> bool {
+    HOST.with(|host| host.get())
+        .is_some_and(|host| output_for(host) != CanvasOutput::Blocks)
+}
+
+/// A line one pixel wide in `border`, or in `ring` while the control holds
+/// the focus.
+fn frame_line(focused: bool) -> Line {
+    Line::new(1.0, if focused { "ring" } else { "border" })
+}
+
+impl Look {
+    /// A checkbox's box over its three cells: a square of the cell height
+    /// less two pixels with a radius of two, bordered in `border` (`ring`
+    /// with the focus), filled `primary` with a check mark in
+    /// `primary-foreground` when checked and a dash when mixed; a disabled
+    /// box at half (PIX-004).
+    pub fn checkbox(checked: bool, mixed: bool, focused: bool, disabled: bool) -> Self {
+        let center = (1.5, 0.5);
+        let mut shapes = vec![Shape::Box {
+            center,
+            size: 14.0,
+            radius: 2.0,
+            fill: (checked || mixed).then(|| "primary".to_owned()),
+            border: Some(frame_line(focused)),
+        }];
+        if mixed {
+            shapes.push(Shape::Dash {
+                center,
+                size: 8.0,
+                width: 2.0,
+                role: "primary-foreground".to_owned(),
+            });
+        } else if checked {
+            shapes.push(Shape::Check {
+                center,
+                size: 10.0,
+                width: 2.0,
+                role: "primary-foreground".to_owned(),
+            });
+        }
+        Self {
+            shapes,
+            opacity: if disabled { 0.5 } else { 1.0 },
+            ..Self::default()
+        }
+    }
+
+    /// A radio button's circle over its three cells: a circle of the cell
+    /// height less two pixels bordered in `border` (`ring` with the focus)
+    /// and, when chosen, a dot of half that diameter in `primary`; a
+    /// disabled circle at half (PIX-004).
+    pub fn radio(chosen: bool, focused: bool, disabled: bool) -> Self {
+        let center = (1.5, 0.5);
+        let mut shapes = vec![Shape::Circle {
+            center,
+            diameter: 14.0,
+            fill: None,
+            border: Some(frame_line(focused)),
+        }];
+        if chosen {
+            shapes.push(Shape::Circle {
+                center,
+                diameter: 7.0,
+                fill: Some("primary".to_owned()),
+                border: None,
+            });
+        }
+        Self {
+            shapes,
+            opacity: if disabled { 0.5 } else { 1.0 },
+            ..Self::default()
+        }
+    }
+
+    /// A text input's field: `input` with a radius of a quarter of the cell
+    /// height, bordered one pixel in `border`, two in `ring` with the focus
+    /// and two in `error` while the value is invalid (PIX-004).
+    pub fn field(focused: bool, invalid: bool) -> Self {
+        let (border, ring) = if invalid {
+            (None, Some(Line::new(2.0, "error")))
+        } else if focused {
+            (None, Some(Line::new(2.0, "ring")))
+        } else {
+            (Some(Line::new(1.0, "border")), None)
+        };
+        Self {
+            fill: Some("input".to_owned()),
+            radius: Radius::Px(4.0),
+            border,
+            ring,
+            ..Self::default()
+        }
+    }
+
+    /// A horizontal slider over `cells` cells: a track four pixels tall with
+    /// rounded ends in `border` from the second cell to the last but one,
+    /// its part up to `fraction` of the way in `primary`, and a thumb of
+    /// the cell height less two pixels in `foreground` (`ring` with the
+    /// focus) centered on that pixel; a disabled slider at half (PIX-005).
+    pub fn slider(cells: usize, fraction: f64, focused: bool, disabled: bool) -> Self {
+        let cells = cells.max(2) as f32;
+        let (from, to) = (1.0, cells - 1.0);
+        let at = from + (to - from) * fraction.clamp(0.0, 1.0) as f32;
+        Self {
+            shapes: vec![
+                Shape::Bar {
+                    from,
+                    to,
+                    row: 0.5,
+                    height: 4.0,
+                    radius: 2.0,
+                    fill: "border".to_owned(),
+                },
+                Shape::Bar {
+                    from,
+                    to: at,
+                    row: 0.5,
+                    height: 4.0,
+                    radius: 2.0,
+                    fill: "primary".to_owned(),
+                },
+                Shape::Circle {
+                    center: (at, 0.5),
+                    diameter: 14.0,
+                    fill: Some(if focused { "ring" } else { "foreground" }.to_owned()),
+                    border: None,
+                },
+            ],
+            opacity: if disabled { 0.5 } else { 1.0 },
+            ..Self::default()
+        }
+    }
+
+    /// A horizontal progress bar over `cells` by `rows` cells: a track with
+    /// a radius of half its height in `border` and its part up to
+    /// `fraction` of the way in `primary` with the same radius (PIX-005).
+    pub fn progress(cells: usize, rows: usize, fraction: f64) -> Self {
+        let (cells, rows) = (cells as f32, rows.max(1) as f32);
+        Self::bars(
+            cells,
+            rows,
+            vec![(0.0, cells * fraction.clamp(0.0, 1.0) as f32)],
+        )
+    }
+
+    /// An indeterminate progress bar over `cells` by `rows` cells: its track
+    /// and a segment a quarter of it long whose start lies `along` of the
+    /// way from the track's start to where the segment ends at its end
+    /// (PIX-005).
+    pub fn indeterminate_progress(cells: usize, rows: usize, along: f64) -> Self {
+        let (cells, rows) = (cells as f32, rows.max(1) as f32);
+        let span = (cells / 4.0).max(1.0);
+        let start = (cells - span) * along.clamp(0.0, 1.0) as f32;
+        Self::bars(cells, rows, vec![(start, start + span)])
+    }
+
+    fn bars(cells: f32, rows: f32, filled: Vec<(f32, f32)>) -> Self {
+        let height = rows * REFERENCE_CELL_HEIGHT;
+        let bar = |from: f32, to: f32, fill: &str| Shape::Bar {
+            from,
+            to,
+            row: rows / 2.0,
+            height,
+            radius: height / 2.0,
+            fill: fill.to_owned(),
+        };
+        let mut shapes = vec![bar(0.0, cells, "border")];
+        shapes.extend(
+            filled
+                .into_iter()
+                .map(|(from, to)| bar(from, to, "primary")),
+        );
+        Self {
+            shapes,
+            ..Self::default()
+        }
     }
 }
 
@@ -606,34 +811,5 @@ mod tests {
         );
         let faded = Look::from_classes("bg-secondary rounded bg-opacity-50").unwrap();
         assert_eq!(faded.fill_opacity, 0.5);
-    }
-
-    #[test]
-    fn the_corner_cells_are_the_ones_the_arcs_leave_transparent() {
-        let button = Look::from_classes("bg-primary rounded").unwrap();
-        let mut cells = button.corner_cells(8, 1, (8, 16));
-        cells.sort();
-        assert_eq!(cells, vec![(0, 0), (7, 0)]);
-        let box_2xl = Look::from_classes("bg-primary rounded-2xl").unwrap();
-        let mut cells = box_2xl.corner_cells(20, 4, (8, 16));
-        cells.sort();
-        assert_eq!(
-            cells,
-            vec![
-                (0, 0),
-                (0, 3),
-                (1, 0),
-                (1, 3),
-                (18, 0),
-                (18, 3),
-                (19, 0),
-                (19, 3)
-            ]
-        );
-        let square = Look {
-            fill: Some("primary".into()),
-            ..Default::default()
-        };
-        assert!(square.corner_cells(8, 1, (8, 16)).is_empty());
     }
 }

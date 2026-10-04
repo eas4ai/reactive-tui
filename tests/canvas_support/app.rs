@@ -172,6 +172,9 @@ pub struct Timed {
 }
 
 impl Backend for Timed {
+    fn image_output(&self) -> Option<ImageOutputOptions> {
+        self.inner.image_output()
+    }
     fn painted_nodes(&self) -> Option<&[reactive_tui::backend::PaintedNode]> {
         self.inner.painted_nodes()
     }
@@ -596,6 +599,8 @@ pub fn kitty_commands(frames: &[Frame]) -> Vec<KittyCommand> {
 /// A Sixel raster the backend wrote: its stated size, which of its pixels
 /// it sets, and the cell it starts at.
 pub struct Raster {
+    /// The frame whose output carried it.
+    pub frame: usize,
     pub size: (usize, usize),
     /// The color of every pixel the data sets, none where it sets nothing.
     pub colors: Vec<Option<[u8; 3]>>,
@@ -605,7 +610,7 @@ pub struct Raster {
 /// Every Sixel raster in `frames`, in order.
 pub fn sixel_rasters(frames: &[Frame]) -> Vec<Raster> {
     let mut rasters = Vec::new();
-    for frame in frames {
+    for (index, frame) in frames.iter().enumerate() {
         let text = String::from_utf8_lossy(&frame.output).into_owned();
         let mut from = 0;
         while let Some(found) = text[from..].find(SIXEL) {
@@ -613,6 +618,7 @@ pub fn sixel_rasters(frames: &[Frame]) -> Vec<Raster> {
             let body = &text[start + SIXEL.len()..];
             let (size, colors) = super::sixel_colors(body);
             rasters.push(Raster {
+                frame: index,
                 size,
                 colors,
                 at: last_cursor_move(&text[..start]),

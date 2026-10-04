@@ -184,6 +184,46 @@ wins over both, so a user can correct a terminal that reports what it cannot
 show. The variable is read once, when the first canvas is drawn. A value
 that names none of the three is logged as a warning and changes nothing.
 
+## Pixel looks
+
+The controls of [Input widgets](input-widgets.md#pixel-looks), the
+progress bar and the rounded boxes of
+[Layout, style, and themes](layout-style-and-themes.md#rounded-boxes-with-pixels)
+draw their looks through the canvas path (`docs/spec/pixel-looks.md`).
+The painter keeps one drawing slot and one image per element, submits a
+scene to the drawing thread when the look, the box, the cell size or the
+theme changes, and places the finished picture over the element's whole
+box before the element's cells paint, so its text cuts the cells it
+holds out of the picture while its background leaves it, and the
+pictures under it, showing. The cells under the picture hold what is
+under the element, so a translucent fill blends with that; inside another
+look's box they hold that look's fill, and the outer picture is cut out
+under the inner box once, so a key typed into a text input in a card
+sends the input's picture alone. Until the first picture is ready the
+element paints its flat look like any other.
+A look whose picture is unchanged and whose box moved is placed again by
+its id on a Kitty host, with no pixels sent again; on Sixel it is sent
+again at its new cells. A look that leaves the tree has its placement
+deleted in that frame, and a change of the cell size redraws every look
+at the new size. Which output a look takes follows the canvas output
+choice above: the terminal's report, `GraphicsOptions::output` and
+`REACTIVE_TUI_CANVAS`; with blocks every look is cells, and the bytes are
+the fallback's. Whether an App's controls draw pixels is read from its
+backend as they render (`Backend::image_output`), so two Apps on one
+thread with different terminals each get their own looks.
+
+Measured on the Linux development host in a release build on the hardware
+adapter (`cargo test --release --features wgpu-graphics --test pixel_looks
+-- --ignored pix_006_`, PIX-006): on the catalog's Input page at 240 by 60
+cells and on a page of 48 cards holding 192 looks, every look sent its
+first picture within a second of the first frame, with Kitty graphics
+through shared memory and with Sixel alike; over 60 frames of typing into
+a focused text input and 60 of dragging the slider's thumb, the App's work
+per frame stayed under 8 ms and its wait in `present` under 6 ms at the
+95th percentile, and each frame sent one picture, the changed look's
+alone. The same run on the Windows tablet and the macOS host records its
+numbers in the check's receipt; no bound binds there.
+
 ## Renderers and faults
 
 The canvas draws on a hardware adapter (Vulkan, Metal or DX12; a discrete

@@ -80,6 +80,31 @@ The spacing classes counted in fours before: `p-1` was four cells and
 `gap-4` sixteen. To keep the size of a class written for that scale, multiply
 its number by four: `p-1` becomes `p-4`.
 
+## Rounded boxes with pixels
+
+Where the terminal takes Kitty graphics or Sixel and the crate is built
+with `wgpu-graphics`, an element with a background role and a `rounded`,
+`rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl`, `rounded-2xl` or
+`rounded-full` class is drawn as one pixel picture over its box
+(`docs/spec/pixel-looks.md`, PIX-003): a rounded rectangle in its
+background role, the radius 4, 2, 6, 8, 12 or 16 pixels at a cell height
+of 16 pixels and in the same proportion otherwise, or half the box's
+shorter side for `rounded-full`. `border`, with a `border-R` role class,
+adds a one-pixel border in R inside the edge (`border` alone, in
+`border`); `ring-1` or `ring-2` with a `ring-R` role class, also under the
+`focus:` variant, adds a ring that many pixels wide in R at the edge; and
+`bg-opacity-N` draws the fill at that opacity over what is under the
+element. The cells outside the rounded corners show what is under the
+element; text in the box stays cell text on the fill, its cells cut out of
+the picture; and the picture is kept across frames and sent again only
+when the look, the box, the cell size or the theme changes. `card()` and
+`card_builder()` are `bg-surface border border-border rounded-lg` under
+every theme. Without pixels, with `REACTIVE_TUI_CANVAS=blocks` or with a
+process-wide `GraphicsOptions` whose output is blocks, `rounded-*`,
+`border` and `ring-*` keep the cell behavior they had, and a card's box is
+`surface`. [Graphics canvas](wgpu-graphics.md#pixel-looks) says how the
+picture is drawn and sent.
+
 ## The theme's color roles
 
 A theme names its colors by role. A class names a role as `bg-<role>` or

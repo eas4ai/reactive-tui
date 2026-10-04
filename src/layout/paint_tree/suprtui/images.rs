@@ -15,10 +15,16 @@ pub(super) struct Layers {
     width: usize,
     height: usize,
     entries: usize,
-    /// The cells a pixel look's rounded corners leave to what is under the
-    /// element, with the look's fill: text painted in one of them takes
-    /// that fill as its background (PIX-003).
-    corner_fills: std::collections::HashMap<(i32, i32), ansi::Rgba>,
+    /// The cells a pixel look's picture lies over, with the look's fill
+    /// there: text painted later in one of them takes that fill as its
+    /// background, so the text cell and the picture beside it are one color
+    /// (PIX-001, PIX-003). A later element's own background takes the cell
+    /// back.
+    look_fills: std::collections::HashMap<(i32, i32), ansi::Rgba>,
+    /// Whether the node being painted has its look's picture in the frame:
+    /// its background fill then covers no plane, neither its own picture
+    /// nor the pictures under it, while its text covers them all (PIX-001).
+    look_painting: bool,
 }
 impl Layers {
     pub fn new(width: usize, height: usize) -> Self {
@@ -28,19 +34,48 @@ impl Layers {
             width,
             height,
             entries: 0,
-            corner_fills: std::collections::HashMap::new(),
+            look_fills: std::collections::HashMap::new(),
+            look_painting: false,
         }
     }
     /// Remember that text in cell `(x, y)` takes `fill` as its background.
-    pub fn set_corner_fill(&mut self, x: i32, y: i32, fill: ansi::Rgba) {
-        self.corner_fills.insert((x, y), fill);
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
+    pub fn set_look_fill(&mut self, x: i32, y: i32, fill: ansi::Rgba) {
+        self.look_fills.insert((x, y), fill);
     }
-    /// The background text in cell `(x, y)` takes, when a look's corner
-    /// named one.
-    pub fn corner_fill(&self, x: i32, y: i32) -> Option<ansi::Rgba> {
-        self.corner_fills.get(&(x, y)).copied()
+    /// The background text in cell `(x, y)` takes, when a look's picture
+    /// lies over the cell.
+    pub fn look_fill(&self, x: i32, y: i32) -> Option<ansi::Rgba> {
+        self.look_fills.get(&(x, y)).copied()
     }
-    pub fn push(&mut self, plane: Plane) -> Result<()> {
+    /// Whether the node being painted has its look's picture in the frame.
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
+    pub fn set_look_painting(&mut self, painting: bool) {
+        self.look_painting = painting;
+    }
+    /// Whether plane `index` still shows cell `(x, y)`: nothing painted
+    /// over it covered the cell.
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
+    pub fn plane_shows(&self, index: usize, x: i32, y: i32) -> bool {
+        self.planes[index].shows_cell(x, y)
+    }
+    /// Cover, at cell `(x, y)`, the pictures of the looks under plane
+    /// `plane`: a look inside another look's box cuts the outer picture out
+    /// under its whole box, once, so text typed into it changes its own
+    /// picture alone (PIX-002, PIX-006).
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
+    pub fn cover_under(&mut self, plane: usize, x: i32, y: i32) {
+        let Some(cells) = &self.cells else {
+            return;
+        };
+        for &index in &cells[y as usize * self.width + x as usize] {
+            if index < plane && self.planes[index].look {
+                self.planes[index].cover(x, y, ansi::rgb_color(0, 0, 0, 255));
+            }
+        }
+    }
+    /// Place `plane` over the planes before it; its place in the frame.
+    pub fn push(&mut self, plane: Plane) -> Result<usize> {
         // A plane that is refused leaves the count as it was, so the
         // planes after it are judged without it.
         let entries = self.entries + plane.cover.len();
@@ -71,7 +106,7 @@ impl Layers {
             }
         }
         self.planes.push(plane);
-        Ok(())
+        Ok(index)
     }
     /// Whether the frame has an image plane for painted cells to cover.
     pub fn has_planes(&self) -> bool {
@@ -85,14 +120,26 @@ impl Layers {
             self.planes[index].cover(x, y, source);
         }
     }
-    /// `cover` for the cells `left..right` of row `y`; returns at once when
-    /// the frame has no image plane.
-    pub fn cover_span(&mut self, y: i32, left: i32, right: i32, source: ansi::Rgba) {
-        if self.cells.is_none() {
+    /// `cover` for a node's background fill of cell `(x, y)`: it takes the
+    /// cell back from a look whose picture lies over it, and covers nothing
+    /// while the node painted has its own look's picture in the frame
+    /// (PIX-001).
+    pub fn cover_background(&mut self, x: i32, y: i32, source: ansi::Rgba) {
+        if self.look_painting {
+            return;
+        }
+        if !self.look_fills.is_empty() {
+            self.look_fills.remove(&(x, y));
+        }
+        self.cover(x, y, source);
+    }
+    /// `cover_background` for the cells `left..right` of row `y`.
+    pub fn cover_span_background(&mut self, y: i32, left: i32, right: i32, source: ansi::Rgba) {
+        if self.look_painting || (self.cells.is_none() && self.look_fills.is_empty()) {
             return;
         }
         for x in left..right {
-            self.cover(x, y, source);
+            self.cover_background(x, y, source);
         }
     }
     pub fn into_planes(self) -> Vec<Plane> {
@@ -116,6 +163,10 @@ pub(crate) struct Plane {
     opacity: f32,
     cover: Vec<Cover>,
     protocol: ImageProtocol,
+    /// Whether the plane is a pixel look's picture over its element's
+    /// whole box (PIX-001).
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
+    look: bool,
 }
 impl Plane {
     pub(super) fn new(
@@ -129,6 +180,7 @@ impl Plane {
     }
     /// A plane over the node's whole box, padding included: a pixel look's
     /// picture (PIX-001).
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
     pub(super) fn covering(
         image: Arc<ImagePaint>,
         paint: &NodePaint,
@@ -195,6 +247,7 @@ impl Plane {
             opacity,
             cover,
             protocol,
+            look: whole_box,
         }))
     }
     pub fn id(&self) -> u32 {
@@ -218,6 +271,39 @@ impl Plane {
             && self.opacity == previous.opacity
             && self.protocol == previous.protocol
             && self.cover == previous.cover
+    }
+    /// Whether this plane shows the picture `previous` showed, cell for
+    /// cell, at other cells: the same canvas picture over a box of the same
+    /// size, placed the same way inside it, with the same cells cut out,
+    /// only moved. A Kitty host then places the image it holds again
+    /// instead of receiving its pixels again (PIX-002).
+    pub fn moved_from(&self, previous: &Self) -> bool {
+        let size = |rect: &Rect| (rect.right - rect.left, rect.bottom - rect.top);
+        // Where the picture's top left pixel lies, in cells from the plane's.
+        let inset = |plane: &Self| {
+            let (x, y) = plane.transform.offset();
+            (
+                x.round() as i32 + plane.content.left - plane.bounds.left,
+                y.round() as i32 + plane.content.top - plane.bounds.top,
+            )
+        };
+        self.image.canvas.is_some()
+            && self.protocol == ImageProtocol::Kitty
+            && previous.protocol == ImageProtocol::Kitty
+            && self.image == previous.image
+            && self.bounds != previous.bounds
+            && size(&self.bounds) == size(&previous.bounds)
+            && size(&self.content) == size(&previous.content)
+            && self.transform.is_translation()
+            && previous.transform.is_translation()
+            && inset(self) == inset(previous)
+            && self.opacity == previous.opacity
+            && self.cover.len() == previous.cover.len()
+            && self
+                .cover
+                .iter()
+                .zip(&previous.cover)
+                .all(|(now, then)| now.visible == then.visible && now.tint == then.tint)
     }
     /// The pixels one cell of the plane's raster holds: a canvas picture's
     /// own pixels per cell, which may be fewer than the terminal's
@@ -345,6 +431,22 @@ impl Plane {
             * (self.bounds.right - self.bounds.left) as usize
             + (x - self.bounds.left) as usize;
         self.cover[index].visible = false;
+    }
+    /// Whether the plane still shows cell `(x, y)`: the cell is one of its
+    /// and nothing painted over it covered the cell.
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
+    pub(super) fn shows_cell(&self, x: i32, y: i32) -> bool {
+        if x < self.bounds.left
+            || x >= self.bounds.right
+            || y < self.bounds.top
+            || y >= self.bounds.bottom
+        {
+            return false;
+        }
+        let index = (y - self.bounds.top) as usize
+            * (self.bounds.right - self.bounds.left) as usize
+            + (x - self.bounds.left) as usize;
+        self.cover[index].visible
     }
     pub(super) fn cover(&mut self, x: i32, y: i32, source: ansi::Rgba) {
         if x < self.bounds.left

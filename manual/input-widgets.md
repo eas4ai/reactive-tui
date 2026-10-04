@@ -59,6 +59,50 @@ their parent allots (CTL-002): a `w-N` class on the builder, or `width`
 on the props, sets that width instead. A checkbox, a radio and a button
 are as wide as their box or padding and their label need.
 
+## Pixel looks
+
+Where the terminal takes Kitty graphics or Sixel and the crate is built
+with `wgpu-graphics`, each control draws its look as one pixel picture
+over the cells it paints, around its text (`docs/spec/pixel-looks.md`,
+PIX-001 to PIX-005). Everywhere else, with `REACTIVE_TUI_CANVAS=blocks`,
+or with a process-wide `GraphicsOptions` whose output is blocks, it draws
+the cell look above, byte for byte. The picture is drawn on the drawing
+thread the canvases share, kept across frames and sent again only when
+the look changes; a cell that holds a glyph is cut out of it and painted
+in the look's flat color, so the text cell and the picture beside it are
+one color, and the text stays cell text for the screen reader. Until the
+first picture is ready the cells show the text alone and none of the cell
+look's glyphs.
+
+- A text input's field is a rounded rectangle in `input`, its radius a
+  quarter of the cell height, with a one-pixel border in `border`, two
+  pixels in `ring` while it holds the focus and in `error` while its
+  value is invalid, in place of the `[` and `]` cells. Its text,
+  placeholder, line numbers, cursor and selection stay cells on `input`,
+  and the picture shows in the blank part of the field. A disabled field
+  keeps its fill, with its text in `text-muted`.
+- A checkbox's box is a square of the cell height less two pixels with
+  rounded corners, bordered in `border` (`ring` while focused), filled
+  `primary` with a check mark in `primary-foreground` when checked and a
+  dash when mixed. A radio's circle is bordered the same way, with a dot
+  of half its size in `primary` when chosen. A disabled box or circle is
+  drawn at half over what is under it.
+- A horizontal slider's track is a bar four pixels tall with rounded ends
+  in `border`, filled in `primary` to the exact pixel of its value, with a
+  round thumb of the cell height less two pixels in `foreground` (`ring`
+  while focused) centered on that pixel; a disabled slider is drawn at
+  half. A vertical slider keeps its cells. A click or a drag still sets
+  the value by the cell under the pointer.
+- `button()` and `primary_button()` are `rounded` with `focus:ring-2
+  focus:ring-ring`: a rounded fill in `secondary` or `primary` (see
+  [Layout, style, and themes](layout-style-and-themes.md#rounded-boxes-with-pixels)),
+  a two-pixel ring in `ring` while focused, the fill at 90 percent under
+  the pointer and at half when disabled.
+
+`cargo test --features wgpu-graphics --test pixel_looks` draws each
+control on a Kitty host and compares its picture with the reference under
+`tests/snapshots/pixel-looks`.
+
 ## Text input
 
 `TextInput` edits a line, or several lines, of text. Build it with
@@ -138,8 +182,10 @@ hears a slider with its label, value, minimum, maximum and step.
 text-secondary-foreground`) and `primary_button(text, on_click)` one with
 the primary look, each one row tall with one cell of padding at each side,
 `selection` while it holds the focus, and its text `text-muted` when it is
-disabled. `.on_click()` makes a button interactive: Enter or Space presses
-it, as a click does, and the screen reader hears it as a button.
+disabled; with pixels each is a rounded fill with a ring while focused
+(see [Pixel looks](#pixel-looks)). `.on_click()` makes a button
+interactive: Enter or Space presses it, as a click does, and the screen
+reader hears it as a button.
 
 ## Limits
 

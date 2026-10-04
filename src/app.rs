@@ -665,6 +665,10 @@ impl App {
     /// events and accessibility read it, and with motion and animation
     /// targets applied, as the backend paints it.
     fn styled_frame(&mut self) -> Result<(Element, Element)> {
+        // The controls read what the terminal takes as they render, so
+        // each draws its pixel look where there are pixels (PIX-001).
+        #[cfg(feature = "wgpu-graphics")]
+        let _host = crate::graphics::look::enter_host(self.backend.image_output().as_ref());
         let mut element = self.components.resolve(self.root.render())?;
         crate::component::bridge::resolve_viewport_styles(&mut element, self.backend.size().0)?;
         // Base semantics establish disabled state before state variants are

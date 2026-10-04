@@ -21,6 +21,9 @@ pub const FIELD_FRAME: &str = "bg-input text-border";
 pub const FIELD_FRAME_FOCUSED: &str = "bg-input text-ring";
 /// A field's frame while its value is invalid.
 pub const FIELD_FRAME_INVALID: &str = "bg-input text-error";
+/// A blank run of a field drawn with pixels: it holds no glyph, so the
+/// field's picture shows there (PIX-004); never joined with the text.
+pub const FIELD_PAD: &str = "field-pad";
 /// The text input's cursor cell: the field reversed.
 pub const CURSOR: &str = "bg-foreground text-input";
 /// The text input's selection.
@@ -60,6 +63,12 @@ pub const PRIMARY_BUTTON: &str = "h-1 px-1 bg-primary text-primary-foreground cu
 /// with the same classes are joined. `row_classes` style the row itself
 /// (the hover fill, for one).
 pub fn row(pieces: &[(&str, &str)], row_classes: &str) -> Element {
+    row_of(self::pieces(pieces), row_classes)
+}
+
+/// The text elements of `pieces`, each in the classes beside it, pieces
+/// with the same classes joined.
+pub fn pieces(pieces: &[(&str, &str)]) -> Vec<Element> {
     let mut joined: Vec<(String, String)> = Vec::new();
     for (text, classes) in pieces {
         if text.is_empty() {
@@ -70,18 +79,52 @@ pub fn row(pieces: &[(&str, &str)], row_classes: &str) -> Element {
             _ => joined.push(((*text).to_owned(), (*classes).to_owned())),
         }
     }
+    joined
+        .into_iter()
+        .map(|(text, classes)| {
+            Element::text(text).class(format!("shrink-0 whitespace-pre {classes}"))
+        })
+        .collect()
+}
+
+/// One row of `children`, styled as `row` styles its rows.
+pub fn row_of(children: Vec<Element>, row_classes: &str) -> Element {
     Element::layout(LayoutType::Flex)
         .class(format!(
             "flex flex-row h-1 shrink-0 whitespace-pre {row_classes}"
         ))
-        .children(
-            joined
-                .into_iter()
-                .map(|(text, classes)| {
-                    Element::text(text).class(format!("shrink-0 whitespace-pre {classes}"))
-                })
-                .collect(),
-        )
+        .children(children)
+}
+
+/// Whether a control rendering now draws its pixel look: the terminal of
+/// the App rendering takes pixels and no switch turns the looks back to
+/// cells (PIX-001). Without the `wgpu-graphics` feature every control
+/// draws its cells.
+pub fn pixels() -> bool {
+    #[cfg(feature = "wgpu-graphics")]
+    {
+        crate::graphics::look::pixels_on()
+    }
+    #[cfg(not(feature = "wgpu-graphics"))]
+    {
+        false
+    }
+}
+
+/// A run of `cells` cells on one row that holds no glyph: the cells a
+/// control's picture is placed over, in place of its frame glyphs.
+pub fn blank(cells: usize) -> Element {
+    Element::layout(LayoutType::Flex).class(format!("w-{cells} h-1 shrink-0"))
+}
+
+/// A run of `cells` cells on one row that holds no glyph, over which the
+/// picture of `look` is placed: a control's box, circle or track where the
+/// terminal takes pixels (PIX-004, PIX-005).
+#[cfg(feature = "wgpu-graphics")]
+pub fn spacer(cells: usize, look: crate::graphics::look::Look) -> Element {
+    let mut element = blank(cells);
+    element.metadata.look = Some(std::sync::Arc::new(look));
+    element
 }
 
 /// The classes of a label: `foreground`, or `text-muted` when disabled.

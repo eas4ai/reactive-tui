@@ -458,20 +458,52 @@ impl Component for Slider {
                 if props.show_labels {
                     pieces.push((min_label.as_str(), text_look));
                 }
-                pieces.push(("[", look::frame(focused)));
-                pieces.push((filled.as_str(), fill_look));
-                if length > 0 {
-                    pieces.push(("●", thumb_look));
+                // With pixels the track and the thumb are a picture over
+                // the cells of the frame and the track, and no glyph: a
+                // thin track filled to the exact pixel of the value and a
+                // round thumb centered on it (PIX-005).
+                #[cfg(feature = "wgpu-graphics")]
+                let pixel_track = look::pixels().then(|| {
+                    let span = props.max - props.min;
+                    let fraction = if span > 0.0 {
+                        ((value - props.min) / span).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    };
+                    look::spacer(
+                        length + 2,
+                        crate::graphics::look::Look::slider(
+                            length + 2,
+                            fraction,
+                            focused,
+                            props.disabled,
+                        ),
+                    )
+                });
+                #[cfg(not(feature = "wgpu-graphics"))]
+                let pixel_track: Option<Element> = None;
+                let mut children = look::pieces(&pieces);
+                pieces.clear();
+                match pixel_track {
+                    Some(pixel_track) => children.push(pixel_track),
+                    None => {
+                        pieces.push(("[", look::frame(focused)));
+                        pieces.push((filled.as_str(), fill_look));
+                        if length > 0 {
+                            pieces.push(("●", thumb_look));
+                        }
+                        pieces.push((rest.as_str(), track_look));
+                        pieces.push(("]", look::frame(focused)));
+                    }
                 }
-                pieces.push((rest.as_str(), track_look));
-                pieces.push(("]", look::frame(focused)));
                 if props.show_labels {
                     pieces.push((max_label.as_str(), text_look));
                 }
                 if props.show_value {
                     pieces.push((value_text.as_str(), text_look));
                 }
-                look::row(&pieces, "w-full")
+                children.extend(look::pieces(&pieces));
+                look::row_of(children, "w-full")
             }
             SliderOrientation::Vertical => {
                 let mut rows = Vec::new();
