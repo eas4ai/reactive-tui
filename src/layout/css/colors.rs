@@ -76,6 +76,14 @@ pub fn apply_bg_color_with_theme(
 /// Apply border color utilities (TUI-adapted)
 pub fn apply_border_color(token: &str, sb: StyleBuilder) -> Option<StyleBuilder> {
     if let Some(color_part) = token.strip_prefix("border-") {
+        // A theme role names the border a pixel look draws (PIX-003); in
+        // cells it changes nothing, so a card in `surface` stays `surface`.
+        if crate::theme::Theme::active()
+            .resolve_variable(color_part)
+            .is_some()
+        {
+            return Some(sb);
+        }
         // Remove "border-" prefix
         if let Some((r, g, b, a)) = parse_color_token(color_part) {
             // In TUI, we can approximate border colors by using them as background

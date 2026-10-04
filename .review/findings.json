@@ -1,0 +1,685 @@
+{
+  "snapshot": "/home/shawn/workspace2/scratchpads/tmp/reactive-tui-review-20261004-i_nse8c5",
+  "findings": [
+    {
+      "id": "C01",
+      "title": "A dropped old render tree can unregister the replacement component",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 11,
+      "anchor": "src/render/tree.rs:228",
+      "classification": "lifecycle/ownership defect"
+    },
+    {
+      "id": "C02",
+      "title": "Component::poll_change is never polled by the managed runtimes",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 25,
+      "anchor": "src/component/mod.rs:87",
+      "classification": "unsupported async behavior"
+    },
+    {
+      "id": "C03",
+      "title": "ScreenRuntime dispatch never feeds component mouse hooks",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 39,
+      "anchor": "src/screen/runtime.rs:153",
+      "classification": "missing integration"
+    },
+    {
+      "id": "C04",
+      "title": "Mouse-position hooks keep is_inside=true after the pointer leaves",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 53,
+      "anchor": "src/hooks/processor.rs:415",
+      "classification": "stale state"
+    },
+    {
+      "id": "C05",
+      "title": "Several conditional CSS variants apply their styles unconditionally",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 67,
+      "anchor": "src/layout/css/variants.rs:167",
+      "classification": "incorrect style resolution and unsupported feature claim"
+    },
+    {
+      "id": "C06",
+      "title": "CSS-in-Rust display:none does not hide anything",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 81,
+      "anchor": "src/layout/css/css_in_rust.rs:113",
+      "classification": "silently ignored property value"
+    },
+    {
+      "id": "C07",
+      "title": "Public Memo values never recompute after construction",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 93,
+      "anchor": "src/reactive/signal.rs:308",
+      "classification": "broken computed-signal contract"
+    },
+    {
+      "id": "C08",
+      "title": "RuntimeContext effects are disconnected from signals and consumed after one run",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 107,
+      "anchor": "src/reactive/runtime.rs:315",
+      "classification": "broken reactive effect contract"
+    },
+    {
+      "id": "C09",
+      "title": "Public VDOM diff ignores node names, element props and event handlers",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 121,
+      "anchor": "src/vdom/diff.rs:223",
+      "classification": "incomplete reconciliation"
+    },
+    {
+      "id": "C10",
+      "title": "HandlerLookup aliases distinct node IDs modulo 256",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 135,
+      "anchor": "src/event/cache.rs:185",
+      "classification": "wrong-target lookup"
+    },
+    {
+      "id": "C11",
+      "title": "HandlerChain reports handled and captured input as ignored",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 149,
+      "anchor": "src/event/cache.rs:76",
+      "classification": "incorrect dispatch result"
+    },
+    {
+      "id": "C12",
+      "title": "aspect-auto does not remove an existing aspect constraint",
+      "severity": "low",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 163,
+      "anchor": "src/layout/css/containers.rs:106",
+      "classification": "incorrect reset utility"
+    },
+    {
+      "id": "C13",
+      "title": "The CSS macro does not validate property names or property-specific types at compile time",
+      "severity": "low",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 179,
+      "anchor": "src/layout/css/css_in_rust.rs:1",
+      "classification": "unsupported safety claim"
+    },
+    {
+      "id": "C14",
+      "title": "The advertised compile-time perfect component lookup is an empty runtime HashMap",
+      "severity": "low",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 189,
+      "anchor": "src/component/cache.rs:14",
+      "classification": "inaccurate optimization claim/disconnected abstraction"
+    },
+    {
+      "id": "C15",
+      "title": "The poll wrapper's pointer checks do not verify pin stability",
+      "severity": "low",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 199,
+      "anchor": "src/component/instance.rs:304",
+      "classification": "misleading defensive code/ornamental safety check"
+    },
+    {
+      "id": "C16",
+      "title": "Explicit grid colors bypass the element's partial opacity",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 238,
+      "anchor": "src/layout/paint_tree/suprtui.rs:1261",
+      "classification": "painting correctness defect"
+    },
+    {
+      "id": "C17",
+      "title": "Pausing a hook animation past its deadline permanently removes its task",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 254,
+      "anchor": "src/hooks/animation.rs:154",
+      "classification": "animation lifecycle defect"
+    },
+    {
+      "id": "C18",
+      "title": "SpringHandle discards applied impulses before calculating motion",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 270,
+      "anchor": "src/hooks/animation.rs:509",
+      "classification": "spring state/data-flow defect"
+    },
+    {
+      "id": "C19",
+      "title": "Hook animation loop settings never reach its frame driver",
+      "severity": "medium",
+      "risk": false,
+      "report": "CORE.md",
+      "report_line": 286,
+      "anchor": "src/hooks/animation.rs:305",
+      "classification": "unsupported animation configuration"
+    },
+    {
+      "id": "N01",
+      "title": "Animation callbacks deadlock on ordinary state reads",
+      "severity": "high",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 29,
+      "anchor": "src/animation/mod.rs:419",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N02",
+      "title": "Safe Rust FFI exports dereference caller-controlled pointers",
+      "severity": "high",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 39,
+      "anchor": "src/ffi/reactive.rs:538",
+      "classification": "confirmed Rust API unsoundness"
+    },
+    {
+      "id": "N03",
+      "title": "Reversing a playing animation stops its updates",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 49,
+      "anchor": "src/animation/mod.rs:391",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N04",
+      "title": "A parallel timeline completes while its animations are waiting for delay",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 59,
+      "anchor": "src/animation/mod.rs:985",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N05",
+      "title": "Loop callbacks and auto-reverse are stranded in unused completion helpers",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 69,
+      "anchor": "src/animation/mod.rs:493",
+      "classification": "confirmed defect / contradicted claim"
+    },
+    {
+      "id": "N06",
+      "title": "Stale-animation cleanup deletes animations that are actively progressing",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 79,
+      "anchor": "src/animation/mod.rs:1116",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N07",
+      "title": "Automatically generated animation IDs collide within a millisecond",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 89,
+      "anchor": "src/animation/mod.rs:264",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N08",
+      "title": "Interpolation cache treats different endpoint values as the same animation",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 99,
+      "anchor": "src/animation/performance.rs:304",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N09",
+      "title": "Optimized batching changes animation values instead of preserving semantics",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 109,
+      "anchor": "src/animation/performance.rs:114",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N10",
+      "title": "Lock-free animation state loses updates and cannot finish larger loop counts",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 119,
+      "anchor": "src/animation/lock_free.rs:89",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N11",
+      "title": "Grid stagger distance overflows for ordinary terminal-sized grids",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 129,
+      "anchor": "src/animation/stagger.rs:163",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N12",
+      "title": "SyntaxEditor discards document context when painting highlighted lines",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 139,
+      "anchor": "src/editor/syntax_editor.rs:182",
+      "classification": "confirmed defect / contradicted claim"
+    },
+    {
+      "id": "N13",
+      "title": "Incremental highlighting reparses the entire document and has inconsistent size guards",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 149,
+      "anchor": "src/syntax/highlighter.rs:121",
+      "classification": "confirmed performance issue / design risk"
+    },
+    {
+      "id": "N14",
+      "title": "C text-buffer rendering corrupts wide and joined Unicode text",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 159,
+      "anchor": "src/ffi/text.rs:306",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "N15",
+      "title": "C text-input and checkbox constructors create static representations",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 169,
+      "anchor": "src/ffi/widgets.rs:22",
+      "classification": "capability mismatch / missing native control integration"
+    },
+    {
+      "id": "N16",
+      "title": "Animation performance features and metrics are partly decorative",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 181,
+      "anchor": "src/animation/performance.rs:198",
+      "classification": "contradicted claim / incomplete implementation"
+    },
+    {
+      "id": "N17",
+      "title": "FFI hit grid and debug API expose successful no-ops and fabricated hit IDs",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 191,
+      "anchor": "src/ffi/stats.rs:120",
+      "classification": "contradicted claim / incomplete implementation"
+    },
+    {
+      "id": "N18",
+      "title": "Gap-buffer zero-copy and constant-time claims omit its actual work",
+      "severity": "low",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 201,
+      "anchor": "src/editor/gap_buffer.rs:1",
+      "classification": "contradicted documentation / maintenance smell"
+    },
+    {
+      "id": "N19",
+      "title": "Package, README and native version disagree",
+      "severity": "low",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 211,
+      "anchor": "src/ffi/mod.rs:183",
+      "classification": "contradicted documentation / version inconsistency"
+    },
+    {
+      "id": "N20",
+      "title": "The legacy C effect and hooks facade is not an automatic reactive system",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 221,
+      "anchor": "src/ffi/reactive.rs:732",
+      "classification": "contradicted capability / missing integration"
+    },
+    {
+      "id": "N21",
+      "title": "Markdown table separators are generated from a permanently empty column list",
+      "severity": "low",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 231,
+      "anchor": "src/markdown/ast_walker.rs:184",
+      "classification": "confirmed rendering defect"
+    },
+    {
+      "id": "N22",
+      "title": "C surface-to-terminal rendering ignores the supplied terminal and restores the host after each call",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 241,
+      "anchor": "src/ffi/lib.rs:628",
+      "classification": "confirmed integration/lifecycle defect"
+    },
+    {
+      "id": "N23",
+      "title": "Spring position starts with the opposite of its configured velocity",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 253,
+      "anchor": "src/animation/spring.rs:100",
+      "classification": "confirmed numerical/API defect"
+    },
+    {
+      "id": "N24",
+      "title": "Completed spring animations can stop far short of their target",
+      "severity": "medium",
+      "risk": false,
+      "report": "NATIVE_ANIMATION_TEXT.md",
+      "report_line": 263,
+      "anchor": "src/animation/easing.rs:196",
+      "classification": "confirmed playback defect"
+    },
+    {
+      "id": "T01",
+      "title": "Windows direct backend never reads input in the App polling loop",
+      "severity": "high",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 35,
+      "anchor": "src/platform/windows.rs:274",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T02",
+      "title": "A lone Escape stays pending forever on Unix input paths",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 49,
+      "anchor": "src/platform/mod.rs:578",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T03",
+      "title": "Direct bracketed paste becomes ordinary key actions",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 63,
+      "anchor": "src/platform/parser.rs:685",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T04",
+      "title": "TerminalWriter resets foreground and background when changing attributes",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 77,
+      "anchor": "src/core/writer.rs:182",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T05",
+      "title": "Public escape parser treats UTF-8 bytes as characters and controls",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 93,
+      "anchor": "src/escape/parser/mod.rs:175",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T06",
+      "title": "Public escape parser mishandles both BEL and ESC-ST string endings",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 107,
+      "anchor": "src/escape/parser/mod.rs:73",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T07",
+      "title": "Direct capability probing consumes and discards keys typed at startup",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 123,
+      "anchor": "src/platform/mod.rs:1233",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T08",
+      "title": "TokioEventLoop permanently changes the caller's stdin to nonblocking",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 137,
+      "anchor": "src/platform/loop.rs:608",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T09",
+      "title": "Adaptive FPS creation and Auto mode ignore configured bounds",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 151,
+      "anchor": "src/display/adaptive.rs:104",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T10",
+      "title": "Rgba's advertised WCAG contrast result can approve inadequate contrast",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 167,
+      "anchor": "src/core/surface.rs:451",
+      "classification": "confirmed defect and claim contradiction"
+    },
+    {
+      "id": "T11",
+      "title": "A stopped TokioEventLoop silently stops again when restarted",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 181,
+      "anchor": "src/platform/loop.rs:665",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T12",
+      "title": "Resize dispatcher teardown can clear a new owner's callbacks",
+      "severity": "medium",
+      "risk": true,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 195,
+      "anchor": "src/platform/unix.rs:428",
+      "classification": "design risk with a concrete concurrent interleaving"
+    },
+    {
+      "id": "T13",
+      "title": "Independently created native TTY sessions restore each other's terminal state",
+      "severity": "medium",
+      "risk": true,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 207,
+      "anchor": "src/platform/unix.rs:171",
+      "classification": "design risk"
+    },
+    {
+      "id": "T14",
+      "title": "Graphics initialization discards unrelated process stderr",
+      "severity": "medium",
+      "risk": true,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 219,
+      "anchor": "src/graphics/worker.rs:400",
+      "classification": "design risk / deliberate tradeoff"
+    },
+    {
+      "id": "T15",
+      "title": "Startup parsing remains in special mode indefinitely if no DA1 arrives",
+      "severity": "medium",
+      "risk": true,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 231,
+      "anchor": "crates/reactive-tui-crossterm/src/terminal/sys/unix.rs:398",
+      "classification": "design risk requiring a timeout/late-reply contract decision"
+    },
+    {
+      "id": "T16",
+      "title": "Adding diff statistics changes resize rendering semantics",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 243,
+      "anchor": "src/core/span_diff.rs:224",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "T17",
+      "title": "GraphemeSurface overwrites leave invalid wide-cell occupancy",
+      "severity": "medium",
+      "risk": false,
+      "report": "TERMINAL_GRAPHICS.md",
+      "report_line": 257,
+      "anchor": "src/core/grapheme_cell.rs:154",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "W01",
+      "title": "Finite subnormal chart data can hang tick generation and shutdown",
+      "severity": "high",
+      "risk": false,
+      "report": "WIDGETS.md",
+      "report_line": 9,
+      "anchor": "src/widgets/display/charts/plot/tick.rs:71",
+      "classification": "confirmed defect; contradicted contract"
+    },
+    {
+      "id": "W02",
+      "title": "Theme aliases can recurse until the process exhausts its stack",
+      "severity": "high",
+      "risk": false,
+      "report": "WIDGETS.md",
+      "report_line": 25,
+      "anchor": "src/theme/mod.rs:130",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "W03",
+      "title": "Numeric scatter axis limits filter indices instead of x values",
+      "severity": "medium",
+      "risk": false,
+      "report": "WIDGETS.md",
+      "report_line": 39,
+      "anchor": "src/widgets/display/charts/live/canvas/cartesian.rs:286",
+      "classification": "confirmed defect; contradicted public API semantics"
+    },
+    {
+      "id": "W04",
+      "title": "Virtual chart slot counts amplify tiny input into unbounded allocation",
+      "severity": "high",
+      "risk": false,
+      "report": "WIDGETS.md",
+      "report_line": 53,
+      "anchor": "src/widgets/display/charts/live/canvas/cartesian.rs:542",
+      "classification": "confirmed defect; allocation amplification"
+    },
+    {
+      "id": "W05",
+      "title": "Indexed terminal and captured-image colors use the wrong cube levels",
+      "severity": "medium",
+      "risk": false,
+      "report": "WIDGETS.md",
+      "report_line": 71,
+      "anchor": "src/theme/ansi.rs:146",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "W06",
+      "title": "One scrollbar can cause overflow without the other scrollbar appearing",
+      "severity": "medium",
+      "risk": false,
+      "report": "WIDGETS.md",
+      "report_line": 87,
+      "anchor": "src/widgets/layout/scroll_view.rs:219",
+      "classification": "confirmed defect"
+    },
+    {
+      "id": "W07",
+      "title": "Mixed integer and decimal table cells lose exact numeric ordering",
+      "severity": "medium",
+      "risk": false,
+      "report": "WIDGETS.md",
+      "report_line": 101,
+      "anchor": "src/widgets/display/table.rs:727",
+      "classification": "confirmed defect; contradicted numeric-sort contract"
+    },
+    {
+      "id": "W08",
+      "title": "Replacing a table or tree callback alone keeps calling the old callback",
+      "severity": "medium",
+      "risk": false,
+      "report": "WIDGETS.md",
+      "report_line": 117,
+      "anchor": "src/widgets/display/table.rs:194",
+      "classification": "confirmed defect; ordinary prop-update behavior"
+    }
+  ]
+}

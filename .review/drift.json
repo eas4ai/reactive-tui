@@ -1,0 +1,21 @@
+{
+  "checked_at_utc": "2026-10-04T11:45:16.979153+00:00",
+  "frozen_head": "65e618ecd087453169465beaf130c6d0d521094c",
+  "live_head": "fd0066eb54c42cc332801587a541159ccc93a442",
+  "changed": [
+    {
+      "path": "Cargo.toml",
+      "frozen_sha256": "819e74a7aa38d1ab9ab7f8db2c6138ebe0286fc7e692374d409bdc05caea80c6",
+      "live_sha256": "e8ce632ae336670e1a70cfc07f864205718ddaaa73211b0044c869a352090aae"
+    },
+    {
+      "path": "docs/spec/pixel-looks.md",
+      "frozen_sha256": "b29f86320ccdd5cd1b1c68e8ccc9a18eea107a2bf640dfdbbad56930a0a836d2",
+      "live_sha256": "393c2614eddd7b97ef05b6aae2390351cc963bacb47c77f1af7de5f02b115cf2"
+    }
+  ],
+  "missing": [],
+  "new_rust_files": [
+    "tests/pixel_looks.rs"
+  ]
+}

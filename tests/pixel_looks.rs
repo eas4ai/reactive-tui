@@ -203,18 +203,20 @@ fn pix_001_a_primary_button_on_a_kitty_host_sends_a_picture_over_its_cells() {
         true,
     );
     let picture = run.first_picture("PIX-001: a primary button of 8 by 1 cells");
+    let screen = run.screen(picture.frame);
+    let label = columns_of(&screen, 0, "Save").expect("the label is cell text");
+    // The button is as wide as its label and one cell of padding at each
+    // side (CTL-002): the picture covers those cells and no other.
     assert_eq!(
         picture.rect(),
-        (0, 0, 1, 8),
+        (0, label.start - 1, 1, label.len() + 2),
         "PIX-001: the placement covers the button's cells"
     );
     assert_eq!(
         picture.size,
-        (64, 16),
+        ((label.len() as u32 + 2) * 8, 16),
         "PIX-001: one picture pixel per screen pixel"
     );
-    let screen = run.screen(picture.frame);
-    let label = columns_of(&screen, 0, "Save").expect("the label is cell text");
     for column in label.clone() {
         for x in (column as u32 * 8)..(column as u32 * 8 + 8) {
             for y in 0..16 {
@@ -519,6 +521,7 @@ fn pix_002_a_typed_key_sends_one_picture_for_the_text_input_alone() {
 #[test]
 fn pix_002_a_scrolled_look_is_placed_again_not_sent_again() {
     let mut content = div().class("flex-col w-20");
+    content = content.child(builder::text("head"));
     content = content.child(sized(8, 1, save_button()));
     for row in 0..12 {
         content = content.child(builder::text(&format!("line {row}")));
@@ -600,10 +603,11 @@ fn pix_002_a_look_is_drawn_at_the_terminals_cell_size() {
         true,
     );
     let picture = run.first_picture("PIX-002: a primary button on 9 by 18 pixel cells");
+    // "Save" with a cell of padding at each side is six cells.
     assert_eq!(
         (picture.size, picture.cells),
-        ((72, 18), Some((8, 1))),
-        "PIX-002: an 8 by 1 look on 9 by 18 pixel cells is a 72 by 18 picture placed over 8 by 1 cells"
+        ((54, 18), Some((6, 1))),
+        "PIX-002: a 6 by 1 look on 9 by 18 pixel cells is a 54 by 18 picture placed over 6 by 1 cells"
     );
 }
 
@@ -694,9 +698,14 @@ fn pix_002_a_list_opened_over_a_card_hides_the_picture_under_it() {
         .unwrap_or_else(|| panic!("PIX-002: the card sent a picture after the list closed"));
     let row = list_rows[0];
     let y = ((row - 1) as u32) * 16 + 8;
+    let history: Vec<String> = pictures
+        .iter()
+        .filter(|p| p.id == card_id)
+        .map(|p| format!("frame {} alpha {}", p.frame, p.pixel(2 * 8 + 4, y)[3]))
+        .collect();
     assert!(
         after_close.pixel(2 * 8 + 4, y)[3] > 0,
-        "PIX-002: after the list closed the card's picture is whole again at row {row}"
+        "PIX-002: after the list closed (frame {close}; opened at {open}) the card's picture is whole again at row {row}: {history:?}"
     );
 }
 

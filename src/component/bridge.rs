@@ -85,9 +85,6 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
     ) {
         use std::hash::{Hash, Hasher};
         let look = element.metadata.look.clone().or_else(|| {
-            if matches!(element.element_type, super::element::ElementType::Text(_)) {
-                return None;
-            }
             element
                 .class
                 .as_deref()
