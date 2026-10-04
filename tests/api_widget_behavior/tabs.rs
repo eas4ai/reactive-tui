@@ -1,3 +1,4 @@
+use super::app_input::{run_until, Until, HANG_GUARD};
 use super::{click, key, run, Control};
 use reactive_tui::{
     builder,
@@ -295,17 +296,46 @@ fn tabs_resize_moves_header_targets_and_key_release_does_not_close() {
         assert!(ox > x);
         let mut release = KeyEvent::new(KeyCode::Delete);
         release.kind = KeyEventKind::Release;
-        let frames = run(
+        // Each event waits for the frame it needs: the clicks for the header
+        // at its new place, the keys for the chosen panel. The App paints one
+        // event's change per frame interval, so a frame count alone can end
+        // the run before the second click's frame was painted.
+        let frames = run_until(
             Control(make()),
             size,
             vec![
-                (1, Some(Event::Resize(ResizeEvent::new(small.0, small.1)))),
-                (2, click(ox, oy)),
-                (2, click(x, y)),
-                (3, Some(Event::Key(release))),
-                (3, key(KeyCode::Delete)),
-                (3, None),
+                Until {
+                    text: "FIRST",
+                    cell: None,
+                    event: Some(Event::Resize(ResizeEvent::new(small.0, small.1))),
+                },
+                Until {
+                    text: "FIRST",
+                    cell: Some((x, y, "B")),
+                    event: click(ox, oy),
+                },
+                Until {
+                    text: "FIRST",
+                    cell: Some((x, y, "B")),
+                    event: click(x, y),
+                },
+                Until {
+                    text: "SECOND",
+                    cell: None,
+                    event: Some(Event::Key(release)),
+                },
+                Until {
+                    text: "SECOND",
+                    cell: None,
+                    event: key(KeyCode::Delete),
+                },
+                Until {
+                    text: "SECOND",
+                    cell: None,
+                    event: None,
+                },
             ],
+            HANG_GUARD,
         );
         assert!(frames.last().unwrap().text.contains("SECOND"));
         assert_eq!(*changes.lock().unwrap(), vec![1]);

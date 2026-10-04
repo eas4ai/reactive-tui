@@ -296,11 +296,20 @@ fn process_is_running(pid: i32) -> bool {
     {
         return false;
     }
-    let stat = fs::read_to_string(format!("/proc/{pid}/stat"));
-    !stat.is_ok_and(|stat| {
-        stat.rsplit_once(") ")
-            .is_some_and(|(_, rest)| rest.starts_with('Z'))
-    })
+    // The process exists or is a zombie waiting for its reaper. On Linux its
+    // state says which: a zombie is not running, and one that its reaper
+    // collected between the probe above and this read is gone, so its state
+    // file is not found.
+    #[cfg(target_os = "linux")]
+    let running = match fs::read_to_string(format!("/proc/{pid}/stat")) {
+        Ok(stat) => !stat
+            .rsplit_once(") ")
+            .is_some_and(|(_, rest)| rest.starts_with('Z')),
+        Err(error) => error.kind() != std::io::ErrorKind::NotFound,
+    };
+    #[cfg(not(target_os = "linux"))]
+    let running = true;
+    running
 }
 
 fn assert_helpers_stopped(expected_invocations: usize) {
