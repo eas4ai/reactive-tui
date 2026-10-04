@@ -16,7 +16,7 @@ COMMANDS = (
     "cargo +1.91.0 test --locked --no-fail-fast",
     "cargo +1.91.0 fmt --all -- --check",
     "cargo +1.91.0 clippy --locked --all-targets -- -D warnings",
-    "python -B scripts/check-pre-release-dependency-maintenance.py DQC-002",
+    "cargo +1.91.0 deny --locked check advisories bans licenses sources",
 )
 ADVISORY = "python -B scripts/check-pre-release-dependency-code-quality.py DQC-001"
 CONDITIONS = {"platform": "github.event_name != 'schedule'",

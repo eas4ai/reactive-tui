@@ -15,9 +15,14 @@ pub fn spoke_angles(count: usize) -> Vec<f64> {
     (0..count).map(|k| scale.map(k as f64)).collect()
 }
 
-/// The point at `angle` and `radius` from `center`.
+/// The point at `angle` and `radius` from `center`. The sine and cosine come
+/// from libm, not the platform's math library, so a radar or pie drawn on
+/// Apple Silicon puts its dots where x86-64 puts them (BAR-012).
 pub fn at((cx, cy): (f64, f64), angle: f64, radius: f64) -> (f64, f64) {
-    (cx + angle.sin() * radius, cy - angle.cos() * radius)
+    (
+        cx + libm::sin(angle) * radius,
+        cy - libm::cos(angle) * radius,
+    )
 }
 
 /// A radar grid: `levels` concentric polygons at equal steps out to

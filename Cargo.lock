@@ -2301,6 +2301,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "libloading",
+ "libm",
  "log",
  "lru",
  "lumis",

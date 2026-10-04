@@ -90,7 +90,10 @@ For new features:
 2. **Make focused changes** - one feature/fix per PR
 3. **Write tests** for new functionality
 4. **Update documentation** as needed
-5. **Ensure CI passes** - all tests and checks must pass
+5. **Ensure CI passes** - the push workflow (`.github/workflows/ci.yml`) builds,
+   tests, formats and lints the workspace and runs `cargo deny` on an Ubuntu, a
+   macOS and a Windows runner at the minimum supported Rust from `Cargo.toml`,
+   with the ConPTY runtime installed on Windows; every job must be green (BAR-012)
 6. **Write clear commit messages**
 
 ### Commit Message Format

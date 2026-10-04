@@ -52,7 +52,9 @@ jobs:
       - name: cargo doc (ffi)
         run: cargo doc --locked --no-deps -p reactive-tui --features ffi
       - name: cargo test (ffi)
-        run: cargo test --locked --no-fail-fast -p reactive-tui --features ffi
+        # The ffi terminal tests need a controlling terminal, which the
+        # runner has none of; script lends one and returns the tests' exit code.
+        run: script -q -e -c "cargo test --locked --no-fail-fast -p reactive-tui --features ffi" /dev/null
       - name: cargo build (ffi,wgpu-graphics)
         run: cargo build --locked -p reactive-tui --features ffi,wgpu-graphics
 

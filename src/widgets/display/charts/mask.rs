@@ -488,7 +488,7 @@ impl MaskCanvas {
                 if r > outer || r < inner {
                     continue;
                 }
-                let angle = dx.atan2(-dy).rem_euclid(std::f64::consts::TAU);
+                let angle = libm::atan2(dx, -dy).rem_euclid(std::f64::consts::TAU);
                 if angle >= start && angle < end {
                     self.dot(x, y, color, owner);
                 }
@@ -606,7 +606,7 @@ impl MaskCanvas {
                 if r > outer || r < inner {
                     return false;
                 }
-                let angle = dx.atan2(-dy).rem_euclid(std::f64::consts::TAU);
+                let angle = libm::atan2(dx, -dy).rem_euclid(std::f64::consts::TAU);
                 angle >= start && angle < end
             },
         )

@@ -774,7 +774,7 @@ fn radial_pick(
     );
     let polar = |px: f64, py: f64| {
         let (dx, dy) = (px - radial.center.0, py - radial.center.1);
-        (dx.hypot(dy), dx.atan2(-dy).rem_euclid(TAU))
+        (libm::hypot(dx, dy), libm::atan2(dx, -dy).rem_euclid(TAU))
     };
     let samples: Vec<(f64, f64)> = (0..ph)
         .flat_map(|sy| {
@@ -873,8 +873,8 @@ fn radial_ray(radial: &RadialHit, selected: (usize, usize)) -> Vec<(usize, usize
     let mut cells = Vec::new();
     let mut r = radial.inner;
     while r <= radial.outer {
-        let x = radial.center.0 + angle.sin() * r;
-        let y = radial.center.1 - angle.cos() * r;
+        let x = radial.center.0 + libm::sin(angle) * r;
+        let y = radial.center.1 - libm::cos(angle) * r;
         if x >= 0.0 && y >= 0.0 {
             let cell = ((x / DOTS_X as f64) as usize, (y / DOTS_Y as f64) as usize);
             if cells.last() != Some(&cell) {

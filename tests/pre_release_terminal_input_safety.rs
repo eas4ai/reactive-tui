@@ -368,7 +368,13 @@ fn public_terminal_string_path_inventory_is_complete() {
     collect_rust_sources(&root.join("src"), &mut sources);
     let mut actual = BTreeSet::new();
     for source in sources {
-        let prefix = source.strip_prefix(root).unwrap().display().to_string();
+        // The inventory is spelled with forward slashes on every host.
+        let prefix = source
+            .strip_prefix(root)
+            .unwrap()
+            .display()
+            .to_string()
+            .replace('\\', "/");
         let text = std::fs::read_to_string(source).unwrap();
         let syntax = syn::parse_file(&text).unwrap();
         inventory_items(&prefix, &syntax.items, &mut actual);

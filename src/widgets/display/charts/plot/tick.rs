@@ -20,7 +20,7 @@ pub fn nice_step(span: f64, count: usize) -> f64 {
         return 1.0;
     }
     let raw = span / count.max(1) as f64;
-    let magnitude = 10f64.powf(raw.log10().floor());
+    let magnitude = libm::pow(10.0, libm::log10(raw).floor());
     let residual = raw / magnitude;
     // d3's tickStep thresholds: sqrt(50), sqrt(10) and sqrt(2).
     let factor = if residual >= 7.07 {
@@ -69,7 +69,7 @@ pub fn tick_step(span: f64, intervals: usize) -> f64 {
         return 1.0;
     }
     let raw = span / intervals.max(1) as f64;
-    let magnitude = 10f64.powf(raw.log10().floor());
+    let magnitude = libm::pow(10.0, libm::log10(raw).floor());
     STEPS
         .iter()
         .map(|s| s * magnitude)
@@ -79,7 +79,7 @@ pub fn tick_step(span: f64, intervals: usize) -> f64 {
 
 /// The next round step after `step`.
 fn next_step(step: f64) -> f64 {
-    let magnitude = 10f64.powf(step.log10().floor());
+    let magnitude = libm::pow(10.0, libm::log10(step).floor());
     let residual = step / magnitude;
     STEPS
         .iter()
@@ -160,7 +160,7 @@ fn snap(value: f64, step: f64) -> f64 {
     if step.is_nan() || step <= 0.0 || !step.is_finite() {
         return value;
     }
-    let decimals = ((-step.log10().floor()).max(0.0) as i32 + 2).min(12);
+    let decimals = ((-libm::log10(step).floor()).max(0.0) as i32 + 2).min(12);
     let factor = 10f64.powi(decimals);
     let snapped = (value * factor).round() / factor;
     if snapped.abs() < step * 1e-9 {

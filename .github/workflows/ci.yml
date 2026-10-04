@@ -52,22 +52,28 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           'C:\msys64\mingw64\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           'C:\msys64\usr\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      - name: Install supported Rust and audit tool
+      - name: Install supported Rust and dependency tools
         run: |
           rustup toolchain install 1.91.0 --profile minimal --component rustfmt --component clippy
           rustup default 1.91.0
-          cargo +1.91.0 install cargo-audit --version 0.22.1 --locked
+          cargo +1.91.0 install cargo-deny --version 0.20.2 --locked
           python -m pip install -r scripts/requirements-ci.txt
       - name: Build default targets
         run: cargo +1.91.0 build --locked --all-targets
+      - name: ConPTY runtime beside the Windows test binaries
+        if: runner.os == 'Windows'
+        run: python -B scripts/install-conpty-runtime.py target/debug/deps --arch x64
+      - name: The curl the dialog HTTP tests run
+        if: runner.os == 'Windows'
+        run: where.exe curl; curl --version | head -1
       - name: Default tests and doctests
         run: cargo +1.91.0 test --locked --no-fail-fast
       - name: Workspace formatting
         run: cargo +1.91.0 fmt --all -- --check
       - name: Strict default-target Clippy
         run: cargo +1.91.0 clippy --locked --all-targets -- -D warnings
-      - name: Dependency maintenance and feature graphs
-        run: python -B scripts/check-pre-release-dependency-maintenance.py DQC-002
+      - name: Dependency advisories, bans, licenses and sources
+        run: cargo +1.91.0 deny --locked check advisories bans licenses sources
       - name: CI event and failure fixtures
         run: python -B scripts/check-pre-release-ci.py RID-001
 
