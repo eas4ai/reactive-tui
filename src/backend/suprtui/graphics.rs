@@ -677,7 +677,6 @@ impl<P: RasterPlane> Graphics<P> {
 /// bytes; no bytes for a plane that is `kept` as it is. A canvas's Kitty
 /// picture goes through a shared-memory object where the host reads it,
 /// kept by `objects`.
-#[allow(clippy::too_many_arguments)]
 /// The commands that place the Kitty picture of `plane`, which the host
 /// holds, over its cells: whole, or over the rectangles of cells no element
 /// over it hides, each from its own corner and its own part of the picture
@@ -719,6 +718,7 @@ fn kitty_placements<P: RasterPlane>(plane: &P, z: usize, cell: (u16, u16)) -> Ve
     bytes
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_plane<P: RasterPlane>(
     plane: &P,
     z: usize,

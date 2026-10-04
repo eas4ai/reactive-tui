@@ -761,55 +761,277 @@ fn pix_002_a_list_opened_over_a_card_hides_the_picture_under_it() {
         open.expect("the list opened"),
         close.expect("the list closed"),
     );
-    let covered_screen = run.screen(open);
-    let list_rows: Vec<usize> = (1..8)
-        .filter(|row| {
-            columns_of(&covered_screen, *row, "Beta").is_some()
-                || columns_of(&covered_screen, *row, "Gamma").is_some()
+    let card_id = first.id.expect("the card's image id");
+    // The card's box: the eight rows under the select's row.
+    let (card_rows, card_columns) = (1..9usize, 0..40usize);
+    let shows_list = |frame: usize| {
+        let screen = run.screen(frame);
+        card_rows.clone().any(|row| {
+            columns_of(&screen, row, "Beta").is_some()
+                || columns_of(&screen, row, "Gamma").is_some()
+        })
+    };
+    let appeared = (open..run.frames.len())
+        .find(|&frame| shows_list(frame))
+        .unwrap_or_else(|| panic!("the list opened over the card after frame {open}"));
+    let gone = (close..run.frames.len())
+        .find(|&frame| !shows_list(frame))
+        .unwrap_or_else(|| panic!("the list closed after frame {close}"));
+    // The list's cells: the rectangle around the card's cells the frame the
+    // list appears in shows otherwise than the frame before it opened. The
+    // panel is a box with a border, so its edges are among them, while a
+    // blank cell inside it may look like the card's.
+    let (before, shown) = (run.screen(open - 1), run.screen(appeared));
+    let changed: Vec<(usize, usize)> = card_rows
+        .clone()
+        .flat_map(|row| card_columns.clone().map(move |column| (row, column)))
+        .filter(|&(row, column)| {
+            let (a, b) = (
+                before.cell(row as u16, column as u16).expect("a cell"),
+                shown.cell(row as u16, column as u16).expect("a cell"),
+            );
+            a.contents() != b.contents() || a.bgcolor() != b.bgcolor()
         })
         .collect();
+    let list_cells: Vec<(usize, usize)> = match (
+        changed.iter().map(|c| c.0).min(),
+        changed.iter().map(|c| c.0).max(),
+        changed.iter().map(|c| c.1).min(),
+        changed.iter().map(|c| c.1).max(),
+    ) {
+        (Some(top), Some(bottom), Some(left), Some(right)) => (top..=bottom)
+            .flat_map(|row| (left..=right).map(move |column| (row, column)))
+            .collect(),
+        _ => Vec::new(),
+    };
     assert!(
-        !list_rows.is_empty(),
+        !list_cells.is_empty(),
         "the list opened over the card: {:?}",
-        covered_screen.contents()
+        shown.contents()
     );
-    let pictures = run.pictures();
-    let card_id = first.id;
-    let while_open = pictures
-        .iter()
-        .rfind(|p| p.id == card_id && p.frame >= open && p.frame < close)
-        .unwrap_or_else(|| {
-            panic!("PIX-002: the card sent a new picture while the list covered it")
-        });
-    for row in &list_rows {
-        let columns = columns_of(&covered_screen, *row, "Alpha")
-            .or_else(|| columns_of(&covered_screen, *row, "Beta"))
-            .or_else(|| columns_of(&covered_screen, *row, "Gamma"))
-            .expect("the list's row");
-        let y = ((*row - 1) as u32) * 16 + 8;
-        for column in columns {
-            assert_eq!(
-                while_open.pixel(column as u32 * 8 + 4, y)[3],
-                0,
-                "PIX-002: the card's picture is cut out under the list's cell at row {row}, column {column}"
-            );
+    // The cells the card's placements cover in `frame`, when the frame
+    // places the card again: after the last command of the frame that takes
+    // its placements away.
+    let placed = |frame: usize| -> Option<Vec<(usize, usize)>> {
+        let commands = kitty_commands(&run.frames[frame..=frame]);
+        let card: Vec<&KittyCommand> = commands.iter().filter(|c| c.id == Some(card_id)).collect();
+        let from = card.iter().rposition(|c| c.action == "d")?;
+        let mut cells = Vec::new();
+        for command in card[from + 1..].iter().filter(|c| c.action == "p") {
+            let (row, column) = command.at.expect("a placement at the cursor");
+            let count = |key: &str| -> usize {
+                command
+                    .key(key)
+                    .and_then(|v| v.parse().ok())
+                    .expect("a placement names its cells")
+            };
+            for r in row..row + count("r") {
+                for c in column..column + count("c") {
+                    cells.push((r, c));
+                }
+            }
         }
-    }
-    let after_close = pictures
+        Some(cells)
+    };
+    let opening = placed(appeared).unwrap_or_else(|| {
+        panic!("PIX-002: the frame the list appears in ({appeared}) does not place the card's picture again around it")
+    });
+    let through: Vec<&(usize, usize)> = list_cells
         .iter()
-        .rfind(|p| p.id == card_id && p.frame >= close)
-        .unwrap_or_else(|| panic!("PIX-002: the card sent a picture after the list closed"));
-    let row = list_rows[0];
-    let y = ((row - 1) as u32) * 16 + 8;
-    let history: Vec<String> = pictures
-        .iter()
-        .filter(|p| p.id == card_id)
-        .map(|p| format!("frame {} alpha {}", p.frame, p.pixel(8 + 4, y)[3]))
+        .filter(|cell| opening.contains(cell))
         .collect();
-    // Column 1 is the card's padding: no text cuts it out of the picture.
     assert!(
-        after_close.pixel(8 + 4, y)[3] > 0,
-        "PIX-002: after the list closed (frame {close}; opened at {open}) the card's picture is whole again at row {row}: {history:?}"
+        through.is_empty(),
+        "PIX-002: in the frame the list appears in ({appeared}) the card's picture is placed over the list's cells {through:?}"
+    );
+    let missing: Vec<(usize, usize)> = card_rows
+        .clone()
+        .flat_map(|row| card_columns.clone().map(move |column| (row, column)))
+        .filter(|cell| !list_cells.contains(cell) && !opening.contains(cell))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "PIX-002: in the frame the list appears in ({appeared}) the card's picture is not placed over its cells {missing:?} beside the list"
+    );
+    let closing = placed(gone).unwrap_or_else(|| {
+        panic!(
+            "PIX-002: the frame the list goes in ({gone}) does not place the card's picture again"
+        )
+    });
+    let missing: Vec<(usize, usize)> = card_rows
+        .clone()
+        .flat_map(|row| card_columns.clone().map(move |column| (row, column)))
+        .filter(|cell| !closing.contains(cell))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "PIX-002: in the frame the list goes in ({gone}) the card's picture is not whole again: cells {missing:?} lack it"
+    );
+    let pixels_sent: Vec<usize> = kitty_commands(&run.frames)
+        .iter()
+        .filter(|c| c.id == Some(card_id) && c.payload && (appeared..=gone).contains(&c.frame))
+        .map(|c| c.frame)
+        .collect();
+    assert!(
+        pixels_sent.is_empty(),
+        "PIX-002: the card's picture is unchanged while the list opens and closes over it, yet its pixels were sent again in frames {pixels_sent:?}"
+    );
+}
+
+/// PIX-002: a look whose picture changes in the frame a list opens over it
+/// (a click moves the focus from a button to the select over it, which opens
+/// its list) shows nothing under the list from that frame on: its last
+/// placement goes in that frame, and its next picture is sent whole and
+/// placed around the list; when the list goes, the picture is whole again in
+/// that frame.
+#[test]
+fn pix_002_a_look_that_changes_as_a_list_opens_over_it_is_never_placed_under_it() {
+    let mut button = builder::primary_button("Save", || {});
+    button.class = Some(format!(
+        "{} w-full h-full",
+        button.class.as_deref().unwrap_or_default()
+    ));
+    let tree = div()
+        .class("flex-col w-40")
+        .child(sized(
+            20,
+            1,
+            builder::select()
+                .option("a", "Alpha")
+                .option("b", "Beta")
+                .option("c", "Gamma")
+                .selected("a")
+                .build(),
+        ))
+        .child(sized(20, 6, button.auto_focus()))
+        .build();
+    let clicked = std::sync::Arc::new(Mutex::new((None::<usize>, None::<usize>)));
+    let flag = clicked.clone();
+    let script: Script = Box::new(move |presented, pictures| {
+        let mut state = flag.lock().unwrap();
+        if state.0.is_none() && pictures >= 1 && presented >= 3 {
+            state.0 = Some(presented);
+            return Some(pressed(MouseEventKind::Down, 2, 0));
+        }
+        if let (Some(at), None) = *state {
+            if presented >= at + 6 {
+                state.1 = Some(presented);
+                return Some(key(KeyCode::Escape));
+            }
+        }
+        None
+    });
+    let run = run(
+        tree,
+        SIZE,
+        kitty(),
+        script,
+        pictures_or_frames(1, 12, 120),
+        true,
+    );
+    let first = run.first_picture("PIX-002: a focused button under a select");
+    let id = first.id.expect("the button's image id");
+    let (at, close) = *clicked.lock().unwrap();
+    let (at, close) = (
+        at.expect("the select was clicked"),
+        close.expect("the list closed"),
+    );
+    let (box_rows, box_columns) = (1..7usize, 0..20usize);
+    let shows_list = |frame: usize| {
+        let screen = run.screen(frame);
+        (0..8).any(|row| columns_of(&screen, row, "Gamma").is_some())
+    };
+    let appeared = (at..run.frames.len())
+        .find(|&frame| shows_list(frame))
+        .unwrap_or_else(|| panic!("the click opened the list after frame {at}"));
+    let gone = (close..run.frames.len())
+        .find(|&frame| !shows_list(frame))
+        .unwrap_or_else(|| panic!("the list closed after frame {close}"));
+    // The list's cells: the rectangle its border's glyphs draw.
+    let shown = run.screen(appeared);
+    let border: Vec<(usize, usize)> = (0..12usize)
+        .flat_map(|row| (0..40usize).map(move |column| (row, column)))
+        .filter(|&(row, column)| {
+            shown
+                .cell(row as u16, column as u16)
+                .and_then(|cell| cell.contents().chars().next())
+                .is_some_and(|glyph| ('\u{2500}'..='\u{257f}').contains(&glyph))
+        })
+        .collect();
+    let (top, bottom) = (
+        border.iter().map(|c| c.0).min().expect("the list's border"),
+        border.iter().map(|c| c.0).max().expect("the list's border"),
+    );
+    let (left, right) = (
+        border.iter().map(|c| c.1).min().expect("the list's border"),
+        border.iter().map(|c| c.1).max().expect("the list's border"),
+    );
+    let list = |cell: &(usize, usize)| {
+        (top..=bottom).contains(&cell.0) && (left..=right).contains(&cell.1)
+    };
+    // Every cell a command for the button places its picture over.
+    let covers = |command: &KittyCommand| -> Vec<(usize, usize)> {
+        let count =
+            |key: &str| -> usize { command.key(key).and_then(|v| v.parse().ok()).unwrap_or(0) };
+        match (command.action.as_str(), command.at) {
+            ("T" | "p", Some((row, column))) => (row..row + count("r"))
+                .flat_map(|r| (column..column + count("c")).map(move |c| (r, c)))
+                .collect(),
+            _ => Vec::new(),
+        }
+    };
+    let commands = kitty_commands(&run.frames);
+    let button: Vec<&KittyCommand> = commands.iter().filter(|c| c.id == Some(id)).collect();
+    assert!(
+        button
+            .iter()
+            .any(|c| c.frame == appeared && c.action == "d"),
+        "PIX-002: in the frame the list appears in ({appeared}) the button's last placement, from before the list, stays on the screen: {:?}",
+        button
+            .iter()
+            .filter(|c| c.frame == appeared)
+            .map(|c| (c.action.clone(), c.frame))
+            .collect::<Vec<_>>()
+    );
+    for command in button
+        .iter()
+        .filter(|c| (appeared..gone).contains(&c.frame))
+    {
+        let under: Vec<(usize, usize)> = covers(command).into_iter().filter(|c| list(c)).collect();
+        assert!(
+            under.is_empty(),
+            "PIX-002: frame {} places the button's picture under the list's cells {under:?}",
+            command.frame
+        );
+    }
+    assert!(
+        button
+            .iter()
+            .any(|c| (appeared..gone).contains(&c.frame) && c.action == "t" && c.payload),
+        "PIX-002: the button's picture without the focus was not sent while the list was open"
+    );
+    let after: Vec<(usize, usize)> = {
+        let in_frame: Vec<&&KittyCommand> = button.iter().filter(|c| c.frame == gone).collect();
+        let from = in_frame
+            .iter()
+            .rposition(|c| c.action == "d")
+            .unwrap_or_else(|| {
+                panic!(
+                    "PIX-002: the frame the list goes in ({gone}) does not place the button again"
+                )
+            });
+        in_frame[from + 1..]
+            .iter()
+            .flat_map(|c| covers(c))
+            .collect()
+    };
+    let missing: Vec<(usize, usize)> = box_rows
+        .flat_map(|row| box_columns.clone().map(move |column| (row, column)))
+        .filter(|cell| !after.contains(cell))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "PIX-002: in the frame the list goes in ({gone}) the button's picture is not whole again: cells {missing:?} lack it"
     );
 }
 
