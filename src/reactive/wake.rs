@@ -147,6 +147,27 @@ impl Scope {
         }))
     }
 }
+/// The App whose render runs on this thread and the generation it reads
+/// signals under, carried to a thread the render hands its frame to: the
+/// backend paints there, and what the painter reads, a look's picture on
+/// the drawing thread, wakes that App when it changes (PIX-001).
+#[derive(Clone)]
+pub(crate) struct Carried(Context);
+
+/// The render scope of this thread, to carry to another.
+pub(crate) fn carried() -> Option<Carried> {
+    CURRENT.with(|current| current.borrow().clone().map(Carried))
+}
+
+impl Scope {
+    /// Enter, on this thread, the render scope `carried` from another: the
+    /// generation stays the App's, so what is read here is dropped with what
+    /// that render read when the App renders again.
+    pub(crate) fn resume(carried: &Carried) -> Self {
+        Self(CURRENT.with(|current| current.replace(Some(carried.0.clone()))))
+    }
+}
+
 impl Drop for Scope {
     fn drop(&mut self) {
         CURRENT.with(|current| {
