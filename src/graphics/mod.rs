@@ -14,6 +14,7 @@ mod geometry;
 mod glyphs;
 mod gpu;
 mod hybrid;
+pub mod look;
 mod output;
 mod paint;
 mod raster;

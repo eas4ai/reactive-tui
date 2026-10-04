@@ -15,6 +15,10 @@ pub(super) struct Layers {
     width: usize,
     height: usize,
     entries: usize,
+    /// The cells a pixel look's rounded corners leave to what is under the
+    /// element, with the look's fill: text painted in one of them takes
+    /// that fill as its background (PIX-003).
+    corner_fills: std::collections::HashMap<(i32, i32), ansi::Rgba>,
 }
 impl Layers {
     pub fn new(width: usize, height: usize) -> Self {
@@ -24,7 +28,17 @@ impl Layers {
             width,
             height,
             entries: 0,
+            corner_fills: std::collections::HashMap::new(),
         }
+    }
+    /// Remember that text in cell `(x, y)` takes `fill` as its background.
+    pub fn set_corner_fill(&mut self, x: i32, y: i32, fill: ansi::Rgba) {
+        self.corner_fills.insert((x, y), fill);
+    }
+    /// The background text in cell `(x, y)` takes, when a look's corner
+    /// named one.
+    pub fn corner_fill(&self, x: i32, y: i32) -> Option<ansi::Rgba> {
+        self.corner_fills.get(&(x, y)).copied()
     }
     pub fn push(&mut self, plane: Plane) -> Result<()> {
         // A plane that is refused leaves the count as it was, so the
@@ -111,12 +125,37 @@ impl Plane {
         target: &::suprtui::buffer::OptimizedBuffer<'_>,
         protocol: ImageProtocol,
     ) -> Result<Option<Self>> {
+        Self::build(image, paint, node, target, protocol, false)
+    }
+    /// A plane over the node's whole box, padding included: a pixel look's
+    /// picture (PIX-001).
+    pub(super) fn covering(
+        image: Arc<ImagePaint>,
+        paint: &NodePaint,
+        node: &PaintNode,
+        target: &::suprtui::buffer::OptimizedBuffer<'_>,
+        protocol: ImageProtocol,
+    ) -> Result<Option<Self>> {
+        Self::build(image, paint, node, target, protocol, true)
+    }
+    fn build(
+        image: Arc<ImagePaint>,
+        paint: &NodePaint,
+        node: &PaintNode,
+        target: &::suprtui::buffer::OptimizedBuffer<'_>,
+        protocol: ImageProtocol,
+        whole_box: bool,
+    ) -> Result<Option<Self>> {
         let bounds = node.bounds.intersect(node.clip);
-        let content = Rect {
-            left: paint.pad.left as i32,
-            top: paint.pad.top as i32,
-            right: node.local.right - paint.pad.right as i32,
-            bottom: node.local.bottom - paint.pad._bottom as i32,
+        let content = if whole_box {
+            node.local
+        } else {
+            Rect {
+                left: paint.pad.left as i32,
+                top: paint.pad.top as i32,
+                right: node.local.right - paint.pad.right as i32,
+                bottom: node.local.bottom - paint.pad._bottom as i32,
+            }
         };
         let opacity = paint.opacity * node.parent_opacity;
         if bounds.right <= bounds.left
