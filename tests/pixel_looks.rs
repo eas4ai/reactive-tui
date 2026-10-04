@@ -1094,6 +1094,55 @@ fn pix_002_looks_with_one_key_under_two_parents_keep_their_own_pictures() {
     }
 }
 
+/// PIX-001, GFX-010: a look whose one-to-one picture exceeds the room a
+/// Kitty picture sent in the command has (12 million pixels) is drawn at the
+/// largest whole pixels per cell that fit, and its placement names the cells
+/// it covers so the terminal scales it to them.
+#[test]
+fn pix_001_a_look_too_large_for_its_output_is_drawn_at_fewer_whole_pixels_per_cell() {
+    let cell = (64u16, 128u16);
+    let options = ImageOutputOptions {
+        cell_pixels: cell,
+        ..kitty()
+    };
+    let tree = div()
+        .class("w-full h-full")
+        .child(div().class("bg-primary rounded-lg w-full h-full").build())
+        .build();
+    let run = run(
+        tree,
+        SIZE,
+        options,
+        Box::new(|_, _| None),
+        pictures_or_frames(1, 4, 240),
+        true,
+    );
+    let (columns, rows) = (u32::from(SIZE.0), u32::from(SIZE.1));
+    let picture =
+        run.first_picture("GFX-010: a look over the whole screen at 64 by 128 pixels per cell");
+    let (width, height) = picture.size;
+    assert!(
+        u64::from(width) * u64::from(height) <= 12_000_000,
+        "GFX-010: the look's picture of {width} by {height} pixels exceeds the 12 million pixels a Kitty picture sent in the command has"
+    );
+    assert!(
+        width % columns == 0 && height % rows == 0,
+        "GFX-010: the look's picture of {width} by {height} pixels has fractional pixels per cell over {columns} by {rows} cells"
+    );
+    let per_cell = (width / columns, height / rows);
+    assert!(
+        per_cell.0 <= u32::from(cell.0)
+            && per_cell.1 <= u32::from(cell.1)
+            && per_cell != (u32::from(cell.0), u32::from(cell.1)),
+        "GFX-010: the look's picture has {per_cell:?} pixels per cell, not fewer than the terminal's {cell:?}"
+    );
+    assert_eq!(
+        picture.cells,
+        Some((columns, rows)),
+        "GFX-010: the look's placement does not name the {columns} by {rows} cells it covers"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Reference pictures (PIX-003 to PIX-005): a look's picture on a Kitty host
 // against tests/snapshots/pixel-looks/<name>.png, within GFX-002's tolerance.

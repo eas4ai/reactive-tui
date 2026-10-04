@@ -454,6 +454,20 @@ struct LookSlot {
     /// The newest finished picture that matches what was submitted.
     shown: Option<(Drawn, Arc<GraphicsFrame>)>,
     seen: u64,
+    /// Why a frame last left the look's picture out, told by the backend.
+    refused: Arc<std::sync::Mutex<Option<String>>>,
+    /// The budget the output taught the look when a frame refused its
+    /// picture for the room its Sixel text or its command takes (GFX-010).
+    room: Option<super::widget::Room>,
+}
+
+/// A look's picture ready to show: its image id, the picture, its pixels
+/// per cell, and what tells the look why a frame leaves its picture out.
+pub(crate) struct LookPicture {
+    pub image_id: u32,
+    pub frame: Arc<GraphicsFrame>,
+    pub pixels: (u16, u16),
+    pub refused: Arc<dyn Fn(&str) + Send + Sync>,
 }
 
 /// The painter's looks: one drawing slot and one image per look identity,
@@ -496,18 +510,27 @@ impl Looks {
         self.worker.clone()
     }
 
-    /// The image id and the finished picture of `look` for the element
-    /// `identity` at `size` pixels over cells of `cell` pixels, when the
+    /// The finished picture of `look` for the element `identity` over
+    /// `cells` columns and rows of `cell` pixels, shown as `output`, when the
     /// drawing thread has made one for exactly that; a scene is submitted
     /// when what drew the last picture differs. The App is woken when the
-    /// picture is ready, so the next frame shows it.
+    /// picture is ready, so the next frame shows it. The picture has the
+    /// terminal's pixels per cell, or, when that picture exceeds the
+    /// renderer's limits or the room its output has (a Kitty picture sent
+    /// in the command, `shared` false, takes 12 million pixels; one through
+    /// shared memory or as Sixel the frame's 64 MiB), the largest whole
+    /// pixels per cell that fit; a picture a frame refused for its output's
+    /// room is drawn next with a quarter of its pixels (GFX-010).
     pub fn picture(
         &mut self,
         identity: u64,
         look: &Look,
-        size: (u32, u32),
+        cells: (u32, u32),
         cell: (u16, u16),
-    ) -> Option<(u32, Option<Arc<GraphicsFrame>>)> {
+        output: CanvasOutput,
+        shared: bool,
+    ) -> Option<LookPicture> {
+        use super::widget::{pixels_per_cell, refused_for_room, Room, DIRECT_PIXELS, FRAME_PIXELS};
         let worker = self.worker()?;
         let frame = self.frame;
         let slot = self.slots.entry(identity).or_insert_with(|| LookSlot {
@@ -516,8 +539,35 @@ impl Looks {
             submitted: None,
             shown: None,
             seen: frame,
+            refused: Arc::new(std::sync::Mutex::new(None)),
+            room: None,
         });
         slot.seen = frame;
+        let refusal = slot
+            .refused
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        if let Some(reason) = refusal {
+            log::debug!("a pixel look's picture was left out of the frame: {reason}");
+            if let Some(submitted) = slot.submitted.filter(|_| refused_for_room(&reason)) {
+                slot.room = Some(Room::after(output, cells, submitted.size));
+            }
+        }
+        let budget = if output == CanvasOutput::Kitty && !shared {
+            DIRECT_PIXELS
+        } else {
+            FRAME_PIXELS
+        };
+        let budget = Room::within(slot.room, output, cells, budget);
+        // Before the drawing thread has made its renderer, whose limits
+        // decide the picture, the look asks for the terminal's pixels per
+        // cell; a refused picture is asked for again once they are known.
+        let pixels = match worker.limits() {
+            Some(limits) => pixels_per_cell(cells.0, cells.1, cell, limits, budget)?,
+            None => cell,
+        };
+        let size = (cells.0 * u32::from(pixels.0), cells.1 * u32::from(pixels.1));
         let wanted = Drawn {
             look: look.key(),
             size,
@@ -526,11 +576,22 @@ impl Looks {
         };
         slot.picture.observe();
         if slot.submitted != Some(wanted) {
+            // The scene is laid out in the terminal's pixels; a picture
+            // with fewer pixels per cell is drawn smaller by that ratio.
+            let base = if pixels == cell {
+                Transform::identity()
+            } else {
+                Transform::scale(
+                    f32::from(pixels.0) / f32::from(cell.0),
+                    f32::from(pixels.1) / f32::from(cell.1),
+                )
+            };
+            let full = (cells.0 * u32::from(cell.0), cells.1 * u32::from(cell.1));
             slot.picture.submit_job(Job {
-                scene: Arc::new(look.scene(size, cell)),
+                scene: Arc::new(look.scene(full, cell)),
                 size,
                 want: Want::Pixels,
-                base: Transform::identity(),
+                base,
             });
             slot.submitted = Some(wanted);
         }
@@ -557,8 +618,18 @@ impl Looks {
                     && drawn.cell == wanted.cell
                     && drawn.theme == wanted.theme
             })
-            .map(|(_, frame)| frame.clone());
-        Some((slot.image_id, shown))
+            .map(|(_, frame)| frame.clone())?;
+        let told = slot.refused.clone();
+        Some(LookPicture {
+            image_id: slot.image_id,
+            frame: shown,
+            pixels,
+            refused: Arc::new(move |reason: &str| {
+                *told
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(reason.to_owned());
+            }),
+        })
     }
 }
 
@@ -818,5 +889,64 @@ mod tests {
         );
         let faded = Look::from_classes("bg-secondary rounded bg-opacity-50").unwrap();
         assert_eq!(faded.fill_opacity, 0.5);
+    }
+
+    /// GFX-010: a look whose picture a frame refused for the room its
+    /// output has (its Sixel text, or its command) is drawn next with a
+    /// quarter of the pixels, at whole pixels per cell; a refusal for the
+    /// frame's budget across pictures changes nothing.
+    #[test]
+    fn a_look_refused_for_its_outputs_room_is_drawn_with_fewer_pixels_per_cell() {
+        use std::time::{Duration, Instant};
+        let worker = GraphicsWorker::spawn(crate::graphics::GraphicsOptions {
+            force_cpu: true,
+            font: crate::graphics::fonts::FontSource::Bundled,
+            ..Default::default()
+        })
+        .expect("a worker");
+        assert!(worker.wait_ready(Duration::from_secs(30)).is_some());
+        let mut looks = Looks {
+            worker: Some(Arc::new(worker)),
+            ..Default::default()
+        };
+        let look = Look::from_classes("bg-primary rounded").unwrap();
+        let (cells, cell) = ((40u32, 10u32), (8u16, 16u16));
+        let shown = |looks: &mut Looks| {
+            let deadline = Instant::now() + Duration::from_secs(30);
+            loop {
+                looks.begin_frame();
+                if let Some(picture) =
+                    looks.picture(1, &look, cells, cell, CanvasOutput::Sixel, false)
+                {
+                    return picture;
+                }
+                assert!(Instant::now() < deadline, "the look got no picture");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        };
+        let first = shown(&mut looks);
+        assert_eq!(
+            first.pixels, cell,
+            "the first picture has the terminal's pixels per cell"
+        );
+        (first.refused)("image frame exceeds 64 MiB raster limit");
+        let same = shown(&mut looks);
+        assert_eq!(
+            same.pixels, cell,
+            "a refusal for the frame's budget across pictures draws no smaller picture"
+        );
+        (same.refused)("image frame exceeds 64 MiB output limit");
+        let smaller = shown(&mut looks);
+        let (across, down) = (u32::from(smaller.pixels.0), u32::from(smaller.pixels.1));
+        assert!(
+            across * down * cells.0 * cells.1 <= 40 * 8 * 10 * 16 / 4 && across >= 1 && down >= 1,
+            "after a refusal for its output's room the picture has {:?} pixels per cell, more than a quarter of {cell:?}",
+            smaller.pixels
+        );
+        assert_eq!(
+            smaller.frame.image().dimensions(),
+            (cells.0 * across, cells.1 * down),
+            "the smaller picture has whole pixels per cell"
+        );
     }
 }
