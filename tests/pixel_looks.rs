@@ -214,7 +214,7 @@ fn pix_001_a_primary_button_on_a_kitty_host_sends_a_picture_over_its_cells() {
         (40, 3),
         kitty(),
         silent(),
-        pictures_or_frames(1, 2, 12),
+        pictures_or_frames(1, 2, 90),
         true,
     );
     let picture = run.first_picture("PIX-001: a primary button of 8 by 1 cells");
@@ -261,7 +261,7 @@ fn pix_001_before_its_first_picture_a_checkbox_shows_no_glyph_of_the_cell_look()
         (40, 3),
         kitty(),
         silent(),
-        pictures_or_frames(1, 1, 6),
+        pictures_or_frames(1, 1, 60),
         true,
     );
     let until = run
@@ -300,7 +300,7 @@ fn theme_change_child() {
         (40, 3),
         kitty(),
         script,
-        pictures_or_frames(2, 6, 40),
+        pictures_or_frames(2, 6, 120),
         true,
     );
     let at = switched.lock().unwrap().unwrap_or_else(|| {
@@ -461,7 +461,7 @@ fn pix_002_an_unchanged_look_sends_no_bytes_after_its_picture() {
         (40, 3),
         kitty(),
         silent(),
-        pictures_or_frames(1, 4, 12),
+        pictures_or_frames(1, 4, 90),
         true,
     );
     let picture = run.first_picture("PIX-002: a primary button");
@@ -502,7 +502,7 @@ fn pix_002_a_typed_key_sends_one_picture_for_the_text_input_alone() {
         SIZE,
         kitty(),
         script,
-        pictures_or_frames(3, 4, 20),
+        pictures_or_frames(3, 4, 90),
         true,
     );
     let pictures = run.pictures();
@@ -573,7 +573,7 @@ fn pix_002_a_scrolled_look_is_placed_again_not_sent_again() {
         (40, 6),
         kitty(),
         script,
-        pictures_or_frames(1, 8, 20),
+        pictures_or_frames(1, 8, 90),
         true,
     );
     let first = run.first_picture("PIX-002: a button inside a scroll view");
@@ -600,7 +600,7 @@ fn pix_002_a_scrolled_look_on_sixel_is_sent_again_at_its_new_row() {
         (40, 6),
         sixel(),
         script,
-        pictures_or_frames(1, 8, 20),
+        pictures_or_frames(1, 8, 90),
         true,
     );
     let at = scrolled.lock().unwrap().expect("the scroll key was sent");
@@ -641,7 +641,7 @@ fn pix_002_a_removed_look_is_deleted_in_that_frame() {
         (40, 3),
         kitty(),
         silent(),
-        pictures_or_frames(1, 10, 20),
+        pictures_or_frames(1, 10, 90),
         true,
     );
     let first = run.first_picture("PIX-002: a primary button");
@@ -666,7 +666,7 @@ fn pix_002_a_look_is_drawn_at_the_terminals_cell_size() {
         (40, 3),
         host,
         silent(),
-        pictures_or_frames(1, 2, 12),
+        pictures_or_frames(1, 2, 90),
         true,
     );
     let picture = run.first_picture("PIX-002: a primary button on 9 by 18 pixel cells");
@@ -716,7 +716,7 @@ fn pix_002_a_list_opened_over_a_card_hides_the_picture_under_it() {
         SIZE,
         kitty(),
         script,
-        pictures_or_frames(1, 12, 30),
+        pictures_or_frames(1, 12, 120),
         true,
     );
     let first = run.first_picture("PIX-002: a card under a select");
@@ -1048,7 +1048,7 @@ fn pix_003_a_corner_cell_has_no_opaque_pixel_outside_the_arc() {
         (40, 6),
         kitty(),
         silent(),
-        pictures_or_frames(1, 2, 12),
+        pictures_or_frames(1, 2, 90),
         true,
     );
     let picture = run.first_picture("PIX-003: a 20 by 4 box with bg-primary rounded-2xl");
@@ -1245,7 +1245,7 @@ fn pix_004_no_frame_glyph_remains_in_a_field_or_box_cell() {
         SIZE,
         kitty(),
         silent(),
-        pictures_or_frames(2, 2, 12),
+        pictures_or_frames(2, 2, 90),
         true,
     );
     let screen = run.screen(run.frames.len() - 1);
@@ -1275,7 +1275,7 @@ fn pix_004_a_focused_control_has_its_ring_and_the_cursor_stays_cell_text() {
         SIZE,
         kitty(),
         script,
-        pictures_or_frames(2, 2, 12),
+        pictures_or_frames(2, 2, 90),
         true,
     );
     run.first_picture("PIX-004: a text input");
@@ -1389,7 +1389,7 @@ fn pix_005_the_thumb_and_the_fill_end_at_the_exact_value_pixel() {
         (44, 3),
         kitty(),
         silent(),
-        pictures_or_frames(1, 2, 12),
+        pictures_or_frames(1, 2, 90),
         true,
     );
     let picture = shown.first_picture("PIX-005: a slider at 37 of 100");
@@ -1418,7 +1418,7 @@ fn pix_005_the_thumb_and_the_fill_end_at_the_exact_value_pixel() {
         (44, 3),
         kitty(),
         silent(),
-        pictures_or_frames(1, 2, 12),
+        pictures_or_frames(1, 2, 90),
         true,
     );
     let picture = bar.first_picture("PIX-005: a progress bar at 37 percent");
@@ -1480,7 +1480,7 @@ fn pix_005_no_track_glyph_remains() {
         (48, 4),
         kitty(),
         silent(),
-        pictures_or_frames(2, 2, 12),
+        pictures_or_frames(2, 2, 90),
         true,
     );
     assert!(
@@ -1565,7 +1565,7 @@ fn thumb_of(page: Element, output: &str, images: ImageOutputOptions) -> (u16, u1
         (240, 60),
         images,
         silent(),
-        pictures_or_frames(14, 2, 40),
+        pictures_or_frames(14, 2, 120),
         true,
     );
     let screen = run.screen(run.frames.len() - 1);
