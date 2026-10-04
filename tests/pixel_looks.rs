@@ -1035,6 +1035,65 @@ fn pix_002_a_look_that_changes_as_a_list_opens_over_it_is_never_placed_under_it(
     );
 }
 
+/// PIX-002, GFX-003: a key names an element among its siblings only, so two
+/// looks with the same key under two parents are two looks, each kept with
+/// its own picture and image.
+#[test]
+fn pix_002_looks_with_one_key_under_two_parents_keep_their_own_pictures() {
+    let keyed = |role: &str| {
+        div()
+            .class("w-20 h-3")
+            .child(
+                div()
+                    .class(&format!("bg-{role} rounded w-full h-full"))
+                    .key("save")
+                    .build(),
+            )
+            .build()
+    };
+    let tree = div()
+        .class("flex-col w-40")
+        .child(keyed("primary"))
+        .child(keyed("secondary"))
+        .build();
+    let run = run(
+        tree,
+        SIZE,
+        kitty(),
+        Box::new(|_, _| None),
+        pictures_or_frames(2, 6, 120),
+        true,
+    );
+    let placed: std::collections::BTreeMap<usize, u32> = kitty_commands(&run.frames)
+        .iter()
+        .filter(|c| c.action == "T")
+        .filter_map(|c| Some((c.at?.0, c.id?)))
+        .collect();
+    let first = placed.get(&0).copied();
+    let second = placed.get(&3).copied();
+    assert!(
+        first.is_some() && second.is_some() && first != second,
+        "PIX-002: the two looks keyed `save` under two parents share an image or one has none: {placed:?}"
+    );
+    let colors: Vec<([u8; 3], u32)> = run
+        .pictures()
+        .iter()
+        .filter_map(|p| {
+            let opaque: Vec<&[u8; 4]> = p.pixels.iter().filter(|px| px[3] > 200).collect();
+            let middle = opaque.get(opaque.len() / 2)?;
+            Some(([middle[0], middle[1], middle[2]], p.id?))
+        })
+        .collect();
+    for (name, id) in [("primary", first), ("secondary", second)] {
+        let wanted = role(name);
+        assert!(
+            colors.iter().any(|(color, pid)| Some(*pid) == id
+                && near([color[0], color[1], color[2], 255], wanted, 12)),
+            "PIX-002: the look in `{name}` keyed `save` was not shown its own picture: {colors:?}"
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Reference pictures (PIX-003 to PIX-005): a look's picture on a Kitty host
 // against tests/snapshots/pixel-looks/<name>.png, within GFX-002's tolerance.
