@@ -11,6 +11,9 @@ pub const FIELD: &str = "bg-input text-foreground";
 pub const MUTED: &str = "bg-input text-muted";
 /// A disabled field: its text in `text-muted`.
 pub const FIELD_DISABLED: &str = "bg-input text-muted";
+/// A disabled field whose look is a picture: the picture is drawn at half
+/// over what is under it, and so are the text cells beside it (PIX-004).
+pub const FIELD_DISABLED_PICTURE: &str = "bg-input bg-opacity-50 text-muted";
 /// The frame of a field, a checkbox's box or a radio's circle.
 pub const FRAME: &str = "text-border";
 /// The frame while its control holds the focus.

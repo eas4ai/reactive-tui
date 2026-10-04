@@ -284,10 +284,18 @@ impl TextInput {
             } else {
                 look::field_frame(state.is_focused && !props.disabled)
             };
-            let field = if props.disabled {
-                look::FIELD_DISABLED
+            // A disabled field's picture is drawn at half, and its text
+            // cells, the placeholder's too, take the same half fill
+            // (PIX-004).
+            let field = match (props.disabled, pixels) {
+                (true, true) => look::FIELD_DISABLED_PICTURE,
+                (true, false) => look::FIELD_DISABLED,
+                (false, _) => look::FIELD,
+            };
+            let muted = if props.disabled && pixels {
+                look::FIELD_DISABLED_PICTURE
             } else {
-                look::FIELD
+                look::MUTED
             };
             // The field's blank runs: with pixels they hold no glyph, so
             // they keep a style of their own and are never joined with the
@@ -321,7 +329,7 @@ impl TextInput {
                     {
                         look::SELECTION
                     } else if props.value.is_empty() {
-                        look::MUTED
+                        muted
                     } else {
                         field
                     };
@@ -389,6 +397,7 @@ impl TextInput {
             field.metadata.look = Some(std::sync::Arc::new(crate::graphics::look::Look::field(
                 state.is_focused && !props.disabled,
                 !state.is_valid,
+                props.disabled,
             )));
             children.push(field);
         }

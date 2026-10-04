@@ -759,8 +759,9 @@ impl Look {
 
     /// A text input's field: `input` with a radius of a quarter of the cell
     /// height, bordered one pixel in `border`, two in `ring` with the focus
-    /// and two in `error` while the value is invalid (PIX-004).
-    pub fn field(focused: bool, invalid: bool) -> Self {
+    /// and two in `error` while the value is invalid; a disabled field at
+    /// half (PIX-004).
+    pub fn field(focused: bool, invalid: bool, disabled: bool) -> Self {
         let (border, ring) = if invalid {
             (None, Some(Line::new(2.0, "error")))
         } else if focused {
@@ -773,6 +774,7 @@ impl Look {
             radius: Radius::Px(4.0),
             border,
             ring,
+            opacity: if disabled { 0.5 } else { 1.0 },
             ..Self::default()
         }
     }

@@ -80,7 +80,8 @@ look's glyphs.
   value is invalid, in place of the `[` and `]` cells. Its text,
   placeholder, line numbers, cursor and selection stay cells on `input`,
   and the picture shows in the blank part of the field. A disabled field
-  keeps its fill, with its text in `text-muted`.
+  is drawn at half over what is under it, its text cells on the same half
+  fill and its text in `text-muted`.
 - A checkbox's box is a square of the cell height less two pixels with
   rounded corners, bordered in `border` (`ring` while focused), filled
   `primary` with a check mark in `primary-foreground` when checked and a
