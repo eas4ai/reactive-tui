@@ -859,9 +859,16 @@ fn nth(mut case: Case, picture: usize) -> Case {
     case
 }
 
-/// The difference between a case's picture and its reference, or none; with
-/// REGENERATE=1 the reference is written instead (BAR-004).
-fn reference_problem(case: Case) -> Option<String> {
+/// A case's picture as the backend sent it, with the path of its reference.
+struct Captured {
+    name: &'static str,
+    frame: GraphicsFrame,
+    path: std::path::PathBuf,
+}
+
+/// The picture a case sends on a Kitty host, drawn by the software renderer,
+/// or why it sent none.
+fn capture(case: Case) -> Result<Captured, String> {
     let _software = SOFTWARE.lock().unwrap_or_else(|e| e.into_inner());
     reactive_tui::widgets::display::charts::set_graphics_options(GraphicsOptions {
         force_cpu: true,
@@ -879,7 +886,7 @@ fn reference_problem(case: Case) -> Option<String> {
     reactive_tui::widgets::display::charts::set_graphics_options(GraphicsOptions::default());
     let name = case.name;
     let Some(picture) = run.pictures().into_iter().nth(case.picture) else {
-        return Some(format!(
+        return Err(format!(
             "{name}: picture {} was not sent ({} pictures in {} frames)",
             case.picture + 1,
             run.pictures().len(),
@@ -887,45 +894,67 @@ fn reference_problem(case: Case) -> Option<String> {
         ));
     };
     if picture.pixels.len() != (picture.size.0 * picture.size.1) as usize {
-        return Some(format!("{name}: the picture's pixels do not fill its size"));
+        return Err(format!("{name}: the picture's pixels do not fill its size"));
     }
-    let frame = picture.frame();
-    let path = reference_path(name);
-    if std::env::var("REGENERATE").as_deref() == Ok("1") {
-        let flat: Vec<u8> = frame.pixels().iter().flatten().copied().collect();
-        let image = image::RgbaImage::from_raw(frame.width(), frame.height(), flat)
-            .expect("a picture of its size");
-        let mut bytes = Vec::new();
-        image
-            .write_to(&mut io::Cursor::new(&mut bytes), image::ImageFormat::Png)
-            .expect("a PNG of the picture");
-        std::fs::create_dir_all(path.parent().unwrap()).expect("the pictures directory");
-        std::fs::write(&path, &bytes).expect("the reference picture written");
-        return None;
-    }
-    let reference = match image::open(&path) {
+    Ok(Captured {
+        name,
+        frame: picture.frame(),
+        path: reference_path(name),
+    })
+}
+
+/// The difference between a captured picture and its reference, or none.
+fn compare(captured: &Captured) -> Option<String> {
+    let name = captured.name;
+    let reference = match image::open(&captured.path) {
         Ok(reference) => reference.to_rgba8(),
         Err(error) => {
             return Some(format!(
                 "{name}: no reference picture {}: {error}",
-                path.display()
+                captured.path.display()
             ))
         }
     };
     let pixels = reference.pixels().map(|pixel| pixel.0).collect();
     let reference =
         GraphicsFrame::from_rgba(reference.width(), reference.height(), pixels).unwrap();
-    canvas_support::difference(&frame, &reference).map(|why| format!("{name}: {why}"))
+    canvas_support::difference(&captured.frame, &reference).map(|why| format!("{name}: {why}"))
 }
 
-/// Every case's problem, as one failure.
+/// Every case compared with its reference, as one failure naming each
+/// picture that differs; with REGENERATE=1 the references are written
+/// instead (BAR-004).
 fn assert_references(requirement: &str, cases: Vec<Case>) {
-    let problems: Vec<String> = cases.into_iter().filter_map(reference_problem).collect();
+    let mut problems = Vec::new();
+    for case in cases {
+        let captured = match capture(case) {
+            Ok(captured) => captured,
+            Err(problem) => {
+                problems.push(problem);
+                continue;
+            }
+        };
+        if std::env::var("REGENERATE").as_deref() == Ok("1") {
+            let frame = &captured.frame;
+            let flat: Vec<u8> = frame.pixels().iter().flatten().copied().collect();
+            let image = image::RgbaImage::from_raw(frame.width(), frame.height(), flat)
+                .expect("a picture of its size");
+            let mut bytes = Vec::new();
+            image
+                .write_to(&mut io::Cursor::new(&mut bytes), image::ImageFormat::Png)
+                .expect("a PNG of the picture");
+            std::fs::create_dir_all(captured.path.parent().unwrap())
+                .expect("the pictures directory");
+            std::fs::write(&captured.path, &bytes).expect("the reference picture written");
+            continue;
+        }
+        problems.extend(compare(&captured));
+    }
     assert!(
         problems.is_empty(),
-        "{requirement}: {} reference pictures differ:\n{}",
+        "{requirement}: {} reference pictures differ: {}",
         problems.len(),
-        problems.join("\n")
+        problems.join("; ")
     );
 }
 
@@ -989,13 +1018,8 @@ fn pix_003_rounded_containers_buttons_and_cards_match_their_reference_pictures()
 fn card_light_child() {
     use reactive_tui::theme::{dark_theme, light_theme, Theme};
     Theme::set_active(light_theme());
-    let problem = reference_problem(case("card_light", 40, 8, card()));
+    assert_references("PIX-003", vec![case("card_light", 40, 8, card())]);
     Theme::set_active(dark_theme());
-    assert!(
-        problem.is_none(),
-        "PIX-003: {}",
-        problem.unwrap_or_default()
-    );
 }
 
 #[test]
