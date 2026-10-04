@@ -139,7 +139,10 @@ submit and on any configured change or blur trigger.
 `AutocompleteConfig::suggestions_url` enables suggestion requests after the
 configured minimum input and debounce delay.
 
-Remote helpers require curl 8.4 or newer. They send JSON with HTTP or HTTPS
+Remote helpers require curl 8.4 or newer. On Windows the client tries the
+system's own curl (`%SystemRoot%\System32\curl.exe`) first and the first curl
+on `PATH` second, and runs the first of the two that is 8.4 or newer; elsewhere
+it runs `curl` from `PATH`. They send JSON with HTTP or HTTPS
 POST, reject redirects and other protocols, limit one request to 1 MiB, limit
 one response to 64 KiB, and stop after five seconds. Replacing or closing the
 dialog cancels and reaps the request process. URLs, headers, and bodies travel

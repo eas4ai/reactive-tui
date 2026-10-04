@@ -4,6 +4,55 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
+/// A system curl older than 8.4 yields to a newer curl on PATH; one that
+/// serves is preferred to PATH; when neither serves the error names both,
+/// the version of the one that ran and the failure of the one that did not.
+#[test]
+fn an_old_system_curl_yields_to_a_newer_curl_on_path() {
+    let system: OsString = "C:\\Windows\\System32\\curl.exe".into();
+    let on_path: OsString = "curl".into();
+    let candidates = || vec![system.clone(), on_path.clone()];
+    let chosen = choose_curl(candidates(), |program| {
+        Ok(if program == system.as_os_str() {
+            "curl 8.3.0 (Windows) libcurl/8.3.0 Schannel".to_owned()
+        } else {
+            "curl 8.22.0 (x86_64-pc-windows-msvc) libcurl/8.22.0".to_owned()
+        })
+    })
+    .unwrap();
+    assert_eq!(chosen, on_path);
+    let chosen = choose_curl(candidates(), |_| Ok("curl 8.4.0 (Windows)".to_owned())).unwrap();
+    assert_eq!(chosen, system);
+    let error = choose_curl(candidates(), |program| {
+        if program == system.as_os_str() {
+            Ok("curl 7.83.1 (Windows) libcurl/7.83.1".to_owned())
+        } else {
+            Err("Could not start curl: program not found".to_owned())
+        }
+    })
+    .unwrap_err();
+    for part in [
+        "requires curl 8.4",
+        "System32",
+        "is curl 7.83.1",
+        "Could not start curl",
+    ] {
+        assert!(error.contains(part), "{error}");
+    }
+}
+
+#[test]
+fn curl_versions_are_read_from_the_report() {
+    assert_eq!(
+        curl_version("curl 8.22.0 (x86_64-pc-cygwin) libcurl/8.22.0"),
+        Some((8, 22))
+    );
+    assert_eq!(curl_version("curl 7.83.1 (Windows)"), Some((7, 83)));
+    assert_eq!(curl_version("not a report"), None);
+    assert!(serves(Some((8, 4))) && serves(Some((9, 0))));
+    assert!(!serves(Some((8, 3))) && !serves(Some((7, 83))) && !serves(None));
+}
+
 fn listener() -> (TcpListener, String) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
