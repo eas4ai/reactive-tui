@@ -4,6 +4,9 @@ pub(super) struct Coverage {
     origin: (u32, u32),
     size: (u32, u32),
     bits: Vec<u64>,
+    /// The cells an element over a Kitty look hides from its placements:
+    /// the picture holds them, the screen does not show them (PIX-002).
+    hidden: Vec<u64>,
 }
 impl Coverage {
     pub fn new(origin: (u32, u32), pixels: &image::RgbaImage, cell: (u16, u16)) -> Self {
@@ -16,7 +19,12 @@ impl Coverage {
                 bits[index / 64] |= 1 << (index % 64);
             }
         }
-        Self { origin, size, bits }
+        Self {
+            origin,
+            size,
+            bits,
+            hidden: Vec::new(),
+        }
     }
     /// No cell: a picture not yet made ready (GFX-009).
     pub fn empty(origin: (u32, u32)) -> Self {
@@ -24,6 +32,7 @@ impl Coverage {
             origin,
             size: (0, 0),
             bits: Vec::new(),
+            hidden: Vec::new(),
         }
     }
     /// Whether no cell is covered: a picture not yet made ready.
@@ -37,7 +46,25 @@ impl Coverage {
             origin,
             size: self.size,
             bits: self.bits.clone(),
+            hidden: Vec::new(),
         }
+    }
+    /// The same cells but those `plane`'s placements leave out (PIX-002).
+    pub fn hiding(mut self, plane: &impl super::RasterPlane) -> Self {
+        if plane.placements().is_none() {
+            return self;
+        }
+        let mut hidden = vec![0u64; self.bits.len()];
+        for row in 0..self.size.1 {
+            for column in 0..self.size.0 {
+                if plane.occluded(column, row) {
+                    let index = row as usize * self.size.0 as usize + column as usize;
+                    hidden[index / 64] |= 1 << (index % 64);
+                }
+            }
+        }
+        self.hidden = hidden;
+        self
     }
     pub fn contains(&self, x: u32, y: u32) -> bool {
         let (Some(x), Some(y)) = (x.checked_sub(self.origin.0), y.checked_sub(self.origin.1))
@@ -49,5 +76,9 @@ impl Coverage {
         }
         let index = y as usize * self.size.0 as usize + x as usize;
         self.bits[index / 64] & (1 << (index % 64)) != 0
+            && self
+                .hidden
+                .get(index / 64)
+                .is_none_or(|hidden| hidden & (1 << (index % 64)) == 0)
     }
 }

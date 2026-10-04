@@ -122,6 +122,35 @@ impl ProtocolRenderer {
         format!("\x1b_Ga=p,i={image_id},q=2,C=1,z={z}{placement}\x1b\\")
     }
 
+    /// The Kitty command that places part of image `image_id`, which the
+    /// host holds, at the cursor: the `source` rectangle of its pixels, as
+    /// x, y, width and height, over `cells` columns and rows, as placement
+    /// `part` of the image. A look an element partly covers is placed over
+    /// the cells it shows, part by part (PIX-002).
+    pub(crate) fn kitty_place_part(
+        image_id: u32,
+        z: i32,
+        part: u32,
+        source: (u32, u32, u32, u32),
+        cells: (u32, u32),
+    ) -> String {
+        let (x, y, width, height) = source;
+        let (columns, rows) = cells;
+        format!(
+            "\x1b_Ga=p,i={image_id},p={part},q=2,C=1,z={z},x={x},y={y},w={width},h={height},c={columns},r={rows}\x1b\\"
+        )
+    }
+
+    /// `command`, a Kitty command that transmits and places a picture, as
+    /// one that transmits it only: the picture is placed after it, part by
+    /// part (PIX-002).
+    pub(crate) fn kitty_transmit_only(command: String) -> String {
+        match command.strip_prefix("\x1b_Ga=T,") {
+            Some(rest) => format!("\x1b_Ga=t,{rest}"),
+            None => command,
+        }
+    }
+
     /// The placement keys that name the `cells` a picture covers, for the
     /// terminal to scale it to; nothing when no cells are named.
     pub(crate) fn kitty_cells(cells: Option<(u32, u32)>) -> String {

@@ -25,6 +25,12 @@ pub(super) struct Layers {
     /// its background fill then covers no plane, neither its own picture
     /// nor the pictures under it, while its text covers them all (PIX-001).
     look_painting: bool,
+    /// The look planes whose element holds the node being painted in its
+    /// own layer: that node's opaque background is the look's content and
+    /// cuts the picture. Any other opaque background over a Kitty look's
+    /// cell, a panel's, a list's or a dialog's, hides the cell from the
+    /// look's placements and leaves its picture whole (PIX-002).
+    owners: Vec<usize>,
 }
 impl Layers {
     pub fn new(width: usize, height: usize) -> Self {
@@ -36,7 +42,15 @@ impl Layers {
             entries: 0,
             look_fills: std::collections::HashMap::new(),
             look_painting: false,
+            owners: Vec::new(),
         }
+    }
+    /// The look planes whose element holds the node painted next in its
+    /// own layer.
+    #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
+    pub fn set_owners(&mut self, owners: &[usize]) {
+        self.owners.clear();
+        self.owners.extend_from_slice(owners);
     }
     /// Remember that text in cell `(x, y)` takes `fill` as its background.
     #[cfg_attr(not(feature = "wgpu-graphics"), allow(dead_code))]
@@ -70,7 +84,7 @@ impl Layers {
         };
         for &index in &cells[y as usize * self.width + x as usize] {
             if index < plane && self.planes[index].look {
-                self.planes[index].cover(x, y, ansi::rgb_color(0, 0, 0, 255));
+                self.planes[index].cut(x, y);
             }
         }
     }
@@ -131,7 +145,17 @@ impl Layers {
         if !self.look_fills.is_empty() {
             self.look_fills.remove(&(x, y));
         }
-        self.cover(x, y, source);
+        let Some(cells) = &self.cells else {
+            return;
+        };
+        for &index in &cells[y as usize * self.width + x as usize] {
+            let plane = &mut self.planes[index];
+            if ansi::alpha(source) == 255 && !self.owners.contains(&index) {
+                plane.occlude(x, y);
+            } else {
+                plane.cover(x, y, source);
+            }
+        }
     }
     /// `cover_background` for the cells `left..right` of row `y`.
     pub fn cover_span_background(&mut self, y: i32, left: i32, right: i32, source: ansi::Rgba) {
@@ -149,9 +173,23 @@ impl Layers {
 
 #[derive(Clone, Copy, PartialEq)]
 struct Cover {
-    visible: bool,
+    /// The cell is cut out of the picture's pixels: a glyph, a clip mask, a
+    /// look inside this one, or an opaque element over a picture that is
+    /// not a Kitty look.
+    cut: bool,
+    /// An opaque element over a Kitty look's cell, outside the look: the
+    /// picture keeps its pixels there and its placements leave the cell
+    /// out, so the element shows in the frame it appears and the picture
+    /// whole again in the frame it goes, with no pixels sent (PIX-002).
+    occluded: bool,
     tint: [u8; 4],
     background: [u8; 4],
+}
+impl Cover {
+    /// Whether the cell shows the picture.
+    fn visible(&self) -> bool {
+        !self.cut && !self.occluded
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -233,7 +271,8 @@ impl Plane {
                     .expect("clipped image cell")
                     .bg;
                 cover.push(Cover {
-                    visible: inside_masks(&node.mask, x, y),
+                    cut: !inside_masks(&node.mask, x, y),
+                    occluded: false,
                     tint: [0; 4],
                     background: [ansi::red(bg), ansi::green(bg), ansi::blue(bg), 255],
                 });
@@ -272,11 +311,12 @@ impl Plane {
             && self.protocol == previous.protocol
             && self.cover == previous.cover
     }
-    /// Whether this plane shows the picture `previous` showed, cell for
-    /// cell, at other cells: the same canvas picture over a box of the same
-    /// size, placed the same way inside it, with the same cells cut out,
-    /// only moved. A Kitty host then places the image it holds again
-    /// instead of receiving its pixels again (PIX-002).
+    /// Whether this plane shows the picture `previous` showed, pixel for
+    /// pixel, at other cells or with other cells hidden: the same canvas
+    /// picture over a box of the same size, placed the same way inside it,
+    /// with the same cells cut out, moved or with an element outside the
+    /// look over other cells. A Kitty host then places the image it holds
+    /// again instead of receiving its pixels again (PIX-002).
     pub fn moved_from(&self, previous: &Self) -> bool {
         let size = |rect: &Rect| (rect.right - rect.left, rect.bottom - rect.top);
         // Where the picture's top left pixel lies, in cells from the plane's.
@@ -291,7 +331,7 @@ impl Plane {
             && self.protocol == ImageProtocol::Kitty
             && previous.protocol == ImageProtocol::Kitty
             && self.image == previous.image
-            && self.bounds != previous.bounds
+            && (self.bounds != previous.bounds || self.occlusion_differs(previous))
             && size(&self.bounds) == size(&previous.bounds)
             && size(&self.content) == size(&previous.content)
             && self.transform.is_translation()
@@ -303,7 +343,76 @@ impl Plane {
                 .cover
                 .iter()
                 .zip(&previous.cover)
-                .all(|(now, then)| now.visible == then.visible && now.tint == then.tint)
+                .all(|(now, then)| now.cut == then.cut && now.tint == then.tint)
+    }
+    /// Whether `previous` hid other cells of its picture from its
+    /// placements than this plane does (PIX-002).
+    pub fn occlusion_differs(&self, previous: &Self) -> bool {
+        self.cover.len() != previous.cover.len()
+            || self
+                .cover
+                .iter()
+                .zip(&previous.cover)
+                .any(|(now, then)| now.occluded != then.occluded)
+    }
+    /// Whether the plane's cell at `column`, `row` from its corner is hidden
+    /// from its placements by an element over it (PIX-002).
+    pub fn occluded(&self, column: u32, row: u32) -> bool {
+        let width = (self.bounds.right - self.bounds.left) as u32;
+        column < width
+            && self
+                .cover
+                .get((row * width + column) as usize)
+                .is_some_and(|cover| cover.occluded)
+    }
+    /// The rectangles of cells a Kitty look's placements cover, as column,
+    /// row, columns and rows from the plane's corner, when an element over
+    /// it hides some of its cells; none when the picture is placed whole
+    /// (PIX-002). Each row's runs of shown cells are joined with the same
+    /// runs of the rows below them.
+    pub fn placements(&self) -> Option<Vec<(u32, u32, u32, u32)>> {
+        if !self.cover.iter().any(|cover| cover.occluded) {
+            return None;
+        }
+        let (columns, rows) = self.cells();
+        let mut done = Vec::new();
+        // The rectangles still growing downward: their columns and the
+        // first row.
+        let mut open: Vec<(u32, u32, u32)> = Vec::new();
+        for row in 0..rows {
+            let mut runs = Vec::new();
+            let mut column = 0;
+            while column < columns {
+                if self.occluded(column, row) {
+                    column += 1;
+                    continue;
+                }
+                let first = column;
+                while column < columns && !self.occluded(column, row) {
+                    column += 1;
+                }
+                runs.push((first, column));
+            }
+            let mut next = Vec::with_capacity(runs.len());
+            for (first, end, top) in open.drain(..) {
+                if runs.contains(&(first, end)) {
+                    next.push((first, end, top));
+                } else {
+                    done.push((first, top, end - first, row - top));
+                }
+            }
+            for (first, end) in runs {
+                if !next.iter().any(|&(f, e, _)| (f, e) == (first, end)) {
+                    next.push((first, end, row));
+                }
+            }
+            open = next;
+        }
+        for (first, end, top) in open {
+            done.push((first, top, end - first, rows - top));
+        }
+        done.sort_by_key(|&(column, row, _, _)| (row, column));
+        Some(done)
     }
     /// The pixels one cell of the plane's raster holds: a canvas picture's
     /// own pixels per cell, which may be fewer than the terminal's
@@ -358,7 +467,9 @@ impl Plane {
                 .copy_from_slice(&source.as_raw()[from..from + count]);
         }
         for (index, cover) in self.cover.iter().enumerate() {
-            let visible = cover.visible || whole;
+            // A cell an element outside a Kitty look hides keeps its pixels:
+            // the look's placements leave it out (PIX-002).
+            let visible = !cover.cut || whole;
             if visible && cover.tint[3] == 0 {
                 continue;
             }
@@ -399,7 +510,7 @@ impl Plane {
     pub fn shows(&self, x: u32, y: u32, cell: (u16, u16)) -> bool {
         let width = (self.bounds.right - self.bounds.left) as usize;
         self.cover[(y / u32::from(cell.1)) as usize * width + (x / u32::from(cell.0)) as usize]
-            .visible
+            .visible()
     }
     pub fn position(&self) -> (u32, u32) {
         (self.bounds.left as u32, self.bounds.top as u32)
@@ -430,7 +541,7 @@ impl Plane {
         let index = (y - self.bounds.top) as usize
             * (self.bounds.right - self.bounds.left) as usize
             + (x - self.bounds.left) as usize;
-        self.cover[index].visible = false;
+        self.cover[index].cut = true;
     }
     /// Whether the plane still shows cell `(x, y)`: the cell is one of its
     /// and nothing painted over it covered the cell.
@@ -446,22 +557,56 @@ impl Plane {
         let index = (y - self.bounds.top) as usize
             * (self.bounds.right - self.bounds.left) as usize
             + (x - self.bounds.left) as usize;
-        self.cover[index].visible
+        self.cover[index].visible()
     }
-    pub(super) fn cover(&mut self, x: i32, y: i32, source: ansi::Rgba) {
+    /// The index of cell `(x, y)` in the plane's cover, when it is one of
+    /// its cells.
+    fn cell_index(&self, x: i32, y: i32) -> Option<usize> {
         if x < self.bounds.left
             || x >= self.bounds.right
             || y < self.bounds.top
             || y >= self.bounds.bottom
         {
+            return None;
+        }
+        Some(
+            (y - self.bounds.top) as usize * (self.bounds.right - self.bounds.left) as usize
+                + (x - self.bounds.left) as usize,
+        )
+    }
+    /// Cell `(x, y)` is cut out of the picture's pixels. A cell an element
+    /// outside a Kitty look already hides is not: what is painted on that
+    /// element is not the look's (PIX-002).
+    pub(super) fn cut(&mut self, x: i32, y: i32) {
+        if let Some(index) = self.cell_index(x, y) {
+            let cover = &mut self.cover[index];
+            if !cover.occluded {
+                cover.cut = true;
+            }
+        }
+    }
+    /// An opaque element outside the plane's look covers cell `(x, y)`: a
+    /// Kitty look hides the cell from its placements and keeps its pixels;
+    /// any other picture is cut there (PIX-002).
+    pub(super) fn occlude(&mut self, x: i32, y: i32) {
+        if !(self.look && self.protocol == ImageProtocol::Kitty) {
+            self.cut(x, y);
             return;
         }
-        let index = (y - self.bounds.top) as usize
-            * (self.bounds.right - self.bounds.left) as usize
-            + (x - self.bounds.left) as usize;
-        let cover = &mut self.cover[index];
+        if let Some(index) = self.cell_index(x, y) {
+            self.cover[index].occluded = true;
+        }
+    }
+    pub(super) fn cover(&mut self, x: i32, y: i32, source: ansi::Rgba) {
         if ansi::alpha(source) == 255 {
-            cover.visible = false;
+            self.cut(x, y);
+            return;
+        }
+        let Some(index) = self.cell_index(x, y) else {
+            return;
+        };
+        let cover = &mut self.cover[index];
+        if cover.occluded {
             return;
         }
         let old = cover.tint;
@@ -540,7 +685,7 @@ impl Plane {
         for (x, y, pixel) in output.enumerate_pixels_mut() {
             let index = (y / ch) as usize * (width / cw) as usize + (x / cw) as usize;
             let cover = self.cover[index];
-            if !cover.visible && !whole {
+            if cover.cut && !whole {
                 continue;
             }
             let world_x = self.bounds.left as f32 + (x as f32 + 0.5) / cw as f32 - 0.5;
