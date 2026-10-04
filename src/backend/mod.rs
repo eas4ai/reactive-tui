@@ -411,6 +411,11 @@ impl Backend for CrosstermBackend {
     fn is_interactive_terminal(&self) -> bool {
         self.inner.is_interactive_terminal()
     }
+    /// The image output the renderer took at startup: the App's controls
+    /// choose their pixel looks from it (PIX-001).
+    fn image_output(&self) -> Option<ImageOutputOptions> {
+        self.inner.image_output()
+    }
     fn painted_nodes(&self) -> Option<&[PaintedNode]> {
         self.inner.painted_nodes()
     }
@@ -936,6 +941,25 @@ mod tests {
                 "{kind:?} lost its direction"
             );
         }
+    }
+
+    /// PIX-001: the wrapper reports the image output its renderer took at
+    /// startup, so an App's controls choose their pixel looks through it.
+    #[test]
+    fn pix_001_crossterm_backend_passes_the_image_output_through() {
+        let images = ImageOutputOptions {
+            kitty_graphics: true,
+            cell_pixels: (9, 18),
+            ..Default::default()
+        };
+        let backend = CrosstermBackend {
+            inner: SuprTuiBackend::with_writer_and_images(12, 3, Vec::new(), images).unwrap(),
+        };
+        assert_eq!(
+            backend.image_output(),
+            Some(images),
+            "CrosstermBackend reports its renderer's image output"
+        );
     }
 
     /// PNT-002: the wrapper passes the renderer's hit grid through, so the

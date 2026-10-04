@@ -257,6 +257,11 @@ impl Backend for DirectTtyBackend {
     fn is_interactive_terminal(&self) -> bool {
         self.active
     }
+    /// The image output the renderer took at startup: the App's controls
+    /// choose their pixel looks from it (PIX-001).
+    fn image_output(&self) -> Option<ImageOutputOptions> {
+        self.renderer.image_output()
+    }
     fn painted_nodes(&self) -> Option<&[PaintedNode]> {
         self.renderer.painted_nodes()
     }
