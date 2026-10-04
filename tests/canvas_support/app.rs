@@ -272,7 +272,9 @@ impl Backend for Timed {
 /// often than it presents, so the rule reads the frames presented.
 pub struct Shown {
     element: Element,
-    /// Another element shown from that many presented frames on.
+    /// Another element shown from that many presented frames on, once the
+    /// first picture was sent: a look leaves or arrives after it was shown,
+    /// however long its first picture took.
     swap: Option<(usize, Element)>,
     frames: Arc<Mutex<Vec<Frame>>>,
     stop: Stop,
@@ -283,8 +285,9 @@ pub struct Shown {
 impl RootComponent for Shown {
     fn render(&self) -> Element {
         let presented = self.frames.lock().unwrap().len();
+        let pictures = self.pictures.load(Ordering::SeqCst);
         match &self.swap {
-            Some((at, element)) if presented >= *at => element.clone(),
+            Some((at, element)) if presented >= *at && pictures >= 1 => element.clone(),
             _ => self.element.clone(),
         }
     }
@@ -324,7 +327,8 @@ pub fn run(
 }
 
 /// As `run`, with `swap` naming another element the root shows from that
-/// many presented frames on, so a look can leave or arrive mid-run.
+/// many presented frames on, once the first picture was sent, so a look can
+/// leave or arrive mid-run after it was shown.
 #[allow(clippy::too_many_arguments)]
 pub fn run_swapping(
     element: Element,
