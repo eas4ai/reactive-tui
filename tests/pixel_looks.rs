@@ -1283,6 +1283,95 @@ fn pix_004_005_strokes_and_control_sizes_follow_the_text_at_32_pixel_cells() {
     );
 }
 
+/// The backends in `sources` that hold the SuprTUI renderer and whose
+/// `Backend` implementation does not pass its image output on: the controls
+/// choose their pixel looks from it (PIX-001).
+fn backends_without_image_output(sources: &[(&str, &str)]) -> Result<Vec<String>, String> {
+    use syn::visit::Visit;
+    #[derive(Default)]
+    struct Found {
+        holders: Vec<String>,
+        forwarding: Vec<String>,
+        implemented: Vec<String>,
+    }
+    impl<'ast> Visit<'ast> for Found {
+        fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
+            let holds = item.fields.iter().any(|field| match &field.ty {
+                syn::Type::Path(path) => path
+                    .path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.ident == "SuprTuiBackend"),
+                _ => false,
+            });
+            if holds {
+                self.holders.push(item.ident.to_string());
+            }
+        }
+        fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+            let backend = item
+                .trait_
+                .as_ref()
+                .and_then(|(_, path, _)| path.segments.last())
+                .is_some_and(|segment| segment.ident == "Backend");
+            if let (true, syn::Type::Path(path)) = (backend, item.self_ty.as_ref()) {
+                if let Some(name) = path.path.segments.last().map(|s| s.ident.to_string()) {
+                    self.implemented.push(name.clone());
+                    if item.items.iter().any(|entry| {
+                        matches!(entry, syn::ImplItem::Fn(function) if function.sig.ident == "image_output")
+                    }) {
+                        self.forwarding.push(name);
+                    }
+                }
+            }
+        }
+    }
+    let mut found = Found::default();
+    for (file, source) in sources {
+        let syntax = syn::parse_file(source).map_err(|error| format!("{file}: {error}"))?;
+        found.visit_file(&syntax);
+    }
+    Ok(found
+        .holders
+        .into_iter()
+        .filter(|name| found.implemented.contains(name) && !found.forwarding.contains(name))
+        .collect())
+}
+
+/// PIX-001: every backend of the crate that holds the SuprTUI renderer, the
+/// Crossterm backend and the direct TTY backend, passes its image output on;
+/// the audit finds a backend that does not.
+#[test]
+fn pix_001_every_backend_holding_the_renderer_passes_its_image_output_on() {
+    let violating = r#"
+        struct Wrapper { inner: SuprTuiBackend }
+        impl Backend for Wrapper { fn size(&self) -> (u16, u16) { (0, 0) } }
+    "#;
+    assert_eq!(
+        backends_without_image_output(&[("fixture.rs", violating)]),
+        Ok(vec!["Wrapper".to_owned()]),
+        "the audit finds a wrapper that does not pass its image output on"
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/backend");
+    let mut sources = Vec::new();
+    for entry in std::fs::read_dir(&root).expect("src/backend") {
+        let path = entry.expect("an entry").path();
+        if path.extension().is_some_and(|extension| extension == "rs") {
+            let text = std::fs::read_to_string(&path).expect("a backend source");
+            sources.push((path.display().to_string(), text));
+        }
+    }
+    let sources: Vec<(&str, &str)> = sources
+        .iter()
+        .map(|(file, text)| (file.as_str(), text.as_str()))
+        .collect();
+    assert_eq!(
+        backends_without_image_output(&sources),
+        Ok(Vec::new()),
+        "PIX-001: a backend holding the SuprTUI renderer does not pass its image output on, so the controls draw no pixel looks through it"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Reference pictures (PIX-003 to PIX-005): a look's picture on a Kitty host
 // against tests/snapshots/pixel-looks/<name>.png, within GFX-002's tolerance.
