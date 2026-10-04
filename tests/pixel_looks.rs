@@ -347,6 +347,40 @@ fn theme_change_child() {
         stale.is_empty(),
         "PIX-001: frames {stale:?} after the theme change carried a picture in the old colors"
     );
+    // The first frame presented after the change shows nothing in the old
+    // colors: a picture the terminal still holds from before the change is
+    // taken off the screen in that frame, unless the new picture replaces
+    // it there (THM-003).
+    let id = run
+        .pictures()
+        .into_iter()
+        .find(|p| p.frame < at)
+        .and_then(|p| p.id)
+        .expect("the button's picture before the change has an image id");
+    assert!(
+        run.frames.len() > at,
+        "PIX-001: no frame was presented after the theme change"
+    );
+    let removed = kitty_commands(&run.frames[at..=at])
+        .iter()
+        .any(|c| c.id == Some(id) && c.action == "d");
+    let replaced = run.pictures().iter().any(|p| {
+        p.frame == at
+            && p.id == Some(id)
+            && near(
+                [dominant(p)[0], dominant(p)[1], dominant(p)[2], 255],
+                new,
+                12,
+            )
+    });
+    assert!(
+        removed || replaced,
+        "THM-003: the first frame after the theme change (frame {at}) left the button's old-theme picture {id} on the screen: {:?}",
+        kitty_commands(&run.frames[at..=at])
+            .iter()
+            .map(|c| (c.action.clone(), c.id))
+            .collect::<Vec<_>>()
+    );
     Theme::set_active(dark_theme());
 }
 

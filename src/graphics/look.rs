@@ -542,14 +542,21 @@ impl Looks {
             }
         }
         // While the drawing thread makes the next picture of a look that
-        // changed (the focus, the pointer, a value, the theme), the last one
-        // stays placed: it fits the box, so the frame keeps its pixels and
-        // sends nothing until the new picture is ready (PIX-002). A picture
-        // of another size or cell size is never stretched.
+        // changed (the focus, the pointer, a value), the last one stays
+        // placed: it fits the box, so the frame keeps its pixels and sends
+        // nothing until the new picture is ready (PIX-002). A picture of
+        // another size or cell size is never stretched, and one in an older
+        // theme's colors is never shown: the next frame presented after a
+        // change of theme is in the new colors, the look's flat cells until
+        // its new picture is ready (THM-003, PIX-001).
         let shown = slot
             .shown
             .as_ref()
-            .filter(|(drawn, _)| drawn.size == wanted.size && drawn.cell == wanted.cell)
+            .filter(|(drawn, _)| {
+                drawn.size == wanted.size
+                    && drawn.cell == wanted.cell
+                    && drawn.theme == wanted.theme
+            })
             .map(|(_, frame)| frame.clone());
         Some((slot.image_id, shown))
     }
