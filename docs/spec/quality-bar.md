@@ -69,3 +69,9 @@ Falsifier: At the commitment's final commit, any of the five commands exits non-
 Mechanism: ffi-gates
 Rationale: The gates build default features and wgpu-graphics only, so the C ABI's feature broke unnoticed: the developer's review of e30afa23 (finding 1) found the library does not compile with `ffi`, which the C and TypeScript bindings build it with.
 Status: Agreed 2026-10-02
+
+[BAR-012] Every commitment MUST leave the push workflow (`.github/workflows/ci.yml`) green at its final commit: on an Ubuntu, a macOS and a Windows GitHub runner it runs `cargo build --locked --all-targets`, `cargo test --locked --no-fail-fast`, `cargo fmt --all -- --check`, `cargo clippy --locked --all-targets -- -D warnings` and `cargo deny --locked check advisories bans licenses sources` at the `rust-version` Cargo.toml declares, with the ConPTY runtime installed beside the Windows test binaries and every tracked text file checked out with LF line endings, and every job of that run succeeds.
+Falsifier: The workflow's run for the final commit has a job that failed, was cancelled or never started; or the workflow lacks one of the five commands on a runner, installs a toolchain other than Cargo.toml's `rust-version`, or installs no ConPTY runtime on Windows; or `.gitattributes` does not give tracked text files LF line endings.
+Mechanism: ci-workflow
+Rationale: Actions was re-enabled on 2026-10-03 for the ffi gates, and the dormant push workflow then failed on all three runners: CRLF goldens and a missing ConPTY runtime on Windows, an obsolete dependency step and a frame-count wait on Ubuntu, a radar golden drifting on Apple Silicon, none of which the Linux gates or the hosts' build-only gates see.
+Status: Agreed 2026-10-03

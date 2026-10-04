@@ -1238,3 +1238,48 @@ Done when every named requirement passes, the pty-stop mechanism has
 recorded a fail on the tree as it was at the start, on the macOS test
 host, and the changelog names the fix for an application that closes a
 terminal widget or an embedded session while its shell is still printing.
+
+## push-ci-workflow-repair
+
+Requirements: BAR-012, BAR-001, BAR-002, BAR-004, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011
+
+Promoted from the backlog item push-ci-workflow-repair (c001439a) by the
+developer's choice on 2026-10-03, with BAR-012 agreed the same day, since no
+agreed requirement covered the push workflow. GitHub Actions was re-enabled
+on 2026-10-03 for the ffi gates, and the dormant Supported-platform CI
+workflow (.github/workflows/ci.yml, 2026-09-16) then ran on every push to
+main and failed on all three runners at 95c5f787 (run 37166418577). On
+Windows every golden and a fixture's section marker compare against CRLF,
+because the runner checks out with core.autocrlf and the repository has no
+.gitattributes; the string-path inventory test prints backslash paths; the
+two command-shell tests and the terminal widget test find no ConPTY runtime
+beside the test binaries; and the dialog HTTP client gets no output back
+from its curl child, which fails thirteen dialog tests and one unit test.
+On Ubuntu cht_024 waits for a fifth frame after a resize that a runner whose
+chart worker finishes inside the resize's frame never paints, and the
+pre-Sudus dependency step (scripts/check-pre-release-dependency-maintenance.py)
+calls cargo audit's empty warning list a failure. On macOS the large radar golden differs in 169 braille cells and
+its color digest, because sine and cosine differ in the last bit between
+x86-64 and Apple Silicon. The ffi gates workflow's Linux test step fails
+test_terminal_dimensions for want of a controlling terminal. Delivered
+here: .gitattributes gives tracked text files LF line endings and marks the
+binary fixtures; the inventory test normalises path separators; cht_024
+waits for the large class's grid instead of a frame count; the radial
+charts take their sines and cosines from libm, so the goldens are the same
+on every platform, which the macOS runner checks; the Windows workflow step
+installs the ConPTY runtime beside the test binaries; the dialog HTTP
+client's Windows failure is found on the Windows test host and fixed with a
+test; the workflow runs cargo deny in place of that obsolete step, at
+Cargo.toml's rust-version, and scripts/check-pre-release-ci.py follows; the
+ffi gates workflow's Linux tests run under a pseudo-terminal; the
+ci-workflow mechanism (BAR-012) reads the workflow for its commands,
+toolchain, ConPTY step and the line-ending attributes, then looks up or
+starts the workflow's run for the current commit and reads its jobs;
+CONTRIBUTING.md says what CI runs; and the changelog names the Windows
+dialog HTTP fix and the radar goldens' platform independence.
+
+Done when every named requirement passes, the ci-workflow mechanism has
+recorded a fail on the tree as it was at the start, the workflow's run for
+the final commit is green on the three runners, and the changelog names the
+two fixes for an application that validates dialogs over HTTP on Windows or
+draws radar charts on Apple Silicon.
