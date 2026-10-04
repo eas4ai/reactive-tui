@@ -57,3 +57,5 @@ Thumbs.db
 .sudus/reviews/api-image-hosts/20260913T221919052255Z/**/*.log
 .gitnexus
 
+# Review captures a code-review tool writes into the checkout (ripwire); not part of the tree.
+.review/
