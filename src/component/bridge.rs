@@ -75,10 +75,14 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
     }
     /// The looks of `element` and its descendants with the numbers that
     /// name them, in the order `collect` visits them: a control's own look,
-    /// else the look its classes describe (PIX-003).
+    /// else the look its classes describe (PIX-003). A key names an element
+    /// among its siblings only, so a keyed element is named by its key under
+    /// its parent's name: two looks with one key under two parents are two
+    /// looks, each with its own picture (PIX-002, GFX-003).
     #[cfg(feature = "wgpu-graphics")]
     fn looks(
         element: &Element,
+        parent: u64,
         path: &mut Vec<usize>,
         found: &mut Vec<Option<std::sync::Arc<crate::graphics::look::Look>>>,
         ids: &mut Vec<u64>,
@@ -93,15 +97,16 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         });
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         match (&element.key, element.metadata.component_instances.first()) {
-            (Some(key), _) => (0u8, key).hash(&mut hasher),
+            (Some(key), _) => (0u8, parent, key).hash(&mut hasher),
             (None, Some(instance)) => (1u8, instance).hash(&mut hasher),
             (None, None) => (2u8, &*path).hash(&mut hasher),
         }
+        let id = hasher.finish();
         found.push(look);
-        ids.push(hasher.finish());
+        ids.push(id);
         for (index, child) in element.children.iter().enumerate() {
             path.push(index);
-            looks(child, path, found, ids);
+            looks(child, id, path, found, ids);
             path.pop();
         }
     }
@@ -122,7 +127,7 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
     #[cfg(feature = "wgpu-graphics")]
     let looks_and_ids = {
         let (mut found, mut ids, mut path) = (Vec::new(), Vec::new(), Vec::new());
-        looks(element, &mut path, &mut found, &mut ids);
+        looks(element, 0, &mut path, &mut found, &mut ids);
         (found, ids)
     };
     Ok(PaintSpec {
