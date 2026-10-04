@@ -1522,7 +1522,14 @@ fn prepare_look(
                         .map(|source| with_opacity(source, node.parent_opacity))
                 })
                 .filter(|source| ansi::alpha(*source) > 0)
-                .map(|source| blend_colors(source, before.bg, None));
+                .map(|source| match protocol {
+                    // Kitty blends a translucent picture over the cell in
+                    // linear light; the cell beside it is blended the same
+                    // way, so the two stay one color (PIX-001).
+                    images::ImageProtocol::Kitty => blend_linear(source, before.bg),
+                    // A Sixel picture is blended here, in sRGB.
+                    _ => blend_colors(source, before.bg, None),
+                });
             cells.push(((x as u32, y as u32), before, fill));
         }
     }
@@ -1549,6 +1556,38 @@ fn prepare_look(
         images.cover_under(plane, *x as i32, *y as i32);
     }
     Ok(Some(LookPass { plane, cells }))
+}
+
+/// `source` over the opaque `under`, blended in linear light as Kitty
+/// blends a translucent picture over a cell's background.
+#[cfg(feature = "wgpu-graphics")]
+fn blend_linear(source: ansi::Rgba, under: ansi::Rgba) -> ansi::Rgba {
+    let linear = |value: u8| {
+        let value = f32::from(value) / 255.0;
+        if value <= 0.04045 {
+            value / 12.92
+        } else {
+            ((value + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let encoded = |value: f32| {
+        let value = value.clamp(0.0, 1.0);
+        let value = if value <= 0.003_130_8 {
+            value * 12.92
+        } else {
+            1.055 * value.powf(1.0 / 2.4) - 0.055
+        };
+        (value * 255.0).round() as u8
+    };
+    let alpha = f32::from(ansi::alpha(source)) / 255.0;
+    let channel =
+        |top: u8, bottom: u8| encoded(linear(top) * alpha + linear(bottom) * (1.0 - alpha));
+    ansi::rgb_color(
+        channel(ansi::red(source), ansi::red(under)),
+        channel(ansi::green(source), ansi::green(under)),
+        channel(ansi::blue(source), ansi::blue(under)),
+        255,
+    )
 }
 
 #[cfg(feature = "wgpu-graphics")]
