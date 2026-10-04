@@ -112,21 +112,34 @@ fn scroll_resize_preserves_position_then_clamps_to_new_viewport() {
             .render()
             .with_class("w-full h-full")
             .auto_focus();
-        let frames = run(
+        // Each event waits for the content the one before it produces: three
+        // rows show "zero one two", Down scrolls to "one two three", the two-row
+        // viewport keeps the position ("one two"), End reaches "four five", and
+        // the tall viewport shows every row again. A host that paints the
+        // resize and the key in one frame would otherwise swallow a step.
+        let frames = super::app_input::run_visibility(
             Control(scroll),
             (size.0, 3),
             vec![
-                (1, key(KeyCode::Down)),
-                (2, Some(Event::Resize(ResizeEvent::new(size.0, 2)))),
-                (3, key(KeyCode::End)),
-                (4, Some(Event::Resize(ResizeEvent::new(size.0, size.1)))),
-                (6, None),
+                ("zero", None, key(KeyCode::Down)),
+                ("three", None, Some(Event::Resize(ResizeEvent::new(size.0, 2)))),
+                ("two", Some("three"), key(KeyCode::End)),
+                (
+                    "five",
+                    Some("three"),
+                    Some(Event::Resize(ResizeEvent::new(size.0, size.1))),
+                ),
+                ("zero", None, None),
             ],
         );
-        assert!(frames[1].text.contains("one"), "{}", frames[1].text);
-        assert!(frames
-            .iter()
-            .any(|f| f.text.contains("five") && !f.text.contains("three")));
+        let shows = |text: &str, hidden: &str| {
+            frames
+                .iter()
+                .any(|f| f.text.contains(text) && !f.text.contains(hidden))
+        };
+        assert!(shows("three", "zero"), "Down did not scroll a row");
+        assert!(shows("two", "three"), "the two-row viewport lost the position");
+        assert!(shows("five", "three"), "End did not reach the last row");
         assert!(
             frames.last().unwrap().text.contains("zero"),
             "{}",
