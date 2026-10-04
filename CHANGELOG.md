@@ -7,8 +7,9 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 - Closing a terminal widget, dropping a `PseudoTerminal` or stopping an
   embedded session whose shell is still printing no longer hangs on macOS:
-  the child's unread output is read and discarded while it is reaped, so
-  the stop returns within a second there as on Linux (TRM-001).
+  the child's unread output is read and discarded while it is reaped,
+  output a Ctrl-S stop character paused included, so the stop returns
+  within a second there as on Linux (TRM-001).
 - On a terminal that takes Kitty graphics or Sixel, a line, area, scatter,
   bar or candlestick chart built with `wgpu-graphics` draws its plot area
   as one pixel picture at the terminal's cell size: strokes an eighth of a

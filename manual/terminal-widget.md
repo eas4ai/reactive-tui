@@ -38,8 +38,8 @@ presentation and whether application input should be forwarded to the child.
 - The child process and PTY are operating-system resources and must be stopped.
   Stopping ends a shell that is still printing within a second, on macOS as on
   Linux: what the child wrote and nobody read is read and discarded while it
-  exits, since macOS keeps an exiting process until its unread terminal output
-  is read (TRM-001).
+  exits, output paused by a Ctrl-S stop character included, since macOS keeps
+  an exiting process until its unread terminal output is gone (TRM-001).
 - Output uses a bounded screen and configured scrollback.
 - The legacy terminal widget and the optional `embedded` module are separate
   APIs with different parser and platform dependencies.

@@ -162,8 +162,12 @@ impl PtyChild {
     /// that printed faster than it was read: a process that exits with output
     /// still unread on its pseudo-terminal stays in exit until that output is
     /// read, and by the time `stop` runs nothing else reads it (TRM-001). The
-    /// master is non-blocking, so each turn takes what is there and otherwise
-    /// pauses a millisecond before asking for the exit status again.
+    /// master is non-blocking, so each turn takes what is there. When it holds
+    /// nothing readable the queue may still be full: output a stop character
+    /// (Ctrl-S under `ixon`) has paused is never handed to the master, and
+    /// the exit waits for it all the same. So an idle turn restarts the
+    /// output and discards the queue before pausing a millisecond and asking
+    /// for the exit status again.
     fn reap(&mut self) -> io::Result<ExitStatus> {
         let mut unread = [0u8; 4096];
         loop {
@@ -179,6 +183,13 @@ impl PtyChild {
                         io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
                     ) || error.raw_os_error() == Some(libc::EIO) => {}
                 Err(error) => return Err(error),
+            }
+            // SAFETY: flow control and flush requests on the master this
+            // child owns; neither borrows Rust memory. A terminal that is gone
+            // already refuses them, and the next try_wait decides.
+            unsafe {
+                libc::tcflow(self.master.as_raw_fd(), libc::TCOON);
+                libc::tcflush(self.master.as_raw_fd(), libc::TCOFLUSH);
             }
             std::thread::sleep(std::time::Duration::from_millis(1));
         }

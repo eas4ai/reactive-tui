@@ -49,7 +49,8 @@ The embedded worker owns the parser and child process. Commands cross a channel
 to the worker. Output and process changes wake the application. Shutdown closes
 the worker, PTY, and child process and can be called more than once safely. A
 child that is still printing is ended and reaped within a second, on macOS as
-on Linux: its unread output is read and discarded while it exits (TRM-001).
+on Linux: its unread output, paused by a stop character or not, is read and
+discarded while it exits (TRM-001).
 
 ## Limits
 
