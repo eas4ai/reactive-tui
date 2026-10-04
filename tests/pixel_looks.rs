@@ -1459,6 +1459,11 @@ fn pix_005_no_track_glyph_remains() {
         pictures_or_frames(2, 2, 12),
         true,
     );
+    assert!(
+        run.pictures().len() >= 2,
+        "PIX-005: the slider and the progress bar sent their pictures, got {}",
+        run.pictures().len()
+    );
     let screen = run.screen(run.frames.len() - 1);
     if let Some(found) = glyph_in(&screen, 0..2, &['═', '─', '●', '█', '░', '▒', '▌'])
     {
