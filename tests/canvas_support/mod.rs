@@ -3,6 +3,8 @@
 //! images in tests/snapshots/canvas.
 #![allow(dead_code)]
 
+pub mod app;
+
 use reactive_tui::graphics::{
     fonts::FontSource, CanvasImage, Color, GradientStop, GraphicsFrame, GraphicsOptions, LineCap,
     LineJoin, Paint, Path, PathBuilder, Scene, Stroke, Transform,
