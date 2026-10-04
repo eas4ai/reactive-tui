@@ -173,10 +173,10 @@ impl Submitted {
 /// The most pixels of a picture that is sent in the command itself. Such a
 /// picture is written as base64, four bytes for three, and a frame's output
 /// holds 64 MiB.
-const DIRECT_PIXELS: u64 = 12_000_000;
+pub(crate) const DIRECT_PIXELS: u64 = 12_000_000;
 
 /// The most pixels of one picture a frame holds: 64 MiB of them (GFX-007).
-const FRAME_PIXELS: u64 = 64 * 1024 * 1024 / 4;
+pub(crate) const FRAME_PIXELS: u64 = 64 * 1024 * 1024 / 4;
 
 /// What a canvas asks of its drawing thread, for which output, the columns
 /// and rows its picture covers, and the picture's pixels per cell.
@@ -186,7 +186,7 @@ type Wanted = (Job, CanvasOutput, (u32, u32), (u16, u16));
 /// which `columns` by `rows` cells make a picture within `limits` and
 /// `budget` pixels: the most pixels first, the cell's own proportions
 /// second (GFX-010). `None` when not even one pixel per cell fits.
-fn pixels_per_cell(
+pub(crate) fn pixels_per_cell(
     columns: u32,
     rows: u32,
     wanted: (u16, u16),
@@ -222,7 +222,7 @@ fn pixels_per_cell(
 /// with a quarter of the pixels, and so on until it fits (GFX-010). It
 /// holds for one output and one area.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Room {
+pub(crate) struct Room {
     output: CanvasOutput,
     cells: (u32, u32),
     pixels: u64,
@@ -232,7 +232,7 @@ impl Room {
     /// The room after a picture of `size` pixels for `cells` was refused
     /// for its output's room: a quarter of its pixels, and never fewer than
     /// one per cell.
-    fn after(output: CanvasOutput, cells: (u32, u32), size: (u32, u32)) -> Self {
+    pub(crate) fn after(output: CanvasOutput, cells: (u32, u32), size: (u32, u32)) -> Self {
         let pixels = (u64::from(size.0) * u64::from(size.1) / 4)
             .max(u64::from(cells.0) * u64::from(cells.1));
         Self {
@@ -244,7 +244,12 @@ impl Room {
 
     /// The budget this room leaves for `output` over `cells`, out of
     /// `budget`; a room learned for another output or area is forgotten.
-    fn within(room: Option<Self>, output: CanvasOutput, cells: (u32, u32), budget: u64) -> u64 {
+    pub(crate) fn within(
+        room: Option<Self>,
+        output: CanvasOutput,
+        cells: (u32, u32),
+        budget: u64,
+    ) -> u64 {
         match room {
             Some(room) if room.output == output && room.cells == cells => budget.min(room.pixels),
             _ => budget,
@@ -255,7 +260,7 @@ impl Room {
 /// Whether a frame refused a picture because its Sixel text or its command
 /// took more room than the output has, which fewer pixels per cell can
 /// mend, rather than for the frame's budget across pictures (GFX-007).
-fn refused_for_room(reason: &str) -> bool {
+pub(crate) fn refused_for_room(reason: &str) -> bool {
     reason.contains("output exceeds") || reason.contains("output limit")
 }
 

@@ -1462,10 +1462,18 @@ fn prepare_look(
     if columns == 0 || rows == 0 || paint.opacity * node.parent_opacity <= 0.0 {
         return Ok(None);
     }
-    let size = (columns * u32::from(cell.0), rows * u32::from(cell.1));
-    let Some((image_id, Some(frame))) =
-        looks.picture(spec.look_ids[node.element_index], look, size, cell)
-    else {
+    let output = match protocol {
+        images::ImageProtocol::Kitty => crate::graphics::CanvasOutput::Kitty,
+        _ => crate::graphics::CanvasOutput::Sixel,
+    };
+    let Some(picture) = looks.picture(
+        spec.look_ids[node.element_index],
+        look,
+        (columns, rows),
+        cell,
+        output,
+        options.kitty_shared_memory,
+    ) else {
         return Ok(None);
     };
     // The box's cells on the screen with what each holds before the node
@@ -1503,14 +1511,15 @@ fn prepare_look(
             cells.push(((x as u32, y as u32), before, fill));
         }
     }
-    let refused: images::Refusal = Arc::new(move |reason: &str| {
-        log::debug!("a pixel look's picture was left out of the frame: {reason}");
-    });
+    // A picture with fewer pixels per cell than the terminal's names them,
+    // so its placement covers its cells and the terminal scales it; a frame
+    // that leaves it out tells the look why (GFX-010).
+    let refused: images::Refusal = picture.refused.clone();
     let picture = images::ImagePaint::canvas(
-        image_id,
-        frame.image().clone(),
+        picture.image_id,
+        picture.frame.image().clone(),
         options.kitty_shared_memory,
-        cell,
+        picture.pixels,
         refused,
     );
     let Some(plane) = images::Plane::covering(Arc::new(picture), paint, node, target, protocol)?
