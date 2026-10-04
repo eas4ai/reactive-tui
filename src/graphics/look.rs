@@ -38,10 +38,10 @@ pub enum Radius {
 }
 
 /// A line along a look's edge, inside it: a border or a ring, `width`
-/// pixels at a cell height of 16, in a theme role.
+/// pixels wide at every cell size, in a theme role (PIX-003, PIX-004).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Line {
-    /// Pixels at a cell height of 16.
+    /// Its width in pixels.
     pub width: f32,
     /// The theme role it is drawn in.
     pub role: String,
@@ -57,37 +57,74 @@ impl Line {
     }
 }
 
+/// A size a control's shape takes, in pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Extent {
+    /// That many pixels at every cell size: a check mark's stroke, a
+    /// slider's track (PIX-004, PIX-005).
+    Px(f32),
+    /// `times` the cell height less `less` pixels: a checkbox's box, a
+    /// radio's circle and dot, a slider's thumb (PIX-004, PIX-005).
+    CellLess {
+        /// The pixels taken off the cell height.
+        less: f32,
+        /// What the rest is multiplied by.
+        times: f32,
+    },
+    /// That many pixels at a cell height of 16, in proportion otherwise: a
+    /// progress bar over its rows.
+    Scaled(f32),
+}
+
+impl Extent {
+    /// The cell height less two pixels.
+    pub const CELL_LESS_TWO: Self = Self::CellLess {
+        less: 2.0,
+        times: 1.0,
+    };
+
+    /// The size in pixels at a cell height of `cell_height` pixels; never
+    /// less than one.
+    fn px(self, cell_height: f32) -> f32 {
+        match self {
+            Self::Px(px) => px,
+            Self::CellLess { less, times } => (cell_height - less) * times,
+            Self::Scaled(px) => px * cell_height / REFERENCE_CELL_HEIGHT,
+        }
+        .max(1.0)
+    }
+}
+
 /// A shape a control draws inside its look. Positions are in cells of the
-/// look's rectangle (fractions allowed), sizes in pixels at a cell height
-/// of 16, scaled in proportion otherwise.
+/// look's rectangle (fractions allowed), sizes as each [`Extent`] says.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Shape {
-    /// A rounded box centered at `center`, `size` pixels square.
+    /// A rounded box centered at `center`, `size` square.
     Box {
         /// The box's center, in cells.
         center: (f32, f32),
-        /// Its side, in pixels at a cell height of 16.
-        size: f32,
-        /// Its corner radius, in the same pixels.
-        radius: f32,
+        /// Its side.
+        size: Extent,
+        /// Its corner radius.
+        radius: Extent,
         /// The role it is filled with, if any.
         fill: Option<String>,
         /// Its border, if any.
         border: Option<Line>,
     },
-    /// A circle centered at `center` of `diameter` pixels.
+    /// A circle centered at `center` of `diameter`.
     Circle {
         /// The circle's center, in cells.
         center: (f32, f32),
-        /// Its diameter, in pixels at a cell height of 16.
-        diameter: f32,
+        /// Its diameter.
+        diameter: Extent,
         /// The role it is filled with, if any.
         fill: Option<String>,
         /// Its border, if any.
         border: Option<Line>,
     },
-    /// A bar from `from` to `to` cells across, `height` pixels tall, centered
-    /// on row `row`, with rounded ends of `radius` pixels.
+    /// A bar from `from` to `to` cells across, `height` tall, centered on
+    /// row `row`, with rounded ends of `radius`.
     Bar {
         /// Where the bar starts, in cells across.
         from: f32,
@@ -95,33 +132,32 @@ pub enum Shape {
         to: f32,
         /// The row its middle lies on, in cells down.
         row: f32,
-        /// Its height, in pixels at a cell height of 16.
-        height: f32,
-        /// The radius of its ends, in the same pixels.
-        radius: f32,
+        /// Its height.
+        height: Extent,
+        /// The radius of its ends.
+        radius: Extent,
         /// The role it is filled with.
         fill: String,
     },
-    /// A check mark centered at `center`, `size` pixels wide, `width`
-    /// pixels thick.
+    /// A check mark centered at `center`, `size` wide, `width` thick.
     Check {
         /// The mark's center, in cells.
         center: (f32, f32),
-        /// Its width, in pixels at a cell height of 16.
-        size: f32,
-        /// Its stroke, in the same pixels.
-        width: f32,
+        /// Its width.
+        size: Extent,
+        /// Its stroke.
+        width: Extent,
         /// The role it is drawn in.
         role: String,
     },
-    /// A dash centered at `center`, `size` pixels wide, `width` thick.
+    /// A dash centered at `center`, `size` wide, `width` thick.
     Dash {
         /// The dash's center, in cells.
         center: (f32, f32),
-        /// Its width, in pixels at a cell height of 16.
-        size: f32,
-        /// Its stroke, in the same pixels.
-        width: f32,
+        /// Its width.
+        size: Extent,
+        /// Its stroke.
+        width: Extent,
         /// The role it is drawn in.
         role: String,
     },
@@ -266,7 +302,6 @@ impl Look {
     /// renderer resolves when it draws (GFX-001).
     pub(crate) fn scene(&self, size: (u32, u32), cell: (u16, u16)) -> Scene {
         let (width, height) = (size.0 as f32, size.1 as f32);
-        let scale = Self::scale(cell);
         let radius = self.radius_px(width, height, cell);
         let mut scene = Scene::new();
         if let Some(fill) = &self.fill {
@@ -278,7 +313,9 @@ impl Look {
         }
         let mut inset = 0.0;
         for line in [&self.ring, &self.border].into_iter().flatten() {
-            let line_width = (line.width * scale).max(1.0).round();
+            // A border is one pixel and a ring one or two at every cell size
+            // (PIX-003); only the radius follows the cell height.
+            let line_width = line.width.max(1.0).round();
             let half = inset + line_width / 2.0;
             if width - 2.0 * half <= 0.0 || height - 2.0 * half <= 0.0 {
                 break;
@@ -297,17 +334,19 @@ impl Look {
             inset += line_width;
         }
         for shape in &self.shapes {
-            shape.draw(&mut scene, cell, scale, self.opacity);
+            shape.draw(&mut scene, cell, self.opacity);
         }
         scene
     }
 }
 
 impl Shape {
-    fn draw(&self, scene: &mut Scene, cell: (u16, u16), scale: f32, opacity: f32) {
+    fn draw(&self, scene: &mut Scene, cell: (u16, u16), opacity: f32) {
         let (cw, ch) = (f32::from(cell.0.max(1)), f32::from(cell.1.max(1)));
         let at = |(x, y): (f32, f32)| (x * cw, y * ch);
-        let px = |size: f32| (size * scale).max(1.0);
+        let px = |size: &Extent| size.px(ch);
+        // A border is one pixel wide at every cell size (PIX-004).
+        let line_px = |line: &Line| line.width.max(1.0).round();
         match self {
             Shape::Box {
                 center,
@@ -317,13 +356,13 @@ impl Shape {
                 border,
             } => {
                 let (cx, cy) = at(*center);
-                let side = px(*size).round();
+                let side = px(size).round();
                 let path = Path::rounded_rect(
                     cx - side / 2.0,
                     cy - side / 2.0,
                     side,
                     side,
-                    px(*radius).min(side / 2.0),
+                    px(radius).min(side / 2.0),
                 );
                 if let Some(fill) = fill {
                     scene.fill(
@@ -332,13 +371,13 @@ impl Shape {
                     );
                 }
                 if let Some(line) = border {
-                    let width = px(line.width).round();
+                    let width = line_px(line);
                     let inner = Path::rounded_rect(
                         cx - side / 2.0 + width / 2.0,
                         cy - side / 2.0 + width / 2.0,
                         side - width,
                         side - width,
-                        (px(*radius) - width / 2.0).max(0.0),
+                        (px(radius) - width / 2.0).max(0.0),
                     );
                     scene.stroke(
                         &inner,
@@ -354,7 +393,7 @@ impl Shape {
                 border,
             } => {
                 let (cx, cy) = at(*center);
-                let r = px(*diameter) / 2.0;
+                let r = px(diameter) / 2.0;
                 if let Some(fill) = fill {
                     scene.fill(
                         &Path::ellipse(cx, cy, r, r),
@@ -362,7 +401,7 @@ impl Shape {
                     );
                 }
                 if let Some(line) = border {
-                    let width = px(line.width).round();
+                    let width = line_px(line);
                     scene.stroke(
                         &Path::ellipse(cx, cy, r - width / 2.0, r - width / 2.0),
                         &Stroke::new(width),
@@ -379,7 +418,7 @@ impl Shape {
                 fill,
             } => {
                 let (x0, x1) = (from * cw, to * cw);
-                let h = px(*height).round();
+                let h = px(height).round();
                 let y = row * ch - h / 2.0;
                 if x1 > x0 {
                     scene.fill(
@@ -388,7 +427,7 @@ impl Shape {
                             y,
                             x1 - x0,
                             h,
-                            px(*radius).min(h / 2.0).min((x1 - x0) / 2.0),
+                            px(radius).min(h / 2.0).min((x1 - x0) / 2.0),
                         ),
                         &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
                     );
@@ -401,7 +440,7 @@ impl Shape {
                 role,
             } => {
                 let (cx, cy) = at(*center);
-                let s = px(*size);
+                let s = px(size);
                 let path = super::PathBuilder::new()
                     .move_to(cx - s * 0.45, cy)
                     .line_to(cx - s * 0.1, cy + s * 0.35)
@@ -409,7 +448,7 @@ impl Shape {
                     .build();
                 scene.stroke(
                     &path,
-                    &Stroke::new(px(*width).round())
+                    &Stroke::new(px(width).round())
                         .cap(super::LineCap::Round)
                         .join(super::LineJoin::Round),
                     &Paint::solid(Color::token(role.as_str())).opacity(opacity),
@@ -422,14 +461,14 @@ impl Shape {
                 role,
             } => {
                 let (cx, cy) = at(*center);
-                let s = px(*size);
+                let s = px(size);
                 let path = super::PathBuilder::new()
                     .move_to(cx - s * 0.4, cy)
                     .line_to(cx + s * 0.4, cy)
                     .build();
                 scene.stroke(
                     &path,
-                    &Stroke::new(px(*width).round()).cap(super::LineCap::Round),
+                    &Stroke::new(px(width).round()).cap(super::LineCap::Round),
                     &Paint::solid(Color::token(role.as_str())).opacity(opacity),
                 );
             }
@@ -703,23 +742,30 @@ impl Look {
         let center = (1.5, 0.5);
         let mut shapes = vec![Shape::Box {
             center,
-            size: 14.0,
-            radius: 2.0,
+            size: Extent::CELL_LESS_TWO,
+            radius: Extent::Px(2.0),
             fill: (checked || mixed).then(|| "primary".to_owned()),
             border: Some(frame_line(focused)),
         }];
         if mixed {
+            // The mark is sized with the box; its stroke is two pixels.
             shapes.push(Shape::Dash {
                 center,
-                size: 8.0,
-                width: 2.0,
+                size: Extent::CellLess {
+                    less: 2.0,
+                    times: 8.0 / 14.0,
+                },
+                width: Extent::Px(2.0),
                 role: "primary-foreground".to_owned(),
             });
         } else if checked {
             shapes.push(Shape::Check {
                 center,
-                size: 10.0,
-                width: 2.0,
+                size: Extent::CellLess {
+                    less: 2.0,
+                    times: 10.0 / 14.0,
+                },
+                width: Extent::Px(2.0),
                 role: "primary-foreground".to_owned(),
             });
         }
@@ -738,14 +784,17 @@ impl Look {
         let center = (1.5, 0.5);
         let mut shapes = vec![Shape::Circle {
             center,
-            diameter: 14.0,
+            diameter: Extent::CELL_LESS_TWO,
             fill: None,
             border: Some(frame_line(focused)),
         }];
         if chosen {
             shapes.push(Shape::Circle {
                 center,
-                diameter: 7.0,
+                diameter: Extent::CellLess {
+                    less: 2.0,
+                    times: 0.5,
+                },
                 fill: Some("primary".to_owned()),
                 border: None,
             });
@@ -794,21 +843,21 @@ impl Look {
                     from,
                     to,
                     row: 0.5,
-                    height: 4.0,
-                    radius: 2.0,
+                    height: Extent::Px(4.0),
+                    radius: Extent::Px(2.0),
                     fill: "border".to_owned(),
                 },
                 Shape::Bar {
                     from,
                     to: at,
                     row: 0.5,
-                    height: 4.0,
-                    radius: 2.0,
+                    height: Extent::Px(4.0),
+                    radius: Extent::Px(2.0),
                     fill: "primary".to_owned(),
                 },
                 Shape::Circle {
                     center: (at, 0.5),
-                    diameter: 14.0,
+                    diameter: Extent::CELL_LESS_TWO,
                     fill: Some(if focused { "ring" } else { "foreground" }.to_owned()),
                     border: None,
                 },
@@ -847,8 +896,8 @@ impl Look {
             from,
             to,
             row: rows / 2.0,
-            height,
-            radius: height / 2.0,
+            height: Extent::Scaled(height),
+            radius: Extent::Scaled(height / 2.0),
             fill: fill.to_owned(),
         };
         let mut shapes = vec![bar(0.0, cells, "border")];
