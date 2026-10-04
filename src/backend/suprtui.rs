@@ -102,11 +102,14 @@ struct FrameOptions {
 }
 
 enum Command {
+    /// A frame to paint and write, with the render scope of the App that
+    /// presented it, which the worker paints under (PIX-001).
     Present(
         FrameContent,
         (usize, usize),
         ImageOutputOptions,
         FrameOptions,
+        Option<crate::reactive::wake::Carried>,
         mpsc::Sender<Result<super::PresentedGeometry>>,
     ),
     /// Lay a frame out at a size without painting or writing it.
@@ -594,6 +597,9 @@ impl Backend for SuprTuiBackend {
                 self.dimensions,
                 self.images,
                 self.options,
+                // The painter runs on the worker: a look's picture it asks
+                // the drawing thread for wakes this App when it is ready.
+                crate::reactive::wake::carried(),
                 reply,
             ))
             .map_err(|_| worker_stopped())?;
@@ -818,7 +824,7 @@ fn run_worker<W: Write>(
             }
         };
         match command {
-            Command::Present(spec, size, current_images, options, reply) => {
+            Command::Present(spec, size, current_images, options, scope, reply) => {
                 if let Some(error) = deferred.take() {
                     force = true;
                     let _ = reply.send(Err(error));
@@ -839,6 +845,7 @@ fn run_worker<W: Write>(
                             let started = std::time::Instant::now();
                             let spec = element_to_paintspec(&spec)?;
                             let (buffer, hits) = renderer.next_buffer_and_hit_grid();
+                            let _scope = scope.as_ref().map(crate::reactive::wake::Scope::resume);
                             let geometry =
                                 paint_frame(spec, buffer, hits, &mut layout_cache, images)?;
                             renderer.set_layout_ns(started.elapsed().as_nanos() as u64);
@@ -1254,6 +1261,51 @@ mod terminal_info_tests {
         assert!(
             !terminal.takes_pixels() && terminal.cell_pixels == Some((8, 16)),
             "a writer that takes no pictures: {terminal:?}"
+        );
+    }
+}
+
+#[cfg(all(test, feature = "wgpu-graphics"))]
+mod look_wake_tests {
+    use super::{ImageOutputOptions, SuprTuiBackend};
+    use crate::backend::Backend;
+    use crate::component::Element;
+    use crate::reactive::wake::{AppWaker, Scope};
+    use std::time::{Duration, Instant};
+
+    /// PIX-001: the backend paints on its own thread, so a look whose
+    /// picture the drawing thread finishes after the frame that asked for
+    /// it must still wake the App that presented the frame: the next frame
+    /// shows the picture, with no other event needed.
+    #[test]
+    fn pix_001_a_look_picture_finished_after_its_frame_wakes_the_app() {
+        let images = ImageOutputOptions {
+            kitty_graphics: true,
+            cell_pixels: (8, 16),
+            ..Default::default()
+        };
+        let mut backend =
+            SuprTuiBackend::with_writer_and_images(20, 4, std::io::sink(), images).unwrap();
+        let wake = AppWaker::new();
+        let element = Element::layout(crate::component::LayoutType::Flex)
+            .with_class("w-full h-full")
+            .with_children(vec![Element::layout(crate::component::LayoutType::Flex)
+                .with_class("bg-primary rounded w-10 h-2")]);
+        {
+            // What the App's render does: the frame is presented inside the
+            // App's scope.
+            let _scope = Scope::enter(&wake);
+            assert!(backend.render_frame(&element).unwrap());
+            backend.present().unwrap();
+        }
+        backend.sync().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while !wake.is_pending() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(
+            wake.take().redraw,
+            "PIX-001: the look's picture was finished after its frame, and the App that presented the frame was not woken to show it"
         );
     }
 }
