@@ -32,8 +32,8 @@
     },
     {
       "path": "src/builder/specialized.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review of standalone radio checked initial-state contract and typed props build path (240-315)."
     },
     {
       "path": "src/builder/widgets/accordion.rs",
@@ -68,7 +68,7 @@
     {
       "path": "src/builder/widgets/input.rs",
       "depth": "deep",
-      "notes": "Focused configured checkbox and multiselect state/prop reconciliation; other builder methods structural."
+      "notes": "Focused configured checkbox and multiselect state/prop reconciliation; other builder methods structural. Further focused body review of text-input readonly key/paste wrapper and typed widget prop mapping (155-302)."
     },
     {
       "path": "src/builder/widgets/layout.rs",
@@ -87,8 +87,8 @@
     },
     {
       "path": "src/builder/widgets/table.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: public data-table row/feature/pagination/filter configuration and props/build mapping (100-201)."
     },
     {
       "path": "src/theme/ansi.rs",
@@ -122,8 +122,8 @@
     },
     {
       "path": "src/widgets/dialog/autocomplete.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: option/config callback equality, legacy grapheme edit/cursor/suggestion handling and mounted live delegation (1-520); legacy HTTP placeholder not confused with mounted implementation."
     },
     {
       "path": "src/widgets/dialog/autocomplete/live.rs",
@@ -137,8 +137,8 @@
     },
     {
       "path": "src/widgets/dialog/confirmation/live.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: visible-ID reset, callback-veto/disabled activation, modal buttons and capture shortcuts; no additional finding."
     },
     {
       "path": "src/widgets/dialog/dialog_component.rs",
@@ -177,8 +177,8 @@
     },
     {
       "path": "src/widgets/dialog/frame.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: presentation activity, bounds/focus/z-index mapping, modal motion, escape gating and position resolution; no additional finding."
     },
     {
       "path": "src/widgets/dialog/http.rs",
@@ -187,8 +187,8 @@
     },
     {
       "path": "src/widgets/dialog/input.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: options/config callback equality, constructor/seed/revision bridge, legacy grapheme boundary/replace/selection/cursor/submit routines (1-500); mounted live previously reviewed separately."
     },
     {
       "path": "src/widgets/dialog/input/live.rs",
@@ -212,13 +212,13 @@
     },
     {
       "path": "src/widgets/dialog/progress.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: complete production options equality, progress/model-to-live mapping, public configuration and dialog trait behavior; no additional finding."
     },
     {
       "path": "src/widgets/dialog/progress/live.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: full production ID/visibility/start time updates, progress/remaining-time paint, cancellation callback and modal gating; no additional finding."
     },
     {
       "path": "src/widgets/dialog/toast.rs",
@@ -232,13 +232,13 @@
     },
     {
       "path": "src/widgets/dialog/wizard.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: public current-step navigation/data/render seed, legacy key completion/cancel and configuration/step validation; no additional finding."
     },
     {
       "path": "src/widgets/dialog/wizard/live.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: step selection/validation/navigation, visited state and ID/seed reconciliation, child retention and modal construction; no additional finding."
     },
     {
       "path": "src/widgets/display/charts.rs",
@@ -372,13 +372,13 @@
     },
     {
       "path": "src/widgets/display/data_table.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: pagination/virtual ranges, props equality/defaults, mounted delegation, filter matching/date validation and public configuration; W08 callback omission."
     },
     {
       "path": "src/widgets/display/data_table/filters.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: parse/format/change, errors, enabled filters, callback lock boundary, clear and filter-panel construction; no additional finding."
     },
     {
       "path": "src/widgets/display/data_table/live.rs",
@@ -562,8 +562,8 @@
     },
     {
       "path": "src/widgets/display/table.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: props validation/equality, column widths, legacy selection/navigation/update, mounted delegation and numeric parsing/comparison; confirms W07 and W08. Not every fluent constructor reread."
     },
     {
       "path": "src/widgets/display/table/border.rs",
@@ -577,8 +577,8 @@
     },
     {
       "path": "src/widgets/display/tree.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: node construction/search, public fluent builder callback flow, props equality and mounted/legacy update integration; W08 callback omission. Not every legacy event helper reread."
     },
     {
       "path": "src/widgets/display/tree/live.rs",
@@ -587,13 +587,13 @@
     },
     {
       "path": "src/widgets/display/tree/live/paint.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: prefix widths, row paint/actions/accessibility, target rebuilding, visible rows, intrinsic size and clipping; no additional finding."
     },
     {
       "path": "src/widgets/input/checkbox.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: new/update/render and focus, disabled, key/mouse toggle paths; no additional finding."
     },
     {
       "path": "src/widgets/input/look.rs",
@@ -607,13 +607,13 @@
     },
     {
       "path": "src/widgets/input/named_radio.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: group join/leave/select, initial seed, prop changes, focus/disabled event paths; checked-update hypothesis rejected by public initial-state contract."
     },
     {
       "path": "src/widgets/input/panel.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: screen/root placement, above/below choice, geometry and popup paint/measured callbacks; no additional finding."
     },
     {
       "path": "src/widgets/input/radio_button.rs",
@@ -707,8 +707,8 @@
     },
     {
       "path": "src/widgets/menu/context.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: production visibility/trigger/long-press state, callback adapters, component-to-live delegation and props builder; no additional finding."
     },
     {
       "path": "src/widgets/menu/context_live.rs",
@@ -722,13 +722,13 @@
     },
     {
       "path": "src/widgets/menu/dialog_live.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: production input editing window, chrome actions, seed/visibility/item reconciliation, rendering and key/mouse routing; no additional finding."
     },
     {
       "path": "src/widgets/menu/invocation.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: checked callback invocation scope, result handoff and RAII restoration; no additional finding."
     },
     {
       "path": "src/widgets/menu/item.rs",
@@ -737,8 +737,8 @@
     },
     {
       "path": "src/widgets/menu/menubar.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: production state navigation/scroll, callback adapters, component-to-live delegation and props builder; no additional finding."
     },
     {
       "path": "src/widgets/menu/menubar_live.rs",
@@ -767,8 +767,8 @@
     },
     {
       "path": "src/widgets/menu/popup_live.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: full production visibility/seed/item reconciliation, placement/paint and key/mouse/menu action routing; no additional finding."
     },
     {
       "path": "src/widgets/menu/runtime.rs",
@@ -777,8 +777,8 @@
     },
     {
       "path": "src/widgets/menu/state.rs",
-      "depth": "structural",
-      "notes": "Focused ownership/integration map and file declaration/signature outline; no complete body trace."
+      "depth": "deep",
+      "notes": "Structural map/outline followed by focused body tracing. Further focused body review: zero-count selection stepping, keep-visible scroll and rectangle containment helpers; no additional finding."
     },
     {
       "path": "src/widgets/menu/style.rs",
@@ -816,5 +816,5 @@
       "notes": "Entire production terminal cell/color/cursor/title/selection paint implementation."
     }
   ],
-  "findings_count": 6
+  "findings_count": 8
 }
