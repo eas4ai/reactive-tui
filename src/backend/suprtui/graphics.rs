@@ -130,9 +130,24 @@ pub(crate) trait RasterPlane: PartialEq + Clone + Send + 'static {
     fn replaces(&self, _previous: &Self) -> bool {
         false
     }
-    /// Whether this is the picture `previous` shows, cell for cell, at
-    /// other cells (PIX-002).
+    /// Whether this is the picture `previous` shows, pixel for pixel, at
+    /// other cells or with other cells hidden (PIX-002).
     fn moved_from(&self, _previous: &Self) -> bool {
+        false
+    }
+    /// The rectangles of cells, as column, row, columns and rows from the
+    /// plane's corner, that a Kitty picture with cells hidden by an element
+    /// over it is placed over; none when it is placed whole (PIX-002).
+    fn placements(&self) -> Option<Vec<(u32, u32, u32, u32)>> {
+        None
+    }
+    /// Whether `previous` hid other cells from its placements (PIX-002).
+    fn occlusion_differs(&self, _previous: &Self) -> bool {
+        false
+    }
+    /// Whether the cell at `column`, `row` from the plane's corner is
+    /// hidden from its placements (PIX-002).
+    fn occluded(&self, _column: u32, _row: u32) -> bool {
         false
     }
 }
@@ -146,6 +161,15 @@ impl RasterPlane for Plane {
     }
     fn moved_from(&self, previous: &Self) -> bool {
         self.moved_from(previous)
+    }
+    fn placements(&self) -> Option<Vec<(u32, u32, u32, u32)>> {
+        self.placements()
+    }
+    fn occlusion_differs(&self, previous: &Self) -> bool {
+        self.occlusion_differs(previous)
+    }
+    fn occluded(&self, column: u32, row: u32) -> bool {
+        self.occluded(column, row)
     }
     fn id(&self) -> u32 {
         self.id()
@@ -282,25 +306,18 @@ impl<P: RasterPlane> Graphics<P> {
                 coverage.push(known.clone());
                 continue;
             }
-            // A canvas picture the Kitty host holds, shown at other cells:
-            // placed again by its id, its pixels not sent again (PIX-002).
-            // A picture the host never received, because the frame cleared
-            // it or it was not made ready, is sent as any new one.
+            // A canvas picture the Kitty host holds, shown at other cells or
+            // with other cells hidden by an element over it: placed again by
+            // its id, its pixels not sent again (PIX-002). A picture the host
+            // never received, because the frame cleared it or it was not
+            // made ready, is sent as any new one.
             if let Step::Moved(index) = steps[z] {
                 if in_place && !blend_legacy && plane.protocol() == ImageProtocol::Kitty {
                     if let Some(known) = self.coverage.get(index).filter(|known| !known.is_empty())
                     {
                         let (x, y) = plane.position();
-                        after.extend_from_slice(format!("\x1b[{};{}H", y + 1, x + 1).as_bytes());
-                        after.extend_from_slice(
-                            ProtocolRenderer::kitty_place(
-                                plane.id(),
-                                plane.z_index(z),
-                                Some(plane.cells()),
-                            )
-                            .as_bytes(),
-                        );
-                        coverage.push(known.moved_to((x, y)));
+                        after.extend_from_slice(&kitty_placements(plane, z, cell));
+                        coverage.push(known.moved_to((x, y)).hiding(plane));
                         continue;
                     }
                 }
@@ -585,6 +602,16 @@ impl<P: RasterPlane> Graphics<P> {
                     bytes.extend_from_slice(
                         format!("\x1b_Ga=d,d=I,i={},q=2;\x1b\\", old.id()).as_bytes(),
                     );
+                } else if follows.is_some_and(|(plane, step)| {
+                    matches!(step, Step::Changed(_)) && plane.occlusion_differs(old)
+                }) {
+                    // A look whose picture changed in the frame an element
+                    // came over it or went: its last placement goes now, so
+                    // the element shows in this frame, and its next picture
+                    // is placed when it is ready (PIX-002).
+                    bytes.extend_from_slice(
+                        format!("\x1b_Ga=d,d=i,i={},q=2;\x1b\\", old.id()).as_bytes(),
+                    );
                 }
                 continue;
             }
@@ -650,6 +677,47 @@ impl<P: RasterPlane> Graphics<P> {
 /// bytes; no bytes for a plane that is `kept` as it is. A canvas's Kitty
 /// picture goes through a shared-memory object where the host reads it,
 /// kept by `objects`.
+/// The commands that place the Kitty picture of `plane`, which the host
+/// holds, over its cells: whole, or over the rectangles of cells no element
+/// over it hides, each from its own corner and its own part of the picture
+/// (PIX-002). The picture's pixels per cell may be fewer than the
+/// terminal's `cell` (GFX-010).
+fn kitty_placements<P: RasterPlane>(plane: &P, z: usize, cell: (u16, u16)) -> Vec<u8> {
+    let (x, y) = plane.position();
+    let mut bytes = Vec::new();
+    match plane.placements() {
+        None => {
+            bytes.extend_from_slice(format!("\x1b[{};{}H", y + 1, x + 1).as_bytes());
+            bytes.extend_from_slice(
+                ProtocolRenderer::kitty_place(plane.id(), plane.z_index(z), Some(plane.cells()))
+                    .as_bytes(),
+            );
+        }
+        Some(parts) => {
+            let (across, down) = {
+                let picture = plane.raster_cell(cell);
+                (u32::from(picture.0), u32::from(picture.1))
+            };
+            for (part, (column, row, columns, rows)) in parts.into_iter().enumerate() {
+                bytes.extend_from_slice(
+                    format!("\x1b[{};{}H", y + row + 1, x + column + 1).as_bytes(),
+                );
+                bytes.extend_from_slice(
+                    ProtocolRenderer::kitty_place_part(
+                        plane.id(),
+                        plane.z_index(z),
+                        part as u32 + 1,
+                        (column * across, row * down, columns * across, rows * down),
+                        (columns, rows),
+                    )
+                    .as_bytes(),
+                );
+            }
+        }
+    }
+    bytes
+}
+
 #[allow(clippy::too_many_arguments)]
 fn draw_plane<P: RasterPlane>(
     plane: &P,
@@ -676,7 +744,7 @@ fn draw_plane<P: RasterPlane>(
     // scale; everything drawn in screen pixels, Sixel and the layers under
     // translucent pictures, takes it scaled to the cells (GFX-010).
     let raster_cell = plane.raster_cell(cell);
-    let covered = coverage::Coverage::new((x, y), &pixels, raster_cell);
+    let covered = coverage::Coverage::new((x, y), &pixels, raster_cell).hiding(plane);
     // Made only where screen pixels are needed: a Kitty picture on a frame
     // without translucent layers over it is sent as it is.
     let screen = || -> std::borrow::Cow<'_, image::RgbaImage> {
@@ -694,7 +762,7 @@ fn draw_plane<P: RasterPlane>(
         ImageProtocol::Kitty => {
             // A canvas's placement names the cells it covers (GFX-010).
             let cells = plane.canvas().map(|_| plane.cells());
-            plane
+            let command = plane
                 .canvas()
                 .filter(|picture| picture.shared_memory)
                 .and_then(|_| objects.kitty(&pixels, plane.id(), plane.z_index(z), cells))
@@ -707,7 +775,18 @@ fn draw_plane<P: RasterPlane>(
                         None,
                         cells,
                     )
-                })
+                });
+            if plane.placements().is_some() {
+                // A look with cells an element over it hides: its pixels
+                // are sent whole and placed over the cells it shows, after
+                // every earlier placement of it goes (PIX-002).
+                let mut parts = format!("\x1b_Ga=d,d=i,i={},q=2;\x1b\\", plane.id());
+                parts.push_str(&ProtocolRenderer::kitty_transmit_only(command));
+                parts.push_str(&String::from_utf8_lossy(&kitty_placements(plane, z, cell)));
+                parts
+            } else {
+                command
+            }
         }
         ImageProtocol::Inline => {
             ProtocolRenderer::iterm_pixels(&below.flatten(plane, &screen(), false), false)?

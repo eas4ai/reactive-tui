@@ -576,9 +576,24 @@ pub(crate) fn paint_frame(
     let mut images = images::Layers::new(target.width() as usize, target.height() as usize);
     let mut cursor = cursor::Layer::default();
     let mut inverse_cells = 0;
+    // The look planes whose element holds each node in the node's own
+    // layer. A node of a higher layer, a panel, a list or a dialog, is not
+    // a look's content even when the look's element holds it, and neither
+    // is a node outside the look's element (PIX-002).
+    #[cfg(feature = "wgpu-graphics")]
+    let mut owners: HashMap<NodeId, (i32, Vec<usize>)> = HashMap::new();
     for node in nodes {
         let fallback =
             spec.image_fallbacks[node.element_index].is_some_and(|id| selected.contains(&id));
+        #[cfg(feature = "wgpu-graphics")]
+        let mut held: Vec<usize> = tree
+            .parent(node.id)
+            .and_then(|parent| owners.get(&parent))
+            .filter(|(layer, _)| *layer == node.z)
+            .map(|(_, planes)| planes.clone())
+            .unwrap_or_default();
+        #[cfg(feature = "wgpu-graphics")]
+        images.set_owners(&held);
         if !fallback {
             // A pixel look: its picture over the node's box, the cells it
             // shows left to what is under the element (PIX-001, PIX-003).
@@ -592,6 +607,11 @@ pub(crate) fn paint_frame(
                 &mut images,
                 &image_options,
             )?;
+            #[cfg(feature = "wgpu-graphics")]
+            if let Some(look) = &look {
+                held.push(look.plane);
+                images.set_owners(&held);
+            }
             paint_node(
                 target,
                 &paints[&node.id],
@@ -605,6 +625,8 @@ pub(crate) fn paint_frame(
             if let Some(look) = look {
                 look.finish(target, &mut images);
             }
+            #[cfg(feature = "wgpu-graphics")]
+            owners.insert(node.id, (node.z, std::mem::take(&mut held)));
             if let Some(grid) = &spec.cells[node.element_index] {
                 paint_cells(
                     target,
