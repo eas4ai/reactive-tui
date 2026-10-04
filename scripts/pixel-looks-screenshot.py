@@ -3,7 +3,9 @@
 Input page in kitty on a private X display (Xvfb), captured with ImageMagick's
 import; the background of a button's label cell, of a text input's text cell
 and of a card's text cell must equal the picture pixel beside it within 2 of
-255 in every channel, so a look's text reads as if drawn into the picture.
+255 in every channel, so a look's text reads as if drawn into the picture;
+then, with the pointer over the Save button, whose fill is drawn at 90
+percent, its label cell must still equal the picture beside it.
 
 The catalog is built with `wgpu-graphics` and shown at 240 by 60 cells on
 the owned host of scripts/check-wgpu-host.py (never the developer's desktop).
@@ -140,6 +142,7 @@ def main():
         except RuntimeError as error:
             return unverified(str(error))
         shot = Path(private) / "input-page.png"
+        hovered_shot = Path(private) / "input-page-hovered.png"
         try:
             host.launch(*SIZE, [binary])
             wait_text(host, ["Coverage"])
@@ -154,6 +157,17 @@ def main():
             if after != screen:
                 raise RuntimeError("the screen changed while it was captured")
             width, height, rows = pixels_of(shot)
+            # The pointer over the middle of the Save label: an SGR motion
+            # report at its cell, as the terminal sends it.
+            save = next(((row, line.index("Save")) for row, line in enumerate(screen.splitlines())
+                         if row > 0 and "Save" in line), None)
+            hovered_rows = None
+            if save is not None:
+                host.remote("send-text", f"\x1b[<35;{save[1] + 3};{save[0] + 1}M")
+                time.sleep(1.5)
+                subprocess.run(["/usr/bin/import", "-display", host.env["DISPLAY"], "-window",
+                                "Reactive GPU acceptance", str(hovered_shot)], check=True, timeout=10, env=host.env)
+                hovered_rows = pixels_of(hovered_shot)[2]
             host.finish(quit_key=True)
         except (RuntimeError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
             print(f"pixel-looks-screenshot.py: {error}")
@@ -184,6 +198,26 @@ def main():
         if gap > TOLERANCE:
             problems.append(f"{what}: the background {text_background} of cell ({last}, {row}) differs from the "
                             f"picture pixel {picture} beside it by {gap} of 255")
+    # Under the pointer the button's fill is drawn at 90 percent over what is
+    # under it, and its label cells take that fill: the label's first cell
+    # and the padding cell before it, which holds no glyph, are one color.
+    found = next(((row, line.index("Save")) for row, line in enumerate(text_rows)
+                  if row > 0 and "Save" in line), None)
+    if found is None or hovered_rows is None:
+        problems.append("the Save button is not on the Input page to put the pointer over")
+    else:
+        row, column = found
+        resting = cell_background(rows, cell, column, row)
+        label = cell_background(hovered_rows, cell, column, row)
+        picture = cell_background(hovered_rows, cell, column - 1, row)
+        gap = max(abs(a - b) for a, b in zip(label, picture))
+        print(f"the hovered primary button's label: cell ({column}, {row}) background {label}, "
+              f"picture beside it {picture}, gap {gap} (at rest {resting})")
+        if label == resting:
+            problems.append(f"the pointer over the Save button did not change its fill ({label})")
+        elif gap > TOLERANCE:
+            problems.append(f"the hovered primary button's label: the background {label} of cell ({column}, {row}) "
+                            f"differs from the picture pixel {picture} beside it by {gap} of 255")
     if problems:
         print(problems[-1])
         return 1

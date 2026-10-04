@@ -284,16 +284,17 @@ impl TextInput {
             } else {
                 look::field_frame(state.is_focused && !props.disabled)
             };
-            // A disabled field's picture is drawn at half, and its text
-            // cells, the placeholder's too, take the same half fill
-            // (PIX-004).
+            // Where the field is a picture its text cells name no
+            // background: they take the picture's fill under them, at half
+            // where the input is disabled (PIX-001, PIX-004).
             let field = match (props.disabled, pixels) {
-                (true, true) => look::FIELD_DISABLED_PICTURE,
+                (true, true) => look::MUTED_PICTURE,
                 (true, false) => look::FIELD_DISABLED,
-                (false, _) => look::FIELD,
+                (false, true) => look::FIELD_PICTURE,
+                (false, false) => look::FIELD,
             };
-            let muted = if props.disabled && pixels {
-                look::FIELD_DISABLED_PICTURE
+            let muted = if pixels {
+                look::MUTED_PICTURE
             } else {
                 look::MUTED
             };
@@ -391,8 +392,10 @@ impl TextInput {
             // The field's picture lies over its rows alone, not over the
             // error line under them.
             let total = self.prefix_width(props, state) + width + 1;
+            // `input` under the rows: the field's flat color until its first
+            // picture is ready, and what the picture's fill is drawn in.
             let mut field = Element::layout(LayoutType::Flex)
-                .class(format!("flex flex-col shrink-0 w-{total}"))
+                .class(format!("flex flex-col shrink-0 w-{total} bg-input"))
                 .children(std::mem::take(&mut children));
             field.metadata.look = Some(std::sync::Arc::new(crate::graphics::look::Look::field(
                 state.is_focused && !props.disabled,

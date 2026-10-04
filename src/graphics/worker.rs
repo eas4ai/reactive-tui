@@ -663,6 +663,11 @@ mod tests {
                 0,
                 "a pseudo-terminal"
             );
+            // The test swaps stderr in the guards' turn: a drawing thread
+            // another test started may be making its renderer under a guard
+            // right now, and would restore the stderr it saved over the
+            // pseudo-terminal.
+            let turn = QUIET_STDERR.lock().unwrap_or_else(|e| e.into_inner());
             let saved = libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0);
             assert!(saved >= 0);
             assert_eq!(libc::dup2(slave, libc::STDERR_FILENO), libc::STDERR_FILENO);
@@ -673,6 +678,7 @@ mod tests {
             };
             let terminal = file_of(libc::STDERR_FILENO);
             assert_eq!(libc::isatty(libc::STDERR_FILENO), 1);
+            drop(turn);
             let guards: Vec<_> = (0..2)
                 .map(|_| {
                     std::thread::spawn(|| {
@@ -685,9 +691,11 @@ mod tests {
             for guard in guards {
                 guard.join().expect("a guard's thread");
             }
+            let turn = QUIET_STDERR.lock().unwrap_or_else(|e| e.into_inner());
             let after = file_of(libc::STDERR_FILENO);
             libc::dup2(saved, libc::STDERR_FILENO);
             libc::close(saved);
+            drop(turn);
             libc::close(slave);
             libc::close(master);
             assert_eq!(

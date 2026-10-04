@@ -151,6 +151,32 @@ fn columns_of(screen: &vt100::Screen, row: usize, text: &str) -> Option<std::ops
     line.find(text).map(|at| at..at + text.chars().count())
 }
 
+/// What Kitty shows for the picture's `pixel` over a cell in `under`: it
+/// blends a translucent picture in linear light.
+fn kitty_shows(pixel: [u8; 4], under: [u8; 3]) -> [u8; 3] {
+    let linear = |value: u8| {
+        let value = f32::from(value) / 255.0;
+        if value <= 0.04045 {
+            value / 12.92
+        } else {
+            ((value + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let encoded = |value: f32| {
+        let value = value.clamp(0.0, 1.0);
+        let value = if value <= 0.003_130_8 {
+            value * 12.92
+        } else {
+            1.055 * value.powf(1.0 / 2.4) - 0.055
+        };
+        (value * 255.0).round() as u8
+    };
+    let alpha = f32::from(pixel[3]) / 255.0;
+    let channel =
+        |index: usize| encoded(linear(pixel[index]) * alpha + linear(under[index]) * (1.0 - alpha));
+    [channel(0), channel(1), channel(2)]
+}
+
 fn bg(screen: &vt100::Screen, row: usize, column: usize) -> Option<[u8; 3]> {
     match screen.cell(row as u16, column as u16)?.bgcolor() {
         vt100::Color::Rgb(r, g, b) => Some([r, g, b]),
@@ -1154,7 +1180,9 @@ fn pix_004_a_disabled_text_input_is_drawn_at_half_over_what_is_under_it() {
         ..Default::default()
     });
     let tree = div()
-        .class("bg-surface w-full h-full")
+        // `background` differs from `input` in the dark preset (`input` is
+        // `surface` there), so a half fill shows over it.
+        .class("bg-background w-full h-full")
         .child(sized(30, 1, input))
         .build();
     let run = run(
@@ -1178,20 +1206,18 @@ fn pix_004_a_disabled_text_input_is_drawn_at_half_over_what_is_under_it() {
         "PIX-004: a disabled text input's field is drawn with alpha {} instead of half",
         fill[3]
     );
-    let surface = role("surface");
-    let over = |channel: usize| -> u8 {
-        ((u32::from(fill[channel]) * u32::from(fill[3])
-            + u32::from(surface[channel]) * (255 - u32::from(fill[3]))
-            + 127)
-            / 255) as u8
-    };
-    let shown = [over(0), over(1), over(2)];
+    let under = role("background");
+    assert!(
+        !near([under[0], under[1], under[2], 255], role("input"), 12),
+        "the parent's color differs from the field's"
+    );
+    let shown = kitty_shows(fill, under);
     let screen = run.screen(run.frames.len() - 1);
     let text = columns_of(&screen, 0, "hello").expect("the field's text");
     let cell = bg(&screen, 0, text.start).expect("the text cell's background");
     assert!(
         near([cell[0], cell[1], cell[2], 255], shown, 2),
-        "PIX-001: a disabled text input's text cell is {cell:?} beside a picture that shows {shown:?} over `surface`"
+        "PIX-001: a disabled text input's text cell is {cell:?} beside a picture Kitty shows as {shown:?} over `background`"
     );
 }
 
@@ -1370,6 +1396,67 @@ fn pix_001_every_backend_holding_the_renderer_passes_its_image_output_on() {
         Ok(Vec::new()),
         "PIX-001: a backend holding the SuprTUI renderer does not pass its image output on, so the controls draw no pixel looks through it"
     );
+}
+
+/// PIX-001, PIX-003: a button under the pointer is drawn at 90 percent and a
+/// disabled one at half over what is under it, and its label cells take the
+/// same fill, so a label cell and the picture beside it are one color.
+#[test]
+fn pix_001_a_hovered_or_disabled_buttons_label_cells_match_the_picture_beside_them() {
+    let under = role("background");
+    for (what, button, hover) in [
+        ("under the pointer", save_button(), true),
+        (
+            "disabled",
+            builder::button()
+                .text("Save")
+                .on_click(|| {})
+                .disabled(true)
+                .build(),
+            false,
+        ),
+    ] {
+        let sent = Mutex::new(false);
+        let tree = div()
+            .class("bg-background w-full h-full")
+            .child(sized(8, 1, button))
+            .build();
+        let run = run(
+            tree,
+            SIZE,
+            kitty(),
+            Box::new(move |_, pictures| {
+                let mut sent = sent.lock().unwrap();
+                if hover && !*sent && pictures >= 1 {
+                    *sent = true;
+                    return Some(mouse(MouseEventKind::Move, 3, 0));
+                }
+                None
+            }),
+            pictures_or_frames(if hover { 2 } else { 1 }, 6, 120),
+            true,
+        );
+        let picture = run
+            .pictures()
+            .into_iter()
+            .last()
+            .unwrap_or_else(|| panic!("PIX-003: the button {what} sent no picture"));
+        // The padding cell before the label holds no glyph: the fill alone.
+        let fill = picture.pixel(4, 8);
+        assert!(
+            fill[3] < 250,
+            "PIX-003: the button {what} is drawn opaque (alpha {})",
+            fill[3]
+        );
+        let shown = kitty_shows(fill, under);
+        let screen = run.screen(run.frames.len() - 1);
+        let label = columns_of(&screen, 0, "Save").expect("the button's label");
+        let cell = bg(&screen, 0, label.start).expect("the label cell's background");
+        assert!(
+            near([cell[0], cell[1], cell[2], 255], shown, 2),
+            "PIX-001: the button {what} has a label cell in {cell:?} beside a picture Kitty shows as {shown:?} over `background`"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
