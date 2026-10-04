@@ -1143,6 +1143,58 @@ fn pix_001_a_look_too_large_for_its_output_is_drawn_at_fewer_whole_pixels_per_ce
     );
 }
 
+/// PIX-004, PIX-001: a disabled text input's look is drawn at half over
+/// what is under it, and its text cells take the same half fill, so a text
+/// cell and the picture beside it are one color.
+#[test]
+fn pix_004_a_disabled_text_input_is_drawn_at_half_over_what_is_under_it() {
+    let input = Element::typed::<TextInput>(TextInputProps {
+        value: "hello".into(),
+        disabled: true,
+        ..Default::default()
+    });
+    let tree = div()
+        .class("bg-surface w-full h-full")
+        .child(sized(30, 1, input))
+        .build();
+    let run = run(
+        tree,
+        SIZE,
+        kitty(),
+        Box::new(|_, _| None),
+        pictures_or_frames(1, 6, 120),
+        true,
+    );
+    let first = run.first_picture("PIX-004: a disabled text input");
+    let picture = run
+        .pictures()
+        .into_iter()
+        .rfind(|p| p.id == first.id)
+        .expect("the field's picture");
+    // A blank cell of the field, past its text: the fill alone.
+    let fill = picture.pixel(20 * 8 + 4, 8);
+    assert!(
+        (118..=138).contains(&fill[3]),
+        "PIX-004: a disabled text input's field is drawn with alpha {} instead of half",
+        fill[3]
+    );
+    let surface = role("surface");
+    let over = |channel: usize| -> u8 {
+        ((u32::from(fill[channel]) * u32::from(fill[3])
+            + u32::from(surface[channel]) * (255 - u32::from(fill[3]))
+            + 127)
+            / 255) as u8
+    };
+    let shown = [over(0), over(1), over(2)];
+    let screen = run.screen(run.frames.len() - 1);
+    let text = columns_of(&screen, 0, "hello").expect("the field's text");
+    let cell = bg(&screen, 0, text.start).expect("the text cell's background");
+    assert!(
+        near([cell[0], cell[1], cell[2], 255], shown, 2),
+        "PIX-001: a disabled text input's text cell is {cell:?} beside a picture that shows {shown:?} over `surface`"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Reference pictures (PIX-003 to PIX-005): a look's picture on a Kitty host
 // against tests/snapshots/pixel-looks/<name>.png, within GFX-002's tolerance.
