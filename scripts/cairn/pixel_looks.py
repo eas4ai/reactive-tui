@@ -170,7 +170,9 @@ def main() -> int:
     problems = reference_problems() + regeneration_problems(TEST) + altered_reference_problems()
     for req, substring in REFERENCES.items():
         ok, why = cargo_test_filtered("pixel_looks", substring, features=FEATURE, package=PACKAGE)
-        results[req] = (ok and not problems, "; ".join(problems[:6]) or why)
+        # The tests' own verdict first: a picture that differs or was not sent
+        # is the falsifier; the audits say what the references lack.
+        results[req] = (ok and not problems, why if not ok else "; ".join(problems[:6]) or why)
     tests = f"test --locked -p {PACKAGE} --features wgpu-graphics --jobs {JOBS}"
     local = run(["cargo", *f"{tests} --release --test pixel_looks -- --ignored pix_006_ --nocapture".split()],
                 timeout=3600, interleave=True)
