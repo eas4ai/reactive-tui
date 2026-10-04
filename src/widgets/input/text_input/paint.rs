@@ -241,6 +241,11 @@ impl TextInput {
 
     pub(super) fn render_control(&self, props: &TextInputProps, state: &TextInputState) -> Element {
         let (width, height) = self.view_size(props, state);
+        // With pixels the field is a picture over its rows: its frame cells
+        // and the blank runs of the field hold no glyph, and the picture
+        // shows there; its text, placeholder, line numbers, cursor and
+        // selection stay cells on `input` (PIX-004).
+        let pixels = look::pixels();
         let rows = self.rows(props, width);
         let cursor_row = rows
             .iter()
@@ -284,6 +289,10 @@ impl TextInput {
             } else {
                 look::FIELD
             };
+            // The field's blank runs: with pixels they hold no glyph, so
+            // they keep a style of their own and are never joined with the
+            // text before them.
+            let pad = if pixels { look::FIELD_PAD } else { field };
             segment(&mut segments, "[", frame);
             let mut painted = 0;
             let mut column = 0;
@@ -299,7 +308,7 @@ impl TextInput {
                         break;
                     }
                     if x > painted {
-                        segment(&mut segments, &" ".repeat(x - painted), field);
+                        segment(&mut segments, &" ".repeat(x - painted), pad);
                     }
                     let style = if state.is_focused
                         && !props.disabled
@@ -329,7 +338,7 @@ impl TextInput {
                     && cursor < width
                     && cursor >= painted
                 {
-                    segment(&mut segments, &" ".repeat(cursor - painted), field);
+                    segment(&mut segments, &" ".repeat(cursor - painted), pad);
                     segment(&mut segments, " ", look::CURSOR);
                     painted = cursor + 1;
                 }
@@ -337,7 +346,7 @@ impl TextInput {
             segment(
                 &mut segments,
                 &" ".repeat(width.saturating_sub(painted)),
-                field,
+                pad,
             );
             segment(&mut segments, "]", frame);
             let mut decoration =
@@ -354,12 +363,34 @@ impl TextInput {
                         segments
                             .into_iter()
                             .map(|(text, style)| {
-                                Element::text(text)
-                                    .class(format!("shrink-0 whitespace-pre {style} {field_class}"))
+                                let blank = style == frame || style == look::FIELD_PAD;
+                                if pixels && blank {
+                                    look::blank(unicode_width::UnicodeWidthStr::width(
+                                        text.as_str(),
+                                    ))
+                                } else {
+                                    Element::text(text).class(format!(
+                                        "shrink-0 whitespace-pre {style} {field_class}"
+                                    ))
+                                }
                             })
                             .collect(),
                     ),
             );
+        }
+        #[cfg(feature = "wgpu-graphics")]
+        if pixels {
+            // The field's picture lies over its rows alone, not over the
+            // error line under them.
+            let total = self.prefix_width(props, state) + width + 1;
+            let mut field = Element::layout(LayoutType::Flex)
+                .class(format!("flex flex-col shrink-0 w-{total}"))
+                .children(std::mem::take(&mut children));
+            field.metadata.look = Some(std::sync::Arc::new(crate::graphics::look::Look::field(
+                state.is_focused && !props.disabled,
+                !state.is_valid,
+            )));
+            children.push(field);
         }
         if !state.is_valid {
             if let Some(error) = &props.error_message {

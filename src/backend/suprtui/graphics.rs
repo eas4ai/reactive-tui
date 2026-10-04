@@ -71,6 +71,9 @@ enum Step {
     /// A canvas's next picture, in the same place with the same cells
     /// showing.
     InPlace(usize),
+    /// A canvas's same picture at other cells: on a Kitty host, placed
+    /// again by its id (PIX-002).
+    Moved(usize),
     Changed(usize),
 }
 
@@ -78,7 +81,10 @@ impl Step {
     fn previous(self) -> Option<usize> {
         match self {
             Self::New => None,
-            Self::Kept(index) | Self::InPlace(index) | Self::Changed(index) => Some(index),
+            Self::Kept(index)
+            | Self::InPlace(index)
+            | Self::Moved(index)
+            | Self::Changed(index) => Some(index),
         }
     }
 }
@@ -124,6 +130,11 @@ pub(crate) trait RasterPlane: PartialEq + Clone + Send + 'static {
     fn replaces(&self, _previous: &Self) -> bool {
         false
     }
+    /// Whether this is the picture `previous` shows, cell for cell, at
+    /// other cells (PIX-002).
+    fn moved_from(&self, _previous: &Self) -> bool {
+        false
+    }
 }
 
 impl RasterPlane for Plane {
@@ -132,6 +143,9 @@ impl RasterPlane for Plane {
     }
     fn replaces(&self, previous: &Self) -> bool {
         self.replaces(previous)
+    }
+    fn moved_from(&self, previous: &Self) -> bool {
+        self.moved_from(previous)
     }
     fn id(&self) -> u32 {
         self.id()
@@ -267,6 +281,29 @@ impl<P: RasterPlane> Graphics<P> {
             {
                 coverage.push(known.clone());
                 continue;
+            }
+            // A canvas picture the Kitty host holds, shown at other cells:
+            // placed again by its id, its pixels not sent again (PIX-002).
+            // A picture the host never received, because the frame cleared
+            // it or it was not made ready, is sent as any new one.
+            if let Step::Moved(index) = steps[z] {
+                if in_place && !blend_legacy && plane.protocol() == ImageProtocol::Kitty {
+                    if let Some(known) = self.coverage.get(index).filter(|known| !known.is_empty())
+                    {
+                        let (x, y) = plane.position();
+                        after.extend_from_slice(format!("\x1b[{};{}H", y + 1, x + 1).as_bytes());
+                        after.extend_from_slice(
+                            ProtocolRenderer::kitty_place(
+                                plane.id(),
+                                plane.z_index(z),
+                                Some(plane.cells()),
+                            )
+                            .as_bytes(),
+                        );
+                        coverage.push(known.moved_to((x, y)));
+                        continue;
+                    }
+                }
             }
             // A canvas's picture is made ready on the picture thread and
             // written when it is ready (GFX-009), as is a picture over a
@@ -490,6 +527,7 @@ impl<P: RasterPlane> Graphics<P> {
                     None => Step::New,
                     Some(index) if *plane == self.last[index] => Step::Kept(index),
                     Some(index) if plane.replaces(&self.last[index]) => Step::InPlace(index),
+                    Some(index) if plane.moved_from(&self.last[index]) => Step::Moved(index),
                     Some(index) => Step::Changed(index),
                 },
             )
@@ -529,6 +567,17 @@ impl<P: RasterPlane> Graphics<P> {
                 .position(|step| step.previous() == Some(index))
                 .map(|z| (&next[z], steps[z]));
             if matches!(follows, Some((_, Step::Kept(_) | Step::InPlace(_)))) {
+                continue;
+            }
+            if old.protocol() == ImageProtocol::Kitty
+                && matches!(follows, Some((_, Step::Moved(_))))
+            {
+                // The host keeps the picture; its placement at the old
+                // cells goes, and the plane places it again at its new
+                // cells (PIX-002).
+                bytes.extend_from_slice(
+                    format!("\x1b_Ga=d,d=i,i={},q=2;\x1b\\", old.id()).as_bytes(),
+                );
                 continue;
             }
             if old.protocol() == ImageProtocol::Kitty {

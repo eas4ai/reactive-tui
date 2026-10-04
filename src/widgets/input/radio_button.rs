@@ -336,16 +336,38 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
         } else {
             ""
         };
-        look::row(
-            &[
-                ("(", look::frame(focused)),
-                (if chosen { "●" } else { " " }, look::MARK),
-                (")", look::frame(focused)),
-                (" ", look::LABEL),
-                (option.label.as_str(), look::label(disabled)),
-            ],
-            hover,
-        )
+        let label_pieces = [
+            (" ", look::LABEL),
+            (option.label.as_str(), look::label(disabled)),
+        ];
+        // With pixels the circle is a picture over its three cells and no
+        // glyph: a bordered circle with a dot when chosen (PIX-004).
+        #[cfg(feature = "wgpu-graphics")]
+        let pixel_circle = look::pixels().then(|| {
+            look::spacer(
+                3,
+                crate::graphics::look::Look::radio(chosen, focused, disabled),
+            )
+        });
+        #[cfg(not(feature = "wgpu-graphics"))]
+        let pixel_circle: Option<Element> = None;
+        match pixel_circle {
+            Some(pixel_circle) => {
+                let mut children = vec![pixel_circle];
+                children.extend(look::pieces(&label_pieces));
+                look::row_of(children, hover)
+            }
+            None => look::row(
+                &[
+                    ("(", look::frame(focused)),
+                    (if chosen { "●" } else { " " }, look::MARK),
+                    (")", look::frame(focused)),
+                    label_pieces[0],
+                    label_pieces[1],
+                ],
+                hover,
+            ),
+        }
     }
 
     /// The cells an option's row takes: its circle, a space and its label.

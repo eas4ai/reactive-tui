@@ -150,17 +150,46 @@ impl Component for Checkbox {
             " "
         };
         let label = props.label.as_deref().unwrap_or_default();
+        let label_pieces = [
+            (if label.is_empty() { "" } else { " " }, look::LABEL),
+            (label, look::label(props.disabled)),
+        ];
         let pieces = [
             ("[", frame),
             (mark, look::MARK),
             ("]", frame),
-            (if label.is_empty() { "" } else { " " }, look::LABEL),
-            (label, look::label(props.disabled)),
+            label_pieces[0],
+            label_pieces[1],
         ];
         let hover = if state.is_hover && !props.disabled {
             look::HOVER
         } else {
             ""
+        };
+        // With pixels the box is a picture over its three cells and no
+        // glyph: a bordered square, filled with a check mark or a dash
+        // when checked or mixed (PIX-004).
+        #[cfg(feature = "wgpu-graphics")]
+        let pixel_box = look::pixels().then(|| {
+            look::spacer(
+                3,
+                crate::graphics::look::Look::checkbox(
+                    props.checked,
+                    props.indeterminate,
+                    state.is_focused && !props.disabled,
+                    props.disabled,
+                ),
+            )
+        });
+        #[cfg(not(feature = "wgpu-graphics"))]
+        let pixel_box: Option<Element> = None;
+        let row = match pixel_box {
+            Some(pixel_box) => {
+                let mut children = vec![pixel_box];
+                children.extend(look::pieces(&label_pieces));
+                look::row_of(children, hover)
+            }
+            None => look::row(&pieces, hover),
         };
 
         use crate::accessibility::{Node, Role, Toggled};
@@ -180,8 +209,7 @@ impl Component for Checkbox {
         } else {
             accessible.set_clickable();
         }
-        look::row(&pieces, hover)
-            .with_accessibility(accessible)
+        row.with_accessibility(accessible)
             .with_focus(crate::component::FocusProps::input())
             .disabled(props.disabled)
     }

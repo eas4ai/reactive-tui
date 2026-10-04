@@ -148,6 +148,19 @@ minimum and its maximum; an indeterminate bar keeps its range and has no
 value (DAT-004). An indeterminate bar's marker moves
 every frame within the frame budget (BAR-005).
 
+Where the terminal takes pixels (see [Input widgets](input-widgets.md#pixel-looks)),
+a horizontal bar without a color of its own, stripes, segments or a pulse
+is one picture over its rows: a track with a radius of half its height in
+`border` and its filled part in `primary` to the exact pixel of its value
+(`docs/spec/pixel-looks.md`, PIX-005). An indeterminate bar's segment, a
+quarter of the track long, glides from end to end and back over two
+seconds at the App's frame rate, one picture a frame; with
+`.style("reduced-motion")` it steps a quarter of the track once a second.
+Its label and value stay cell text, and a bar whose configuration fails
+validation shows its error line in cells and no track. A bar with its own
+colors, stripes, segments or a pulse, and a vertical bar, keep their
+cells.
+
 ## Source map
 
 - The shared look: [`src/widgets/display/look.rs`](../src/widgets/display/look.rs)

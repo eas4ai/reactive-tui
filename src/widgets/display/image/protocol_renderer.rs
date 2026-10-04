@@ -113,6 +113,15 @@ impl ProtocolRenderer {
         sequence
     }
 
+    /// The Kitty command that places image `image_id`, which the host
+    /// holds, at the cursor again, over `cells` columns and rows when given:
+    /// the picture is shown at new cells without its pixels being sent
+    /// again (PIX-002).
+    pub(crate) fn kitty_place(image_id: u32, z: i32, cells: Option<(u32, u32)>) -> String {
+        let placement = Self::kitty_cells(cells);
+        format!("\x1b_Ga=p,i={image_id},q=2,C=1,z={z}{placement}\x1b\\")
+    }
+
     /// The placement keys that name the `cells` a picture covers, for the
     /// terminal to scale it to; nothing when no cells are named.
     pub(crate) fn kitty_cells(cells: Option<(u32, u32)>) -> String {

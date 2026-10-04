@@ -580,8 +580,8 @@ pub(crate) fn paint_frame(
         let fallback =
             spec.image_fallbacks[node.element_index].is_some_and(|id| selected.contains(&id));
         if !fallback {
-            // A pixel look: its picture over the node's box, its corner
-            // cells left to what is under the element (PIX-001, PIX-003).
+            // A pixel look: its picture over the node's box, the cells it
+            // shows left to what is under the element (PIX-001, PIX-003).
             #[cfg(feature = "wgpu-graphics")]
             let look = prepare_look(
                 spec,
@@ -589,8 +589,9 @@ pub(crate) fn paint_frame(
                 &paints[&node.id],
                 &mut looks,
                 target,
+                &mut images,
                 &image_options,
-            );
+            )?;
             paint_node(
                 target,
                 &paints[&node.id],
@@ -602,7 +603,7 @@ pub(crate) fn paint_frame(
             )?;
             #[cfg(feature = "wgpu-graphics")]
             if let Some(look) = look {
-                look.finish(target, &paints[&node.id], node, &mut images, &image_options)?;
+                look.finish(target, &mut images);
             }
             if let Some(grid) = &spec.cells[node.element_index] {
                 paint_cells(
@@ -655,7 +656,7 @@ pub(crate) fn paint_frame(
                         target,
                         protocol,
                     )
-                    .and_then(|plane| plane.map_or(Ok(()), |plane| images.push(plane)));
+                    .and_then(|plane| plane.map_or(Ok(()), |plane| images.push(plane).map(|_| ())));
                     if let Err(error) = placed {
                         refused(&error.to_string());
                     }
@@ -975,12 +976,16 @@ fn paint_background_cell(
     if ansi::alpha(source) == 0 {
         return Ok(());
     }
-    images.cover(x, y, source);
+    // Under a look's picture the cell holds what is under the element; the
+    // look's fill there is what a translucent background blends with, so a
+    // text cell and the picture beside it stay one color (PIX-001).
+    let base = images.look_fill(x, y);
+    images.cover_background(x, y, source);
     cursor.cover(x, y, source);
     let below = target
         .get(x as u32, y as u32)
         .expect("visible cell is in the target");
-    let background = blend_colors(source, below.bg, None);
+    let background = blend_colors(source, base.unwrap_or(below.bg), None);
     if ansi::alpha(source) < 255 {
         // Preserve the underlying grapheme span while tinting its colors.
         // Character and link ownership do not change on this path.
@@ -1046,7 +1051,7 @@ fn fill_plain_background(
         match solid {
             Some(source) if ansi::alpha(source) == 0 => {}
             Some(source) if ansi::alpha(source) == 255 => {
-                images.cover_span(y, left, right, source);
+                images.cover_span_background(y, left, right, source);
                 cursor.cover_span(y, left, right, source);
                 target.fill_span(
                     left as u32,
@@ -1199,19 +1204,25 @@ fn paint_node(
                         x = right;
                         continue;
                     }
+                    // Every glyph other than a space covers the pictures
+                    // under its cells; a space leaves them showing
+                    // (PIX-001).
+                    let glyph = grapheme != " ";
                     for offset in 0..width {
                         cursor.cover(
                             paint_x + offset as i32,
                             paint_y,
                             ansi::rgb_color(0, 0, 0, 255),
                         );
-                        images.cover(
-                            paint_x + offset as i32,
-                            paint_y,
-                            ansi::rgb_color(0, 0, 0, 255),
-                        );
+                        if glyph {
+                            images.cover(
+                                paint_x + offset as i32,
+                                paint_y,
+                                ansi::rgb_color(0, 0, 0, 255),
+                            );
+                        }
                     }
-                    let bg = images.corner_fill(paint_x, paint_y).unwrap_or_else(|| {
+                    let bg = images.look_fill(paint_x, paint_y).unwrap_or_else(|| {
                         target
                             .get(paint_x as u32, paint_y as u32)
                             .map_or(bg, |cell| cell.bg)
@@ -1377,130 +1388,141 @@ fn paint_cells(
 /// cells (PIX-001).
 #[cfg(feature = "wgpu-graphics")]
 fn look_protocol(options: &crate::backend::ImageOutputOptions) -> Option<images::ImageProtocol> {
-    use crate::graphics::{CanvasOutput, HostReport};
-    let host = HostReport {
-        kitty: options.kitty_graphics,
-        kitty_shared_memory: options.kitty_shared_memory,
-        sixel: options.sixel,
-        cell: options.cell_pixels,
-    };
-    match CanvasOutput::choose(
-        Some(host),
-        crate::widgets::display::charts::graphics_options().output,
-        CanvasOutput::from_environment(),
-    ) {
+    use crate::graphics::look::{host_report, output_for};
+    use crate::graphics::CanvasOutput;
+    match output_for(host_report(options)) {
         CanvasOutput::Kitty => Some(images::ImageProtocol::Kitty),
         CanvasOutput::Sixel => Some(images::ImageProtocol::Sixel),
         CanvasOutput::Blocks => None,
     }
 }
 
-/// A look being painted: the picture to place after the node's cells are
-/// painted, and the corner cells to give back to what was under them.
+/// A look whose picture is in the frame: its plane, and each cell of the
+/// box with what it held before the node painted and the fill text painted
+/// in it later takes.
 #[cfg(feature = "wgpu-graphics")]
 struct LookPass {
-    protocol: images::ImageProtocol,
-    image_id: u32,
-    frame: Option<Arc<crate::graphics::GraphicsFrame>>,
-    cell: (u16, u16),
-    /// Each corner cell on the screen with what it held before the node
-    /// painted, and the fill text in it takes.
-    corners: Vec<((u32, u32), ::suprtui::buffer::Cell, Option<ansi::Rgba>)>,
+    plane: usize,
+    cells: Vec<((u32, u32), ::suprtui::buffer::Cell, Option<ansi::Rgba>)>,
 }
 
-/// Prepare the look of `node`, when it has one and the terminal takes
-/// pixels: its picture for the box's size at the terminal's cell size, drawn
-/// on the drawing thread and kept across frames (PIX-001, PIX-002), and the
-/// state of its corner cells before the node paints.
+/// Prepare the look of `node`, when it has one, the terminal takes pixels
+/// and the drawing thread has made its picture for the box's size at the
+/// terminal's cell size (PIX-001, PIX-002). The picture is placed over the
+/// whole box, padding included, before the node paints: the node's text
+/// cuts its cells out of it while its background fill leaves it showing;
+/// and what the cells hold before the node paints, what is under the
+/// element, is what the picture's translucent pixels blend with. Inside
+/// another look's box the cells hold that look's fill, and its picture is
+/// cut out under this box once, so what is typed into this look changes
+/// this picture alone (PIX-006). Until the picture is ready the node paints
+/// its flat look like any element.
 #[cfg(feature = "wgpu-graphics")]
 fn prepare_look(
     spec: &crate::component::bridge::PaintSpec,
     node: &PaintNode,
     paint: &NodePaint,
     looks: &mut crate::graphics::look::Looks,
-    target: &OptimizedBuffer<'_>,
+    target: &mut OptimizedBuffer<'_>,
+    images: &mut images::Layers,
     options: &crate::backend::ImageOutputOptions,
-) -> Option<LookPass> {
-    let look = spec.looks[node.element_index].as_ref()?;
-    let protocol = look_protocol(options)?;
+) -> Result<Option<LookPass>> {
+    use ::suprtui::buffer::draw::blend_colors;
+    let Some(look) = spec.looks[node.element_index].as_ref() else {
+        return Ok(None);
+    };
+    let Some(protocol) = look_protocol(options) else {
+        return Ok(None);
+    };
     let cell = (options.cell_pixels.0.max(1), options.cell_pixels.1.max(1));
     let columns = (node.local.right - node.local.left).max(0) as u32;
     let rows = (node.local.bottom - node.local.top).max(0) as u32;
     if columns == 0 || rows == 0 || paint.opacity * node.parent_opacity <= 0.0 {
-        return None;
+        return Ok(None);
     }
     let size = (columns * u32::from(cell.0), rows * u32::from(cell.1));
-    let (image_id, frame) = looks.picture(spec.look_ids[node.element_index], look, size, cell)?;
-    let mut corners = Vec::new();
-    for (column, row) in look.corner_cells(columns, rows, cell) {
-        let local = (node.local.left + column as i32, node.local.top + row as i32);
-        let (x, y) = node.transform.point(local.0 as f32, local.1 as f32);
-        let (x, y) = (x.round() as i32, y.round() as i32);
-        if x < node.clip.left
-            || y < node.clip.top
-            || x >= node.clip.right
-            || y >= node.clip.bottom
-            || x < 0
-            || y < 0
-        {
-            continue;
+    let Some((image_id, Some(frame))) =
+        looks.picture(spec.look_ids[node.element_index], look, size, cell)
+    else {
+        return Ok(None);
+    };
+    // The box's cells on the screen with what each holds before the node
+    // paints. A cell under another look's picture takes that look's fill
+    // first: this picture's rounded corners and a translucent fill show
+    // that fill, and it is what the picture's pixels blend with.
+    let mut cells = Vec::with_capacity((columns * rows) as usize);
+    for row in 0..rows as i32 {
+        for column in 0..columns as i32 {
+            let local = (node.local.left + column, node.local.top + row);
+            let (x, y) = node.transform.point(local.0 as f32, local.1 as f32);
+            let (x, y) = (x.round() as i32, y.round() as i32);
+            if x < node.clip.left
+                || y < node.clip.top
+                || x >= node.clip.right
+                || y >= node.clip.bottom
+                || x < 0
+                || y < 0
+            {
+                continue;
+            }
+            let Some(mut before) = target.get(x as u32, y as u32) else {
+                continue;
+            };
+            if let Some(outer) = images.look_fill(x, y) {
+                before.bg = outer;
+                target.set_raw(x as u32, y as u32, before);
+            }
+            // The fill text painted in the cell later takes: the look's
+            // background there over what the cell shows under the picture.
+            let fill = background(paint, node.local, local.0, local.1)
+                .map(|source| with_opacity(source, node.parent_opacity))
+                .filter(|source| ansi::alpha(*source) > 0)
+                .map(|source| blend_colors(source, before.bg, None));
+            cells.push(((x as u32, y as u32), before, fill));
         }
-        let Some(before) = target.get(x as u32, y as u32) else {
-            continue;
-        };
-        let fill = background(paint, node.local, local.0, local.1)
-            .map(|source| with_opacity(source, node.parent_opacity));
-        corners.push(((x as u32, y as u32), before, fill));
     }
-    Some(LookPass {
-        protocol,
+    let refused: images::Refusal = Arc::new(move |reason: &str| {
+        log::debug!("a pixel look's picture was left out of the frame: {reason}");
+    });
+    let picture = images::ImagePaint::canvas(
         image_id,
-        frame,
+        frame.image().clone(),
+        options.kitty_shared_memory,
         cell,
-        corners,
-    })
+        refused,
+    );
+    let Some(plane) = images::Plane::covering(Arc::new(picture), paint, node, target, protocol)?
+    else {
+        return Ok(None);
+    };
+    let plane = images.push(plane)?;
+    images.set_look_painting(true);
+    // The pictures of the looks under this one are cut out under its whole
+    // box, once (PIX-006).
+    for ((x, y), _, _) in &cells {
+        images.cover_under(plane, *x as i32, *y as i32);
+    }
+    Ok(Some(LookPass { plane, cells }))
 }
 
 #[cfg(feature = "wgpu-graphics")]
 impl LookPass {
-    /// After the node painted its cells: give the corner cells back what
-    /// they held, so what is under the element shows outside the arcs, let
-    /// text in them take the fill, and place the picture over the box when
-    /// the drawing thread has made it; until then the cells show the look's
-    /// text on its flat colors (PIX-001).
-    fn finish(
-        self,
-        target: &mut OptimizedBuffer<'_>,
-        paint: &NodePaint,
-        node: &PaintNode,
-        images: &mut images::Layers,
-        options: &crate::backend::ImageOutputOptions,
-    ) -> Result<()> {
-        for ((x, y), before, fill) in self.corners {
+    /// After the node painted its cells: every cell the picture still shows
+    /// gets back what it held, so the picture lies over what is under the
+    /// element and its rounded corners leave that showing, and text painted
+    /// in the cell later takes the fill; a cell the node's own text covers
+    /// keeps its flat fill (PIX-001, PIX-003).
+    fn finish(self, target: &mut OptimizedBuffer<'_>, images: &mut images::Layers) {
+        images.set_look_painting(false);
+        for ((x, y), before, fill) in self.cells {
+            if !images.plane_shows(self.plane, x as i32, y as i32) {
+                continue;
+            }
             target.set_raw(x, y, before);
             if let Some(fill) = fill {
-                images.set_corner_fill(x as i32, y as i32, fill);
+                images.set_look_fill(x as i32, y as i32, fill);
             }
         }
-        let Some(frame) = self.frame else {
-            return Ok(());
-        };
-        let refused: images::Refusal = Arc::new(move |reason: &str| {
-            log::debug!("a pixel look's picture was left out of the frame: {reason}");
-        });
-        let picture = images::ImagePaint::canvas(
-            self.image_id,
-            frame.image().clone(),
-            options.kitty_shared_memory,
-            self.cell,
-            refused,
-        );
-        if let Some(plane) =
-            images::Plane::covering(Arc::new(picture), paint, node, target, self.protocol)?
-        {
-            images.push(plane)?;
-        }
-        Ok(())
     }
 }
 

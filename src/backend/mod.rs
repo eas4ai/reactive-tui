@@ -73,6 +73,14 @@ pub(crate) struct PresentedGeometry {
 
 /// Minimal, patch-driven backend abstraction
 pub trait Backend: Send + Sync {
+    /// What the backend's terminal takes for pictures and the pixels of a
+    /// cell, when it writes to one: the App gives it to the controls as
+    /// they render, so a control draws its pixel look where the terminal
+    /// takes pixels (PIX-001). `None` when the backend has no terminal
+    /// report; wrappers should forward this.
+    fn image_output(&self) -> Option<ImageOutputOptions> {
+        None
+    }
     /// Whether this backend owns an interactive host terminal session.
     /// App enables the Linux screen-reader adapter automatically for such sessions.
     fn is_interactive_terminal(&self) -> bool {

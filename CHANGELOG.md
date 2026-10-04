@@ -5,6 +5,27 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- On a terminal that takes Kitty graphics or Sixel, with `wgpu-graphics`,
+  the controls and rounded boxes draw their looks as pixel pictures around
+  their text (docs/spec/pixel-looks.md): an element with a background role
+  and a `rounded*` class is a rounded rectangle with its `border`, `ring`
+  and `bg-opacity` classes; `button()` and `primary_button()` are rounded
+  with a focus ring, 90 percent under the pointer and half when disabled;
+  `card()` and `card_builder()` are `bg-surface border border-border
+  rounded-lg` under every theme; a text input's field is a rounded
+  rectangle with a border, a ring with the focus and an `error` ring when
+  invalid, in place of its `[` and `]`; a checkbox's box, a radio's circle,
+  a slider's track and thumb and a progress bar's track and fill are drawn
+  to the exact pixel of their state, in place of their glyphs; an
+  indeterminate bar glides, one picture a frame, and steps once a second
+  under `reduced-motion`. A picture is kept across frames and sent again
+  only when its look changes; a moved look is placed again on Kitty without
+  its pixels; the cell looks stay the fallback, byte for byte, where the
+  terminal takes no pixels, with `REACTIVE_TUI_CANVAS=blocks` or with a
+  process-wide `GraphicsOptions` whose output is blocks. The CSS layer no
+  longer turns `border-<theme role>` into a background color, and a
+  `Backend` may report its terminal's image output to the controls
+  (`Backend::image_output`).
 - Radar, pie and donut charts and axis ticks compute their angles and
   magnitudes through libm instead of the platform's math library, so a chart
   drawn on Apple Silicon has the same dots as on x86-64 and the goldens hold

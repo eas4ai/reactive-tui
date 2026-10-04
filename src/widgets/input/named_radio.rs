@@ -141,23 +141,43 @@ impl Component for NamedRadio {
         // the hover fill (CTL-001).
         use super::look;
         let focused = state.focused && !props.disabled;
-        look::row(
-            &[
-                ("(", look::frame(focused)),
-                (if selected { "●" } else { " " }, look::MARK),
-                (")", look::frame(focused)),
-                (" ", look::LABEL),
-                (label, look::label(props.disabled)),
-            ],
-            if state.hover && !props.disabled {
-                look::HOVER
-            } else {
-                ""
-            },
-        )
-        .with_accessibility(accessible)
-        .with_focus(FocusProps::input())
-        .disabled(props.disabled)
+        let hover = if state.hover && !props.disabled {
+            look::HOVER
+        } else {
+            ""
+        };
+        let label_pieces = [(" ", look::LABEL), (label, look::label(props.disabled))];
+        // With pixels the circle is a picture over its three cells and no
+        // glyph: a bordered circle with a dot when chosen (PIX-004).
+        #[cfg(feature = "wgpu-graphics")]
+        let pixel_circle = look::pixels().then(|| {
+            look::spacer(
+                3,
+                crate::graphics::look::Look::radio(selected, focused, props.disabled),
+            )
+        });
+        #[cfg(not(feature = "wgpu-graphics"))]
+        let pixel_circle: Option<Element> = None;
+        let row = match pixel_circle {
+            Some(pixel_circle) => {
+                let mut children = vec![pixel_circle];
+                children.extend(look::pieces(&label_pieces));
+                look::row_of(children, hover)
+            }
+            None => look::row(
+                &[
+                    ("(", look::frame(focused)),
+                    (if selected { "●" } else { " " }, look::MARK),
+                    (")", look::frame(focused)),
+                    label_pieces[0],
+                    label_pieces[1],
+                ],
+                hover,
+            ),
+        };
+        row.with_accessibility(accessible)
+            .with_focus(FocusProps::input())
+            .disabled(props.disabled)
     }
 
     fn handle_event(

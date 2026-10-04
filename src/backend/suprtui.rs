@@ -507,6 +507,9 @@ impl SuprTuiBackend {
 }
 
 impl Backend for SuprTuiBackend {
+    fn image_output(&self) -> Option<ImageOutputOptions> {
+        Some(self.images)
+    }
     fn shutdown_after_panic(&mut self, message: &str) -> Result<()> {
         self.shutdown_with_panic(Some(message))
     }

@@ -26,6 +26,19 @@ impl Coverage {
             bits: Vec::new(),
         }
     }
+    /// Whether no cell is covered: a picture not yet made ready.
+    pub fn is_empty(&self) -> bool {
+        self.size.0 == 0 || self.size.1 == 0
+    }
+    /// The same cells at another origin: the picture of a plane that moved,
+    /// placed again where it is now (PIX-002).
+    pub fn moved_to(&self, origin: (u32, u32)) -> Self {
+        Self {
+            origin,
+            size: self.size,
+            bits: self.bits.clone(),
+        }
+    }
     pub fn contains(&self, x: u32, y: u32) -> bool {
         let (Some(x), Some(y)) = (x.checked_sub(self.origin.0), y.checked_sub(self.origin.1))
         else {

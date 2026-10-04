@@ -51,9 +51,21 @@ impl Component for LiveProgress {
             let (w, h) = layout.content_size();
             (w.max(0.0) as usize, h.max(0.0) as usize)
         });
+        // With pixels a plain horizontal bar is a picture over its rows: a
+        // rounded track filled to the exact pixel of its value, or a
+        // gliding segment (PIX-005). A striped, segmented, pulsing, vertical
+        // or application-colored bar keeps its cells.
+        let pixels = crate::widgets::input::look::pixels()
+            && config.orientation == ProgressBarOrientation::Horizontal
+            && config.color.is_none()
+            && config.background_color.is_none()
+            && config.bar_style.is_none()
+            && !config.striped
+            && !config.pulse
+            && config.segments.is_none();
         let sample = self
             .motion
-            .sample(config, error.is_none() && width > 0 && height > 0);
+            .sample(config, error.is_none() && width > 0 && height > 0, pixels);
         let insets = self.viewport.map_or([0.0; 4], |v| v.insets);
         let mut children = Vec::new();
         let mut row = 0;
@@ -89,7 +101,23 @@ impl Component for LiveProgress {
             };
             let foreground = config.color.as_deref().and_then(parse_color);
             let background = config.background_color.as_deref().and_then(parse_color);
-            for y in 0..rows {
+            #[cfg(feature = "wgpu-graphics")]
+            let pixel_bar = (pixels && rows > 0 && width > 0).then(|| {
+                use crate::graphics::look::Look;
+                let look = if config.indeterminate {
+                    Look::indeterminate_progress(width, rows, sample.glide)
+                } else {
+                    Look::progress(width, rows, sample.fraction)
+                };
+                look_at(0, row, width, rows, look)
+            });
+            #[cfg(not(feature = "wgpu-graphics"))]
+            let pixel_bar: Option<Element> = None;
+            let cell_rows = if pixel_bar.is_some() { 0 } else { rows };
+            if let Some(bar) = pixel_bar {
+                children.push(bar);
+            }
+            for y in 0..cell_rows {
                 let mut start = 0;
                 while start < width {
                     let axis = if config.orientation == ProgressBarOrientation::Vertical {
@@ -252,6 +280,31 @@ fn text_at(
         .styles(style)
         .class(&format!("whitespace-pre truncate {class}"))
         .build()
+}
+
+/// A box of `width` by `rows` cells at `(x, y)` that holds no glyph, over
+/// which the picture of `look` is placed (PIX-005).
+#[cfg(feature = "wgpu-graphics")]
+fn look_at(
+    x: usize,
+    y: usize,
+    width: usize,
+    rows: usize,
+    look: crate::graphics::look::Look,
+) -> Element {
+    let mut element = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+        .styles(
+            StyleBuilder::new()
+                .position_absolute()
+                .inset_left(x as f32)
+                .inset_top(y as f32)
+                .width_px(width as f32)
+                .height_px(rows as f32)
+                .overflow_hidden(),
+        )
+        .build();
+    element.metadata.look = Some(std::sync::Arc::new(look));
+    element
 }
 
 fn parse_color(value: &str) -> Option<Color> {

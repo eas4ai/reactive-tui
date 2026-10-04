@@ -35,6 +35,13 @@ fn mouse(kind: MouseEventKind, x: u16, y: u16) -> Event {
     Event::Mouse(MouseEvent::new(kind, Position::cell(x, y)))
 }
 
+/// A mouse event with the left button: a press, a drag or a release.
+fn pressed(kind: MouseEventKind, x: u16, y: u16) -> Event {
+    let mut event = MouseEvent::new(kind, Position::cell(x, y));
+    event.button = reactive_tui::event::types::MouseButton::Left;
+    Event::Mouse(event)
+}
+
 /// A box of `width` by `height` cells holding `element`, at the top left.
 fn sized(width: u16, height: u16, element: Element) -> Element {
     div()
@@ -54,8 +61,15 @@ fn cancel_button() -> Element {
     builder::button().text("Cancel").on_click(|| {}).build()
 }
 
+/// A card holding one line of text that fills the box it is given: PIX-003's
+/// case is 40 by 8 cells.
 fn card() -> Element {
-    builder::card(vec![builder::text("Reactive TUI")])
+    let mut card = builder::card(vec![builder::text("Reactive TUI")]);
+    card.class = Some(format!(
+        "{} w-full h-full",
+        card.class.as_deref().unwrap_or_default()
+    ));
+    card
 }
 
 fn text_input(value: &str, placeholder: &str) -> Element {
@@ -107,18 +121,19 @@ fn progress(value: f64) -> Element {
         .build()
 }
 
+/// An indeterminate bar with no text, so its one row is the track: the
+/// widget's own text for one is `Loading...`, which takes a row of its own.
 fn indeterminate_progress(reduced_motion: bool) -> Element {
-    let element = Element::typed::<ProgressBar>(ProgressBarProps {
+    Element::typed::<ProgressBar>(ProgressBarProps {
         indeterminate: true,
         animated: true,
         show_percentage: false,
+        custom_formatter: Some(std::sync::Arc::new(|_, _, _| String::new())),
+        // The bar reads `reduced-motion` from its own style classes
+        // (`ProgressBarBuilder::style`).
+        style: reduced_motion.then(|| "reduced-motion".to_owned()),
         ..Default::default()
-    });
-    if reduced_motion {
-        element.with_class("reduced-motion")
-    } else {
-        element
-    }
+    })
 }
 
 /// The columns of row `row` whose cells spell `text`, from the screen.
@@ -476,7 +491,7 @@ fn pix_002_a_typed_key_sends_one_picture_for_the_text_input_alone() {
     let flag = typed.clone();
     let script: Script = Box::new(move |presented, pictures| {
         let mut at = flag.lock().unwrap();
-        if at.is_none() && pictures >= 2 && presented >= 3 {
+        if at.is_none() && pictures >= 2 && presented >= 8 {
             *at = Some(presented);
             return Some(key(KeyCode::Char('a')));
         }
@@ -505,6 +520,8 @@ fn pix_002_a_typed_key_sends_one_picture_for_the_text_input_alone() {
         .and_then(|p| p.id)
         .expect("PIX-002: the text input's picture before the key");
     let after: Vec<&Picture> = pictures.iter().filter(|p| p.frame >= at).collect();
+    // The key adds a text cell, so the input's picture loses that cell and
+    // is sent once more; no other look sends one.
     assert_eq!(
         after.len(),
         1,
@@ -518,8 +535,11 @@ fn pix_002_a_typed_key_sends_one_picture_for_the_text_input_alone() {
     );
 }
 
-#[test]
-fn pix_002_a_scrolled_look_is_placed_again_not_sent_again() {
+/// A focused scroll view of 20 by 4 cells holding a head line, a primary
+/// button and twelve more lines, with a script that presses Down once the
+/// first picture is sent and three frames are presented; the frame the key
+/// was sent at.
+fn scrolling_button() -> (Element, std::sync::Arc<Mutex<Option<usize>>>, Script) {
     let mut content = div().class("flex-col w-20");
     content = content.child(builder::text("head"));
     content = content.child(sized(8, 1, save_button()));
@@ -542,6 +562,12 @@ fn pix_002_a_scrolled_look_is_placed_again_not_sent_again() {
         }
         None
     });
+    (scroll, scrolled, script)
+}
+
+#[test]
+fn pix_002_a_scrolled_look_is_placed_again_not_sent_again() {
+    let (scroll, scrolled, script) = scrolling_button();
     let run = run(
         scroll,
         (40, 6),
@@ -563,6 +589,47 @@ fn pix_002_a_scrolled_look_is_placed_again_not_sent_again() {
         placed && !resent,
         "PIX-002: after scrolling, the button's image {:?} is placed again (a=p: {placed}) and not transmitted again (a=T: {resent})",
         first.id
+    );
+}
+
+#[test]
+fn pix_002_a_scrolled_look_on_sixel_is_sent_again_at_its_new_row() {
+    let (scroll, scrolled, script) = scrolling_button();
+    let run = run(
+        scroll,
+        (40, 6),
+        sixel(),
+        script,
+        pictures_or_frames(1, 8, 20),
+        true,
+    );
+    let at = scrolled.lock().unwrap().expect("the scroll key was sent");
+    let rasters = run.rasters();
+    // A raster's `at` is (row, column).
+    let row_of = |raster: &Raster| raster.at.map(|(row, _)| row);
+    let before: Vec<Option<usize>> = rasters
+        .iter()
+        .filter(|r| r.frame < at)
+        .map(row_of)
+        .collect();
+    let after: Vec<Option<usize>> = rasters
+        .iter()
+        .filter(|r| r.frame >= at)
+        .map(row_of)
+        .collect();
+    // The button is on the second row of the view, then on the first once
+    // the view scrolled a row: its picture is sent again there.
+    assert!(
+        before.contains(&Some(1)) && after.contains(&Some(0)),
+        "PIX-002: on Sixel the button's picture is sent at row 1 before the scroll and at row 0 after it; rows before {before:?}, after {after:?}"
+    );
+    // The old row shows the line that scrolled into it, not the picture:
+    // the cells under the old picture are written again.
+    let screen = run.screen(run.frames.len() - 1);
+    assert!(
+        columns_of(&screen, 1, "line 0").is_some(),
+        "PIX-002: the old row shows the next line after the scroll: {:?}",
+        screen.contents()
     );
 }
 
@@ -701,10 +768,11 @@ fn pix_002_a_list_opened_over_a_card_hides_the_picture_under_it() {
     let history: Vec<String> = pictures
         .iter()
         .filter(|p| p.id == card_id)
-        .map(|p| format!("frame {} alpha {}", p.frame, p.pixel(2 * 8 + 4, y)[3]))
+        .map(|p| format!("frame {} alpha {}", p.frame, p.pixel(8 + 4, y)[3]))
         .collect();
+    // Column 1 is the card's padding: no text cuts it out of the picture.
     assert!(
-        after_close.pixel(2 * 8 + 4, y)[3] > 0,
+        after_close.pixel(8 + 4, y)[3] > 0,
         "PIX-002: after the list closed (frame {close}; opened at {open}) the card's picture is whole again at row {row}: {history:?}"
     );
 }
@@ -762,6 +830,22 @@ fn hovered(mut case: Case, x: u16, y: u16) -> Case {
         if !*sent && pictures >= 1 {
             *sent = true;
             return Some(mouse(MouseEventKind::Move, x, y));
+        }
+        None
+    });
+    case.picture = 1;
+    case
+}
+
+/// The case with the focus given to its first control by a Tab once the
+/// first picture is sent; the second picture counts.
+fn focused(mut case: Case) -> Case {
+    let sent = Mutex::new(false);
+    case.script = Box::new(move |_, pictures| {
+        let mut sent = sent.lock().unwrap();
+        if !*sent && pictures >= 1 {
+            *sent = true;
+            return Some(key(KeyCode::Tab));
         }
         None
     });
@@ -858,7 +942,7 @@ fn pix_003_rounded_containers_buttons_and_cards_match_their_reference_pictures()
         "PIX-003",
         vec![
             case("button_default", 8, 1, cancel_button()),
-            case("button_focused", 8, 1, cancel_button().auto_focus()),
+            focused(case("button_focused", 8, 1, cancel_button())),
             hovered(case("button_hovered", 8, 1, cancel_button()), 3, 0),
             case(
                 "button_disabled",
@@ -867,7 +951,7 @@ fn pix_003_rounded_containers_buttons_and_cards_match_their_reference_pictures()
                 builder::button().text("Cancel").disabled(true).build(),
             ),
             case("primary_default", 8, 1, save_button()),
-            case("primary_focused", 8, 1, save_button().auto_focus()),
+            focused(case("primary_focused", 8, 1, save_button())),
             hovered(case("primary_hovered", 8, 1, save_button()), 3, 0),
             case(
                 "primary_disabled",
@@ -1074,12 +1158,12 @@ fn pix_004_fields_checkboxes_and_radios_match_their_reference_pictures() {
         "PIX-004",
         vec![
             case("input_placeholder", 30, 1, text_input("", "Search")),
-            case(
+            focused(case(
                 "input_focused_text",
                 30,
                 1,
-                text_input("Reactive", "").auto_focus(),
-            ),
+                text_input("Reactive", ""),
+            )),
             case(
                 "input_invalid",
                 30,
@@ -1103,12 +1187,12 @@ fn pix_004_fields_checkboxes_and_radios_match_their_reference_pictures() {
                     .indeterminate(true)
                     .build(),
             ),
-            case(
+            focused(case(
                 "checkbox_checked_focused",
                 30,
                 1,
-                checkbox("Capture", true).auto_focus(),
-            ),
+                checkbox("Capture", true),
+            )),
             case(
                 "checkbox_disabled",
                 30,
@@ -1120,7 +1204,7 @@ fn pix_004_fields_checkboxes_and_radios_match_their_reference_pictures() {
                     .build(),
             ),
             case("radios_second_chosen", 30, 3, radios(1)),
-            case("radios_focus_first", 30, 3, radios(1).auto_focus()),
+            focused(case("radios_focus_first", 30, 3, radios(1))),
         ],
     );
 }
@@ -1153,15 +1237,29 @@ fn pix_004_no_frame_glyph_remains_in_a_field_or_box_cell() {
 
 #[test]
 fn pix_004_a_focused_control_has_its_ring_and_the_cursor_stays_cell_text() {
+    let sent = Mutex::new(false);
+    let script: Script = Box::new(move |_, pictures| {
+        let mut sent = sent.lock().unwrap();
+        if !*sent && pictures >= 1 {
+            *sent = true;
+            return Some(key(KeyCode::Tab));
+        }
+        None
+    });
     let run = run(
-        sized(30, 1, text_input("Reactive", "").auto_focus()),
+        sized(30, 1, text_input("Reactive", "")),
         SIZE,
         kitty(),
-        silent(),
-        pictures_or_frames(1, 2, 12),
+        script,
+        pictures_or_frames(2, 2, 12),
         true,
     );
-    let picture = run.first_picture("PIX-004: a focused text input");
+    run.first_picture("PIX-004: a text input");
+    let picture = run
+        .pictures()
+        .into_iter()
+        .last()
+        .expect("PIX-004: the focused text input's picture");
     let ring = role("ring");
     assert!(
         picture.pixels.iter().any(|p| near(*p, ring, 2)),
@@ -1169,17 +1267,16 @@ fn pix_004_a_focused_control_has_its_ring_and_the_cursor_stays_cell_text() {
     );
     let screen = run.screen(picture.frame);
     let text = columns_of(&screen, 0, "Reactive").expect("the text is cell text");
-    let cursor = text.end;
+    // The cursor stands on the first glyph when the field gains the focus:
+    // its cell is the field reversed, wherever it is.
+    let reversed = |column: usize| {
+        bg(&screen, 0, column).is_some_and(|c| near([c[0], c[1], c[2], 255], role("foreground"), 2))
+            && fg(&screen, 0, column)
+                .is_some_and(|c| near([c[0], c[1], c[2], 255], role("input"), 2))
+    };
+    let cursor = text.start;
     assert!(
-        bg(&screen, 0, cursor).is_some_and(|c| near(
-            [c[0], c[1], c[2], 255],
-            role("foreground"),
-            2
-        )) && fg(&screen, 0, cursor).is_some_and(|c| near(
-            [c[0], c[1], c[2], 255],
-            role("input"),
-            2
-        )),
+        (0..30).any(reversed),
         "PIX-004: the cursor cell is cell text in `foreground` with `input` text: bg {:?} fg {:?}",
         bg(&screen, 0, cursor),
         fg(&screen, 0, cursor)
@@ -1197,7 +1294,7 @@ fn pix_005_sliders_and_progress_bars_match_their_reference_pictures() {
             case("slider_0", 40, 1, slider(0.0)),
             case("slider_37", 40, 1, slider(37.0)),
             case("slider_100", 40, 1, slider(100.0)),
-            case("slider_37_focused", 40, 1, slider(37.0).auto_focus()),
+            focused(case("slider_37_focused", 40, 1, slider(37.0))),
             case(
                 "slider_disabled",
                 40,
@@ -1430,6 +1527,37 @@ fn percentile(values: &mut [Duration], p: f64) -> Duration {
     values.get(at).copied().unwrap_or_default()
 }
 
+/// Where the slider's thumb of `page` is, as a cell for the pointer: the
+/// center of the slider's picture, the one-row picture on the row of its
+/// label, found in a short run of the page at 240 by 60.
+fn thumb_of(page: Element, output: &str, images: ImageOutputOptions) -> (u16, u16) {
+    let run = run(
+        page,
+        (240, 60),
+        images,
+        silent(),
+        pictures_or_frames(14, 2, 40),
+        true,
+    );
+    let screen = run.screen(run.frames.len() - 1);
+    let row = (0..60)
+        .find(|row| columns_of(&screen, *row, "Intensity").is_some())
+        .expect("the slider's row");
+    let boxes: Vec<(usize, usize, usize, usize)> = if output == "sixel" {
+        run.rasters()
+            .iter()
+            .filter_map(|r| r.at.map(|(y, x)| (y, x, r.size.1 / 16, r.size.0 / 8)))
+            .collect()
+    } else {
+        run.pictures().iter().map(|p| p.rect()).collect()
+    };
+    let (y, x, _, columns) = boxes
+        .into_iter()
+        .find(|(y, _, rows, _)| *y == row && *rows == 1)
+        .expect("the slider's picture on its label's row");
+    ((x + columns / 2) as u16, y as u16)
+}
+
 /// One measured run: the pictures' arrival and 60 frames of typing, then,
 /// when `slider_at` names the slider's thumb, 60 frames of dragging.
 fn measure(
@@ -1446,15 +1574,27 @@ fn measure(
         events.push((typing_from + i, key(KeyCode::Char('a'))));
     }
     let drag_from = typing_from + 60 + 5;
+    // The thumb is dragged one cell a frame, fifteen cells to the right and
+    // back, so the pointer stays on the slider's track and no other look
+    // changes under it.
+    let drag_offset = |i: usize| {
+        let step = i % 30;
+        (if step <= 15 { step } else { 30 - step }) as u16
+    };
     if let Some((x, y)) = slider_at {
-        events.push((drag_from, mouse(MouseEventKind::Down, x, y)));
+        // The press takes the focus from the text input, whose look then
+        // changes once; it comes before the measured drag frames.
+        events.push((drag_from - 4, pressed(MouseEventKind::Down, x, y)));
         for i in 1..=60 {
             events.push((
                 drag_from + i,
-                mouse(MouseEventKind::Move, x + (i as u16 / 4), y),
+                pressed(MouseEventKind::Drag, x + drag_offset(i), y),
             ));
         }
-        events.push((drag_from + 61, mouse(MouseEventKind::Up, x + 15, y)));
+        events.push((
+            drag_from + 61,
+            pressed(MouseEventKind::Up, x + drag_offset(60), y),
+        ));
     }
     let last = drag_from + 64;
     let run = run(
@@ -1467,16 +1607,28 @@ fn measure(
     );
     let mut problems = Vec::new();
     let first = run.frames.first().map(|f| f.began);
-    let pictures = run.pictures();
-    let ids: std::collections::BTreeSet<Option<u32>> = pictures.iter().map(|p| p.id).collect();
+    // Every picture sent, as (frame, which look): a Kitty picture by its
+    // image id, a Sixel raster by the cells it covers.
+    let pictures: Vec<(usize, String)> = if output == "sixel" {
+        run.rasters()
+            .iter()
+            .map(|r| (r.frame, format!("{:?} {:?}", r.at, r.size)))
+            .collect()
+    } else {
+        run.pictures()
+            .iter()
+            .map(|p| (p.frame, format!("{:?} at {:?}", p.id, p.rect())))
+            .collect()
+    };
+    let ids: std::collections::BTreeSet<&String> = pictures.iter().map(|(_, id)| id).collect();
     let within = pictures
         .iter()
-        .filter(|p| {
+        .filter(|(frame, _)| {
             first.is_some_and(|f| {
-                run.frames[p.frame].began.duration_since(f) <= Duration::from_secs(1)
+                run.frames[*frame].began.duration_since(f) <= Duration::from_secs(1)
             })
         })
-        .map(|p| p.id)
+        .map(|(_, id)| id)
         .collect::<std::collections::BTreeSet<_>>()
         .len();
     if within < expected_looks {
@@ -1490,10 +1642,10 @@ fn measure(
     let mut work: Vec<Duration> = typed.iter().map(|f| f.work).collect();
     let mut waited: Vec<Duration> = typed.iter().map(|f| f.waited).collect();
     let (work95, wait95) = (percentile(&mut work, 0.95), percentile(&mut waited, 0.95));
-    let typing_ids: std::collections::BTreeSet<Option<u32>> = pictures
+    let typing_ids: std::collections::BTreeSet<&String> = pictures
         .iter()
-        .filter(|p| p.frame >= typing_from && p.frame < typing_from + 60)
-        .map(|p| p.id)
+        .filter(|(frame, _)| *frame >= typing_from && *frame < typing_from + 60)
+        .map(|(_, id)| id)
         .collect();
     println!(
         "PIX-006 {page} {output}: {within}/{expected_looks} looks within 1 s; typing p95 work {:.2} ms, p95 wait {:.2} ms, {} looks repainted",
@@ -1509,7 +1661,7 @@ fn measure(
         }
         if typing_ids.len() > 1 {
             problems.push(format!(
-                "{page} ({output}): typing repainted {} looks, not the text input alone",
+                "{page} ({output}): typing repainted {} looks, not the text input alone: {typing_ids:?}",
                 typing_ids.len()
             ));
         }
@@ -1519,10 +1671,10 @@ fn measure(
         let mut work: Vec<Duration> = dragged.iter().map(|f| f.work).collect();
         let mut waited: Vec<Duration> = dragged.iter().map(|f| f.waited).collect();
         let (work95, wait95) = (percentile(&mut work, 0.95), percentile(&mut waited, 0.95));
-        let drag_ids: std::collections::BTreeSet<Option<u32>> = pictures
+        let drag_ids: std::collections::BTreeSet<&String> = pictures
             .iter()
-            .filter(|p| p.frame > drag_from && p.frame <= drag_from + 60)
-            .map(|p| p.id)
+            .filter(|(frame, _)| *frame > drag_from && *frame <= drag_from + 60)
+            .map(|(_, id)| id)
             .collect();
         println!(
             "PIX-006 {page} {output}: dragging p95 work {:.2} ms, p95 wait {:.2} ms, {} looks repainted",
@@ -1530,13 +1682,18 @@ fn measure(
             wait95.as_secs_f64() * 1000.0,
             drag_ids.len()
         );
+        if drag_ids.is_empty() {
+            problems.push(format!(
+                "{page} ({output}): the drag repainted no look: the pointer missed the slider's thumb"
+            ));
+        }
         if cfg!(target_os = "linux") {
             if work95 > BOUND || wait95 > BOUND {
                 problems.push(format!("{page} ({output}): dragging p95 work {work95:?}, wait {wait95:?} over the frame"));
             }
             if drag_ids.len() > 1 {
                 problems.push(format!(
-                    "{page} ({output}): dragging repainted {} looks, not the slider alone",
+                    "{page} ({output}): dragging repainted {} looks, not the slider alone: {drag_ids:?}",
                     drag_ids.len()
                 ));
             }
@@ -1557,15 +1714,16 @@ fn pix_006_the_input_page_and_a_page_of_192_looks_show_within_a_second_and_stay_
     };
     let mut problems = Vec::new();
     for (output, images) in [("kitty", shared), ("sixel", sixel())] {
-        // The Input page: six cards, a text input, a checkbox, three radios, a
-        // select, a slider and two buttons: 15 looks. The slider's thumb at
-        // 50 of 100 sits mid-track in its card.
+        // The Input page: six cards, a text input, a checkbox, three radios,
+        // a slider and two buttons: 14 looks (the select has none). The
+        // slider's thumb at 50 of 100 sits mid-track in its card.
+        let thumb = thumb_of(input_page(), output, images);
         problems.extend(measure(
             "input-page",
             output,
             input_page(),
-            15,
-            Some((200, 30)),
+            14,
+            Some(thumb),
             images,
         ));
         problems.extend(measure(
