@@ -648,7 +648,9 @@ fn pix_002_a_removed_look_is_deleted_in_that_frame() {
     let deleted = kitty_commands(&run.frames)
         .into_iter()
         .find(|c| c.action == "d" && (c.id == first.id || c.key("I").is_some()));
-    let swapped = run.frames.len().min(6);
+    // The button leaves at frame 6, or in the frame after its first picture
+    // when that came later.
+    let swapped = (first.frame + 1).max(6).min(run.frames.len());
     assert!(
         deleted.as_ref().is_some_and(|c| c.frame >= swapped && c.frame <= swapped + 1),
         "PIX-002: the button's placement is deleted in the frame it leaves (frame {swapped}); deletions: {deleted:?}"
