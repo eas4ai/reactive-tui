@@ -3,6 +3,7 @@
 use crate::core::owned_process::{self, Options};
 use std::{
     collections::HashMap,
+    ffi::{OsStr, OsString},
     process::Command,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -179,25 +180,76 @@ fn configuration(
     Ok(result)
 }
 
-/// The curl to run: on Windows the system's own, `%SystemRoot%\System32\curl.exe`,
-/// when it exists, since a PATH that puts an MSYS2 curl first hands the client
-/// a curl that returns nothing for a configuration read from a Windows pipe
-/// (the GitHub Windows runner); elsewhere, and without it, `curl` from PATH.
-fn curl_program() -> std::ffi::OsString {
-    #[cfg(windows)]
-    if let Some(root) = std::env::var_os("SystemRoot") {
-        let system = std::path::Path::new(&root)
-            .join("System32")
-            .join("curl.exe");
-        if system.is_file() {
-            return system.into_os_string();
-        }
-    }
-    "curl".into()
+/// The curls to try, in order. On Windows the system's own,
+/// `%SystemRoot%\System32\curl.exe`, comes first when it exists, since a PATH
+/// that puts an MSYS2 curl first hands the client a curl that returns nothing
+/// for a configuration read from a Windows pipe (the GitHub Windows runner).
+/// The first curl on PATH follows, so a system curl too old for the client
+/// does not shut out a newer one installed beside it (Windows 10 ships 7.x and
+/// 8.0). Elsewhere, `curl` from PATH alone.
+fn curl_candidates() -> Vec<OsString> {
+    system_curl()
+        .into_iter()
+        .chain(std::iter::once("curl".into()))
+        .collect()
 }
 
-fn curl_command() -> Command {
-    let mut command = Command::new(curl_program());
+/// `%SystemRoot%\System32\curl.exe` when it exists; only Windows has one.
+fn system_curl() -> Option<OsString> {
+    if !cfg!(windows) {
+        return None;
+    }
+    let root = std::env::var_os("SystemRoot")?;
+    let system = std::path::Path::new(&root)
+        .join("System32")
+        .join("curl.exe");
+    system.is_file().then(|| system.into_os_string())
+}
+
+/// The major and minor version a `curl --version` report names in its first
+/// line, `curl 8.4.0 (...)`.
+fn curl_version(report: &str) -> Option<(u32, u32)> {
+    let mut parts = report.split_whitespace().nth(1)?.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next()?.parse().ok()?;
+    Some((major, minor))
+}
+
+/// Whether a curl of that version serves the client: 8.4 or newer.
+fn serves(version: Option<(u32, u32)>) -> bool {
+    matches!(version, Some((major, minor)) if major > 8 || major == 8 && minor >= 4)
+}
+
+/// The first candidate whose `--version` report, as `probe` returns it, names
+/// a curl that serves. When none does, the error names each candidate with
+/// what was found: its version when it ran, the failure when it did not.
+fn choose_curl(
+    candidates: Vec<OsString>,
+    mut probe: impl FnMut(&OsStr) -> Result<String, String>,
+) -> Result<OsString, String> {
+    let mut rejected = Vec::new();
+    for program in candidates {
+        match probe(&program) {
+            Ok(report) if serves(curl_version(&report)) => return Ok(program),
+            Ok(report) => {
+                let found: Vec<&str> = report.split_whitespace().take(2).collect();
+                rejected.push(format!(
+                    "{} is {}",
+                    program.to_string_lossy(),
+                    found.join(" ")
+                ));
+            }
+            Err(error) => rejected.push(format!("{}: {error}", program.to_string_lossy())),
+        }
+    }
+    Err(format!(
+        "Dialog HTTP requires curl 8.4 or newer: {}",
+        rejected.join("; ")
+    ))
+}
+
+fn curl_command(program: &OsStr) -> Command {
+    let mut command = Command::new(program);
     command.env_clear();
     for name in CURL_ENVIRONMENT {
         if let Some(value) = std::env::var_os(name) {
@@ -222,23 +274,13 @@ fn request(
         capture_output: true,
         allow_background_after_success: false,
     };
-    let mut version = curl_command();
-    version.args(["--disable", "--version"]);
-    let version = owned_process::run(version, None, options, &cancelled)
-        .map_err(|error| format!("Dialog HTTP requires curl 8.4 or newer: {error}"))?;
-    let version = String::from_utf8_lossy(&version);
-    let mut parts = version
-        .split_whitespace()
-        .nth(1)
-        .unwrap_or_default()
-        .split('.');
-    let major = parts.next().and_then(|part| part.parse::<u32>().ok());
-    let minor = parts.next().and_then(|part| part.parse::<u32>().ok());
-    if !matches!((major, minor), (Some(major), Some(minor)) if major > 8 || major == 8 && minor >= 4)
-    {
-        return Err("Dialog HTTP requires curl 8.4 or newer".into());
-    }
-    let mut command = curl_command();
+    let program = choose_curl(curl_candidates(), |program| {
+        let mut version = curl_command(program);
+        version.args(["--disable", "--version"]);
+        owned_process::run(version, None, options, &cancelled)
+            .map(|report| String::from_utf8_lossy(&report).into_owned())
+    })?;
+    let mut command = curl_command(&program);
     command.args([
         "--disable",
         "--globoff",

@@ -9,11 +9,13 @@ This file records user-visible changes to Reactive TUI. The project follows
   magnitudes through libm instead of the platform's math library, so a chart
   drawn on Apple Silicon has the same dots as on x86-64 and the goldens hold
   on every platform (BAR-012).
-- On Windows the dialog HTTP client runs the system curl
-  (`%SystemRoot%\System32\curl.exe`) when it exists instead of the first curl on
-  PATH: on a machine whose PATH starts with MSYS2's bin, as GitHub's Windows
-  runner does, that curl returned nothing and every remote validation and
-  autocomplete failed.
+- On Windows the dialog HTTP client tries the system curl
+  (`%SystemRoot%\System32\curl.exe`) before the first curl on PATH and runs the
+  first of the two that is 8.4 or newer: on a machine whose PATH starts with
+  MSYS2's bin, as GitHub's Windows runner does, that curl returned nothing and
+  every remote validation and autocomplete failed, while a Windows 10 system
+  curl older than 8.4 must not shut out a newer curl installed beside it. When
+  neither serves, the error names both.
 - Closing a terminal widget, dropping a `PseudoTerminal` or stopping an
   embedded session whose shell is still printing no longer hangs on macOS:
   the child's unread output is read and discarded while it is reaped,
