@@ -10,12 +10,16 @@ is the verdict, and no run is consulted.
 
 Run part: the workflow's run for HEAD, read through gh. A run tests a
 commit, so the working tree must match HEAD for this mechanism's inputs;
-otherwise no verdict (unverified). A completed run decides: success passes,
-failure fails with its jobs. A run still going is waited for. With no run,
-the commit is pushed as the temporary branch ci/check-<sha>, the workflow is
-started on it (workflow_dispatch), waited for up to 55 minutes, and the
-branch is deleted. A gh or git call that fails for want of the network prints
-no result line, so Sudus records the run as unverified.
+otherwise no verdict (unverified). Only a run that could have run the
+platform matrix counts: the workflow skips that matrix on schedule, so a
+scheduled run is no run here. A completed run decides: it passes when each
+of the three platform jobs succeeded and no job failed; otherwise it fails
+with its jobs. A run still going is waited for. With no run, the commit is
+pushed as the temporary branch ci/check-<sha>, the workflow is started on it
+(workflow_dispatch), waited for up to 55 minutes, and the branch is deleted.
+A gh or git call that fails for want of the network prints no result line,
+so Sudus records the run as unverified. The mechanism's own tests
+(test_ci_workflow.py) run first; when they fail there is no verdict.
 """
 
 from __future__ import annotations
@@ -41,6 +45,9 @@ COMMANDS = (
     "cargo deny --locked check advisories bans licenses sources",
 )
 RUNNERS = ("ubuntu-", "macos-", "windows-")
+# The job of each runner, as the workflow names it: `platform (<runner>)`.
+PLATFORM_JOBS = tuple(f"platform ({prefix}" for prefix in RUNNERS)
+TESTS = ROOT / "scripts/cairn/test_ci_workflow.py"
 INPUTS = [".gitattributes", ".github", "Cargo.lock", "Cargo.toml", "benches", "bindings", "build.rs", "crates",
           "deny.toml", "examples", "include", "scripts", "src", "tests"]
 CEILING = 55 * 60
@@ -121,6 +128,19 @@ def runs_on_branch(branch: str) -> list[dict]:
     return json.loads(out or "[]")
 
 
+def platform_runs(runs: list[dict]) -> list[dict]:
+    """The runs that could have run the platform matrix: not cancelled, and
+    not scheduled, since the workflow skips the matrix on schedule and runs
+    only the advisories job then."""
+    return [r for r in runs if r["conclusion"] != "cancelled" and r["event"] != "schedule"]
+
+
+def missing_platform_jobs(jobs: list[dict]) -> list[str]:
+    """The platform jobs without a successful instance among `jobs`."""
+    return [prefix for prefix in PLATFORM_JOBS
+            if not any(str(j["name"]).startswith(prefix) and j["conclusion"] == "success" for j in jobs)]
+
+
 def jobs_of(run_id: int) -> list[dict]:
     out = sh(["gh", "run", "view", str(run_id), "--json", "jobs"])
     return json.loads(out)["jobs"]
@@ -162,20 +182,27 @@ def dispatch(sha: str, deadline: float) -> dict:
         subprocess.run(["git", "push", "-q", "origin", "--delete", branch], cwd=ROOT, capture_output=True, text=True, timeout=300)
 
 
-def verdict(run: dict) -> tuple[bool, str]:
+def verdict(run: dict, jobs: list[dict]) -> tuple[bool, str]:
+    """Pass when the run completed, each of the three platform jobs succeeded
+    and no job failed. A skipped platform job is a job that never started,
+    which the falsifier names."""
     run_id = run["databaseId"]
     if run["status"] != "completed":
         return False, f"run {run_id} did not finish within {CEILING // 60} minutes ({run['url']})"
-    jobs = jobs_of(run_id)
     for job in jobs:
         print(f"  {job['name']}: {job['conclusion'] or job['status']}", flush=True)
     bad = [f"{j['name']} {j['conclusion'] or j['status']}" for j in jobs if j["conclusion"] not in ("success", "skipped")]
+    bad += [f"no successful {prefix}...) job" for prefix in missing_platform_jobs(jobs)]
     if run["conclusion"] == "success" and not bad:
         return True, f"run {run_id} green on every job ({run['url']})"
     return False, f"run {run_id} {run['conclusion']}: {'; '.join(bad) or 'no job ran'} ({run['url']})"
 
 
 def gate() -> int:
+    own = subprocess.run([sys.executable, "-B", str(TESTS)], cwd=ROOT, capture_output=True, text=True, timeout=120)
+    if own.returncode != 0:
+        print(f"{REQUIREMENT} unverified: the mechanism's own tests fail:\n{own.stderr.strip()[-1500:]}")
+        return 1
     violations = static_violations()
     for v in violations:
         print(f"static: {v}", flush=True)
@@ -190,7 +217,7 @@ def gate() -> int:
             print(f"{REQUIREMENT} unverified: a run tests a commit, and these inputs differ from HEAD: {', '.join(dirty[:6])}")
             return 1
         deadline = time.monotonic() + CEILING
-        runs = [r for r in runs_for(sha) if r["conclusion"] != "cancelled"]
+        runs = platform_runs(runs_for(sha))
         completed = [r for r in runs if r["status"] == "completed"]
         going = [r for r in runs if r["status"] != "completed"]
         if completed:
@@ -203,7 +230,7 @@ def gate() -> int:
         else:
             print(f"no run for {sha[:12]}: starting one", flush=True)
             run = dispatch(sha, deadline)
-        ok, why = verdict(run)
+        ok, why = verdict(run, jobs_of(run["databaseId"]))
     except (NoVerdict, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as error:
         print(f"{REQUIREMENT} unverified: {error}")
         return 1
