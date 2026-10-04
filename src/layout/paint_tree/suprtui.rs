@@ -1476,6 +1476,17 @@ fn prepare_look(
     ) else {
         return Ok(None);
     };
+    // The look's fill as the picture draws it: its role at the fill's and
+    // the look's opacity, a hovered button's 90 percent, a disabled
+    // control's half, under the element's own opacity. A text cell beside
+    // the picture takes it over what is under the element, so the two are
+    // one color (PIX-001); the cell CSS has no opacity to say it with.
+    let look_fill = look.fill.as_deref().and_then(|role| {
+        let (r, g, b, a) = crate::theme::Theme::active().resolve_variable(role)?;
+        let alpha = a * look.fill_opacity * look.opacity * paint.opacity * node.parent_opacity;
+        let byte = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+        Some(ansi::rgb_color(byte(r), byte(g), byte(b), byte(alpha)))
+    });
     // The box's cells on the screen with what each holds before the node
     // paints. A cell under another look's picture takes that look's fill
     // first: this picture's rounded corners and a translucent fill show
@@ -1502,10 +1513,14 @@ fn prepare_look(
                 before.bg = outer;
                 target.set_raw(x as u32, y as u32, before);
             }
-            // The fill text painted in the cell later takes: the look's
-            // background there over what the cell shows under the picture.
-            let fill = background(paint, node.local, local.0, local.1)
-                .map(|source| with_opacity(source, node.parent_opacity))
+            // The fill text in the cell takes: the look's fill over what
+            // the cell shows under the picture, or the element's own
+            // background where the look names no role the theme has.
+            let fill = look_fill
+                .or_else(|| {
+                    background(paint, node.local, local.0, local.1)
+                        .map(|source| with_opacity(source, node.parent_opacity))
+                })
                 .filter(|source| ansi::alpha(*source) > 0)
                 .map(|source| blend_colors(source, before.bg, None));
             cells.push(((x as u32, y as u32), before, fill));
@@ -1541,12 +1556,18 @@ impl LookPass {
     /// After the node painted its cells: every cell the picture still shows
     /// gets back what it held, so the picture lies over what is under the
     /// element and its rounded corners leave that showing, and text painted
-    /// in the cell later takes the fill; a cell the node's own text covers
-    /// keeps its flat fill (PIX-001, PIX-003).
+    /// in the cell later takes the fill; a cell the node's own text covers,
+    /// a button's label, takes the fill as its background, so it is one
+    /// color with the picture beside it, under the pointer and disabled too
+    /// (PIX-001, PIX-003).
     fn finish(self, target: &mut OptimizedBuffer<'_>, images: &mut images::Layers) {
         images.set_look_painting(false);
         for ((x, y), before, fill) in self.cells {
             if !images.plane_shows(self.plane, x as i32, y as i32) {
+                if let (Some(fill), Some(mut cell)) = (fill, target.get(x, y)) {
+                    cell.bg = fill;
+                    target.set_raw(x, y, cell);
+                }
                 continue;
             }
             target.set_raw(x, y, before);
