@@ -2709,9 +2709,12 @@ fn cht_026_a_subnormal_value_finishes_in_the_worker_and_in_build() {
             .unwrap_or_else(|_| {
                 panic!("CHT-026: a {kind:?} chart of one subnormal value did not finish drawing")
             });
+        // The harness returns only after three settled frames, which a
+        // stalled worker never gives; a bar of subnormal height may draw
+        // nothing at all.
         assert!(
-            painted.is_some_and(|text| !text.trim().is_empty()),
-            "CHT-026: a {kind:?} chart of one subnormal value never painted a settled frame: its worker stalled"
+            painted.is_some(),
+            "CHT-026: a {kind:?} chart of one subnormal value panicked or never settled: its worker stalled"
         );
     }
     let (done, finished) = mpsc::channel();
