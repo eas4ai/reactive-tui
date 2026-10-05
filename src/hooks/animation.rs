@@ -1251,6 +1251,54 @@ mod tests {
         });
     }
 
+    /// A spring whose damping outweighs its mass a hundredfold still moves the
+    /// way of its impulse on a frame-long step: the step is the exact motion
+    /// over the frame, not a numerical one that overshoots (review finding 4).
+    #[test]
+    #[serial_test::serial]
+    fn sig_006_a_heavily_damped_spring_moves_the_way_of_its_impulse() {
+        without_other_passes(|| {
+            let hooks = Hooks::new();
+            let spring = use_spring(&hooks, 0.0_f32, SpringConfig::new(1.0, 100.0, 100.0));
+            spring.apply_impulse(10.0);
+            let id = spring.owner.animation_id.lock().unwrap().unwrap();
+            sig_deliver_frame(id, 0.0016);
+            assert!(
+                spring.value() > 0.0,
+                "SIG-006: the first frame after impulse 10 on a heavily damped spring reported position {} instead of moving above 0",
+                spring.value()
+            );
+            for frame in 2..=625 {
+                sig_deliver_frame(id, frame as f32 * 0.0016);
+            }
+            assert!(
+                spring.value().abs() < 0.01 && spring.velocity().abs() < 0.01,
+                "SIG-006: after 10 seconds of frames, position {} and velocity {} had not settled at 0",
+                spring.value(),
+                spring.velocity()
+            );
+        });
+    }
+
+    /// A step over a span equals the steps over its parts: the step is the
+    /// motion's exact solution, so frame timing does not change the path.
+    #[test]
+    fn sig_006_a_spring_step_over_a_span_equals_the_steps_over_its_parts() {
+        for config in [
+            SpringConfig::default(),
+            SpringConfig::new(1.0, 100.0, 100.0),
+            SpringConfig::new(1.0, 100.0, 20.0),
+        ] {
+            let whole = config.step(0.5, 0.0, 10.0, 1.0);
+            let (position, velocity) = config.step(0.2, 0.0, 10.0, 1.0);
+            let parts = config.step(0.3, position, velocity, 1.0);
+            assert!(
+                (whole.0 - parts.0).abs() < 1e-4 && (whole.1 - parts.1).abs() < 1e-3,
+                "SIG-006: {config:?} stepped 0.5 s to {whole:?} but 0.2 s then 0.3 s to {parts:?}"
+            );
+        }
+    }
+
     #[test]
     #[serial_test::serial]
     fn sig_007_zero_loop_count_keeps_playing_after_two_durations() {

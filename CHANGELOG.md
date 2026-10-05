@@ -5,6 +5,10 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- A `use_spring` frame moves the spring by the exact solution of its damped
+  motion over the frame's time, for under-, critically and over-damped
+  settings alike; the numerical step it replaces turned a heavily damped
+  spring against its impulse on the first frame (SIG-006, review finding 4).
 - `ReactiveRuntime::cleanup_dead_effects` and `periodic_cleanup` remove the
   effects that were disposed, not every registered effect: before, a
   registered effect had the one reference the registry holds and was
