@@ -5,6 +5,7 @@
 //! value itself.
 
 use super::super::super::mask::Marker;
+use super::super::super::plot::tick::spread_indices;
 use super::super::super::plot::{
     self, band_ticks, decimate_min_max, fit_label, format_tick, label_skip, labeled_ticks,
     linear_ticks, point_ticks, spread_ticks, text_width, Axis, Grid, Ramp, Rect, Rgba, ScaleBand,
@@ -319,14 +320,21 @@ pub(super) fn cartesian(
     let value_cells = if horizontal { area.w } else { area.h };
     let value_ticks = |scale: &ScaleLinear| -> Vec<plot::Tick> {
         if !value_axis.ticks.is_empty() {
-            value_axis
+            // No more of them than the plot has cells, as for the round
+            // values below (CHT-040).
+            let shown: Vec<&(f64, String)> = value_axis
                 .ticks
                 .iter()
                 .filter(|(value, _)| scale.contains(*value))
-                .map(|(value, label)| plot::Tick {
-                    value: *value,
-                    position: scale.map(*value),
-                    label: label.clone(),
+                .collect();
+            spread_indices(shown.len(), tick_count(value_axis, value_cells))
+                .map(|i| {
+                    let (value, label) = shown[i];
+                    plot::Tick {
+                        value: *value,
+                        position: scale.map(*value),
+                        label: label.clone(),
+                    }
                 })
                 .collect()
         } else if value_axis.custom_labels.is_empty() {

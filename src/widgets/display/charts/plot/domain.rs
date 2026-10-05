@@ -126,13 +126,21 @@ fn value_of(values: Option<&[Vec<f64>]>, s: usize, i: usize, own: f64) -> f64 {
 
 /// The values of the ticks the value axis of `props` carries under `axis`:
 /// exactly `axis.tick_count` round values across its domain, so a tick
-/// format run at `build()` labels the same ticks the renderer draws.
+/// format run at `build()` labels the same ticks the renderer draws; never
+/// more than the chart has cells on its longer side, or than a terminal side
+/// has where the chart fills its box, whatever count was asked for
+/// (CHT-040).
 pub fn value_ticks(props: &ChartProps, axis: &ChartAxis) -> Vec<f64> {
     let Ok(domain) = value_domain(props, axis) else {
         return Vec::new();
     };
+    let cells = if props.width == 0 || props.height == 0 {
+        u16::MAX
+    } else {
+        props.width.max(props.height)
+    };
     let scale = ScaleLinear::new(domain, (0.0, 1.0));
-    linear_ticks(&scale, axis.tick_count.max(1))
+    linear_ticks(&scale, axis.tick_count.clamp(1, usize::from(cells)))
         .into_iter()
         .map(|tick| tick.value)
         .collect()

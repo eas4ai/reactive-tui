@@ -284,17 +284,26 @@ pub fn spread_ticks(ticks: Vec<Tick>, count: usize) -> Vec<Tick> {
     if count == 0 || ticks.len() <= count {
         return ticks;
     }
-    let last = ticks.len() - 1;
-    (0..count)
-        .map(|k| {
-            let i = if count == 1 {
-                0
-            } else {
-                (k * last + (count - 1) / 2) / (count - 1)
-            };
-            ticks[i].clone()
-        })
+    spread_indices(ticks.len(), count)
+        .map(|i| ticks[i].clone())
         .collect()
+}
+
+/// The indices [`spread_ticks`] keeps of `len` items: `count` of them from
+/// the first to the last, or every one when `count` is zero or at least
+/// `len`.
+pub(crate) fn spread_indices(len: usize, count: usize) -> impl Iterator<Item = usize> {
+    let every = count == 0 || len <= count;
+    let last = len.saturating_sub(1);
+    (0..if every { len } else { count }).map(move |k| {
+        if every {
+            k
+        } else if count == 1 {
+            0
+        } else {
+            (k * last + (count - 1) / 2) / (count - 1)
+        }
+    })
 }
 
 #[cfg(test)]
