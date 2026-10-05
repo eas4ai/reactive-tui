@@ -5,7 +5,8 @@ did not change. `--range` limits the scan to files changed since --base/$CAIRN_B
 (default tag v1.0.0); `--fixture PATH` scans one file.
 
 Every tracked text file is read, the CI workflows and the specification
-included, except the records that cite paths as they were (below). These
+included, except the records that cite paths as they were (below); a path a
+requirement forbids is listed with that requirement (FORBIDDEN, below). These
 forms of reference are checked:
 
 - a path under any top-level directory the tree has or once had, with any
@@ -75,6 +76,14 @@ SKIP_SUFFIX = (".lock", ".patch", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico
 EXTERNAL = {
     ("docs/spec/charts.md", "/".join(("crates", "component", "src", "chart"))):
         "a directory of gpui-kit 0.6.6, the model the charts follow",
+}
+# References to a path a requirement forbids: the requirement's falsifier
+# and the test that observes it must name what may not exist. Each entry
+# gives the requirement; the paths are written in parts for the same reason.
+FORBIDDEN = {
+    (document, "/".join(("src", "animation", name))): "ANI-006 requires its absence"
+    for document in ("docs/spec/animation.md", "tests/review_native/animation.rs")
+    for name in ("performance.rs", "lock_free.rs")
 }
 # Installed at build time, never tracked.
 INSTALLED = "/node_modules/"
@@ -257,7 +266,7 @@ def dangling(path: Path, tracked: set[str], dirs: set[str], pattern: re.Pattern 
         climb, ref = m.group(1), m.group(2).rstrip(".,:;)`'\"")
         if "*" in ref or "{" in ref or "<" in ref or "$" in ref or INSTALLED in f"/{ref}":
             continue
-        if (name, ref.rstrip("/")) in EXTERNAL:
+        if (name, ref.rstrip("/")) in EXTERNAL or (name, ref.rstrip("/")) in FORBIDDEN:
             continue
         if ref.endswith("/") and not markdown:
             continue
