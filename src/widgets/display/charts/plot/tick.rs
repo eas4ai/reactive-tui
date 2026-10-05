@@ -70,11 +70,19 @@ pub fn tick_step(span: f64, intervals: usize) -> f64 {
     }
     let raw = span / intervals.max(1) as f64;
     let magnitude = libm::pow(10.0, libm::log10(raw).floor());
-    STEPS
+    let step = STEPS
         .iter()
         .map(|s| s * magnitude)
         .find(|step| *step >= raw * (1.0 - 1e-9))
-        .unwrap_or(10.0 * magnitude)
+        .unwrap_or(10.0 * magnitude);
+    // A span of subnormal size divides, or its power of ten rounds, to
+    // zero: the smallest normal step still covers it, and every step is a
+    // finite positive normal number the widening below can grow (CHT-026).
+    if step.is_normal() && step > 0.0 {
+        step
+    } else {
+        f64::MIN_POSITIVE.max(raw)
+    }
 }
 
 /// The next round step after `step`.
@@ -107,20 +115,34 @@ pub fn nice_domain(domain: (f64, f64), pinned: (bool, bool), count: usize) -> (f
     match pinned {
         (true, false) => (low, low + intervals * step),
         (false, true) => (high - intervals * step, high),
-        _ => loop {
-            let start = (low / step).floor() * step;
-            let end = start + intervals * step;
-            if end >= high * (1.0 - 1e-9) - step * 1e-9 {
-                // Zero stays zero and the ends read as the step's multiples.
-                let start = if start.abs() < step * 1e-9 {
-                    0.0
-                } else {
-                    start
-                };
-                return (start, end);
+        _ => {
+            // Each round step is larger than the last, so the domain is
+            // covered within a few hundred steps of a positive normal step;
+            // a step that stops growing, or a bound reached, leaves the
+            // domain as it is rather than looping on (CHT-026).
+            for _ in 0..1024 {
+                let start = (low / step).floor() * step;
+                let end = start + intervals * step;
+                if !start.is_finite() || !end.is_finite() {
+                    return domain;
+                }
+                if end >= high * (1.0 - 1e-9) - step * 1e-9 {
+                    // Zero stays zero and the ends read as the step's multiples.
+                    let start = if start.abs() < step * 1e-9 {
+                        0.0
+                    } else {
+                        start
+                    };
+                    return (start, end);
+                }
+                let next = next_step(step);
+                if !(next > step && next.is_finite()) {
+                    return domain;
+                }
+                step = next;
             }
-            step = next_step(step);
-        },
+            domain
+        }
     }
 }
 
