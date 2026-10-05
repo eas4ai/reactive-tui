@@ -95,6 +95,9 @@ struct Registration<'a> {
     inert: bool,
     keyboard_only: bool,
     inert_nodes: HashSet<NodeId>,
+    /// The element indices the frame painted, when it painted any: an
+    /// element missing from them was hidden by `display: none` (STY-002).
+    present: Option<HashSet<usize>>,
     router: &'a mut EventRouter,
     seen: HashSet<Vec<Slot>>,
     preorder: Vec<NodeId>,
@@ -230,6 +233,13 @@ impl EventTree {
         element
     }
 
+    /// Register the frame's elements with the router. `geometry` is what
+    /// the frame painted: the hit targets, and, when it holds anything, the
+    /// elements on screen at all, since the painter leaves an element hidden
+    /// by `display: none` out of it. Such an element, and everything under
+    /// it, is inert for the frame: no handlers, no focus, and no hold on a
+    /// press it took while it was shown (STY-002). An empty `geometry`
+    /// carries no frame and hides nothing.
     pub(crate) fn sync(
         &mut self,
         element: &Element,
@@ -243,6 +253,8 @@ impl EventTree {
             inert: false,
             keyboard_only: false,
             inert_nodes: HashSet::new(),
+            present: (!geometry.is_empty())
+                .then(|| geometry.iter().map(|node| node.element_index).collect()),
             router,
             seen: HashSet::new(),
             preorder: Vec::new(),
@@ -250,6 +262,7 @@ impl EventTree {
             layouts: Vec::new(),
         };
         self.visit(element, Vec::new(), 0, None, &mut frame);
+        frame.router.release_pointer_from(&frame.inert_nodes);
         let removed: Vec<_> = self
             .nodes
             .keys()
@@ -319,11 +332,18 @@ impl EventTree {
             .entry(path.clone())
             .or_insert_with(|| frame.router.create_node(parent));
         frame.seen.insert(path.clone());
+        // An element the frame did not paint was hidden by `display: none`,
+        // its own or an ancestor's: off the screen, it takes no event, no
+        // focus and no hold on the pointer, nor do its children (STY-002).
+        let hidden = frame
+            .present
+            .as_ref()
+            .is_some_and(|present| !present.contains(&frame.preorder.len()));
         frame.preorder.push(id);
         frame.layouts.push(element.metadata.layout.clone());
         let ancestor_inert = frame.inert;
         let ancestor_keyboard_only = frame.keyboard_only;
-        frame.inert |= element.metadata.inert;
+        frame.inert |= element.metadata.inert || hidden;
         frame.keyboard_only |= element
             .metadata
             .accessibility_options
