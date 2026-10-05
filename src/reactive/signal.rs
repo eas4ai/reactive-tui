@@ -24,6 +24,10 @@ pub struct Signal<T> {
     id: SignalId,
     /// Shared inner state
     inner: Rc<RefCell<SignalInner<T>>>,
+    /// The memos this signal marks stale when it changes. Kept beside the
+    /// value, not inside it, so a read that subscribes a memo can happen
+    /// while the value is borrowed by `with` (SIG-003).
+    subscribers: Rc<SubscriberList>,
     app_subscribers: Rc<super::wake::Subscriptions>,
     /// The runtime whose effects a read makes dependents of this signal and
     /// a change runs again: the one of the `RuntimeContext` that created the
@@ -38,14 +42,15 @@ thread_local! {
         const { RefCell::new(Vec::new()) };
 }
 
+/// The subscribers of a signal: weak, so a dropped memo falls out of the list.
+pub(crate) type SubscriberList = RefCell<Vec<Weak<RefCell<dyn Subscriber>>>>;
+
 /// Internal signal state
 struct SignalInner<T> {
     /// Current value of the signal
     value: T,
     /// Version counter for change tracking
     version: usize,
-    /// Weak references to subscribers
-    subscribers: Vec<Weak<RefCell<dyn Subscriber>>>,
     /// Async wakers for futures
     wakers: Vec<Waker>,
 }
@@ -65,9 +70,9 @@ impl<T> Signal<T> {
             inner: Rc::new(RefCell::new(SignalInner {
                 value,
                 version: 0,
-                subscribers: Vec::new(),
                 wakers: Vec::new(),
             })),
+            subscribers: Rc::new(RefCell::new(Vec::new())),
             runtime: None,
         }
     }
@@ -109,18 +114,28 @@ impl<T> Signal<T> {
         self.app_subscribers.track();
         let memo = COMPUTING.with(|computing| computing.borrow().last().cloned());
         if let Some(memo) = memo {
-            let mut inner = self.inner.borrow_mut();
-            if !inner
-                .subscribers
-                .iter()
-                .any(|subscriber| Weak::ptr_eq(subscriber, &memo))
-            {
-                inner.subscribers.push(memo);
+            // The list is borrowed only here and while a change collects
+            // the subscribers to notify, never across a callback; a read
+            // during that collection would find it busy and is skipped.
+            if let Ok(mut subscribers) = self.subscribers.try_borrow_mut() {
+                if !subscribers
+                    .iter()
+                    .any(|subscriber| Weak::ptr_eq(subscriber, &memo))
+                {
+                    subscribers.push(memo);
+                }
             }
         }
         if let Some(runtime) = self.runtime.as_ref().and_then(Weak::upgrade) {
             runtime.track_signal(self.id);
         }
+    }
+
+    /// The subscribers still alive, with the dropped ones taken off the list.
+    fn live_subscribers(&self) -> Vec<Rc<RefCell<dyn Subscriber>>> {
+        let mut subscribers = self.subscribers.borrow_mut();
+        subscribers.retain(|weak| weak.strong_count() > 0);
+        subscribers.iter().filter_map(Weak::upgrade).collect()
     }
 
     /// Run the effects of the signal's runtime whose last run read it
@@ -136,30 +151,17 @@ impl<T> Signal<T> {
     where
         T: PartialEq,
     {
-        // Collect subscribers and wakers while holding the lock, then notify after releasing
+        // Change the value and collect the wakers while holding the lock, then notify after releasing
         let (should_notify, subscribers_to_notify, wakers_to_wake) = {
             let mut inner = self.inner.borrow_mut();
             if inner.value != value {
                 inner.value = value;
                 inner.version += 1;
 
-                // Collect valid subscribers
-                let mut valid_subscribers = Vec::new();
-                let mut new_subscribers = Vec::new();
-
-                for weak in inner.subscribers.drain(..) {
-                    if let Some(subscriber) = weak.upgrade() {
-                        valid_subscribers.push(subscriber);
-                        new_subscribers.push(weak);
-                    }
-                }
-
-                inner.subscribers = new_subscribers;
-
                 // Collect wakers
                 let wakers = inner.wakers.drain(..).collect::<Vec<_>>();
 
-                (true, valid_subscribers, wakers)
+                (true, self.live_subscribers(), wakers)
             } else {
                 (false, Vec::new(), Vec::new())
             }
@@ -189,7 +191,7 @@ impl<T> Signal<T> {
     where
         T: PartialEq + Clone,
     {
-        // Collect subscribers and wakers while holding the lock, then notify after releasing
+        // Change the value and collect the wakers while holding the lock, then notify after releasing
         let (should_notify, subscribers_to_notify, wakers_to_wake) = {
             let mut inner = self.inner.borrow_mut();
             let old_value = inner.value.clone();
@@ -198,23 +200,10 @@ impl<T> Signal<T> {
             if inner.value != old_value {
                 inner.version += 1;
 
-                // Collect valid subscribers
-                let mut valid_subscribers = Vec::new();
-                let mut new_subscribers = Vec::new();
-
-                for weak in inner.subscribers.drain(..) {
-                    if let Some(subscriber) = weak.upgrade() {
-                        valid_subscribers.push(subscriber);
-                        new_subscribers.push(weak);
-                    }
-                }
-
-                inner.subscribers = new_subscribers;
-
                 // Collect wakers
                 let wakers = inner.wakers.drain(..).collect::<Vec<_>>();
 
-                (true, valid_subscribers, wakers)
+                (true, self.live_subscribers(), wakers)
             } else {
                 (false, Vec::new(), Vec::new())
             }
@@ -246,7 +235,7 @@ impl<T> Signal<T> {
 
     /// Subscribe to changes in this signal
     pub fn subscribe(&self, subscriber: Weak<RefCell<dyn Subscriber>>) {
-        self.inner.borrow_mut().subscribers.push(subscriber);
+        self.subscribers.borrow_mut().push(subscriber);
     }
 
     /// Register a waker to be notified on changes
@@ -275,6 +264,7 @@ impl<T> Clone for Signal<T> {
         Self {
             id: self.id,
             inner: Rc::clone(&self.inner),
+            subscribers: Rc::clone(&self.subscribers),
             app_subscribers: Rc::clone(&self.app_subscribers),
             runtime: self.runtime.clone(),
         }
@@ -351,14 +341,36 @@ impl<T> Clone for WriteSignal<T> {
 }
 
 /// What a memo knows between computations: whether a `Signal` its last
-/// computation read has changed since (SIG-003).
+/// computation read has changed since, and which memos read its value, to
+/// mark stale in turn (SIG-003).
 struct MemoState {
     stale: bool,
+    /// The subscribers of the memo's own signal: the memos that read it.
+    dependents: Weak<SubscriberList>,
 }
 
 impl Subscriber for MemoState {
-    fn notify(&mut self, _: SignalId) {
+    fn notify(&mut self, signal_id: SignalId) {
+        if self.stale {
+            // The dependents were marked when this memo was, and stay stale
+            // until they compute again, which reads this memo.
+            return;
+        }
         self.stale = true;
+        // A memo that read this one holds a value computed from the old
+        // value: stale too, through any number of memos (SIG-003).
+        let dependents: Vec<_> = match self.dependents.upgrade() {
+            Some(dependents) => match dependents.try_borrow() {
+                Ok(dependents) => dependents.clone(),
+                Err(_) => return,
+            },
+            None => return,
+        };
+        for dependent in dependents.iter().filter_map(Weak::upgrade) {
+            if let Ok(mut dependent) = dependent.try_borrow_mut() {
+                dependent.notify(signal_id);
+            }
+        }
     }
 }
 
@@ -379,10 +391,15 @@ impl<T> Memo<T> {
     where
         T: Clone + PartialEq + 'static,
     {
-        let state = Rc::new(RefCell::new(MemoState { stale: false }));
+        let state = Rc::new(RefCell::new(MemoState {
+            stale: false,
+            dependents: Weak::new(),
+        }));
         let initial = Self::computing(&state, &compute);
+        let signal = Signal::new(initial);
+        state.borrow_mut().dependents = Rc::downgrade(&signal.subscribers);
         Self {
-            signal: Signal::new(initial),
+            signal,
             compute: Rc::new(RefCell::new(Box::new(compute))),
             dependencies: Rc::new(RefCell::new(HashSet::new())),
             state,
@@ -411,10 +428,12 @@ impl<T> Memo<T> {
     where
         T: PartialEq,
     {
-        self.state.borrow_mut().stale = false;
         let compute = self.compute.borrow();
         let new_value = Self::computing(&self.state, &**compute);
         drop(compute);
+        // Fresh now: the computation read the current values, even where a
+        // memo it read computed again on the way and marked this one stale.
+        self.state.borrow_mut().stale = false;
         self.signal.set(new_value);
     }
 
