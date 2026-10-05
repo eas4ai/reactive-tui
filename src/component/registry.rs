@@ -11,6 +11,8 @@ use std::time::{Duration, Instant};
 use string_cache::DefaultAtom;
 
 type ComponentFactory = Arc<dyn Fn(&dyn std::any::Any) -> AnyComponentInstance + Send + Sync>;
+pub(crate) type RegistrationOwner =
+    std::sync::Weak<RwLock<super::tracked_instance::TrackedComponentInstance>>;
 
 /// Registry for component types, allowing dynamic component creation with automatic memory management
 pub struct ComponentRegistry {
@@ -252,8 +254,16 @@ impl ComponentRegistry {
     pub fn register_instance(
         &self,
         node_key: NodeKey,
-        mut instance: AnyComponentInstance,
+        instance: AnyComponentInstance,
     ) -> Result<()> {
+        self.register_owned_instance(node_key, instance).map(|_| ())
+    }
+
+    fn register_owned_instance(
+        &self,
+        node_key: NodeKey,
+        mut instance: AnyComponentInstance,
+    ) -> Result<RegistrationOwner> {
         let start = Instant::now();
 
         // Call mount lifecycle event before wrapping
@@ -266,6 +276,7 @@ impl ComponentRegistry {
             Arc::new(self.clone()), // Retained constructor argument for API compatibility
         );
 
+        let owner = Arc::downgrade(&tracked);
         let replaced = self
             .active_instances
             .write()
@@ -277,7 +288,7 @@ impl ComponentRegistry {
             .map_err(|_| ReactiveError::internal("Component registry statistics lock poisoned"))?
             .record_creation(start.elapsed());
         self.dispose_instances(replaced)?;
-        Ok(())
+        Ok(owner)
     }
 
     /// Register a component instance with CSS animation support
@@ -287,6 +298,16 @@ impl ComponentRegistry {
         instance: AnyComponentInstance,
         element: &crate::component::Element,
     ) -> Result<()> {
+        self.register_owned_instance_with_element(node_key, instance, element)
+            .map(|_| ())
+    }
+
+    pub(crate) fn register_owned_instance_with_element(
+        &self,
+        node_key: NodeKey,
+        instance: AnyComponentInstance,
+        element: &crate::component::Element,
+    ) -> Result<RegistrationOwner> {
         // Extract CSS animations from the element's class string
         if let Some(class_str) = &element.class {
             let animations =
@@ -307,7 +328,31 @@ impl ComponentRegistry {
             }
         }
 
-        self.register_instance(node_key, instance)
+        self.register_owned_instance(node_key, instance)
+    }
+
+    pub(crate) fn unregister_owned_instance(
+        &self,
+        node_key: &NodeKey,
+        owner: &RegistrationOwner,
+    ) -> Result<()> {
+        let removed = {
+            let mut instances = self
+                .active_instances
+                .write()
+                .map_err(|_| ReactiveError::internal("Component registry lock poisoned"))?;
+            // An older tree cannot remove the replacement at its key (CMP-001).
+            if instances
+                .get(node_key)
+                .is_some_and(|instance| std::sync::Weak::ptr_eq(owner, &Arc::downgrade(instance)))
+            {
+                instances.remove(node_key)
+            } else {
+                None
+            }
+        };
+        self.dispose_instances(removed)?;
+        Ok(())
     }
 
     /// Unregister and cleanup a component instance

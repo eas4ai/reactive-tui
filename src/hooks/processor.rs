@@ -413,6 +413,16 @@ impl MouseEventProcessor {
     }
 
     fn handle_mouse_move(&self, event: &MouseEvent, component_id: Option<&str>) {
+        // Motion alone ends the previous owner's position membership (CMP-004).
+        let previous = self.hovered_component.lock().unwrap().clone();
+        if previous.as_deref() != component_id {
+            if let Some(signal) = previous
+                .as_ref()
+                .and_then(|id| self.position_states.lock().unwrap().get(id).cloned())
+            {
+                signal.update(|state| state.is_inside = false);
+            }
+        }
         // Update position states for components
         if let Some(id) = component_id {
             if let Some(signal) = self.position_states.lock().unwrap().get(id) {

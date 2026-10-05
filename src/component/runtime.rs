@@ -6,7 +6,25 @@ use super::{
 use crate::error::{ReactiveError, Result};
 use crate::reactive::component_scope::ComponentScope;
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::task::{Context, Wake, Waker};
+
+struct ChangeWake {
+    pending: AtomicBool,
+    app: Mutex<crate::reactive::wake::AppWaker>,
+}
+
+impl Wake for ChangeWake {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.pending.store(true, Ordering::Release);
+        self.app.lock().unwrap().request_redraw();
+    }
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Segment {
@@ -43,6 +61,7 @@ struct LiveComponent {
     instance: Arc<Mutex<AnyComponentInstance>>,
     scope: Arc<ComponentScope>,
     bounds: Arc<Mutex<Option<super::LayoutInfo>>>,
+    change: Arc<ChangeWake>,
 }
 
 #[derive(Default)]
@@ -52,9 +71,29 @@ pub(crate) struct ComponentRuntime {
     radio_groups: Arc<crate::widgets::input::named_radio::RadioGroups>,
     pub(crate) anchors: Arc<super::anchors::Anchors>,
     mouse: crate::hooks::processor::MouseEventProcessor,
+    wake: crate::reactive::wake::AppWaker,
 }
 
 impl ComponentRuntime {
+    pub(crate) fn poll_changes(&mut self, wake: &crate::reactive::wake::AppWaker) -> Result<bool> {
+        self.wake = wake.clone();
+        let mut changed = false;
+        for live in self.instances.values() {
+            *live.change.app.lock().unwrap() = wake.clone();
+            if live.change.pending.swap(false, Ordering::AcqRel) {
+                let _binding = live.scope.enter(false);
+                let waker = Waker::from(live.change.clone());
+                changed |= live
+                    .instance
+                    .lock()
+                    .map_err(|_| ReactiveError::invalid_state("component instance lock poisoned"))?
+                    .poll_change(&mut Context::from_waker(&waker))
+                    .is_ready();
+            }
+        }
+        Ok(changed)
+    }
+
     pub(crate) fn resolve(&mut self, element: Element) -> Result<Element> {
         self.anchors.begin_render();
         assert!(
@@ -153,6 +192,10 @@ impl ComponentRuntime {
                         scope: scope.clone(),
                         bounds: Arc::new(Mutex::new(None)),
                         route_id,
+                        change: Arc::new(ChangeWake {
+                            pending: AtomicBool::new(true),
+                            app: Mutex::new(self.wake.clone()),
+                        }),
                     },
                 );
             }
@@ -190,6 +233,11 @@ impl ComponentRuntime {
                 .lock()
                 .map_err(|_| ReactiveError::invalid_state("component instance lock poisoned"))?;
             instance.update_shared(&element.props);
+            // Mount polls once; later polls follow this instance's waker (CMP-002).
+            if live.change.pending.swap(false, Ordering::AcqRel) {
+                let waker = Waker::from(live.change.clone());
+                let _ = instance.poll_change(&mut Context::from_waker(&waker));
+            }
             instance.try_render()?
         };
         let (events, layout) = live.handlers();

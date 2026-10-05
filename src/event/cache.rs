@@ -6,6 +6,7 @@ use super::router::{EventHandler, EventPhase, EventResult, NodeId};
 use super::types::Event;
 use lru::LruCache;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
@@ -79,14 +80,16 @@ impl HandlerChain {
             self.needs_sort = false;
         }
 
+        let mut result = EventResult::Ignored;
         for handler in &self.handlers {
             match (handler.handler)(event) {
                 EventResult::Consumed => return EventResult::Consumed,
-                EventResult::Captured | EventResult::Handled | EventResult::Ignored => {}
+                EventResult::Captured | EventResult::Handled => result = EventResult::Handled,
+                EventResult::Ignored => {}
             }
         }
 
-        EventResult::Ignored
+        result
     }
 }
 
@@ -153,12 +156,10 @@ impl PathCache {
     }
 }
 
-/// Handler lookup table using dense indexing
+/// Handler chains indexed by the complete node, event and phase key.
 pub struct HandlerLookup {
-    // Dense array indexed by (node_id.0 % BUCKET_SIZE, event_discriminant, phase)
-    // This gives O(1) lookup for most cases
-    buckets: Vec<Option<Arc<HandlerChain>>>,
-    bucket_size: usize,
+    // Distinct node ids must never share a slot (CMP-006).
+    chains: HashMap<(NodeId, EventDiscriminant, usize), Arc<HandlerChain>>,
 }
 
 impl Default for HandlerLookup {
@@ -168,32 +169,27 @@ impl Default for HandlerLookup {
 }
 
 impl HandlerLookup {
-    const BUCKET_SIZE: usize = 256; // Tune based on typical node count
-    const EVENTS_COUNT: usize = 6;
-    const PHASES_COUNT: usize = 3;
-
     /// Create a new handler lookup table
     pub fn new() -> Self {
-        let total_buckets = Self::BUCKET_SIZE * Self::EVENTS_COUNT * Self::PHASES_COUNT;
         Self {
-            buckets: vec![None; total_buckets],
-            bucket_size: Self::BUCKET_SIZE,
+            chains: HashMap::new(),
         }
     }
 
     #[inline(always)]
-    fn index(&self, node_id: NodeId, event: EventDiscriminant, phase: EventPhase) -> usize {
-        let node_bucket = node_id.0 % self.bucket_size;
-        let event_offset = event as usize;
-        let phase_offset = match phase {
+    fn index(
+        &self,
+        node_id: NodeId,
+        event: EventDiscriminant,
+        phase: EventPhase,
+    ) -> (NodeId, EventDiscriminant, usize) {
+        let phase = match phase {
             EventPhase::Capture => 0,
             EventPhase::Target => 1,
             EventPhase::Bubble => 2,
         };
 
-        node_bucket * Self::EVENTS_COUNT * Self::PHASES_COUNT
-            + event_offset * Self::PHASES_COUNT
-            + phase_offset
+        (node_id, event, phase)
     }
 
     /// Get handler chain for a specific node, event type, and phase
@@ -204,7 +200,7 @@ impl HandlerLookup {
         phase: EventPhase,
     ) -> Option<&Arc<HandlerChain>> {
         let idx = self.index(node_id, event, phase);
-        self.buckets[idx].as_ref()
+        self.chains.get(&idx)
     }
 
     /// Insert a handler chain for a specific node, event type, and phase
@@ -216,7 +212,7 @@ impl HandlerLookup {
         chain: Arc<HandlerChain>,
     ) {
         let idx = self.index(node_id, event, phase);
-        self.buckets[idx] = Some(chain);
+        self.chains.insert(idx, chain);
     }
 }
 

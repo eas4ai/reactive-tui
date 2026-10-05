@@ -56,6 +56,7 @@ impl ScreenRuntime {
         self.scheduler.process_updates();
         self.scheduler.run_ready_timers();
         crate::hooks::animation::update_hook_animations();
+        self.components.poll_changes(&self.wake)?;
         let mut element = self.components.resolve(element)?;
         crate::component::bridge::resolve_viewport_styles(&mut element, width)?;
         crate::accessibility::style::prepare(&mut element)?;
@@ -159,9 +160,19 @@ impl ScreenRuntime {
         let _scope = self.scope.enter(false);
         let notifications = crate::event::notifications::Dispatch::enter();
         let before = (self.router.get_focus(), self.router.hovered_node());
+        // Screen hooks use the component under the presented pointer (CMP-003).
+        if let Event::Mouse(mouse) = event {
+            let target = self.router.target_under_pointer(event);
+            let component = self.events.innermost_component(target);
+            self.components.process_mouse_event(component, mouse);
+        }
         let mut handled = self.router.process_event(event) != EventResult::Ignored;
         // A release over the pressed element makes a click, delivered next (INP-004).
         if let Some(click) = self.router.take_click() {
+            let event = Event::Mouse(click.clone());
+            let target = self.router.target_under_pointer(&event);
+            let component = self.events.innermost_component(target);
+            self.components.process_mouse_event(component, &click);
             handled |= self.router.process_event(&Event::Mouse(click)) != EventResult::Ignored;
         }
         handled |= before != (self.router.get_focus(), self.router.hovered_node());
@@ -169,7 +180,8 @@ impl ScreenRuntime {
             handled |=
                 self.router.process_event(&Event::Custom(notification)) != EventResult::Ignored;
         }
-        handled
+        // Mouse hooks can change even when no routed handler handles input (CMP-003).
+        handled || matches!(event, Event::Mouse(_)) || self.wake.is_pending()
     }
 }
 

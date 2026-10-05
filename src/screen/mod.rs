@@ -1,7 +1,7 @@
 use crate::component::Element;
 use crate::reactive::runtime::RuntimeContext;
 use crate::render::reconcile::{PatchOp, Reconciler};
-use crate::render::tree::{element_to_render_node, RenderTree};
+use crate::render::tree::{resolved_element_to_render_node, RenderTree};
 use std::time::{Duration, Instant};
 
 mod composition;
@@ -113,7 +113,8 @@ impl Screen {
         self.root_element = Some(element.clone());
 
         // Convert element to render tree
-        let root_node = element_to_render_node(element);
+        // Bookkeeping does not mount another instance of screen components (CMP-001).
+        let root_node = resolved_element_to_render_node(element);
         let mut new_tree = RenderTree::new();
         new_tree.set_root(root_node);
 
@@ -158,7 +159,7 @@ impl Screen {
     /// Get patches generated since the last render
     pub fn get_patches_since_last_render(&mut self) -> Vec<PatchOp> {
         if let Some(ref element) = self.root_element.clone() {
-            let root_node = element_to_render_node(element.clone());
+            let root_node = resolved_element_to_render_node(element.clone());
             let mut new_tree = RenderTree::new();
             new_tree.set_root(root_node);
 

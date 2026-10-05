@@ -203,6 +203,12 @@ impl AnyComponentInstance {
         self.inner.try_render_any()
     }
 
+    pub(crate) fn poll_change(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        // SAFETY: inner stays in its Box until drop; no method replaces or moves
+        // its allocation or the structurally pinned component field (CMP-002).
+        unsafe { Pin::new_unchecked(self.inner.as_mut()) }.poll_change_any(cx)
+    }
+
     /// Deliver input to the retained typed instance.
     pub fn handle_event(
         &mut self,
@@ -298,43 +304,10 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
         self.0.layout(bounds)
     }
 
-    fn poll_change_any(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        // Enhanced safety implementation with runtime checks
-
-        // First, verify pin stability with a simple pointer check
-        let self_ptr = self.as_ref().get_ref() as *const ComponentInstanceWrapper<C>;
-        let self_mut_ptr = self.as_ref().get_ref() as *const ComponentInstanceWrapper<C>;
-
-        if self_ptr != self_mut_ptr {
-            // Pin stability check failed - this should never happen but provides safety
-            log::error!(
-                "Pin stability check failed in poll_change_any - potential memory safety issue"
-            );
-            return Poll::Pending;
-        }
-
-        // SAFETY:
-        // - ComponentInstanceWrapper is pinned by the caller when this method is invoked.
-        // - We've verified pointer stability above as an additional safety check.
-        // - We project the pin to the inner component field and promise not to move it
-        //   while pinned. Component::poll_change requires a pinned receiver when needed.
-        // - This wrapper type does not move the inner component after being pinned.
-        // - The component field is at a fixed offset within the wrapper struct.
-        unsafe {
-            let wrapper = self.as_mut().get_unchecked_mut();
-            let component_ptr = &mut wrapper.0.component as *mut C;
-
-            // Additional safety: verify the component pointer is aligned and non-null
-            if component_ptr.is_null()
-                || !(component_ptr as usize).is_multiple_of(std::mem::align_of::<C>())
-            {
-                log::error!("Invalid component pointer in poll_change_any");
-                return Poll::Pending;
-            }
-
-            // Project the pin safely to the component
-            Pin::new_unchecked(&mut *component_ptr).poll_change(cx)
-        }
+    fn poll_change_any(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        // SAFETY: pinning the wrapper structurally pins its component field;
+        // no wrapper method or destructor moves that field before drop (CMP-002).
+        unsafe { self.map_unchecked_mut(|wrapper| &mut wrapper.0.component) }.poll_change(cx)
     }
 
     fn on_lifecycle_any(&mut self, event: LifecycleEvent) {

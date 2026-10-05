@@ -235,6 +235,7 @@ impl App {
                 break;
             }
             dirty |= requests.redraw;
+            dirty |= self.components.poll_changes(&self.wake)?;
             dirty |= self.updaters.dispatch()?;
             if let Some(mode) = self.performance.take_request() {
                 if mode != self.fps_manager.performance_mode() {
