@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: review-core-findings
+Current: review-native-findings
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1448,3 +1448,60 @@ changelog names what changed for an application: the polled components, the
 screens' mouse hooks, the variants that now wait for their condition, the
 effects' `Fn` bound, the removed component table and the hook animations'
 pause, spring and loops.
+
+## review-native-findings
+
+Requirements: ANI-001, ANI-002, ANI-003, ANI-004, ANI-005, ANI-006, ANI-007, ANI-008, ANI-009, TXT-001, TXT-002, TXT-003, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The third commitment cut from the next-feature item
+review-2026-10-04-remediation (2e1476c7), the developer's production code
+review of 2026-10-04 over the tree at 65e618ec. On 2026-10-05 the developer
+chose the review's remaining findings over the two waiting backlog items,
+windows-startup-queries and syntax-editor-loses-multiline-context, which
+wait until this commitment's Done (escalation 78ac0232, answer 576ccba1),
+and confirmed the twelve requirements with the choices they carry: the
+alternate animation drivers are removed rather than repaired, `update`
+reports whether the animation is still active, a repeated explicit id
+replaces the earlier animation and the documentation says so, and a
+Markdown table's cells are aligned and padded along with its separator.
+Each of the fourteen findings was checked against the code at 2e58a739
+before the requirements were drafted and holds, N09 and N13 in part: N03 a
+reversed animation stops (ANI-001); N04 a parallel timeline completes while
+its animations wait and `update` returns true on the completing frame
+(ANI-002); N05 the loop callback and `auto_reverse` live in dead helpers
+(ANI-003); N06 stale cleanup removes an animation updated every frame
+(ANI-004); N07 two animations made in one millisecond share an id
+(ANI-005); N08, N09 and N10 the interpolation cache, the optimized batch
+and the lock-free state give wrong values and lose updates, and nothing
+uses them (ANI-006); N11 a stagger over a 200-cell grid overflows
+(ANI-007); N23 a spring's configured velocity moves it the wrong way
+(ANI-008); N24 a spring-eased animation completes short of its target
+(ANI-009); N12 the syntax editor paints each line without the document's
+context (TXT-001, which also delivers the backlog item
+syntax-editor-loses-multiline-context, to retire at Done); N13 the
+highlighter re-parses on every call and the byte limits guard only the
+checked entry points (TXT-002); N21 a Markdown table's header is followed
+by a bare `├` (TXT-003).
+
+Delivered here: the animation module's playback agrees with its states and
+its documentation, its timelines complete when their animations do, its
+loops run their callbacks and alternate when asked, its manager keeps what
+is advancing and names what it makes uniquely, and its two unused drivers
+are gone; stagger delays cannot overflow; the spring's analytic velocity is
+the derivative of its position and a spring easing reaches its target; the
+syntax editor paints with the document's context and the highlighter
+parses once per change, with the byte limits at every entry point; and a
+Markdown table is drawn from its columns. The review-native mechanism
+(scripts/cairn/review_native.py, tests/review_native.rs and unit tests
+named by requirement in the modules whose private parts they need) checks
+every new requirement on the Linux host. The review's other findings, the
+C facade (N14 to N20, N22), the terminal and platform code (T02 to T17, four
+of them risks) and the widgets (W03, W05 to W08), stay in the next-feature
+item for later commitments by subsystem.
+
+Done when every named requirement passes; review-native has recorded a
+fail on the tree as it was at the start for each new requirement; and the
+changelog names what changed for an application: reversal, timelines, loop
+callbacks and `auto_reverse`, stale cleanup, generated ids, the removed
+drivers, stagger delays, the spring's velocity and easing, the editor's
+highlighting, the highlighter's reuse and limits, and Markdown tables.
