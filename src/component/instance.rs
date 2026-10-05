@@ -204,9 +204,7 @@ impl AnyComponentInstance {
     }
 
     pub(crate) fn poll_change(&mut self, cx: &mut Context<'_>) -> Poll<()> {
-        // SAFETY: inner stays in its Box until drop; no method replaces or moves
-        // its allocation or the structurally pinned component field (CMP-002).
-        unsafe { Pin::new_unchecked(self.inner.as_mut()) }.poll_change_any(cx)
+        self.inner.poll_change_any(cx)
     }
 
     /// Deliver input to the retained typed instance.
@@ -304,10 +302,12 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
         self.0.layout(bounds)
     }
 
-    fn poll_change_any(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        // SAFETY: pinning the wrapper structurally pins its component field;
-        // no wrapper method or destructor moves that field before drop (CMP-002).
-        unsafe { self.map_unchecked_mut(|wrapper| &mut wrapper.0.component) }.poll_change(cx)
+    fn poll_change_any(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        // Pinning the component field for the poll is sound because
+        // `Component: Unpin`: `Pin::new` needs no unsafe, and the `&mut`
+        // every other method takes to the component, which may move it, can
+        // break no pin guarantee an `Unpin` type never had (CMP-002).
+        Pin::new(&mut self.0.component).poll_change(cx)
     }
 
     fn on_lifecycle_any(&mut self, event: LifecycleEvent) {

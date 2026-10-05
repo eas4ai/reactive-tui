@@ -16,7 +16,7 @@ pub struct RadioButtonBuilder<T: Clone + PartialEq + Send + Sync + 'static> {
     orientation: RadioOrientation,
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Default for RadioButtonBuilder<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Default for RadioButtonBuilder<T> {
     fn default() -> Self {
         Self {
             options: Vec::new(),
@@ -28,7 +28,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Default for RadioButtonBuilde
     }
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButtonBuilder<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> RadioButtonBuilder<T> {
     /// Create a new RadioButtonBuilder
     pub fn new() -> Self {
         Self::default()
@@ -137,7 +137,7 @@ pub struct RadioButtonProps<T: Clone + PartialEq + Send + Sync + 'static> {
     pub orientation: RadioOrientation,
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Default for RadioButtonProps<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Default for RadioButtonProps<T> {
     fn default() -> Self {
         Self {
             options: Vec::new(),
@@ -149,7 +149,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Default for RadioButtonProps<
     }
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Props for RadioButtonProps<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Props for RadioButtonProps<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -171,7 +171,7 @@ pub struct RadioButton<T: Clone + PartialEq + Send + Sync + 'static> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> RadioButton<T> {
     /// Set the onChange callback for when selection changes
     pub fn with_on_change(mut self, f: impl Fn(T) + Send + Sync + 'static) -> Self {
         self.on_change = Some(Arc::new(f));
@@ -179,7 +179,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
     }
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Component for RadioButton<T> {
     type Props = RadioButtonProps<T>;
     type State = RadioButtonState;
 
@@ -320,7 +320,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for RadioButton<T> 
     }
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> RadioButton<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> RadioButton<T> {
     /// One option as a row: its circle `( )` is the frame, `border` or
     /// `ring` while it holds the focus, the dot of the chosen one
     /// `primary`, its label `foreground` or `text-muted` when disabled,
