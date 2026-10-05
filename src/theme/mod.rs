@@ -55,6 +55,28 @@ pub struct Theme {
     pub extends: Option<Box<Theme>>,
 }
 
+/// How following a variable's value from name to name ended (THM-004).
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Followed {
+    /// At a color.
+    Color((f32, f32, f32, f32)),
+    /// At a name no theme defines, for which a role may stand in with its
+    /// fallback.
+    Undefined,
+    /// Back at a name already followed, or past [`Theme::MOST_FOLLOWED`]
+    /// names: the whole chain is one no theme defines.
+    Rejected,
+}
+
+impl Followed {
+    fn color(self) -> Option<(f32, f32, f32, f32)> {
+        match self {
+            Followed::Color(color) => Some(color),
+            Followed::Undefined | Followed::Rejected => None,
+        }
+    }
+}
+
 impl Theme {
     /// Create a new theme with the given name
     pub fn new(name: impl Into<String>) -> Self {
@@ -126,57 +148,68 @@ impl Theme {
     /// The color this theme, or a theme it extends, gives the variable
     /// that `token` names.
     fn defined(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
-        self.defined_following(token, &mut Vec::new())
+        self.defined_following(token, &mut Vec::new()).color()
     }
 
     /// The most variables one resolution follows from name to name.
     const MOST_FOLLOWED: usize = 32;
 
     /// `defined` along `path`, the variables the resolution has followed to
-    /// reach `token`: a variable already on it, or a path of
-    /// [`Self::MOST_FOLLOWED`] names, is one no theme defines, so a cycle
-    /// of names ends and its roles take their fallbacks (THM-004).
-    fn defined_following(
-        &self,
-        token: &str,
-        path: &mut Vec<String>,
-    ) -> Option<(f32, f32, f32, f32)> {
+    /// reach `token`. A value that names another variable gives that
+    /// variable's color, a role the theme leaves out standing in with its
+    /// fallback; a variable already on the path, or one past
+    /// [`Self::MOST_FOLLOWED`] names, rejects the whole chain, so no role on
+    /// the way stands in for it (THM-004).
+    fn defined_following(&self, token: &str, path: &mut Vec<String>) -> Followed {
         let variable = Self::color_variable(token);
         if path.contains(&variable) || path.len() >= Self::MOST_FOLLOWED {
-            return None;
+            return Followed::Rejected;
         }
-        let value = self.get_variable(&variable)?;
+        let Some(value) = self.get_variable(&variable) else {
+            return Followed::Undefined;
+        };
         if let Some(color) = crate::layout::colors::parse_color_literal(&value) {
-            return Some(color);
-        }
-        if value == token {
-            return None;
+            return Followed::Color(color);
         }
         path.push(variable);
-        let resolved = self.resolve_following(&value, path);
+        let followed = match self.defined_following(&value, path) {
+            Followed::Undefined => self.role_fallback(&value, path),
+            followed => followed,
+        };
         path.pop();
-        resolved
+        followed
+    }
+
+    /// The color THM-002 gives the role `token` names, along `path`; any
+    /// other name is undefined.
+    fn role_fallback(&self, token: &str, path: &mut Vec<String>) -> Followed {
+        Self::color_variable(token)
+            .strip_prefix("--color-")
+            .and_then(|role| self.fallback(role, path))
+            .map_or(Followed::Undefined, Followed::Color)
     }
 
     /// Resolve a token that names one of this theme's color variables. A
     /// color role (THM-001) that the theme leaves out still resolves, to
     /// the color THM-002 gives it; any other name the theme does not
-    /// define resolves to nothing. Names that lead back to one another
-    /// resolve as names no theme defines (THM-004).
+    /// define resolves to nothing. Names that lead back to one another, or
+    /// past 32 names, resolve as names no theme defines (THM-004).
     pub fn resolve_variable(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
         self.resolve_following(token, &mut Vec::new())
     }
 
-    /// `resolve_variable` along `path` (THM-004).
+    /// `resolve_variable` along `path`: the token's own chain, or, where
+    /// that is undefined or rejected, the fallback of the role the token
+    /// names (THM-004).
     fn resolve_following(
         &self,
         token: &str,
         path: &mut Vec<String>,
     ) -> Option<(f32, f32, f32, f32)> {
-        self.defined_following(token, path).or_else(|| {
-            let variable = Self::color_variable(token);
-            self.fallback(variable.strip_prefix("--color-")?, path)
-        })
+        match self.defined_following(token, path) {
+            Followed::Color(color) => Some(color),
+            Followed::Undefined | Followed::Rejected => self.role_fallback(token, path).color(),
+        }
     }
 
     /// The one color resolver (CHT-017): a theme variable name such as

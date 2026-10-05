@@ -469,6 +469,30 @@ mod thm_004 {
             Theme::new("chain").with_variables(variables)
         };
         let (long32, long33) = (chain(32), chain(33));
+        // A cycle through a role and a plain name, and plain names leading
+        // to a role, 31 of them and 32: a rejected chain is one no theme
+        // defines as a whole, so no role on the way gives it a fallback.
+        let mixed = Theme::new("mixed").with_variables(
+            ThemeVariables::new()
+                .set("--color-a", "input")
+                .set("--color-input", "a")
+                .set("--color-b", "hover")
+                .set("--color-hover", "hover")
+                .set("--color-surface", "#123456"),
+        );
+        let to_primary = |names: usize| {
+            let mut variables = ThemeVariables::new();
+            for at in 0..names {
+                let value = if at + 1 == names {
+                    "primary".to_owned()
+                } else {
+                    format!("p{}", at + 1)
+                };
+                variables = variables.set(format!("--color-p{at}"), value);
+            }
+            Theme::new("to-primary").with_variables(variables)
+        };
+        let (primary31, primary32) = (to_primary(31), to_primary(32));
         // A cycle split between a theme and the theme it extends.
         let base = Theme::new("base").with_variables(
             ThemeVariables::new()
@@ -523,6 +547,39 @@ mod thm_004 {
             extending.resolve_color("input"),
             extending_surface,
             "THM-004: the role `input` in a cycle through an extended theme takes its fallback, its surface"
+        );
+        assert_eq!(
+            mixed.resolve_color("a"),
+            None,
+            "THM-004: a plain name in a cycle through a role resolves to nothing, not to the role's fallback"
+        );
+        assert_eq!(
+            mixed.resolve_color("input"),
+            mixed.resolve_color("surface"),
+            "THM-004: the role `input` in a cycle through a plain name takes its own fallback, its surface"
+        );
+        assert_eq!(
+            mixed.resolve_color("b"),
+            None,
+            "THM-004: a plain name leading to a role that names itself resolves to nothing"
+        );
+        assert!(
+            mixed.resolve_color("hover").is_some(),
+            "THM-004: the role `hover` that names itself takes its own fallback"
+        );
+        assert_eq!(
+            primary31.resolve_color("p0"),
+            primary31.resolve_color("primary"),
+            "THM-004: 31 plain names and the role `primary`, 32 names, resolve to the role's color"
+        );
+        assert!(
+            primary31.resolve_color("primary").is_some(),
+            "the role `primary` has its fallback"
+        );
+        assert_eq!(
+            primary32.resolve_color("p0"),
+            None,
+            "THM-004: 32 plain names and the role `primary` pass 32 names and resolve to nothing"
         );
         let elapsed = started.elapsed();
         assert!(
