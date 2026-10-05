@@ -496,9 +496,11 @@ mod tests {
         let expected =
             config.calculate_position(0.5 * config.estimate_duration(0.0, 1.0), 0.0, 1.0);
         assert_eq!(easing.apply(0.5), expected);
+        // An undamped spring never settles and a precision wider than the
+        // motion settles at once; both run over one second instead.
         for config in [
             SpringConfig::new(1.0, 1.0, 0.0),
-            SpringConfig::new(1.0, 1.0, 2.0).with_precision(2.0),
+            SpringConfig::new(1.0, 1.0, 2.0).with_precision(4.0),
         ] {
             let easing = EasingFunction::Spring(config.clone());
             assert_eq!(easing.apply(0.5), config.calculate_position(0.5, 0.0, 1.0));

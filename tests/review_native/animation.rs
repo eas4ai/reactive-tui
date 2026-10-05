@@ -474,3 +474,67 @@ fn ani_009_a_spring_eased_animation_ends_at_its_target() {
         "ANI-009: the spring animation completed at opacity {value} instead of 1"
     );
 }
+#[test]
+fn ani_008_a_positive_velocity_moves_a_descending_spring_toward_its_target() {
+    for damping in [10.0_f32, 20.0, 50.0] {
+        let spring = SpringConfig::new(1.0, 100.0, damping).with_velocity(1.0);
+        let still = SpringConfig::new(1.0, 100.0, damping);
+        let moved = spring.calculate_position(0.001, 1.0, 0.0);
+        let rested = still.calculate_position(0.001, 1.0, 0.0);
+        assert!(
+            moved < rested,
+            "ANI-008: damping {damping}: from 1 to 0, a positive velocity left the spring at {moved}, farther from 0 than {rested} at rest"
+        );
+        let slope = (moved - spring.calculate_position(0.0, 1.0, 0.0)) / 0.001;
+        let velocity = spring.calculate_velocity(0.0, 1.0, 0.0);
+        assert!(
+            (slope - velocity).abs() < 0.1,
+            "ANI-008: damping {damping}: from 1 to 0, the position's initial slope {slope} disagrees with calculate_velocity {velocity}"
+        );
+    }
+}
+
+#[test]
+fn ani_008_a_displacement_below_precision_still_moves_by_its_velocity() {
+    for damping in [10.0_f32, 20.0, 50.0] {
+        let spring = SpringConfig::new(1.0, 100.0, damping).with_velocity(1.0);
+        let (from, to) = (0.0, 0.005);
+        let early = spring.calculate_position(0.0005, from, to);
+        assert!(
+            early > 0.0 && early < to,
+            "ANI-008: damping {damping}: half a millisecond into a displacement of 0.005, the position is {early}, not between 0 and 0.005"
+        );
+        let slope = (spring.calculate_position(0.001, from, to)
+            - spring.calculate_position(0.0, from, to))
+            / 0.001;
+        let velocity = spring.calculate_velocity(0.0, from, to);
+        assert!(
+            (slope - velocity).abs() < 0.1,
+            "ANI-008: damping {damping}: over a displacement of 0.005 the position's initial slope {slope} disagrees with calculate_velocity {velocity}"
+        );
+    }
+}
+
+
+#[test]
+fn ani_009_the_spring_has_settled_at_full_progress() {
+    for config in [
+        SpringConfig::new(1.0, 1.0, 50.0),
+        SpringConfig::new(1.0, 1.0, 2.0),
+        SpringConfig::new(1.0, 100.0, 10.0),
+        SpringConfig::new(1.0, 100.0, 50.0),
+    ] {
+        let settle = config.estimate_duration(0.0, 1.0);
+        assert!(
+            config.is_settled(settle, 0.0, 1.0),
+            "ANI-009: {config:?}: at its estimated settle time of {settle} s the spring is at {} moving at {}, not settled",
+            config.calculate_position(settle, 0.0, 1.0),
+            config.calculate_velocity(settle, 0.0, 1.0)
+        );
+        let near_end = EasingFunction::Spring(config.clone()).apply(0.999);
+        assert!(
+            (near_end - 1.0).abs() < 0.02,
+            "ANI-009: {config:?}: spring easing at progress 0.999 is {near_end}, so the last frame jumps to 1"
+        );
+    }
+}

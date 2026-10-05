@@ -40,11 +40,16 @@ This file records user-visible changes to Reactive TUI. The project follows
   eased or ranged delay becomes zero instead of a panic (ANI-007).
 - `SpringConfig`'s configured `velocity` is the position's initial rate of
   change toward `to`, and `calculate_velocity` is the derivative of
-  `calculate_position` in every damping regime; before, a positive velocity
-  first moved the spring the wrong way (ANI-008).
+  `calculate_position` in every damping regime, for a spring that descends
+  as for one that climbs; before, a positive velocity first moved the spring
+  the wrong way. A displacement smaller than the spring's `precision` moves
+  by the same physics instead of jumping to its target (ANI-008).
 - `EasingFunction::Spring` runs the spring over the animation's duration and
   ends exactly at 1, so a spring-eased `Animation` completes at its target
-  instead of part way (ANI-009).
+  instead of part way. `SpringConfig::estimate_duration` is the time by
+  which the spring has settled within its `precision`, from the decay of its
+  slowest term; before, a heavily damped spring was given a fraction of that
+  time and the easing jumped to 1 on its last frame (ANI-009).
 - `SyntaxEditor` paints every visible line from the whole document's
   highlighting, so a line inside a block comment or a multiline string is
   painted as that comment or string, and an edit anywhere repaints what it
