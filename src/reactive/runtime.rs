@@ -206,18 +206,21 @@ impl ReactiveRuntime {
         });
     }
 
-    /// Comprehensive cleanup of dead effects and references
+    /// Comprehensive cleanup of dead effects and references. A dead effect is
+    /// one that was disposed; a registered effect lives until
+    /// `unregister_effect` or the runtime's drop, however many references
+    /// it has (SIG-004).
     pub fn cleanup_dead_effects(&self) {
         let initial_effects_count;
         let initial_signal_effects_count;
 
-        // Clean up main effects map - remove effects with only one strong reference (ours)
+        // Clean up main effects map - remove the effects that were disposed
         {
             let mut effects = self.effects.borrow_mut();
             initial_effects_count = effects.len();
             let stale = effects
                 .iter()
-                .filter_map(|(id, effect)| (Rc::strong_count(effect) <= 1).then_some(*id))
+                .filter_map(|(id, effect)| effect.is_disposed().then_some(*id))
                 .collect::<Vec<_>>();
             let removed = stale
                 .into_iter()
