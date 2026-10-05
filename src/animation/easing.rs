@@ -52,7 +52,7 @@ pub enum EasingFunction {
     InOutElastic(f32, f32),
 
     // Advanced easing functions
-    /// Spring physics-based easing
+    /// Spring easing that settles over the animation's duration
     Spring(SpringConfig),
     /// Stepped easing with a positive step count.
     /// `true` jumps at zero and each boundary; `false` jumps at interval ends.
@@ -193,7 +193,7 @@ impl EasingFunction {
             Self::Cubic => self.ease_in_out_cubic(t),
             Self::Quart => self.ease_in_out_quart(t),
             Self::Quint => self.ease_in_out_quint(t),
-            Self::Spring(config) => config.calculate_position(t, 0.0, 1.0),
+            Self::Spring(config) => spring_easing(t, config),
             Self::Steps(steps, jump_start) => self.apply_steps(t, *steps, *jump_start),
             Self::LinearPoints(points) => self.apply_linear_points(t, points),
             Self::Irregular(steps, randomness) => self.apply_irregular(t, *steps, *randomness),
@@ -431,6 +431,23 @@ impl EasingFunction {
     }
 }
 
+// ANI-009: scale physical time and land exactly on both endpoints.
+fn spring_easing(t: f32, config: &SpringConfig) -> f32 {
+    if t <= 0.0 {
+        return 0.0;
+    }
+    if t >= 1.0 {
+        return 1.0;
+    }
+    let settle = config.estimate_duration(0.0, 1.0);
+    let settle = if settle.is_finite() && settle > 0.0 {
+        settle
+    } else {
+        1.0
+    };
+    config.calculate_position(t * settle, 0.0, 1.0)
+}
+
 /// Convenience function to ease a value between start and end
 pub fn ease_value(t: f32, from: f32, to: f32, easing: &EasingFunction) -> f32 {
     let eased_t = easing.apply(t);
@@ -466,6 +483,26 @@ mod tests {
         assert_eq!(easing.apply(0.26), 0.25);
         assert_eq!(easing.apply(0.99), 0.75);
         assert_eq!(easing.apply(1.0), 1.0);
+    }
+
+    #[test]
+    fn ani_009_spring_scales_time_and_keeps_exact_endpoints() {
+        let config = SpringConfig::new(1.0, 1.0, 2.0);
+        let easing = EasingFunction::Spring(config.clone());
+        assert_eq!(easing.apply(-1.0), 0.0);
+        assert_eq!(easing.apply(0.0), 0.0);
+        assert_eq!(easing.apply(1.0), 1.0);
+        assert_eq!(easing.apply(2.0), 1.0);
+        let expected =
+            config.calculate_position(0.5 * config.estimate_duration(0.0, 1.0), 0.0, 1.0);
+        assert_eq!(easing.apply(0.5), expected);
+        for config in [
+            SpringConfig::new(1.0, 1.0, 0.0),
+            SpringConfig::new(1.0, 1.0, 2.0).with_precision(2.0),
+        ] {
+            let easing = EasingFunction::Spring(config.clone());
+            assert_eq!(easing.apply(0.5), config.calculate_position(0.5, 0.0, 1.0));
+        }
     }
 
     #[test]
