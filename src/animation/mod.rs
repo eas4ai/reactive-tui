@@ -483,55 +483,57 @@ impl Animation {
             }
         }
 
-        // Trigger update callback
-        if let Some(callback) = &self.callbacks.on_update {
-            if let Some(ref values) = state.current_values {
-                callback(self, values);
-            }
+        // The callbacks run with the state lock released, so a callback may
+        // read the animation's progress, state and values, or change its
+        // state, without waiting for the lock its own thread holds (SIG-002).
+        let values = state.current_values.clone();
+        drop(state_guard);
+        if let (Some(callback), Some(values)) = (&self.callbacks.on_update, &values) {
+            callback(self, values);
         }
 
-        // Check for completion
-        if raw_progress >= 1.0 {
-            // Handle animation completion inline to avoid borrow issues
-            match self.config.loop_mode {
-                LoopMode::None => {
-                    state.state = AnimationState::Completed;
-                }
-                LoopMode::Infinite => {
-                    state.current_time = Duration::ZERO;
-                    state.progress = 0.0;
-                    state.loops_completed += 1;
-                }
-                LoopMode::Count(count) => {
-                    state.loops_completed += 1;
-                    if state.loops_completed < count {
-                        state.current_time = Duration::ZERO;
-                        state.progress = 0.0;
-                    } else {
+        // Check for completion, unless the update callback already moved the
+        // animation out of play.
+        let completed = {
+            let mut state_guard = match self.state.write() {
+                Ok(guard) => guard,
+                Err(_) => return false,
+            };
+            let state = &mut *state_guard;
+            if raw_progress >= 1.0 && state.state == AnimationState::Playing {
+                match self.config.loop_mode {
+                    LoopMode::None => {
                         state.state = AnimationState::Completed;
                     }
-                }
-                LoopMode::PingPong => {
-                    state.is_reversed = !state.is_reversed;
-                    state.current_time = Duration::ZERO;
-                    state.loops_completed += 1;
-                }
-            }
-        }
-
-        // Drop the guard before calling callbacks
-        drop(state_guard);
-
-        // Call callbacks if needed after releasing the lock
-        if raw_progress >= 1.0
-            && matches!(self.config.loop_mode, LoopMode::None | LoopMode::Count(_))
-        {
-            if let Ok(state) = self.state.read() {
-                if state.state == AnimationState::Completed {
-                    if let Some(callback) = &self.callbacks.on_complete {
-                        callback(self);
+                    LoopMode::Infinite => {
+                        state.current_time = Duration::ZERO;
+                        state.progress = 0.0;
+                        state.loops_completed += 1;
+                    }
+                    LoopMode::Count(count) => {
+                        state.loops_completed += 1;
+                        if state.loops_completed < count {
+                            state.current_time = Duration::ZERO;
+                            state.progress = 0.0;
+                        } else {
+                            state.state = AnimationState::Completed;
+                        }
+                    }
+                    LoopMode::PingPong => {
+                        state.is_reversed = !state.is_reversed;
+                        state.current_time = Duration::ZERO;
+                        state.loops_completed += 1;
                     }
                 }
+            }
+            raw_progress >= 1.0
+                && matches!(self.config.loop_mode, LoopMode::None | LoopMode::Count(_))
+                && state.state == AnimationState::Completed
+        };
+
+        if completed {
+            if let Some(callback) = &self.callbacks.on_complete {
+                callback(self);
             }
         }
 
