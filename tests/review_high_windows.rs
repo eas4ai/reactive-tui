@@ -63,7 +63,7 @@ mod windows {
         );
     }
 
-    pub(super) fn run() {
+    fn run() {
         if std::env::var_os(CHILD).is_some() {
             child();
             return;
@@ -103,9 +103,9 @@ mod windows {
             "the child App ended cleanly on its quit key"
         );
     }
-}
 
-#[test]
-fn inp_012_a_key_typed_in_a_pseudo_console_reaches_an_app_on_the_direct_tty_backend() {
-    windows::run();
+    #[test]
+    fn inp_012_a_key_typed_in_a_pseudo_console_reaches_an_app_on_the_direct_tty_backend() {
+        run();
+    }
 }
