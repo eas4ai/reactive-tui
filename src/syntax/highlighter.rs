@@ -41,6 +41,9 @@ pub struct SyntaxHighlighter {
     language: Language,
     language_name: String,
     cached_lines: Vec<Option<HighlightedLine>>,
+    /// How many times the document was parsed, for the tests of TXT-002.
+    #[cfg(test)]
+    parses: std::sync::atomic::AtomicUsize,
 }
 
 impl SyntaxHighlighter {
@@ -53,6 +56,8 @@ impl SyntaxHighlighter {
             language: found,
             language_name: found.name().to_string(),
             cached_lines: Vec::new(),
+            #[cfg(test)]
+            parses: std::sync::atomic::AtomicUsize::new(0),
         })
     }
 
@@ -65,6 +70,8 @@ impl SyntaxHighlighter {
             language: found,
             language_name: found.name().to_string(),
             cached_lines: Vec::new(),
+            #[cfg(test)]
+            parses: std::sync::atomic::AtomicUsize::new(0),
         })
     }
 
@@ -103,6 +110,7 @@ impl SyntaxHighlighter {
             return Ok(unhighlighted_lines(text));
         };
 
+        self.note_parse();
         let highlighter = Highlighter::new(self.language, Some(theme));
         let segments = match highlighter.highlight(text) {
             Ok(segments) => segments,
@@ -151,6 +159,7 @@ impl SyntaxHighlighter {
 
         // Tree-sitter needs whole-document context, so highlight everything
         // once and serve the requested range (from cache when warm).
+        self.note_parse();
         let highlighter = Highlighter::new(self.language, Some(theme));
         if let Ok(segments) = highlighter.highlight(text) {
             let full = distribute_segments(text, &segments, default_fg);
@@ -202,6 +211,19 @@ impl SyntaxHighlighter {
         &self.language_name
     }
 
+    /// Count a parse of the document (TXT-002's tests read the count).
+    fn note_parse(&self) {
+        #[cfg(test)]
+        self.parses
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// How many times this highlighter parsed a document.
+    #[cfg(test)]
+    pub(crate) fn parse_count(&self) -> usize {
+        self.parses.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Re-highlight a single line after edit
     pub fn rehighlight_line(&mut self, line_text: &str, line_num: usize) -> HighlightedLine {
         let (theme, default_fg) = match SYNTAX_RESOURCES.read() {
@@ -222,6 +244,7 @@ impl SyntaxHighlighter {
             return plain_line(line_text, line_num);
         };
 
+        self.note_parse();
         let highlighter = Highlighter::new(self.language, Some(theme));
         let highlighted_line = match highlighter.highlight(line_text) {
             Ok(segments) => {
@@ -418,5 +441,34 @@ def world():
 
         // Should detect JavaScript from .js extension
         assert!(SyntaxHighlighter::from_extension("js").is_some());
+    }
+
+    /// TXT-002: an unchanged text is parsed once; later calls serve the cache.
+    #[test]
+    fn txt_002_highlight_lines_parses_once_for_unchanged_text() {
+        let mut highlighter = SyntaxHighlighter::new("Rust").unwrap();
+        let text = "fn main() {}\n";
+        highlighter.highlight_lines(text, 0, 1);
+        highlighter.highlight_lines(text, 0, 1);
+        assert_eq!(
+            highlighter.parse_count(),
+            1,
+            "TXT-002: two highlight_lines calls on the same text parsed the document {} times",
+            highlighter.parse_count()
+        );
+    }
+
+    /// TXT-002: the line entry points apply the byte limit as the checked one does.
+    #[test]
+    fn txt_002_oversized_text_is_not_parsed_by_the_line_entry_points() {
+        let mut highlighter = SyntaxHighlighter::new("Rust").unwrap();
+        let oversized = "x".repeat(MAX_SYNTAX_BYTES + 1);
+        highlighter.highlight_lines(&oversized, 0, 1);
+        highlighter.rehighlight_line(&oversized, 0);
+        assert_eq!(
+            highlighter.parse_count(),
+            0,
+            "TXT-002: a text over MAX_SYNTAX_BYTES was parsed by highlight_lines or rehighlight_line"
+        );
     }
 }
