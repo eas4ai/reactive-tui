@@ -53,7 +53,7 @@ component library as closely as a cell grid allows.
 | rasterizer.md | RAS | the SuprTUI rasterizer: cursor and style elision, allocation-free emission, replay equivalence, byte and time bounds |
 | painter.md | PNT | the frame painter's fast path, the per-cell hit grid, one element copy per present, layout reuse |
 | presentation.md | PIP | pipelined presentation: geometry returned before the terminal write, one frame in flight, flush failure reporting |
-| input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging, the Kitty keyboard protocol, lock and media keys, terminal focus reports, suspend and resume, startup queries |
+| input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging, the Kitty keyboard protocol, lock and media keys, terminal focus reports, suspend and resume, startup queries; console input on Windows through the direct TTY backend |
 | blitters.md | BLT | image fallback to block glyphs: half, quadrant, sextant, octant and braille blitters and their tier choice |
 | layout.md | LAY | gaps, grid tracks and spans in whole cells, the spacing classes' unit, the gap and grid classes, layout that settles |
 | theme.md | THM | the theme's color roles, their contrast, what a theme that lacks a role gets, and a change of theme |
@@ -63,9 +63,10 @@ component library as closely as a cell grid allows.
 | layout-widgets.md | NAV | the tabs, accordion, breadcrumb, scroll view and stack: their colors by role, the size they fill, what happens when their content does not fit, what the screen reader is told |
 | data-widgets.md | DAT | the table, data table, tree, file explorer and progress bar: their colors by role, the size they fill, numeric sorting and a revealed selection, what the screen reader is told |
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults, the demos, pictures made ready off the App's wait, the drawing thread every canvas shares, and pictures one pixel per screen pixel |
-| reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter |
+| reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter; an animation's callbacks run with none of its locks held |
 | terminal.md | TRM | the terminal widget's and the embedded session's pseudo-terminal child: stopping it ends and reaps the child within a bound on Linux and macOS, also when its output went unread |
 | pixel-looks.md | PIX | a widget's or element's look as a pixel picture where the terminal takes pixels, around its text, kept and sent only when it changes, hidden under what covers it, back to cells by a switch; the looks of rounded containers, buttons, cards, text inputs, checkboxes, radios, sliders and progress bars; their speed and scale |
+| ffi.md | FFI | the C interface: an exported function that reads or writes through its caller's pointer is unsafe on the Rust side and says what its caller must guarantee |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -79,7 +80,8 @@ is contract.
   src/backend other than presentation). Orphaned runners for panic and signal fixtures,
   docs/recon.md section 8.
 - Components, elements, hooks, the single-threaded signal, scheduler, wake
-  (src/component, src/reactive), other than reactive.md's thread-safe signal.
+  (src/component, src/reactive), other than reactive.md's thread-safe signal,
+  and the animation API (src/animation) other than reactive.md's callbacks.
 - Layout and utility classes other than layout.md's and the rounded, border
   and ring classes of pixel-looks.md (src/layout), and the
   parts of a theme other than its color roles: spacing variables, loading
@@ -92,7 +94,8 @@ is contract.
 - Embedded terminal and PTY other than terminal.md's stop of a child, Windows
   ConPTY (src/embedded, src/terminal).
 - Accessibility (src/accessibility).
-- C ABI and TypeScript binding (src/ffi, include, bindings/typescript).
+- C ABI and TypeScript binding (src/ffi, include, bindings/typescript),
+  other than ffi.md's unsafe exports.
 - Build, CI and release packaging (Cargo.toml, .github/workflows, scripts).
   The dependency checks on deny.toml are BAR-008.
 - Documentation (README, manual/).

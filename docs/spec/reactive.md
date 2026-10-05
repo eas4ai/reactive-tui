@@ -28,3 +28,9 @@ Falsifier: Two threads that each dispatch 10,000 increments to one `use_reducer`
 Mechanism: reactive-signals
 Rationale: The developer's review of e30afa23 (finding 2, P1) showed two concurrent increments through `update` yield 1, and `use_reducer` dispatches through that path, so concurrently dispatched actions can disappear.
 Status: Agreed 2026-10-02
+
+[SIG-002] An `Animation` MUST run its `on_update` and `on_complete` callbacks with none of its own locks held, so a callback may read the animation's progress, state and current values and change its state, and return, whether the animation is updated directly, by an `AnimationManager` or by an App.
+Falsifier: An `on_update` callback that calls `get_progress`, `get_state` or `get_current_values` on its animation, or an `on_complete` callback that calls one of them or pauses, stops or restarts the animation, does not return within 5 seconds of the update that runs it.
+Mechanism: review-high
+Rationale: `update` held the animation's state lock while it ran `on_update`, so a callback that read its own progress waited forever for a lock its own thread held (the developer's code review of 2026-10-04, N01).
+Status: Agreed 2026-10-04

@@ -41,3 +41,9 @@ Status: Agreed 2026-09-29
 Falsifier: After `Theme::set_active` or `App::set_theme` with a theme whose roles all differ from the old theme's, the next presented frame holds a cell of such an element or widget in a color of the old theme.
 Mechanism: theme
 Status: Agreed 2026-09-29
+
+[THM-004] Resolving a color MUST end for every theme: when a variable's value names another variable and following the names comes back to one already followed, or passes 32 names, the variable MUST resolve as one no theme defines, so a role takes the color THM-002 gives it and any other name resolves to nothing, through this theme and every theme it extends.
+Falsifier: With a theme whose variables say `--color-a: b` and `--color-b: a`, or `--color-input: hover` and `--color-hover: input`, `Theme::resolve_color` of `a` or of `input` overflows the stack or does not return within a second, or returns a color for `a`, or for `input` another color than its `surface`.
+Mechanism: review-high
+Rationale: Two variables naming each other made resolution recurse until the process ran out of stack (the developer's code review of 2026-10-04, W02).
+Status: Agreed 2026-10-04

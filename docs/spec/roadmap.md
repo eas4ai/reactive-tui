@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: pixel-widget-looks
+Current: review-high-findings
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1347,3 +1347,55 @@ the three hosts and screenshots from Kitty on the private display of the
 catalog's Input page at 240 and 100 columns under the dark and the light
 preset, with a text input focused and a button under the pointer, and the
 same page from a Sixel terminal.
+
+## review-high-findings
+
+Requirements: SIG-002, FFI-001, INP-012, THM-004, CHT-026, CHT-040, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The first commitment cut from the next-feature item
+review-2026-10-04-remediation (2e1476c7), the developer's production code
+review of 2026-10-04 over the tree at 65e618ec, opened by the developer's
+ok on 2026-10-04 (escalation 290cdb92, which lets the backlog items
+windows-startup-queries and syntax-editor-loses-multiline-context wait
+until the next Done). It takes the review's six high-priority findings,
+each confirmed in the code before the requirements were agreed the same
+day: an animation's `on_update` callback runs while `update` holds the
+animation's state lock, so a callback that reads its own progress waits on
+its own thread forever (N01, SIG-002); 118 of the 243 functions exported to
+C are safe on the Rust side although they read or write through their
+caller's pointers, which clippy's lint misses because each dereference sits
+in the closure handed to `catch_panic` (N02, FFI-001); on Windows the
+direct TTY backend's console reader returns before its first read when the
+App polls with a zero timeout, so no key, click or focus change reaches the
+App (T01, INP-012); two theme variables naming each other recurse until
+the stack overflows (W02, THM-004); the smallest subnormal value makes the
+tick step zero and the tick loop never ends, in the worker and in
+`build()` (W01, CHT-026, revised); and one `band_count`, `point_count` or
+`grid_columns` integer makes a chart format a label and keep values for
+every requested slot (W04, CHT-040).
+
+Delivered here: an animation copies what its callbacks need and runs them
+with its locks released; every export that uses its caller's pointer is an
+`unsafe extern "C" fn` with a `# Safety` section, the C headers and the
+TypeScript binding unchanged, and the crate's Rust callers wrap their calls;
+the Windows console reader tries one read before a zero timeout counts as
+spent; theme resolution follows names with a set of the names it passed
+and a bound of 32; tick generation needs a finite positive step, falls back
+to a representable one and ends; a chart's labels, positions and stacks
+follow its data and its plot's columns. The review-high mechanism
+(scripts/cairn/review_high.py, tests/review_high.rs) checks SIG-002,
+FFI-001, THM-004 and CHT-040 on the Linux host and INP-012 on the Windows
+test tablet, where a pseudo console (ConPTY) runs an App on the direct TTY
+backend and a key is written to it; charts-goldens checks the revised
+CHT-026. The other 58 findings and four risks of the review stay in the
+next-feature item for later commitments by subsystem.
+
+Done when every named requirement passes; review-high has recorded a fail
+on the tree as it was at the start for SIG-002, FFI-001, INP-012, THM-004
+and CHT-040, and charts-goldens one for the revised CHT-026; the manual
+says that the C interface's pointer-taking functions are unsafe to call
+from Rust and what each needs; and the changelog names what changed for an
+application: animation callbacks that may read and change their
+animation, the unsafe exports, Windows input through the direct TTY
+backend, theme variables that name each other, and charts with tiny values
+or huge slot counts.

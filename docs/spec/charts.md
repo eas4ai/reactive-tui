@@ -157,11 +157,11 @@ Mechanism: charts-goldens
 Rationale: The developer requires charts that work as sparklines, panels and full dashboards from one builder call.
 Status: Agreed 2026-09-22
 
-[CHT-026] A chart with no series, or whose visible series are all empty, MUST render an explicit empty message in the text layer instead of shapes; one with a NaN or infinite value, or whose worker cannot start, MUST render an explicit error message there; a chart with an empty series beside populated ones MUST draw the populated ones; and finite values, with or without explicit axis limits however tight, MUST never make a chart panic or its worker stall.
-Falsifier: An empty or NaN input paints shapes, paints nothing, or panics; a chart with an empty series beside a populated one shows the empty message; a worker that cannot start leaves the chart blank with no message; or a chart with values of 1e300 and limits of 0 to 1 panics or does not finish.
+[CHT-026] A chart with no series, or whose visible series are all empty, MUST render an explicit empty message in the text layer instead of shapes; one with a NaN or infinite value, or whose worker cannot start, MUST render an explicit error message there; a chart with an empty series beside populated ones MUST draw the populated ones; and finite values, with or without explicit axis limits however tight, MUST never make a chart panic, its `build()` hang or its worker stall.
+Falsifier: An empty or NaN input paints shapes, paints nothing, or panics; a chart with an empty series beside a populated one shows the empty message; a worker that cannot start leaves the chart blank with no message; a chart with values of 1e300 and limits of 0 to 1 panics or does not finish; or a chart holding the smallest positive subnormal value (`f64::from_bits(1)`), drawn by its worker or built with a value tick format, does not finish.
 Mechanism: charts-goldens
-Rationale: Revised 2026-10-01: the empty message needed every series empty (chart survey, E7), a worker failure was swallowed into a blank chart (E18), and extreme values with tight limits overflowed (E9).
-Status: Agreed 2026-10-01
+Rationale: Revised 2026-10-04: a subnormal value made the tick step zero and the tick loop never ended, in the worker and in `build()` (the developer's code review of 2026-10-04, W01). Revised 2026-10-01: the empty message needed every series empty (chart survey, E7), a worker failure was swallowed into a blank chart (E18), and extreme values with tight limits overflowed (E9).
+Status: Agreed 2026-10-04
 
 [CHT-027] When a series has more points than the plot area has columns, cell columns in cells and pixel columns in a picture (CHT-037), the plot layer MUST decimate to at most two points per column by keeping each column's minimum and maximum, and hover and the keyboard MUST still reach every original point, the tooltip reporting the original index.
 Falsifier: A 10,000-point series renders slower than a 1,000-point one by more than a factor of two, a 10,000-point line whose plot picture is 160 pixels wide is drawn from more than 320 points, the tooltip on a decimated chart reports a column index instead of a data index, or a point that decimation left out of the drawing cannot be hovered on a scatter chart.
@@ -216,3 +216,9 @@ Falsifier: On the Linux development host in release on the hardware adapter, one
 Mechanism: charts-pictures
 Rationale: GFX-011 measured fifteen canvases on one thread at 49 pictures a second each on 2026-10-02; the developer ruled on 2026-10-01 that speed bounds bind on the Linux host and the tablet's numbers are recorded ("I also can't run Crisis on the tablet").
 Status: Agreed 2026-10-03
+
+[CHT-040] A cartesian chart's drawing work and memory MUST grow with its data and its plot's cells, not with the counts its caller asks for: a `band_count`, a `point_count` or a `grid_columns` larger than the plot has columns MUST NOT make the chart format a label, keep a position or allocate a value for each requested slot or column beyond those the plot shows, and a count as large as `usize::MAX` MUST draw like any other, with no panic, abort or overflow.
+Falsifier: An 80 by 24 bar chart with one value and `band_count(10_000_000)`, a line chart with one value and `point_count(10_000_000)`, or a bar chart with `grid_columns(10_000_000)`, allocates more than 64 MiB or takes more than 2 seconds to draw; or the same charts with a count of `usize::MAX` panic, abort, or leave the plot without its one value.
+Mechanism: review-high
+Rationale: One integer asked a chart for ten million empty slots and it built a label string and two values for each (the developer's code review of 2026-10-04, W04).
+Status: Agreed 2026-10-04

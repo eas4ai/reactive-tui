@@ -130,3 +130,9 @@ Falsifier: In a pseudo-terminal that answers the background query with `rgb:ffff
 Mechanism: input-pty
 Rationale: On Windows crossterm reads console input records, where a terminal's reply arrives as typed characters; the Windows question waits as backlog item windows-startup-queries, by the developer's ok on 2026-09-27.
 Status: Agreed 2026-09-27
+
+[INP-012] On Windows, the direct TTY backend (`DirectTtyBackend`) MUST hand the App the console input records that wait when the App polls, also when the poll's timeout is zero, so a key, a mouse report or a focus change typed in the console reaches the App through its polling loop.
+Falsifier: On the Windows test tablet, an App on `DirectTtyBackend` running in a pseudo console (ConPTY) does not handle a key written to the pseudo console's input within 5 seconds.
+Mechanism: review-high
+Rationale: The reader returned before its first read whenever the timeout was zero, and the App's polling loop polls with a zero timeout, so no key, click or focus change reached an App on this backend (the developer's code review of 2026-10-04, T01).
+Status: Agreed 2026-10-04
