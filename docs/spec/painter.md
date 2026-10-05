@@ -41,3 +41,9 @@ Falsifier: In a grid of 199 rows of 25 text elements at 700 by 200, a frame that
 Mechanism: painter-goldens
 Rationale: Measured on 2026-09-27 at 2f6f66ef in release at 700 by 200: with 4,975 text elements and one changing per frame, layout took 7.1 ms of a 20 ms frame, and 0.9 ms when nothing changed.
 Status: Agreed 2026-09-27
+
+[PNT-006] A cell an element paints in its own explicit colors (`Element::with_cells`) MUST be painted at the element's own opacity times its ancestors' opacity, as the element's style colors are.
+Falsifier: Over a black parent, an element with the classes `w-1 h-1 opacity-50` whose one explicit cell is red text on red presents another foreground or background than the same element painting that red as its style colors (`bg-#ff0000 text-#ff0000`); or the same differs for an element at full opacity inside a parent at half opacity.
+Mechanism: review-core
+Rationale: Explicit cell colors were attenuated by the ancestors' opacity only, so an element's own partial opacity left its chart, image and canvas cells at full strength (the developer's code review of 2026-10-04, C16).
+Status: Agreed 2026-10-05

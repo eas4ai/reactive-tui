@@ -51,7 +51,7 @@ component library as closely as a cell grid allows.
 | quality-bar.md | BAR | the bar every commitment must clear: gates, assertions, widget behavior, goldens, frame budget, docs, dangling paths, dependency checks |
 | charts.md | CHT | the plot layer and the chart widget family modeled on gpui-kit, the two-axis charts' plot areas as pixel pictures where the terminal takes them |
 | rasterizer.md | RAS | the SuprTUI rasterizer: cursor and style elision, allocation-free emission, replay equivalence, byte and time bounds |
-| painter.md | PNT | the frame painter's fast path, the per-cell hit grid, one element copy per present, layout reuse |
+| painter.md | PNT | the frame painter's fast path, the per-cell hit grid, one element copy per present, layout reuse, an element's explicit cells at its own opacity |
 | presentation.md | PIP | pipelined presentation: geometry returned before the terminal write, one frame in flight, flush failure reporting |
 | input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging, the Kitty keyboard protocol, lock and media keys, terminal focus reports, suspend and resume, startup queries; console input on Windows through the direct TTY backend |
 | blitters.md | BLT | image fallback to block glyphs: half, quadrant, sextant, octant and braille blitters and their tier choice |
@@ -63,10 +63,12 @@ component library as closely as a cell grid allows.
 | layout-widgets.md | NAV | the tabs, accordion, breadcrumb, scroll view and stack: their colors by role, the size they fill, what happens when their content does not fit, what the screen reader is told |
 | data-widgets.md | DAT | the table, data table, tree, file explorer and progress bar: their colors by role, the size they fill, numeric sorting and a revealed selection, what the screen reader is told |
 | canvas.md | GFX | the graphics canvas widget: its scene, the hardware and software renderers, its worker, the tablet speed floor, pixel and block output, graphics detection, faults, the demos, pictures made ready off the App's wait, the drawing thread every canvas shares, and pictures one pixel per screen pixel |
-| reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter; an animation's callbacks run with none of its locks held |
+| reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter; an animation's callbacks run with none of its locks held; a memo that computes again, context effects that rerun, hook animations that pause, spring and loop |
 | terminal.md | TRM | the terminal widget's and the embedded session's pseudo-terminal child: stopping it ends and reaps the child within a bound on Linux and macOS, also when its output went unread |
 | pixel-looks.md | PIX | a widget's or element's look as a pixel picture where the terminal takes pixels, around its text, kept and sent only when it changes, hidden under what covers it, back to cells by a switch; the looks of rounded containers, buttons, cards, text inputs, checkboxes, radios, sliders and progress bars; their speed and scale |
 | ffi.md | FFI | the C interface: an exported function that reads or writes through its caller's pointer is unsafe on the Rust side and says what its caller must guarantee |
+| components.md | CMP | components and their hooks: a dropped render tree unmounts only its own instances, a component's change polling, a screen's mouse hooks, the mouse position's inside flag, the virtual DOM diff, the event handler cache, no empty component table |
+| styles.md | STY | class variants that apply only while their condition holds, `display: none` in `css!`, `aspect-auto`, what the `css!` documentation promises |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -81,9 +83,11 @@ is contract.
   docs/recon.md section 8.
 - Components, elements, hooks, the single-threaded signal, scheduler, wake
   (src/component, src/reactive), other than reactive.md's thread-safe signal,
-  and the animation API (src/animation) other than reactive.md's callbacks.
-- Layout and utility classes other than layout.md's and the rounded, border
-  and ring classes of pixel-looks.md (src/layout), and the
+  memo, context effects and hook animations and components.md's
+  requirements, and the animation API (src/animation) other than
+  reactive.md's callbacks.
+- Layout and utility classes other than layout.md's, styles.md's and the
+  rounded, border and ring classes of pixel-looks.md (src/layout), and the
   parts of a theme other than its color roles: spacing variables, loading
   a theme from a file, the syntax colors (src/theme, src/syntax).
 - Widgets other than the charts, the canvas, the menus, the overlays, the

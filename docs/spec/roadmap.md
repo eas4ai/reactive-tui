@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: review-high-findings
+Current: review-core-findings
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1399,3 +1399,52 @@ application: animation callbacks that may read and change their
 animation, the unsafe exports, Windows input through the direct TTY
 backend, theme variables that name each other, and charts with tiny values
 or huge slot counts.
+
+## review-core-findings
+
+Requirements: CMP-001, CMP-002, CMP-003, CMP-004, CMP-005, CMP-006, CMP-007, STY-001, STY-002, STY-003, STY-004, PNT-006, SIG-003, SIG-004, SIG-005, SIG-006, SIG-007, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The second commitment cut from the next-feature item
+review-2026-10-04-remediation (2e1476c7), the developer's production code
+review of 2026-10-04 over the tree at 65e618ec. The developer confirmed on
+2026-10-05 that the review's 19 core findings go next, ahead of the backlog
+items windows-startup-queries and syntax-editor-loses-multiline-context,
+which wait until the next Done (escalation cdd35e8a, answer ce9fd969), and
+confirmed the recommended choice for each finding with an alternative. Each
+of the 19 was checked against the code at 9f177efb before the requirements
+were drafted and holds: C01 a dropped render tree unmounts its replacement
+(CMP-001); C02 and C15 nothing polls `Component::poll_change` and its
+wrapper's pointer check cannot fail (CMP-002); C03 a screen never feeds the
+mouse hooks (CMP-003); C04 a move out leaves the mouse position inside
+(CMP-004); C09 the virtual DOM diff patches changed names, props and
+handlers in place (CMP-005); C10 and C11 the handler cache confuses node ids
+256 apart and reports handled input as ignored (CMP-006); C14 the
+compile-time component table is an empty map (CMP-007); C05 nine class
+variants apply unconditionally (STY-001); C06 `css!` drops
+`display: none` (STY-002); C12 `aspect-auto` keeps the earlier ratio
+(STY-003); C13 the `css!` documentation promises compile-time validation
+(STY-004); C16 explicit cell colors ignore their element's own opacity
+(PNT-006); C07 a `Memo` never computes again (SIG-003); C08 context effects
+run once (SIG-004); C17 a hook animation paused past its duration is lost
+(SIG-005); C18 a spring drops an impulse (SIG-006); C19 the hook
+animation's loop settings never reach its driver (SIG-007).
+
+Delivered here, as the developer chose: the App and screens poll a
+component's `poll_change` and redraw on its change, through an honest pin
+projection; the conditional variants are decided by the App (sibling
+position, a held press, an ancestor marked `group`) and `visited:` never
+applies; context effects rerun on the signals they read, their function
+becoming an `Fn`; the `css!` documentation says what it checks; and the
+empty component table is removed. The other fixes make the code do what
+each requirement says. The review-core mechanism
+(scripts/cairn/review_core.py, tests/review_core.rs and unit tests named by
+requirement in the modules whose private parts they need) checks every new
+requirement on the Linux host. The review's other 39 findings and four
+risks stay in the next-feature item for later commitments by subsystem.
+
+Done when every named requirement passes; review-core has recorded a fail
+on the tree as it was at the start for each new requirement; and the
+changelog names what changed for an application: the polled components, the
+screens' mouse hooks, the variants that now wait for their condition, the
+effects' `Fn` bound, the removed component table and the hook animations'
+pause, spring and loops.
