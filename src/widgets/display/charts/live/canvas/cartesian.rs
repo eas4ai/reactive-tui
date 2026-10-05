@@ -433,7 +433,7 @@ pub(super) fn cartesian(
         vis.len()
     };
     let label_room = if bars && value_labels && !horizontal {
-        let lane_cells = (inner.w / (count.max(1) * lanes)).max(1);
+        let lane_cells = (inner.w / count.max(1).saturating_mul(lanes)).max(1);
         (widest_label + 1).div_ceil(lane_cells).max(1)
     } else {
         0
@@ -539,12 +539,10 @@ pub(super) fn cartesian(
         let stride = props.tick_margin.max(1);
         let show_grid = |axis: &ChartAxis| axis.show_grid && class.has_grid();
         let category_ticks: Vec<plot::Tick> = {
-            let labels: Vec<Option<String>> = (0..count)
-                .map(|i| {
-                    (i < data_count)
-                        .then(|| category_label(job, category_axis, i))
-                        .flatten()
-                })
+            // Labels and ticks for the data alone: the slots past it stay
+            // empty, however many the builder asked for (CHT-034, CHT-040).
+            let labels: Vec<Option<String>> = (0..data_count.min(count))
+                .map(|i| category_label(job, category_axis, i))
                 .collect();
             let mut all = if numeric_x {
                 x_scale
@@ -552,9 +550,9 @@ pub(super) fn cartesian(
                     .map(|scale| linear_ticks(scale, tick_count(category_axis, shapes.w)))
                     .unwrap_or_default()
             } else if use_band {
-                band_ticks(&band, &labels)
+                band_ticks(&band, &labels, data_count)
             } else {
-                point_ticks(&points, &labels)
+                point_ticks(&points, &labels, data_count)
             };
             // Slots past the data carry no label.
             if !numeric_x {
@@ -575,7 +573,15 @@ pub(super) fn cartesian(
         // Grid positions in cells from the plot's edge: exact in a picture,
         // rounded to a cell on the mask by `grid_lines`.
         let grid_columns_of = |axis_ticks: &[plot::Tick], plot_w: usize| -> Vec<f64> {
-            match category_axis.grid_columns.or(props.x_axis.grid_columns) {
+            // More columns than the plot has dots across, a picture's pixels
+            // or a mask's cells, draw the same lines: the count is held to
+            // them and the lines stay spread over the plot (CHT-040).
+            let resolvable = plot_w.saturating_mul(ux.ceil().max(1.0) as usize).max(1);
+            match category_axis
+                .grid_columns
+                .or(props.x_axis.grid_columns)
+                .map(|n| n.min(resolvable))
+            {
                 Some(n) if n > 0 => (0..n)
                     .map(|k| {
                         if pixels {
@@ -882,8 +888,9 @@ pub(super) fn cartesian(
                 _ => 1.0,
             }
         };
-        let mut stack_pos = vec![0.0f64; count];
-        let mut stack_neg = vec![0.0f64; count];
+        // Stacks for the data's indices alone (CHT-040).
+        let mut stack_pos = vec![0.0f64; data_count];
+        let mut stack_neg = vec![0.0f64; data_count];
         let mut placer = LabelPlacer::default();
         // Labels are placed after every bar is drawn, tallest first, so the
         // bars that matter most keep theirs when room is short.
@@ -1176,7 +1183,7 @@ pub(super) fn cartesian(
     let stacked_area = props.stacked && props.chart_type == ChartType::Area;
     let mut tops: Vec<Vec<f64>> = Vec::new();
     if stacked_area {
-        let mut acc = vec![0.0f64; count];
+        let mut acc = vec![0.0f64; data_count];
         for &s in &vis {
             if let Some(values) = job.values.get(s) {
                 for (a, v) in acc.iter_mut().zip(values) {
