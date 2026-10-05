@@ -16,8 +16,9 @@ This file records user-visible changes to Reactive TUI. The project follows
   that completes the current one (ANI-002).
 - An `Animation` that loops runs `on_loop` each time a pass ends and another
   begins, with the passes completed; `auto_reverse` alternates direction for
-  `Infinite` and `Count` loops as `PingPong` does; `Count(n)` plays n passes.
-  The unused completion helpers are gone (ANI-003).
+  `Infinite` and `Count` loops as `PingPong` does; `Count(n)` plays n passes,
+  and `Count(0)` completes on its first update without playing one. The
+  unused completion helpers are gone (ANI-003).
 - `AnimationManager::cleanup_all_stale` removes completed animations and
   playing ones that no update has advanced within the threshold; one updated
   every frame stays however long ago it started, as do paused and delayed

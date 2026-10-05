@@ -244,6 +244,37 @@ fn ani_003_count_three_plays_three_passes() {
 }
 
 #[test]
+fn ani_003_count_zero_plays_no_pass() {
+    let completions = Arc::new(AtomicUsize::new(0));
+    let counter = completions.clone();
+    let mut animation = linear_opacity("ani-003-zero")
+        .loop_mode(LoopMode::Count(0))
+        .on_complete(move |_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+        })
+        .build();
+    animation.play();
+    let active = animation.update(Duration::from_millis(250));
+    assert!(
+        !active && animation.is_completed(),
+        "ANI-003: Count(0) was still active after its first update: it played a pass"
+    );
+    let passes = animation.state.read().unwrap().loops_completed;
+    assert_eq!(passes, 0, "ANI-003: Count(0) counted {passes} passes");
+    assert!(
+        animation.get_current_values().is_none(),
+        "ANI-003: Count(0) sampled a pass: {:?}",
+        animation.get_current_values()
+    );
+    assert_eq!(
+        completions.load(Ordering::SeqCst),
+        1,
+        "ANI-003: on_complete ran {} times for Count(0)",
+        completions.load(Ordering::SeqCst)
+    );
+}
+
+#[test]
 fn ani_003_the_module_keeps_one_completion_path() {
     let source = include_str!("../../src/animation/mod.rs");
     for helper in ["fn handle_animation_complete(", "fn restart_animation("] {
