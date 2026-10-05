@@ -5,6 +5,10 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- `ReactiveRuntime::cleanup_dead_effects` and `periodic_cleanup` remove the
+  effects that were disposed, not every registered effect: before, a
+  registered effect had the one reference the registry holds and was
+  disposed by the first housekeeping call (SIG-004, review finding 3).
 - A `Memo` that reads another `Memo` computes again after a signal the inner
   memo read changes: a memo marked stale marks the memos that read it stale
   too (SIG-003, review finding 2). A memo's compute function may read a

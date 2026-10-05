@@ -118,3 +118,39 @@ fn sig_004_an_effect_reruns_after_cleanup_until_unregistered() {
         "SIG-004: a signal change ran the effect after it was unregistered"
     );
 }
+
+/// The runtime's housekeeping removes effects that were disposed, not
+/// effects that are merely registered: a registered effect lives until
+/// `unregister_effect` or the context's drop (review finding 3).
+#[test]
+fn sig_004_periodic_cleanup_keeps_a_registered_effect() {
+    let context = RuntimeContext::new();
+    let source = context.create_signal(0);
+    let input = source.clone();
+    let runs = Rc::new(RefCell::new(0));
+    let counter = runs.clone();
+    let effect = context.create_effect(move || {
+        input.get();
+        *counter.borrow_mut() += 1;
+        None
+    });
+    assert_eq!(*runs.borrow(), 1, "SIG-004: the effect did not run when created");
+
+    context.periodic_cleanup();
+    context.cleanup_dead_effects();
+    source.set(1);
+    assert_eq!(
+        *runs.borrow(),
+        2,
+        "SIG-004: after the runtime's periodic cleanup, a signal change no longer ran the registered effect"
+    );
+
+    context.runtime().unregister_effect(effect);
+    context.cleanup_dead_effects();
+    source.set(2);
+    assert_eq!(
+        *runs.borrow(),
+        2,
+        "SIG-004: the effect ran after it was unregistered"
+    );
+}
