@@ -5,6 +5,11 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- A `use_animation` frame that arrives after more than a pass of playing
+  time counts every pass it spans: `Some(n)` ends once n durations have
+  played however the frames fell, `PingPong` knows which way its current
+  pass runs, and the clock keeps the time into the current pass instead of
+  starting over at the frame (SIG-007, review finding 5).
 - A `use_spring` frame moves the spring by the exact solution of its damped
   motion over the frame's time, for under-, critically and over-damped
   settings alike; the numerical step it replaces turned a heavily damped
