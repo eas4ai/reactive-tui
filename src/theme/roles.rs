@@ -111,6 +111,7 @@ impl Theme {
             role if PLAIN.contains(&role) || FILLS.contains(&role) => {
                 let light = self
                     .defined_following("background", path)
+                    .color()
                     .is_some_and(|ground| contrast(BLACK, ground) > contrast(WHITE, ground));
                 preset(light).defined(role)
             }
