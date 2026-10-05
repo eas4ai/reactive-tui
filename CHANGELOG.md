@@ -5,6 +5,12 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- `Component` requires `Unpin`, and the runtime pins a component for its
+  `poll_change` with `Pin::new`, without unsafe code: a component that could
+  not be moved would have been moved by the `&mut` every other component
+  method takes. `AnyComponent::poll_change_any` takes `&mut self`. Generic
+  `RadioButton<T>` and `Select<T>` need `T: Unpin` (CMP-002, review finding
+  1).
 - Dropping a render tree unregisters only the component instances that tree
   registered; a newer tree's instance under the same key stays mounted
   (docs/spec/components.md, CMP-001).

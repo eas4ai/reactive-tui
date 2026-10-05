@@ -290,6 +290,18 @@ fn cmp_002_pin_projection_does_not_claim_an_infallible_pointer_check() {
     );
 }
 
+/// The poll pins the component field while every other method takes the
+/// component by `&mut`, which may move it; that is sound only because a
+/// component is `Unpin`, so this compiles only while the trait says so.
+#[test]
+fn cmp_002_a_component_is_unpin_so_pinning_it_for_a_poll_is_sound() {
+    fn is_unpin<T: Unpin>() {}
+    fn component_is_unpin<C: Component>() {
+        is_unpin::<C>();
+    }
+    component_is_unpin::<PollingPanel>();
+}
+
 #[reactive_tui::component]
 fn CmpMousePanel(hooks: &Hooks) -> Element {
     let hover = use_hover(hooks);

@@ -17,7 +17,7 @@ pub struct SelectBuilder<T: Clone + PartialEq + Send + Sync + 'static> {
     max_visible_items: usize,
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> SelectBuilder<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> SelectBuilder<T> {
     /// Create a new SelectBuilder
     pub fn new() -> Self {
         Self {
@@ -104,7 +104,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> SelectBuilder<T> {
     }
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Default for SelectBuilder<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Default for SelectBuilder<T> {
     fn default() -> Self {
         Self::new()
     }
@@ -121,7 +121,7 @@ pub struct SelectOption<T: Clone + PartialEq + Send + Sync + 'static> {
     pub disabled: bool,
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> SelectOption<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> SelectOption<T> {
     /// Create a new select option
     ///
     /// # Arguments
@@ -173,7 +173,7 @@ pub struct SelectProps<T: Clone + PartialEq + Send + Sync + 'static> {
     pub width: Option<u16>,
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Default for SelectProps<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Default for SelectProps<T> {
     fn default() -> Self {
         Self {
             options: Vec::new(),
@@ -187,7 +187,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Default for SelectProps<T> {
     }
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Props for SelectProps<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Props for SelectProps<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -224,7 +224,7 @@ pub struct Select<T: Clone + PartialEq + Send + Sync + 'static> {
     on_close: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
     pub(crate) fn render_control(
         &self,
         props: &SelectProps<T>,
@@ -580,7 +580,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
     }
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Component for Select<T> {
     type Props = SelectProps<T>;
     type State = SelectState;
 
@@ -690,7 +690,7 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> Component for Select<T> {
     }
 }
 
-impl<T: Clone + PartialEq + Send + Sync + 'static> Select<T> {
+impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
     fn set_open(&mut self, open: bool, state: &mut SelectState) {
         if state.is_open == open {
             return;

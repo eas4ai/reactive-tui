@@ -49,7 +49,11 @@ pub use state_flags::{ComponentState, StateFlagged, StateFlags};
 
 /// Core trait that all components must implement.
 /// Components are the building blocks of the reactive TUI framework.
-pub trait Component: Any + Send + Sync + 'static {
+///
+/// A component is `Unpin`: the runtime pins it for each `poll_change` and
+/// hands it out by `&mut` for every other method, which may move it, so a
+/// component must not depend on staying in place between polls (CMP-002).
+pub trait Component: Any + Send + Sync + Unpin + 'static {
     /// The properties type for this component
     type Props: Props;
 
@@ -150,8 +154,9 @@ pub trait AnyComponent: Any + Send + Sync {
         false
     }
 
-    /// Poll for changes
-    fn poll_change_any(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()>;
+    /// Poll for changes. The implementation pins its component for the
+    /// poll; a component is `Unpin`, so the wrapper itself needs no pin.
+    fn poll_change_any(&mut self, cx: &mut Context<'_>) -> Poll<()>;
 
     /// Handle lifecycle events
     fn on_lifecycle_any(&mut self, event: LifecycleEvent);
