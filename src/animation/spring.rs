@@ -226,8 +226,11 @@ impl SpringConfig {
         if dt <= 0.0 {
             return (position, velocity);
         }
-        let (mass, stiffness, damping) =
-            (f64::from(self.mass), f64::from(self.stiffness), f64::from(self.damping));
+        let (mass, stiffness, damping) = (
+            f64::from(self.mass),
+            f64::from(self.stiffness),
+            f64::from(self.damping),
+        );
         let (y0, v0, t) = (
             f64::from(position - target),
             f64::from(velocity),
@@ -242,7 +245,10 @@ impl SpringConfig {
             let b = (v0 + zeta * omega * y0) / omega_d;
             let (sin, cos) = (omega_d * t).sin_cos();
             let y = decay * (y0 * cos + b * sin);
-            (y, -zeta * omega * y + decay * omega_d * (b * cos - y0 * sin))
+            (
+                y,
+                -zeta * omega * y + decay * omega_d * (b * cos - y0 * sin),
+            )
         } else if zeta <= 1.0 + 1e-6 {
             // Critically damped: the quickest return without overshoot.
             let decay = (-omega * t).exp();

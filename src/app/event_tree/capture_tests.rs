@@ -145,7 +145,13 @@ fn sty_002_an_element_hidden_after_a_press_gets_no_drag_or_release() {
     };
     let mut tree = EventTree::default();
     let mut router = EventRouter::new();
-    tree.sync(&root, &[node(0, 10.0), node(1, 5.0)], None, None, &mut router);
+    tree.sync(
+        &root,
+        &[node(0, 10.0), node(1, 5.0)],
+        None,
+        None,
+        &mut router,
+    );
     router.process_event(&mouse(MouseEventKind::Down, 1, 0));
     // The next frame paints the target no more: `display: none` leaves an
     // element out of the painted nodes.
