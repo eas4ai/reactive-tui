@@ -5,6 +5,59 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- `Animation::reverse` keeps a playing animation playing: it turns around
+  from where it is and its callbacks keep running; the `Reversed` state is no
+  longer set (docs/spec/animation.md, ANI-001).
+- `Animation::update` returns whether the animation is still active after
+  the update: true while it plays or waits out its delay, false from the
+  update that completes it and while it is paused or stopped. A parallel
+  `AnimationTimeline` completes only when every animation in it has
+  completed, and a sequential one starts its next animation in the update
+  that completes the current one (ANI-002).
+- An `Animation` that loops runs `on_loop` each time a pass ends and another
+  begins, with the passes completed; `auto_reverse` alternates direction for
+  `Infinite` and `Count` loops as `PingPong` does; `Count(n)` plays n passes.
+  The unused completion helpers are gone (ANI-003).
+- `AnimationManager::cleanup_all_stale` removes completed animations and
+  playing ones that no update has advanced within the threshold; one updated
+  every frame stays however long ago it started, as do paused and delayed
+  ones. `AnimationRuntime::last_frame_time` is the last advancing frame, and
+  `cleanup_completed`'s documentation says what it removes (ANI-004).
+- Every animation the crate names itself gets an id from one process-wide
+  sequence, so two made in the same millisecond no longer share one;
+  `AnimationManager::add_animation` documents that a repeated id replaces
+  the earlier animation (ANI-005).
+- Removed the alternate animation drivers `animation::performance` and
+  `animation::lock_free`: `OptimizedAnimationManager`, `AnimationBatch`,
+  `BatchedUpdate`, `OptimizationLevel`, `InterpolationCache`, `CacheStats`,
+  `PerformanceMetrics`, `PerformanceReport`, `LockFreeAnimationState` and
+  `LockFreeAnimationUpdater`. Nothing in the crate used them, the batch and
+  the cache returned wrong values and the lock-free state lost updates;
+  animations are driven by `Animation::update`, `AnimationTimeline` and
+  `AnimationManager` (ANI-006).
+- Stagger delays can no longer overflow: distances are computed in floating
+  point for any grid or position within `i16`, and a negative or non-finite
+  eased or ranged delay becomes zero instead of a panic (ANI-007).
+- `SpringConfig`'s configured `velocity` is the position's initial rate of
+  change toward `to`, and `calculate_velocity` is the derivative of
+  `calculate_position` in every damping regime; before, a positive velocity
+  first moved the spring the wrong way (ANI-008).
+- `EasingFunction::Spring` runs the spring over the animation's duration and
+  ends exactly at 1, so a spring-eased `Animation` completes at its target
+  instead of part way (ANI-009).
+- `SyntaxEditor` paints every visible line from the whole document's
+  highlighting, so a line inside a block comment or a multiline string is
+  painted as that comment or string, and an edit anywhere repaints what it
+  changes; `LineCache` is no longer used by the editor (docs/spec/text.md,
+  TXT-001).
+- `SyntaxHighlighter::highlight_lines` parses a document once per change of
+  its text or theme and serves repeated calls from its cache;
+  `highlight_lines` and `rehighlight_line` apply `MAX_SYNTAX_BYTES`, and
+  `MarkdownRenderer::render_with_sourcepos` applies `MAX_MARKDOWN_BYTES`,
+  as the checked entry points do (TXT-002).
+- A Markdown table is drawn from its columns: a header separator with one
+  segment per column, and cells padded to their column's width by the
+  declared alignment (TXT-003).
 - An element hidden by `display: none` after a press on it, itself or
   through an ancestor, keeps no hold on the pointer: the drag and the release
   that follow reach neither it nor its children, which also lose their
