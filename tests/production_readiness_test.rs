@@ -93,6 +93,8 @@ fn test_effect_cleanup() {
             let cleanups = cleanups.clone();
             runtime.create_effect(move || {
                 runs.set(runs.get() + 1);
+                // The effect function is reusable, so the cleanup takes its own handle (SIG-004)
+                let cleanups = cleanups.clone();
                 Some(Box::new(move || cleanups.set(cleanups.get() + 1)))
             })
         })
