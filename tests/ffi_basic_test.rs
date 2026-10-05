@@ -19,23 +19,24 @@ mod ffi_tests {
 
             // Test in-place debug modification (should not change pointer)
             let original_ptr = builder_ptr;
-            let result = rtui_app_builder_debug(builder_ptr, true);
+            let result = unsafe { rtui_app_builder_debug(builder_ptr, true) };
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer should remain the same
 
             // Test in-place performance mode modification
-            let result =
-                rtui_app_builder_performance_mode(builder_ptr, RTuiPerformanceMode::Performance);
+            let result = unsafe {
+                rtui_app_builder_performance_mode(builder_ptr, RTuiPerformanceMode::Performance)
+            };
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer should remain the same
 
             // Test backend setting
-            let result = rtui_app_builder_backend_debug(builder_ptr, 80, 24);
+            let result = unsafe { rtui_app_builder_backend_debug(builder_ptr, 80, 24) };
             assert_eq!(result, ReactiveError::Success);
             assert_eq!(builder_ptr, original_ptr); // Pointer should remain the same
 
             // Clean up
-            rtui_app_builder_destroy(builder_ptr);
+            unsafe { rtui_app_builder_destroy(builder_ptr) };
         }
     }
 
@@ -74,7 +75,7 @@ mod ffi_tests {
             assert!(!element_ptr.is_null());
 
             // Clean up
-            rtui_element_destroy(element_ptr);
+            unsafe { rtui_element_destroy(element_ptr) };
         }
     }
 
@@ -97,7 +98,7 @@ mod ffi_tests {
             assert!(!element_ptr.is_null());
 
             // Clean up
-            rtui_element_destroy(element_ptr);
+            unsafe { rtui_element_destroy(element_ptr) };
         }
     }
 
@@ -112,7 +113,7 @@ mod ffi_tests {
             assert!(!element_ptr.is_null());
 
             // Clean up
-            rtui_element_destroy(element_ptr);
+            unsafe { rtui_element_destroy(element_ptr) };
         }
     }
 
@@ -135,7 +136,7 @@ mod ffi_tests {
             assert!(!element_ptr.is_null());
 
             // Clean up
-            rtui_element_destroy(element_ptr);
+            unsafe { rtui_element_destroy(element_ptr) };
         }
     }
 
@@ -150,7 +151,7 @@ mod ffi_tests {
             assert!(!element_ptr.is_null());
 
             // Clean up
-            rtui_element_destroy(element_ptr);
+            unsafe { rtui_element_destroy(element_ptr) };
         }
     }
 
@@ -182,15 +183,17 @@ mod ffi_tests {
             assert_eq!(result, ReactiveError::Success);
 
             // Set root component
-            let result = rtui_app_builder_root_component(
-                builder_ptr,
-                Some(test_root_callback),
-                ptr::null_mut(),
-            );
+            let result = unsafe {
+                rtui_app_builder_root_component(
+                    builder_ptr,
+                    Some(test_root_callback),
+                    ptr::null_mut(),
+                )
+            };
             assert_eq!(result, ReactiveError::Success);
 
             // Set backend
-            let result = rtui_app_builder_backend_debug(builder_ptr, 80, 24);
+            let result = unsafe { rtui_app_builder_backend_debug(builder_ptr, 80, 24) };
             assert_eq!(result, ReactiveError::Success);
 
             // Build app
@@ -210,7 +213,7 @@ mod ffi_tests {
 
             // Note: We don't call run() as it would block and consume the app
             // Clean up
-            rtui_app_destroy(app_ptr);
+            unsafe { rtui_app_destroy(app_ptr) };
         }
     }
 
@@ -218,7 +221,7 @@ mod ffi_tests {
     fn test_null_pointer_safety() {
         {
             // Test that null pointers are handled safely
-            let result = rtui_app_builder_debug(ptr::null_mut(), true);
+            let result = unsafe { rtui_app_builder_debug(ptr::null_mut(), true) };
             assert_eq!(result, ReactiveError::NullPointer);
 
             let result = unsafe { rtui_element_builder_add_class(ptr::null_mut(), ptr::null()) };

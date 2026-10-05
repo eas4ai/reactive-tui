@@ -46,8 +46,12 @@ pub unsafe extern "C" fn rtui_renderer_create(
 }
 
 /// Destroy a renderer
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_renderer_destroy(renderer: *mut RTuiRenderer) {
+pub unsafe extern "C" fn rtui_renderer_destroy(renderer: *mut RTuiRenderer) {
     let raw = renderer.cast::<Renderer>();
     if !pointer::trackers::renderer_tracker().unregister(raw) {
         return;
@@ -60,8 +64,12 @@ pub extern "C" fn rtui_renderer_destroy(renderer: *mut RTuiRenderer) {
 }
 
 /// Resize the renderer
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_renderer_resize(
+pub unsafe extern "C" fn rtui_renderer_resize(
     renderer: *mut RTuiRenderer,
     width: u16,
     height: u16,
@@ -85,8 +93,12 @@ pub extern "C" fn rtui_renderer_resize(
 }
 
 /// Clear the renderer with a color
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_renderer_clear(
+pub unsafe extern "C" fn rtui_renderer_clear(
     renderer: *mut RTuiRenderer,
     r: u8,
     g: u8,
@@ -115,8 +127,15 @@ pub extern "C" fn rtui_renderer_clear(
 
 /// Control frame rendering
 /// @param begin: true to begin frame, false to end frame
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_renderer_frame(renderer: *mut RTuiRenderer, begin: bool) -> ReactiveError {
+pub unsafe extern "C" fn rtui_renderer_frame(
+    renderer: *mut RTuiRenderer,
+    begin: bool,
+) -> ReactiveError {
     if renderer.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -173,8 +192,12 @@ pub unsafe extern "C" fn rtui_renderer_get_surface(
 }
 
 /// Restore the terminal without freeing the handle; call destroy afterward.
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_renderer_shutdown(renderer: *mut RTuiRenderer) -> ReactiveError {
+pub unsafe extern "C" fn rtui_renderer_shutdown(renderer: *mut RTuiRenderer) -> ReactiveError {
     if renderer.is_null() {
         return ReactiveError::NullPointer;
     }

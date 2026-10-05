@@ -133,8 +133,12 @@ pub unsafe extern "C" fn rtui_animation_manager_create(
 }
 
 /// Destroy an animation manager
+///
+/// # Safety
+///
+/// `manager` must be null or a live `RTuiAnimationManager` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_animation_manager_destroy(manager: *mut RTuiAnimationManager) {
+pub unsafe extern "C" fn rtui_animation_manager_destroy(manager: *mut RTuiAnimationManager) {
     if !manager.is_null() {
         unsafe {
             let _ = Box::from_raw(manager as *mut AnimationManager);
@@ -143,8 +147,12 @@ pub extern "C" fn rtui_animation_manager_destroy(manager: *mut RTuiAnimationMana
 }
 
 /// Update the animation manager
+///
+/// # Safety
+///
+/// `manager` must be null or a live `RTuiAnimationManager` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_animation_manager_update(
+pub unsafe extern "C" fn rtui_animation_manager_update(
     manager: *mut RTuiAnimationManager,
 ) -> ReactiveError {
     if manager.is_null() {
@@ -230,8 +238,12 @@ pub unsafe extern "C" fn rtui_animation_create(
 }
 
 /// Destroy an animation
+///
+/// # Safety
+///
+/// `animation` must be null or a live `RTuiAnimation` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_animation_destroy(animation: *mut RTuiAnimation) {
+pub unsafe extern "C" fn rtui_animation_destroy(animation: *mut RTuiAnimation) {
     if !animation.is_null() {
         let raw = animation.cast::<Animation>();
         if animation_tracker().unregister(raw) {
@@ -243,8 +255,12 @@ pub extern "C" fn rtui_animation_destroy(animation: *mut RTuiAnimation) {
 }
 
 /// Set animation property
+///
+/// # Safety
+///
+/// `animation` must be null or a live `RTuiAnimation` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_animation_set_property(
+pub unsafe extern "C" fn rtui_animation_set_property(
     animation: *mut RTuiAnimation,
     property: RTuiAnimatedProperty,
     from_value: f32,
@@ -366,8 +382,12 @@ pub unsafe extern "C" fn rtui_animation_manager_remove(
 }
 
 /// Play an animation
+///
+/// # Safety
+///
+/// `animation` must be null or a live `RTuiAnimation` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_animation_play(animation: *mut RTuiAnimation) -> ReactiveError {
+pub unsafe extern "C" fn rtui_animation_play(animation: *mut RTuiAnimation) -> ReactiveError {
     if animation.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -384,8 +404,12 @@ pub extern "C" fn rtui_animation_play(animation: *mut RTuiAnimation) -> Reactive
 }
 
 /// Pause an animation
+///
+/// # Safety
+///
+/// `animation` must be null or a live `RTuiAnimation` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_animation_pause(animation: *mut RTuiAnimation) -> ReactiveError {
+pub unsafe extern "C" fn rtui_animation_pause(animation: *mut RTuiAnimation) -> ReactiveError {
     if animation.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -402,8 +426,12 @@ pub extern "C" fn rtui_animation_pause(animation: *mut RTuiAnimation) -> Reactiv
 }
 
 /// Stop an animation
+///
+/// # Safety
+///
+/// `animation` must be null or a live `RTuiAnimation` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_animation_stop(animation: *mut RTuiAnimation) -> ReactiveError {
+pub unsafe extern "C" fn rtui_animation_stop(animation: *mut RTuiAnimation) -> ReactiveError {
     if animation.is_null() {
         return ReactiveError::NullPointer;
     }

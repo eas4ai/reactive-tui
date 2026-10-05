@@ -76,8 +76,12 @@ pub extern "C" fn createTerminal() -> *mut RTuiTerminal {
 }
 
 /// Destroy terminal instance
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
+pub unsafe extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
     if terminal.is_null() {
         return;
     }
@@ -93,8 +97,12 @@ pub extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
 }
 
 /// Setup terminal for TUI mode
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn setupTerminal(terminal: *mut RTuiTerminal, use_alternate_screen: bool) {
+pub unsafe extern "C" fn setupTerminal(terminal: *mut RTuiTerminal, use_alternate_screen: bool) {
     if terminal.is_null() {
         return;
     }
@@ -289,8 +297,12 @@ pub unsafe extern "C" fn setCursorStyle(
 }
 
 /// Set cursor color
+///
+/// # Safety
+///
+/// `color` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn setCursorColor(terminal: *mut RTuiTerminal, color: *const f32) {
+pub unsafe extern "C" fn setCursorColor(terminal: *mut RTuiTerminal, color: *const f32) {
     if terminal.is_null() || color.is_null() {
         return;
     }

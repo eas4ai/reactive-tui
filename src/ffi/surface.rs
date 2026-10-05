@@ -48,8 +48,12 @@ pub unsafe extern "C" fn rtui_surface_create(
 }
 
 /// Destroy a surface
+///
+/// # Safety
+///
+/// `surface` must be null or a live `RTuiSurface` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_surface_destroy(surface: *mut RTuiSurface) {
+pub unsafe extern "C" fn rtui_surface_destroy(surface: *mut RTuiSurface) {
     if surface.is_null() {
         return;
     }
@@ -102,8 +106,12 @@ pub unsafe extern "C" fn rtui_surface_get_dimensions(
 }
 
 /// Clear the surface
+///
+/// # Safety
+///
+/// `surface` must be null or a live `RTuiSurface` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_surface_clear(
+pub unsafe extern "C" fn rtui_surface_clear(
     surface: *mut RTuiSurface,
     r: u8,
     g: u8,

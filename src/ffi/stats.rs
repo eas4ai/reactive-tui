@@ -11,8 +11,12 @@ use std::sync::RwLock;
 //
 
 /// Update performance statistics
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn updateStats(
+pub unsafe extern "C" fn updateStats(
     renderer: *mut RTuiRenderer,
     _time: f64,
     _fps: u32,
@@ -34,8 +38,12 @@ pub extern "C" fn updateStats(
 }
 
 /// Update memory statistics
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn updateMemoryStats(
+pub unsafe extern "C" fn updateMemoryStats(
     renderer: *mut RTuiRenderer,
     _heap_used: u32,
     _heap_total: u32,
@@ -55,8 +63,12 @@ pub extern "C" fn updateMemoryStats(
 }
 
 /// Set render offset for debugging
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn setRenderOffset(renderer: *mut RTuiRenderer, offset: u32) {
+pub unsafe extern "C" fn setRenderOffset(renderer: *mut RTuiRenderer, offset: u32) {
     if renderer.is_null() {
         return;
     }
@@ -94,8 +106,12 @@ pub enum DebugOverlayCorner {
 }
 
 /// Set debug overlay
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn setDebugOverlay(renderer: *mut RTuiRenderer, enabled: bool, _corner: u8) {
+pub unsafe extern "C" fn setDebugOverlay(renderer: *mut RTuiRenderer, enabled: bool, _corner: u8) {
     if renderer.is_null() {
         return;
     }
@@ -116,8 +132,12 @@ pub extern "C" fn setDebugOverlay(renderer: *mut RTuiRenderer, enabled: bool, _c
 //
 
 /// Add element to hit grid for mouse interaction debugging
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn addToHitGrid(
+pub unsafe extern "C" fn addToHitGrid(
     renderer: *mut RTuiRenderer,
     _x: i32,
     _y: i32,
@@ -140,8 +160,12 @@ pub extern "C" fn addToHitGrid(
 }
 
 /// Check hit at coordinates
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn checkHit(renderer: *mut RTuiRenderer, x: u32, y: u32) -> u32 {
+pub unsafe extern "C" fn checkHit(renderer: *mut RTuiRenderer, x: u32, y: u32) -> u32 {
     if renderer.is_null() {
         return 0;
     }
@@ -163,8 +187,12 @@ pub extern "C" fn checkHit(renderer: *mut RTuiRenderer, x: u32, y: u32) -> u32 {
 }
 
 /// Dump hit grid for debugging
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn dumpHitGrid(renderer: *mut RTuiRenderer) {
+pub unsafe extern "C" fn dumpHitGrid(renderer: *mut RTuiRenderer) {
     if renderer.is_null() {
         return;
     }
@@ -192,8 +220,12 @@ pub extern "C" fn dumpHitGrid(renderer: *mut RTuiRenderer) {
 //
 
 /// Dump buffers to file for debugging
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn dumpBuffers(renderer: *mut RTuiRenderer, timestamp: i64) {
+pub unsafe extern "C" fn dumpBuffers(renderer: *mut RTuiRenderer, timestamp: i64) {
     if renderer.is_null() {
         return;
     }
@@ -218,8 +250,12 @@ pub extern "C" fn dumpBuffers(renderer: *mut RTuiRenderer, timestamp: i64) {
 }
 
 /// Dump stdout buffer for debugging
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn dumpStdoutBuffer(renderer: *mut RTuiRenderer, timestamp: i64) {
+pub unsafe extern "C" fn dumpStdoutBuffer(renderer: *mut RTuiRenderer, timestamp: i64) {
     if renderer.is_null() {
         return;
     }
@@ -344,8 +380,12 @@ mod callback_tests {
 //
 
 /// Start profiling session
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn startProfiling(renderer: *mut RTuiRenderer) {
+pub unsafe extern "C" fn startProfiling(renderer: *mut RTuiRenderer) {
     if renderer.is_null() {
         return;
     }
@@ -363,8 +403,12 @@ pub extern "C" fn startProfiling(renderer: *mut RTuiRenderer) {
 }
 
 /// Stop profiling session
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn stopProfiling(renderer: *mut RTuiRenderer) {
+pub unsafe extern "C" fn stopProfiling(renderer: *mut RTuiRenderer) {
     if renderer.is_null() {
         return;
     }
@@ -443,8 +487,12 @@ pub unsafe extern "C" fn getFrameStats(
 }
 
 /// Reset performance counters
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn resetPerformanceCounters(renderer: *mut RTuiRenderer) {
+pub unsafe extern "C" fn resetPerformanceCounters(renderer: *mut RTuiRenderer) {
     if renderer.is_null() {
         return;
     }

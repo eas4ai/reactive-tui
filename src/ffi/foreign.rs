@@ -437,8 +437,12 @@ pub unsafe extern "C" fn rtui_foreign_component_set_state(
 }
 
 /// Configure native keyboard focus for a foreign-rendered target.
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_element_set_focus(
+pub unsafe extern "C" fn rtui_element_set_focus(
     element: *mut RTuiElement,
     focusable: bool,
     auto_focus: bool,

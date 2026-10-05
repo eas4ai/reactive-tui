@@ -242,8 +242,14 @@ pub unsafe extern "C" fn rtui_element_set_class(
 }
 
 /// Add child element
+///
+/// # Safety
+///
+/// `parent` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
+///
+/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_element_add_child(
+pub unsafe extern "C" fn rtui_element_add_child(
     parent: *mut RTuiElement,
     child: *mut RTuiElement,
 ) -> ReactiveError {

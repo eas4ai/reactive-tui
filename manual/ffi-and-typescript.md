@@ -36,6 +36,15 @@ pointer check can reject null, misaligned, or implausible addresses. It does not
 prove that it is allocated or live, owned by the library, readable, or writable.
 Tracked handle families also require a matching live allocation before access.
 
+On the Rust side, every exported function that reads or writes through a
+pointer its caller passes is an `unsafe extern "C" fn`, and its
+documentation has a `# Safety` section that says what the caller must
+guarantee: a live handle this library returned and has not destroyed, four
+readable `f32` color channels, a buffer of at least the size given, or a
+pointer the matching get call returned and that has not been released. Rust
+code that calls one directly wraps the call in `unsafe`; C and TypeScript
+callers see the same names and signatures as before.
+
 Panic boundaries convert Rust failures into ABI error values. Functions that
 return allocated strings or arrays provide matching release functions. Buffer
 array snapshots keep their allocation metadata inside the library. The
