@@ -403,6 +403,12 @@ impl StyleBuilder {
         self
     }
 
+    /// Exclude this element and its children from layout and painting.
+    pub(crate) fn display_none(mut self) -> Self {
+        self.style.display = Display::None;
+        self
+    }
+
     /// Set flex direction for layout
     ///
     /// # Arguments
@@ -1504,6 +1510,12 @@ impl StyleBuilder {
     /// Set aspect ratio constraint
     pub fn aspect_ratio(mut self, ratio: f32) -> Self {
         self.style.aspect_ratio = Some(ratio);
+        self
+    }
+
+    /// Clear the aspect ratio constraint.
+    pub(crate) fn aspect_auto(mut self) -> Self {
+        self.style.aspect_ratio = None;
         self
     }
 

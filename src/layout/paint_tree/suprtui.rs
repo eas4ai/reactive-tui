@@ -41,6 +41,7 @@ impl Rect {
 }
 
 struct PaintNode {
+    hidden: bool,
     mask: Option<Arc<ClipMask>>,
     transform: Affine,
     local: Rect,
@@ -423,6 +424,7 @@ fn lay_out(
                 clip: screen,
                 layer: i32::MIN,
                 opacity: 1.0,
+                hidden: false,
                 origin: (0.0, 0.0),
                 screen,
             },
@@ -538,10 +540,16 @@ pub(crate) fn layout_frame(
     lay_out(spec, size, cache)?;
     let terminal = terminal_info(image_options);
     Ok(crate::backend::FrameLayout {
-        nodes: cache.nodes.iter().map(painted_node).collect(),
+        nodes: cache
+            .nodes
+            .iter()
+            .filter(|node| !node.hidden)
+            .map(painted_node)
+            .collect(),
         layouts: cache
             .nodes
             .iter()
+            .filter(|node| !node.hidden)
             .map(|node| presented_layout(&cache.tree, node, terminal))
             .collect::<Result<_>>()?,
     })
@@ -583,6 +591,10 @@ pub(crate) fn paint_frame(
     #[cfg(feature = "wgpu-graphics")]
     let mut owners: HashMap<NodeId, (i32, Vec<usize>)> = HashMap::new();
     for node in nodes {
+        // Keep preorder indices but omit hidden subtrees from paint and hits (STY-002).
+        if node.hidden {
+            continue;
+        }
         let fallback =
             spec.image_fallbacks[node.element_index].is_some_and(|id| selected.contains(&id));
         #[cfg(feature = "wgpu-graphics")]
@@ -750,6 +762,7 @@ fn inside_masks(mask: &Option<Arc<ClipMask>>, x: i32, y: i32) -> bool {
 
 #[derive(Clone)]
 struct Placement {
+    hidden: bool,
     mask: Option<Arc<ClipMask>>,
     transform: Affine,
     clip: Rect,
@@ -770,6 +783,8 @@ fn collect(
     nodes: &mut Vec<PaintNode>,
 ) -> Result<()> {
     let paint = &paints[&id];
+    let hidden = parent.hidden
+        || tree.style(id).map_err(layout_error)?.display == taffy::style::Display::None;
     // The layout's own rounding takes a node's location from its parent
     // alone and its size from its two edges on the screen, so a node placed
     // by the rounded locations of its ancestors can stand a cell beside the
@@ -818,6 +833,7 @@ fn collect(
         (parent.mask, parent.clip)
     };
     nodes.push(PaintNode {
+        hidden,
         mask: parent_mask.clone(),
         transform,
         local,
@@ -876,6 +892,7 @@ fn collect(
                 clip: child_clip,
                 layer,
                 opacity: parent.opacity * paint.opacity,
+                hidden,
                 origin,
                 screen: parent.screen,
             },
@@ -1320,7 +1337,9 @@ fn paint_cells(
     // written as it is, with no blend and no read of the cell below.
     let plain = node.transform.is_translation() && node.mask.is_none();
     let (offset_x, offset_y) = node.transform.offset();
-    let full = node.parent_opacity >= 1.0;
+    // Explicit colors need both opacities; style colors already include their own (PNT-006).
+    let cell_opacity = paint.opacity * node.parent_opacity;
+    let full = cell_opacity >= 1.0;
     // Nothing in this node adds a cursor or an image plane, and what paints
     // later lies above it, so with neither present a cover changes nothing.
     let covers = cursor.state.is_some() || images.has_planes();
@@ -1329,7 +1348,7 @@ fn paint_cells(
         if full {
             packed(value)
         } else {
-            with_opacity(packed(value), node.parent_opacity)
+            with_opacity(packed(value), cell_opacity)
         }
     };
     for (gx, gy, glyph, width, fg, cell_bg) in grid.painted() {

@@ -336,6 +336,8 @@ impl App {
             _ => {}
         }
         let state = (self.router.get_focus(), self.router.hovered_node());
+        // A press or release can change styles without changing hover (STY-001).
+        dirty |= self.event_tree.track_press(event, &self.router);
         if let Event::Mouse(mouse) = event {
             // Mouse hooks follow the pressed component themselves and read the
             // component under the pointer as the drop zone, so they get that one.
