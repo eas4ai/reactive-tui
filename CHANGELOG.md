@@ -5,6 +5,12 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- A `Memo` that reads another `Memo` computes again after a signal the inner
+  memo read changes: a memo marked stale marks the memos that read it stale
+  too (SIG-003, review finding 2). A memo's compute function may read a
+  signal inside that signal's `with`: a signal keeps its memo subscribers
+  beside its value, not inside the borrowed cell, so the nested read no
+  longer panics (SIG-003, review finding 7).
 - `Component` requires `Unpin`, and the runtime pins a component for its
   `poll_change` with `Pin::new`, without unsafe code: a component that could
   not be moved would have been moved by the `&mut` every other component
