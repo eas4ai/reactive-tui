@@ -458,6 +458,17 @@ impl Animation {
             }
         }
 
+        // ANI-003: Count(0) plays no pass; the first update past the delay
+        // completes the animation without sampling it.
+        if self.config.loop_mode == LoopMode::Count(0) {
+            state.state = AnimationState::Completed;
+            drop(state_guard);
+            if let Some(callback) = &self.callbacks.on_complete {
+                callback(self);
+            }
+            return false;
+        }
+
         // Update time
         let adjusted_delta = Duration::from_secs_f32(delta_time.as_secs_f32() * self.config.speed);
         state.current_time += adjusted_delta;

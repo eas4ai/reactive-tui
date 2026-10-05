@@ -16,8 +16,9 @@ This file records user-visible changes to Reactive TUI. The project follows
   that completes the current one (ANI-002).
 - An `Animation` that loops runs `on_loop` each time a pass ends and another
   begins, with the passes completed; `auto_reverse` alternates direction for
-  `Infinite` and `Count` loops as `PingPong` does; `Count(n)` plays n passes.
-  The unused completion helpers are gone (ANI-003).
+  `Infinite` and `Count` loops as `PingPong` does; `Count(n)` plays n passes,
+  and `Count(0)` completes on its first update without playing one. The
+  unused completion helpers are gone (ANI-003).
 - `AnimationManager::cleanup_all_stale` removes completed animations and
   playing ones that no update has advanced within the threshold; one updated
   every frame stays however long ago it started, as do paused and delayed
@@ -40,18 +41,24 @@ This file records user-visible changes to Reactive TUI. The project follows
   eased or ranged delay becomes zero instead of a panic (ANI-007).
 - `SpringConfig`'s configured `velocity` is the position's initial rate of
   change toward `to`, and `calculate_velocity` is the derivative of
-  `calculate_position` in every damping regime; before, a positive velocity
-  first moved the spring the wrong way (ANI-008).
+  `calculate_position` in every damping regime, for a spring that descends
+  as for one that climbs; before, a positive velocity first moved the spring
+  the wrong way. A displacement smaller than the spring's `precision` moves
+  by the same physics instead of jumping to its target (ANI-008).
 - `EasingFunction::Spring` runs the spring over the animation's duration and
   ends exactly at 1, so a spring-eased `Animation` completes at its target
-  instead of part way (ANI-009).
+  instead of part way. `SpringConfig::estimate_duration` is the time by
+  which the spring has settled within its `precision`, from the decay of its
+  slowest term; before, a heavily damped spring was given a fraction of that
+  time and the easing jumped to 1 on its last frame (ANI-009).
 - `SyntaxEditor` paints every visible line from the whole document's
   highlighting, so a line inside a block comment or a multiline string is
   painted as that comment or string, and an edit anywhere repaints what it
   changes; `LineCache` is no longer used by the editor (docs/spec/text.md,
   TXT-001).
 - `SyntaxHighlighter::highlight_lines` parses a document once per change of
-  its text or theme and serves repeated calls from its cache;
+  its text or theme and serves repeated calls from its cache; a theme
+  replaced under its name with other colors counts as a change of theme;
   `highlight_lines` and `rehighlight_line` apply `MAX_SYNTAX_BYTES`, and
   `MarkdownRenderer::render_with_sourcepos` applies `MAX_MARKDOWN_BYTES`,
   as the checked entry points do (TXT-002).

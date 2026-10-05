@@ -58,29 +58,53 @@ impl SpringConfig {
         self
     }
 
+    /// The configured velocity along the axis of motion: toward `to`, so a
+    /// descending spring starts downward (ANI-008). A zero displacement has
+    /// no direction and keeps the axis's own.
+    fn axis_velocity(&self, displacement: f32) -> f32 {
+        if displacement < 0.0 {
+            -self.velocity
+        } else {
+            self.velocity
+        }
+    }
+
     /// Calculate spring position at given time
     pub fn calculate_position(&self, time: f32, from: f32, to: f32) -> f32 {
         if time <= 0.0 {
             return from;
         }
 
+        // ANI-008: every displacement moves by the physics, however small,
+        // so the position stays continuous and starts at the configured
+        // velocity.
         let displacement = to - from;
-        if displacement.abs() < self.precision {
-            return to;
-        }
+        let velocity = self.axis_velocity(displacement);
 
         let angular_frequency = (self.stiffness / self.mass).sqrt();
         let damping_ratio = self.damping / (2.0 * (self.mass * self.stiffness).sqrt());
 
         let position = if damping_ratio < 1.0 {
             // Underdamped oscillation
-            self.calculate_underdamped(time, displacement, angular_frequency, damping_ratio)
+            self.calculate_underdamped(
+                time,
+                displacement,
+                velocity,
+                angular_frequency,
+                damping_ratio,
+            )
         } else if damping_ratio == 1.0 {
             // Critically damped
-            self.calculate_critically_damped(time, displacement, angular_frequency)
+            self.calculate_critically_damped(time, displacement, velocity, angular_frequency)
         } else {
             // Overdamped
-            self.calculate_overdamped(time, displacement, angular_frequency, damping_ratio)
+            self.calculate_overdamped(
+                time,
+                displacement,
+                velocity,
+                angular_frequency,
+                damping_ratio,
+            )
         };
 
         from + displacement - position
@@ -91,14 +115,14 @@ impl SpringConfig {
         &self,
         time: f32,
         displacement: f32,
+        velocity: f32,
         angular_frequency: f32,
         damping_ratio: f32,
     ) -> f32 {
         let damped_frequency = angular_frequency * (1.0 - damping_ratio * damping_ratio).sqrt();
         // ANI-008: the remaining displacement starts with derivative -velocity.
         let a = displacement;
-        let b =
-            (-self.velocity + damping_ratio * angular_frequency * displacement) / damped_frequency;
+        let b = (-velocity + damping_ratio * angular_frequency * displacement) / damped_frequency;
 
         let envelope = (-damping_ratio * angular_frequency * time).exp();
         let oscillation = a * (damped_frequency * time).cos() + b * (damped_frequency * time).sin();
@@ -111,10 +135,11 @@ impl SpringConfig {
         &self,
         time: f32,
         displacement: f32,
+        velocity: f32,
         angular_frequency: f32,
     ) -> f32 {
         let a = displacement;
-        let b = -self.velocity + angular_frequency * displacement;
+        let b = -velocity + angular_frequency * displacement;
 
         (a + b * time) * (-angular_frequency * time).exp()
     }
@@ -124,6 +149,7 @@ impl SpringConfig {
         &self,
         time: f32,
         displacement: f32,
+        velocity: f32,
         angular_frequency: f32,
         damping_ratio: f32,
     ) -> f32 {
@@ -131,21 +157,19 @@ impl SpringConfig {
         let r1 = -angular_frequency * (damping_ratio + sqrt_term);
         let r2 = -angular_frequency * (damping_ratio - sqrt_term);
 
-        let a = (-self.velocity - r2 * displacement) / (r1 - r2);
+        let a = (-velocity - r2 * displacement) / (r1 - r2);
         let b = displacement - a;
 
         a * (r1 * time).exp() + b * (r2 * time).exp()
     }
 
-    /// Calculate velocity at given time
+    /// Calculate velocity at given time: the time derivative of
+    /// `calculate_position`, positive when the position grows (ANI-008)
     pub fn calculate_velocity(&self, time: f32, from: f32, to: f32) -> f32 {
-        if time <= 0.0 {
-            return self.velocity;
-        }
-
         let displacement = to - from;
-        if displacement.abs() < self.precision {
-            return 0.0;
+        let velocity = self.axis_velocity(displacement);
+        if time <= 0.0 {
+            return velocity;
         }
 
         let angular_frequency = (self.stiffness / self.mass).sqrt();
@@ -155,8 +179,8 @@ impl SpringConfig {
             // Underdamped
             let damped_frequency = angular_frequency * (1.0 - damping_ratio * damping_ratio).sqrt();
             let a = displacement;
-            let b = (-self.velocity + damping_ratio * angular_frequency * displacement)
-                / damped_frequency;
+            let b =
+                (-velocity + damping_ratio * angular_frequency * displacement) / damped_frequency;
 
             let envelope = (-damping_ratio * angular_frequency * time).exp();
             let envelope_derivative = -damping_ratio * angular_frequency * envelope;
@@ -169,7 +193,7 @@ impl SpringConfig {
         } else if damping_ratio == 1.0 {
             // Critically damped
             let a = displacement;
-            let b = -self.velocity + angular_frequency * displacement;
+            let b = -velocity + angular_frequency * displacement;
 
             let exp_term = (-angular_frequency * time).exp();
             -(-angular_frequency * (a + b * time) + b) * exp_term
@@ -179,33 +203,60 @@ impl SpringConfig {
             let r1 = -angular_frequency * (damping_ratio + sqrt_term);
             let r2 = -angular_frequency * (damping_ratio - sqrt_term);
 
-            let a = (-self.velocity - r2 * displacement) / (r1 - r2);
+            let a = (-velocity - r2 * displacement) / (r1 - r2);
             let b = displacement - a;
 
             -(a * r1 * (r1 * time).exp() + b * r2 * (r2 * time).exp())
         }
     }
 
-    /// Estimate the total duration for the spring to settle
+    /// The time after which the spring stays within `precision` of `to` and
+    /// moves slower than `precision`, from the decay of its slowest term
+    /// (ANI-009): infinite for an undamped spring, zero when nothing moves.
     pub fn estimate_duration(&self, from: f32, to: f32) -> f32 {
-        let displacement = (to - from).abs();
-        if displacement < self.precision {
+        let displacement = to - from;
+        let velocity = self.axis_velocity(displacement);
+        if displacement == 0.0 && velocity == 0.0 {
             return 0.0;
         }
 
-        let angular_frequency = (self.stiffness / self.mass).sqrt();
-        let damping_ratio = self.damping / (2.0 * (self.mass * self.stiffness).sqrt());
+        let omega = (self.stiffness / self.mass).sqrt();
+        let zeta = self.damping / (2.0 * (self.mass * self.stiffness).sqrt());
 
-        if damping_ratio < 1.0 {
-            // Underdamped: estimate based on envelope decay
-            let decay_constant = damping_ratio * angular_frequency;
-            // Time for envelope to decay to precision level
-            (-self.precision.ln() / decay_constant).max(0.0)
+        // |remaining| <= reach * exp(-rate * t) and |speed| <= pace * exp(-rate * t).
+        let (rate, reach, pace) = if zeta < 1.0 {
+            let omega_d = omega * (1.0 - zeta * zeta).sqrt();
+            let a = displacement;
+            let b = (-velocity + zeta * omega * a) / omega_d;
+            let amplitude = (a * a + b * b).sqrt();
+            (zeta * omega, amplitude, amplitude * omega)
+        } else if zeta == 1.0 {
+            // (a + b t) exp(-omega t): t exp(-omega t) <= (2 / omega) exp(-omega t / 2),
+            // so half the rate bounds both terms.
+            let a = displacement;
+            let b = -velocity + omega * a;
+            (
+                omega / 2.0,
+                a.abs() + 2.0 * b.abs() / omega,
+                (b - omega * a).abs() + 2.0 * b.abs(),
+            )
         } else {
-            // Critically damped or overdamped: estimate based on exponential decay
-            let decay_constant = angular_frequency * damping_ratio;
-            (-self.precision.ln() / decay_constant).max(0.0)
+            let spread = (zeta * zeta - 1.0).sqrt();
+            let r1 = -omega * (zeta + spread);
+            let r2 = -omega * (zeta - spread);
+            let a = (-velocity - r2 * displacement) / (r1 - r2);
+            let b = displacement - a;
+            (-r2, a.abs() + b.abs(), (a * r1).abs() + (b * r2).abs())
+        };
+
+        if rate <= 0.0 {
+            return f32::INFINITY;
         }
+        let bound = reach.max(pace);
+        if bound <= self.precision {
+            return 0.0;
+        }
+        (bound / self.precision).ln() / rate
     }
 
     /// Check if spring has settled at given time

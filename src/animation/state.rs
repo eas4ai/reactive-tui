@@ -62,7 +62,8 @@ pub enum LoopMode {
     None,
     /// Loop indefinitely
     Infinite,
-    /// Loop a specific number of times
+    /// Play this many passes; `Count(0)` completes on its first update
+    /// without playing one (ANI-003)
     Count(u32),
     /// Ping-pong (forward then reverse)
     PingPong,
