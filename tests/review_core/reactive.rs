@@ -134,7 +134,11 @@ fn sig_004_periodic_cleanup_keeps_a_registered_effect() {
         *counter.borrow_mut() += 1;
         None
     });
-    assert_eq!(*runs.borrow(), 1, "SIG-004: the effect did not run when created");
+    assert_eq!(
+        *runs.borrow(),
+        1,
+        "SIG-004: the effect did not run when created"
+    );
 
     context.periodic_cleanup();
     context.cleanup_dead_effects();

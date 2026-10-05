@@ -172,8 +172,8 @@ impl AnimationRuntime {
         if task.duration.is_zero() {
             return 1.0;
         }
-        (now.saturating_duration_since(task.start_time).as_secs_f64()
-            / task.duration.as_secs_f64()) as f32
+        (now.saturating_duration_since(task.start_time).as_secs_f64() / task.duration.as_secs_f64())
+            as f32
     }
 
     /// Keep, restart or remove `task` as its frame said. The task decides
