@@ -2732,6 +2732,46 @@ fn cht_026_a_subnormal_value_finishes_in_the_worker_and_in_build() {
     assert!(ticks >= 2, "the built chart has its value ticks ({ticks})");
 }
 
+/// CHT-026: a value near the largest finite one under one pinned axis end
+/// keeps a finite axis: widening the free end to a round step must not carry
+/// it past the largest finite value, which left the axis infinite and drew
+/// the value at zero.
+#[test]
+fn cht_026_a_huge_value_under_one_pinned_end_keeps_a_finite_axis() {
+    use reactive_tui::widgets::display::charts::plot::value_domain;
+    let size = (40u16, 12u16);
+    for (value, min, max) in [(1.1e308, Some(0.0), None), (-1.1e308, None, Some(0.0))] {
+        for kind in [ChartType::Line, ChartType::BarVertical] {
+            let mut chart = props(kind.clone(), size, &[value], 1.0);
+            chart.y_axis.min = min;
+            chart.y_axis.max = max;
+            chart.y_axis.tick_count = 3;
+            let domain = value_domain(&chart, &chart.y_axis);
+            assert!(
+                matches!(domain, Ok((low, high))
+                    if low.is_finite() && high.is_finite() && low <= value && value <= high),
+                "CHT-026: a {kind:?} chart of {value:e} with the axis pinned at {min:?} to {max:?} has the axis {domain:?}"
+            );
+        }
+    }
+    // The line's one point sits at the top of its plot, not at zero.
+    let mut chart = props(ChartType::Line, size, &[1.1e308], 1.0);
+    chart.y_axis.max = None;
+    chart.y_axis.tick_count = 3;
+    let frame = app_input::run(Root(Element::typed::<Chart>(chart)), size, vec![(3, None)])
+        .pop()
+        .unwrap();
+    let row = frame.text.lines().position(|line| {
+        line.chars()
+            .any(|glyph| ('\u{2801}'..='\u{28ff}').contains(&glyph))
+    });
+    assert!(
+        matches!(row, Some(row) if row < usize::from(size.1) / 2),
+        "CHT-026: a line chart of 1.1e308 from a pinned 0 draws its point at the top, not at zero (row {row:?}):\n{}",
+        frame.text
+    );
+}
+
 /// CHT-027: a point decimation left out of the drawing can still be hovered
 /// on a scatter chart: the nearest original point wins, not the nearest
 /// drawn one.
