@@ -2680,6 +2680,55 @@ fn cht_026_extreme_values_with_tight_limits_finish_with_shapes_or_a_message() {
     }
 }
 
+/// CHT-026: the smallest positive subnormal value under unpinned axes draws
+/// and builds: its domain's tick step must not underflow to zero, which made
+/// the tick loop run forever in the worker and in `build()` with a value
+/// tick format.
+#[test]
+fn cht_026_a_subnormal_value_finishes_in_the_worker_and_in_build() {
+    use reactive_tui::widgets::display::ChartsBuilder;
+    use std::sync::mpsc;
+    use std::time::Duration;
+    let tiny = f64::from_bits(1);
+    let size = (40u16, 12u16);
+    for kind in [ChartType::Line, ChartType::BarVertical] {
+        let mut chart = props(kind.clone(), size, &[tiny], 1.0);
+        chart.y_axis.min = None;
+        chart.y_axis.max = None;
+        let (done, finished) = mpsc::channel();
+        std::thread::spawn(move || {
+            let painted = std::panic::catch_unwind(|| {
+                app_input::run(Root(Element::typed::<Chart>(chart)), size, vec![(3, None)])
+                    .pop()
+                    .map(|frame| frame.text)
+            });
+            let _ = done.send(painted.ok().flatten());
+        });
+        let painted = finished
+            .recv_timeout(Duration::from_secs(60))
+            .unwrap_or_else(|_| {
+                panic!("CHT-026: a {kind:?} chart of one subnormal value did not finish drawing")
+            });
+        assert!(
+            painted.is_some_and(|text| !text.trim().is_empty()),
+            "CHT-026: a {kind:?} chart of one subnormal value never painted a settled frame: its worker stalled"
+        );
+    }
+    let (done, finished) = mpsc::channel();
+    std::thread::spawn(move || {
+        let built = ChartsBuilder::line()
+            .size(40, 12)
+            .series(DataSeries::new("tiny", vec![DataPoint::new(tiny)]))
+            .value_tick_format(|value| format!("{value:e}"))
+            .build();
+        let _ = done.send(built.y_axis.ticks.len());
+    });
+    let ticks = finished
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap_or_else(|_| panic!("CHT-026: build() with a value tick format and one subnormal value did not return within 10 seconds"));
+    assert!(ticks >= 2, "the built chart has its value ticks ({ticks})");
+}
+
 /// CHT-027: a point decimation left out of the drawing can still be hovered
 /// on a scatter chart: the nearest original point wins, not the nearest
 /// drawn one.
