@@ -8,8 +8,7 @@ use super::gap_buffer::GapBuffer;
 use super::painting::{self, LinePainter};
 use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Rgba, Surface};
-use crate::syntax::cache::{hash_line_content, LineCache};
-use crate::syntax::highlighter::SyntaxHighlighter;
+use crate::syntax::highlighter::{HighlightedLine, SyntaxHighlighter};
 use std::ops::Range;
 
 /// A syntax-highlighted text editor
@@ -20,8 +19,8 @@ pub struct SyntaxEditor {
     cursor: Cursor,
     /// Syntax highlighter
     highlighter: Option<SyntaxHighlighter>,
-    /// Cache for highlighted lines
-    cache: LineCache,
+    /// Visible lines highlighted with the whole document context (TXT-001).
+    highlighted_lines: Vec<HighlightedLine>,
     /// Viewport scroll offset (line number)
     scroll_offset: usize,
     /// Width of the editor
@@ -43,7 +42,7 @@ impl SyntaxEditor {
             buffer: GapBuffer::new(),
             cursor: Cursor::new(),
             highlighter: None,
-            cache: LineCache::default(),
+            highlighted_lines: Vec::new(),
             scroll_offset: 0,
             width: 80,
             height: 24,
@@ -61,7 +60,7 @@ impl SyntaxEditor {
             buffer: GapBuffer::from_string(content),
             cursor: Cursor::new(),
             highlighter,
-            cache: LineCache::default(),
+            highlighted_lines: Vec::new(),
             scroll_offset: 0,
             width: 80,
             height: 24,
@@ -79,7 +78,6 @@ impl SyntaxEditor {
     pub fn set_language(&mut self, language: &str) {
         self.highlighter = SyntaxHighlighter::new(language);
         self.language = Some(language.to_string());
-        self.cache.clear();
         self.rehighlight_visible();
     }
 
@@ -100,7 +98,6 @@ impl SyntaxEditor {
             }
         }
 
-        self.cache.clear();
         self.rehighlight_visible();
     }
 
@@ -120,7 +117,6 @@ impl SyntaxEditor {
     /// Insert text, replacing the selected complete graphemes.
     pub fn insert_text(&mut self, text: &str) {
         self.cursor.insert(&mut self.buffer, text);
-        self.cache.clear();
         self.ensure_cursor_visible();
         self.rehighlight_visible();
     }
@@ -133,7 +129,6 @@ impl SyntaxEditor {
     /// Delete the selection or the preceding complete grapheme.
     pub fn delete_backward(&mut self) {
         self.cursor.delete(&mut self.buffer, true);
-        self.cache.clear();
         self.ensure_cursor_visible();
         self.rehighlight_visible();
     }
@@ -141,7 +136,6 @@ impl SyntaxEditor {
     /// Delete the selection or the following complete grapheme.
     pub fn delete_forward(&mut self) {
         self.cursor.delete(&mut self.buffer, false);
-        self.cache.clear();
         self.ensure_cursor_visible();
         self.rehighlight_visible();
     }
@@ -183,10 +177,12 @@ impl SyntaxEditor {
         let content = self.buffer.to_string();
         let range = self.visible_lines();
 
-        if let Some(ref mut highlighter) = self.highlighter {
-            // Only highlight visible lines
-            highlighter.highlight_lines(&content, range.start, range.end);
-        }
+        // TXT-001: painting uses only whole-document highlighting.
+        self.highlighted_lines = if let Some(ref mut highlighter) = self.highlighter {
+            highlighter.highlight_lines(&content, range.start, range.end)
+        } else {
+            Vec::new()
+        };
     }
 
     /// Render complete graphemes to the requested viewport, clearing stale cells.
@@ -208,6 +204,12 @@ impl SyntaxEditor {
 
     /// Visible styled lines, clipped to complete terminal graphemes.
     pub fn get_styled_lines(&mut self) -> Vec<StyledLine> {
+        // Every edit, scroll and resize highlights the view already; this
+        // catches a view the kept lines do not cover (TXT-001).
+        if self.highlighter.is_some() && self.highlighted_lines.len() != self.visible_lines().len()
+        {
+            self.rehighlight_visible();
+        }
         let foreground = Rgba {
             r: 0.9,
             g: 0.9,
@@ -223,18 +225,10 @@ impl SyntaxEditor {
         let mut lines = Vec::new();
         for index in self.visible_lines() {
             let text = self.buffer.get_line(index);
-            let source = if let Some(ref mut highlighter) = self.highlighter {
-                let hash = hash_line_content(&text);
-                let highlighted = if let Some(cached) = self.cache.get(index, hash) {
-                    cached.clone()
-                } else {
-                    let highlighted = highlighter.rehighlight_line(&text, index);
-                    self.cache.insert(index, highlighted.clone(), hash);
-                    highlighted
-                };
-                StyledLine {
-                    runs: highlighted.runs,
-                }
+            let source = if let Some(highlighted) =
+                self.highlighted_lines.get(index - self.scroll_offset)
+            {
+                highlighted.to_styled_line()
             } else {
                 StyledLine::from_run(StyledRun::new(text, foreground, background, Attr::empty()))
             };
@@ -306,6 +300,35 @@ mod tests {
         let content = editor.content();
         assert!(content.contains("def hello():"));
         assert!(content.contains("print('Hello')"));
+    }
+
+    #[test]
+    fn txt_001_scrolling_and_resizing_keep_multiline_string_context() {
+        let document = "let s = r#\"\nfn main() {}\n\"#;";
+        let mut editor = SyntaxEditor::with_language(document, "Rust");
+        editor.set_size(80, 1);
+        editor.move_cursor(Movement::Down, false);
+        editor.move_cursor(Movement::LineEnd, false);
+        assert_eq!(editor.scroll_offset, 1);
+        let expected = SyntaxHighlighter::new("Rust")
+            .unwrap()
+            .highlight_text(document)[1]
+            .runs
+            .iter()
+            .flat_map(|run| run.text.chars().map(move |c| (c, run.fg)))
+            .collect::<Vec<_>>();
+        for height in [1, 2] {
+            editor.set_size(80, height);
+            let lines = editor.get_styled_lines();
+            let actual = lines[0]
+                .runs
+                .iter()
+                .flat_map(|run| run.text.chars().map(move |c| (c, run.fg)))
+                .skip(5)
+                .take(expected.len())
+                .collect::<Vec<_>>();
+            assert_eq!(actual, expected);
+        }
     }
 
     #[test]

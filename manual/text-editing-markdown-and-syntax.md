@@ -16,8 +16,8 @@ and apply language-aware syntax highlighting.
 - `SyntaxEditor` combines editing with a syntax highlighter.
 - `MarkdownRenderer` converts CommonMark and configured GFM extensions into
   styled lines and can retain source positions.
-- `SyntaxHighlighter` highlights text or lines and supports incremental cache
-  invalidation.
+- `SyntaxHighlighter` highlights documents and serves line ranges from a cache
+  keyed by document text and theme.
 - `SyntaxResources`, `ThemeSet`, `LineCache`, and syntax theme types manage
   language definitions, themes, and cached lines.
 
@@ -36,8 +36,7 @@ maps logical positions into visible rows and columns.
 
 Markdown parsing walks the document tree and emits styled runs for headings,
 lists, code, links, quotes, emphasis, tables, and task items according to
-options. Fenced code can pass through the syntax highlighter. Incremental
-highlighting invalidates changed line ranges and reuses unaffected cached work.
+options. Fenced code can pass through the syntax highlighter. `SyntaxHighlighter::highlight_lines` parses a document once per change of its text or theme and serves repeated calls from its cache.
 
 ## Limits
 

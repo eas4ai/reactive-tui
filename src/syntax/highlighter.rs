@@ -6,6 +6,7 @@
 
 use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Rgba};
+use crate::syntax::cache::hash_line_content;
 use crate::syntax::resources::SYNTAX_RESOURCES;
 use crate::syntax::theme::hex_to_rgba;
 use lumis::highlight::{Highlighter, Style, UnderlineStyle};
@@ -41,6 +42,8 @@ pub struct SyntaxHighlighter {
     language: Language,
     language_name: String,
     cached_lines: Vec<Option<HighlightedLine>>,
+    /// Document text and theme identity for TXT-002.
+    cached_document: Option<(u64, String)>,
     /// How many times the document was parsed, for the tests of TXT-002.
     #[cfg(test)]
     parses: std::sync::atomic::AtomicUsize,
@@ -56,6 +59,7 @@ impl SyntaxHighlighter {
             language: found,
             language_name: found.name().to_string(),
             cached_lines: Vec::new(),
+            cached_document: None,
             #[cfg(test)]
             parses: std::sync::atomic::AtomicUsize::new(0),
         })
@@ -70,6 +74,7 @@ impl SyntaxHighlighter {
             language: found,
             language_name: found.name().to_string(),
             cached_lines: Vec::new(),
+            cached_document: None,
             #[cfg(test)]
             parses: std::sync::atomic::AtomicUsize::new(0),
         })
@@ -92,40 +97,10 @@ impl SyntaxHighlighter {
                 "syntax input exceeds the {MAX_SYNTAX_BYTES}-byte limit"
             )));
         }
-        let (theme, default_fg) = match SYNTAX_RESOURCES.read() {
-            Ok(resources) => {
-                let theme = resources.active_theme();
-                let default_fg = theme
-                    .as_ref()
-                    .map(Self::default_foreground)
-                    .unwrap_or(Rgba::black());
-                (theme, default_fg)
-            }
-            Err(_) => {
-                // Lock poisoned, return unhighlighted text
-                return Ok(unhighlighted_lines(text));
-            }
-        };
-        let Some(theme) = theme else {
-            return Ok(unhighlighted_lines(text));
-        };
-
-        self.note_parse();
-        let highlighter = Highlighter::new(self.language, Some(theme));
-        let segments = match highlighter.highlight(text) {
-            Ok(segments) => segments,
-            Err(_) => return Ok(unhighlighted_lines(text)),
-        };
-
-        let result = distribute_segments(text, &segments, default_fg);
-
-        // Cache the results
-        self.cached_lines = result.iter().map(|line| Some(line.clone())).collect();
-
-        Ok(result)
+        Ok(self.highlight_lines(text, 0, text.lines().count()))
     }
 
-    /// Highlight only visible lines (incremental)
+    /// Highlight a visible range, reusing the document parse for unchanged text and theme.
     pub fn highlight_lines(
         &mut self,
         text: &str,
@@ -133,69 +108,47 @@ impl SyntaxHighlighter {
         end_line: usize,
     ) -> Vec<HighlightedLine> {
         let lines: Vec<&str> = text.lines().collect();
-
-        // Ensure cache is sized correctly
-        if self.cached_lines.len() < lines.len() {
-            self.cached_lines.resize(lines.len(), None);
+        // TXT-002: every line entry point enforces the source limit before parsing.
+        if text.len() > MAX_SYNTAX_BYTES {
+            return fallback_range(&lines, start_line, end_line);
         }
 
-        let (theme, default_fg) = match SYNTAX_RESOURCES.read() {
-            Ok(resources) => {
-                let theme = resources.active_theme();
-                let default_fg = theme
-                    .as_ref()
-                    .map(Self::default_foreground)
-                    .unwrap_or(Rgba::black());
-                (theme, default_fg)
-            }
-            Err(_) => {
-                // Lock poisoned, return fallback for visible range
-                return fallback_range(&lines, start_line, end_line);
-            }
+        let theme = match SYNTAX_RESOURCES.read() {
+            Ok(resources) => resources.active_theme(),
+            Err(_) => return fallback_range(&lines, start_line, end_line),
         };
         let Some(theme) = theme else {
             return fallback_range(&lines, start_line, end_line);
         };
+        let identity = (hash_line_content(text), theme.name.clone());
 
-        // Tree-sitter needs whole-document context, so highlight everything
-        // once and serve the requested range (from cache when warm).
-        self.note_parse();
-        let highlighter = Highlighter::new(self.language, Some(theme));
-        if let Ok(segments) = highlighter.highlight(text) {
-            let full = distribute_segments(text, &segments, default_fg);
-            for (line_num, line) in full.into_iter().enumerate() {
-                if line_num < self.cached_lines.len() {
-                    self.cached_lines[line_num] = Some(line);
-                }
-            }
+        // TXT-002: parse once per text or theme change, then serve cached ranges.
+        if self.cached_document.as_ref() != Some(&identity) {
+            let default_fg = Self::default_foreground(&theme);
+            let highlighter = Highlighter::new(self.language, Some(theme));
+            self.note_parse();
+            let full = match highlighter.highlight(text) {
+                Ok(segments) => distribute_segments(text, &segments, default_fg),
+                Err(_) => unhighlighted_lines(text),
+            };
+            self.cached_lines = full.into_iter().map(Some).collect();
+            self.cached_document = Some(identity);
         }
 
-        let mut result = Vec::new();
-        let end = end_line.min(lines.len());
-        for (line_num, _) in lines.iter().enumerate().take(end).skip(start_line) {
-            // Check cache first
-            if let Some(cached) = &self.cached_lines[line_num] {
-                result.push(cached.clone());
-                continue;
-            }
-
-            // Not cached (highlight failed above): plain fallback line.
-            result.push(HighlightedLine {
-                runs: vec![StyledRun::new(
-                    lines[line_num].to_string(),
-                    Rgba::black(),
-                    Rgba::transparent(),
-                    Attr::empty(),
-                )],
-                line_number: line_num,
-            });
-        }
-
-        result
+        (start_line..end_line.min(lines.len()))
+            .map(|line_num| {
+                self.cached_lines
+                    .get(line_num)
+                    .cloned()
+                    .flatten()
+                    .unwrap_or_else(|| plain_line(lines[line_num], line_num))
+            })
+            .collect()
     }
 
     /// Invalidate cached lines in a range (for edits)
     pub fn invalidate_range(&mut self, start: usize, end: usize) {
+        self.cached_document = None;
         for i in start..end.min(self.cached_lines.len()) {
             self.cached_lines[i] = None;
         }
@@ -204,6 +157,7 @@ impl SyntaxHighlighter {
     /// Clear all cached lines
     pub fn clear_cache(&mut self) {
         self.cached_lines.clear();
+        self.cached_document = None;
     }
 
     /// Get the language name
@@ -226,6 +180,10 @@ impl SyntaxHighlighter {
 
     /// Re-highlight a single line after edit
     pub fn rehighlight_line(&mut self, line_text: &str, line_num: usize) -> HighlightedLine {
+        // TXT-002: oversized lines stay plain and never reach tree-sitter.
+        if line_text.len() > MAX_SYNTAX_BYTES {
+            return plain_line(line_text, line_num);
+        }
         let (theme, default_fg) = match SYNTAX_RESOURCES.read() {
             Ok(resources) => {
                 let theme = resources.active_theme();
@@ -244,8 +202,8 @@ impl SyntaxHighlighter {
             return plain_line(line_text, line_num);
         };
 
-        self.note_parse();
         let highlighter = Highlighter::new(self.language, Some(theme));
+        self.note_parse();
         let highlighted_line = match highlighter.highlight(line_text) {
             Ok(segments) => {
                 let mut distributed = distribute_segments(line_text, &segments, default_fg);
@@ -259,11 +217,7 @@ impl SyntaxHighlighter {
         let mut highlighted_line = highlighted_line;
         highlighted_line.line_number = line_num;
 
-        // Update cache
-        if line_num < self.cached_lines.len() {
-            self.cached_lines[line_num] = Some(highlighted_line.clone());
-        }
-
+        // TXT-001: an isolated line must not overwrite the document cache.
         highlighted_line
     }
 
@@ -441,6 +395,31 @@ def world():
 
         // Should detect JavaScript from .js extension
         assert!(SyntaxHighlighter::from_extension("js").is_some());
+    }
+
+    #[test]
+    fn txt_002_cache_tracks_document_changes_and_visible_ranges() {
+        let mut highlighter = SyntaxHighlighter::new("Rust").unwrap();
+        let document = "/*\nfn main() {}\n*/";
+        highlighter.highlight_lines(document, 0, 1);
+        let contextual = highlighter.highlight_lines(document, 1, 2);
+        assert_eq!(highlighter.parse_count(), 1);
+
+        // TXT-001: standalone highlighting must leave document colors intact.
+        highlighter.rehighlight_line("fn main() {}", 1);
+        let cached = highlighter.highlight_lines(document, 1, 2);
+        assert_eq!(highlighter.parse_count(), 2);
+        assert_eq!(cached[0].runs, contextual[0].runs);
+
+        let edited = "// comment\nfn main() {}\n";
+        let updated = highlighter.highlight_lines(edited, 1, 2);
+        assert_eq!(highlighter.parse_count(), 3);
+        let expected = SyntaxHighlighter::new("Rust")
+            .unwrap()
+            .highlight_text(edited);
+        assert_eq!(updated[0].runs, expected[1].runs);
+        assert!(highlighter.highlight_lines("x", 1, 3).is_empty());
+        assert_eq!(highlighter.parse_count(), 4);
     }
 
     /// TXT-002: an unchanged text is parsed once; later calls serve the cache.

@@ -3,8 +3,9 @@
 use super::converter::*;
 use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Rgba};
-use comrak::nodes::{AstNode, ListType, NodeValue, TableAlignment};
+use comrak::nodes::{AstNode, ListType, NodeTable, NodeValue, TableAlignment};
 use std::collections::HashMap;
+use unicode_width::UnicodeWidthStr;
 
 /// AST walker that converts comrak AST nodes to StyledRun/StyledLine
 pub struct AstWalker {
@@ -15,9 +16,6 @@ pub struct AstWalker {
     /// Source position mapping for debugging
     pub sourcepos_map: HashMap<usize, (usize, usize)>,
     list_depth: usize,
-    in_table: bool,
-    table_alignment: Vec<TableAlignment>,
-    current_table_column: usize,
 }
 
 impl AstWalker {
@@ -29,9 +27,6 @@ impl AstWalker {
             current_line: Vec::new(),
             sourcepos_map: HashMap::new(),
             list_depth: 0,
-            in_table: false,
-            table_alignment: Vec::new(),
-            current_table_column: 0,
         }
     }
 
@@ -181,49 +176,8 @@ impl AstWalker {
                 self.add_line_break();
             }
 
-            NodeValue::Table(_) => {
-                self.in_table = true;
-                self.add_line_break();
-                self.walk_children(node);
-                self.in_table = false;
-                self.add_line_break();
-            }
-
-            NodeValue::TableRow(header) => {
-                self.current_table_column = 0;
-
-                self.add_text("│");
-                self.walk_children(node);
-                self.add_text("│");
-                self.add_line_break();
-
-                if *header {
-                    // Add separator line
-                    self.add_text("├");
-                    for _ in 0..self.table_alignment.len() {
-                        self.add_text("───┼");
-                    }
-                    if !self.table_alignment.is_empty() {
-                        // Remove last ┼ and add ┤
-                        if let Some(last_run) = self.current_line.last_mut() {
-                            if last_run.text.ends_with('┼') {
-                                last_run.text.pop();
-                                last_run.text.push('┤');
-                            }
-                        }
-                    }
-                    self.add_line_break();
-                }
-            }
-
-            NodeValue::TableCell => {
-                if self.current_table_column > 0 {
-                    self.add_text("│");
-                }
-                self.add_text(" ");
-                self.walk_children(node);
-                self.add_text(" ");
-                self.current_table_column += 1;
+            NodeValue::Table(table) => {
+                self.walk_table(node, table);
             }
 
             NodeValue::ThematicBreak => {
@@ -315,6 +269,66 @@ impl AstWalker {
         }
     }
 
+    fn walk_table<'a>(&mut self, node: &'a AstNode<'a>, table: &NodeTable) {
+        self.add_line_break();
+        let mut widths = vec![0; table.num_columns];
+        let mut rows = Vec::new();
+
+        // TXT-003: buffer styled cells before choosing shared column widths.
+        for row in node.children() {
+            let data = row.data.borrow();
+            let NodeValue::TableRow(header) = data.value else {
+                continue;
+            };
+            let sourcepos = (data.sourcepos.start.line, data.sourcepos.start.column);
+            let mut cells = Vec::new();
+            for (cell, width) in row.children().zip(&mut widths) {
+                self.walk_children(cell);
+                let runs = std::mem::take(&mut self.current_line);
+                let text: String = runs.iter().map(|run| run.text.as_str()).collect();
+                let cell_width = UnicodeWidthStr::width(text.as_str());
+                *width = (*width).max(cell_width);
+                cells.push((runs, cell_width));
+            }
+            // A short row still spans every column (TXT-003).
+            cells.resize_with(table.num_columns, || (Vec::new(), 0));
+            rows.push((header, sourcepos, cells));
+        }
+
+        for (header, sourcepos, cells) in rows {
+            self.sourcepos_map.insert(self.lines.len(), sourcepos);
+            self.add_text("│");
+            for (column, (runs, cell_width)) in cells.into_iter().enumerate() {
+                let padding = widths[column] - cell_width;
+                let left = match table.alignments.get(column) {
+                    Some(TableAlignment::Right) => padding,
+                    Some(TableAlignment::Center) => padding / 2,
+                    _ => 0,
+                };
+                self.add_text(&" ".repeat(left + 1));
+                self.current_line.extend(runs);
+                self.add_text(&" ".repeat(padding - left + 1));
+                self.add_text("│");
+            }
+            self.add_line_break();
+
+            if header {
+                // TXT-003: the separator uses the same widths as every row.
+                self.sourcepos_map.insert(self.lines.len(), sourcepos);
+                self.add_text("├");
+                for (column, width) in widths.iter().enumerate() {
+                    if column > 0 {
+                        self.add_text("┼");
+                    }
+                    self.add_text(&"─".repeat(width + 2));
+                }
+                self.add_text("┤");
+                self.add_line_break();
+            }
+        }
+        self.add_line_break();
+    }
+
     fn walk_children<'a>(&mut self, node: &'a AstNode<'a>) {
         for child in node.children() {
             self.walk_node(child);
@@ -348,5 +362,69 @@ fn rgba(r: u8, g: u8, b: u8, a: u8) -> Rgba {
         g: g as f32 / 255.0,
         b: b as f32 / 255.0,
         a: a as f32 / 255.0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::markdown::MarkdownRenderer;
+
+    #[test]
+    fn txt_003_tables_preserve_styles_and_pad_display_columns() {
+        let source =
+            "| L | C | R |\n| :--- | :---: | ---: |\n| **界** | `é` | 1234 |\n| x | zz | 1 |";
+        let lines = MarkdownRenderer::new().render_to_styled_lines(source);
+        let text: Vec<_> = lines.iter().map(StyledLine::text).collect();
+        assert_eq!(
+            &text[1..],
+            &[
+                "│ L  │ C  │    R │",
+                "├────┼────┼──────┤",
+                "│ 界 │ é  │ 1234 │",
+                "│ x  │ zz │    1 │",
+            ]
+        );
+        assert!(lines[3]
+            .runs
+            .iter()
+            .any(|run| run.text == "界" && run.attr.contains(Attr::BOLD)));
+        assert!(lines[3]
+            .runs
+            .iter()
+            .any(|run| run.text == "é" && run.bg != Rgba::transparent()));
+        for line in &text[1..] {
+            assert_eq!(UnicodeWidthStr::width(line.as_str()), 18);
+        }
+    }
+
+    #[test]
+    fn txt_003_multiple_tables_keep_widths_and_source_positions_separate() {
+        let source = "| A |\n| --- |\n| longest |\n\n| X | Y |\n| --- | --- |\n| z | |";
+        let renderer = MarkdownRenderer::new();
+        let (lines, positions) = renderer.render_with_sourcepos(source);
+        let text: Vec<_> = lines.iter().map(StyledLine::text).collect();
+        assert_eq!(
+            &text[1..],
+            &[
+                "│ A       │",
+                "├─────────┤",
+                "│ longest │",
+                "│ X │ Y │",
+                "├───┼───┤",
+                "│ z │   │",
+            ]
+        );
+        for (output, input) in [(1, 1), (2, 1), (3, 3), (4, 5), (5, 5), (6, 7)] {
+            assert_eq!(positions[&output], (input, 1));
+        }
+        assert_eq!(
+            text,
+            renderer
+                .render_to_styled_lines(source)
+                .iter()
+                .map(StyledLine::text)
+                .collect::<Vec<_>>()
+        );
     }
 }
