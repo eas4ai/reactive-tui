@@ -5,6 +5,52 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- Dropping a render tree unregisters only the component instances that tree
+  registered; a newer tree's instance under the same key stays mounted
+  (docs/spec/components.md, CMP-001).
+- An App and a `ScreenManager` poll a mounted component's
+  `Component::poll_change` when it mounts and again each time the waker of
+  its last poll is woken, and render it again after a poll returns `Ready`;
+  before, no runtime polled it (CMP-002).
+- A component on a `ScreenManager` screen has its mouse hooks fed:
+  `use_hover`, `use_clicks` and `use_mouse_position` change as they do in an
+  App (CMP-003), and `use_mouse_position` reports `is_inside` false once the
+  pointer moves off the component, over another or over none (CMP-004).
+- `vdom::diff_vnodes` replaces a node whose element name, component name,
+  props or event handlers changed instead of patching it in place (CMP-005).
+- `event::cache::HandlerLookup` keys its chains by the whole node id, so ids
+  256 apart no longer share a slot, and `HandlerChain::execute` returns
+  `Handled` when a handler handled or captured the event and none consumed
+  it (CMP-006).
+- Removed `component::cache::CommonComponents` and `common_components()`, an
+  empty table nothing filled, and the documentation that called it a
+  compile-time perfect hash (CMP-007).
+- A class variant's utility applies only while its condition holds: `first:`,
+  `last:`, `odd:` and `even:` by the child's position, `active:` from a press
+  to its release, `group-hover:`, `group-focus:` and `group-active:` by the
+  nearest ancestor with the class `group`, and `visited:` never; outside an
+  App the class parser applies none of them (docs/spec/styles.md, STY-001).
+- `css! { display: Display::None }` hides the element: it takes no space,
+  paints no cell and gets no mouse event, nor do its children (STY-002);
+  `aspect-auto` clears an aspect ratio an earlier class set (STY-003); the
+  `css!` documentation says property names are matched when the style is
+  built and an unknown property or a value of the wrong kind is ignored,
+  instead of promising compile-time checks (STY-004).
+- An element's explicit cells are painted at its own opacity times its
+  ancestors', as its style colors are (docs/spec/painter.md, PNT-006).
+- `reactive::signal::Memo::get` computes again after a `Signal` its function
+  read has changed (docs/spec/reactive.md, SIG-003).
+- An effect made with `RuntimeContext::create_effect` runs again after each
+  change of a context signal it read, its last cleanup first, until
+  `unregister_effect` removes it or the context is dropped; its function is
+  an `Fn` now, as `Effect::new` takes (SIG-004).
+- A `use_animation` animation keeps its place while paused, however long,
+  and after `resume` finishes after the playing time it had left (SIG-005);
+  `SpringHandle::apply_impulse` moves the spring, which comes back to rest at
+  its target (SIG-006); `AnimationConfig::loop_count` and `loop_behavior`
+  reach the frames: `None` plays once, `Some(0)` repeats until stopped,
+  `Some(n)` plays n times and `PingPong` plays every second pass from the
+  end back to the start, as the field's documentation now says (SIG-007).
 - An animation runs its `on_update` and `on_complete` callbacks with its own
   lock released, so a callback may read the animation's progress, state and
   values and stop, pause or restart it through its shared state; before,
