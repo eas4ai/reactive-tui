@@ -69,6 +69,8 @@ component library as closely as a cell grid allows.
 | ffi.md | FFI | the C interface: an exported function that reads or writes through its caller's pointer is unsafe on the Rust side and says what its caller must guarantee |
 | components.md | CMP | components and their hooks: a dropped render tree unmounts only its own instances, a component's change polling, a screen's mouse hooks, the mouse position's inside flag, the virtual DOM diff, the event handler cache, no empty component table |
 | styles.md | STY | class variants that apply only while their condition holds, `display: none` in `css!`, `aspect-auto`, what the `css!` documentation promises |
+| animation.md | ANI | the animation module an application drives or hands to its App: an animation reversed keeps playing, timelines complete when their animations do, loop callbacks and `auto_reverse` run, stale cleanup keeps what is advancing, unique generated ids, no alternate drivers, stagger delays that cannot overflow, a spring's velocity and a spring easing that reaches its target |
+| text.md | TXT | the syntax editor painting with the whole document's context, the highlighter's cached reuse and byte limits, a Markdown table's separator and alignment |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -85,11 +87,14 @@ is contract.
   (src/component, src/reactive), other than reactive.md's thread-safe signal,
   memo, context effects and hook animations and components.md's
   requirements, and the animation API (src/animation) other than
-  reactive.md's callbacks.
+  reactive.md's callbacks and animation.md's requirements.
 - Layout and utility classes other than layout.md's, styles.md's and the
   rounded, border and ring classes of pixel-looks.md (src/layout), and the
   parts of a theme other than its color roles: spacing variables, loading
-  a theme from a file, the syntax colors (src/theme, src/syntax).
+  a theme from a file, the syntax colors (src/theme, src/syntax other than
+  text.md's requirements).
+- The editor and the Markdown renderer (src/editor, src/markdown) other
+  than text.md's requirements.
 - Widgets other than the charts, the canvas, the menus, the overlays, the
   controls, the layout widgets and the data widgets (src/widgets): the
   images and the embedded terminal.
