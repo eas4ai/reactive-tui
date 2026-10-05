@@ -245,9 +245,9 @@ pub unsafe extern "C" fn rtui_element_set_class(
 ///
 /// # Safety
 ///
-/// `parent` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
+/// `parent` must be null or a live `RTuiElement` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 ///
-/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
+/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_add_child(
     parent: *mut RTuiElement,

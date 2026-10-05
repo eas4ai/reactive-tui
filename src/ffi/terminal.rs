@@ -79,7 +79,7 @@ pub extern "C" fn createTerminal() -> *mut RTuiTerminal {
 ///
 /// # Safety
 ///
-/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed; it is not used again after this call.
+/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
     if terminal.is_null() {
@@ -100,7 +100,7 @@ pub unsafe extern "C" fn destroyTerminal(terminal: *mut RTuiTerminal) {
 ///
 /// # Safety
 ///
-/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed.
+/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn setupTerminal(terminal: *mut RTuiTerminal, use_alternate_screen: bool) {
     if terminal.is_null() {

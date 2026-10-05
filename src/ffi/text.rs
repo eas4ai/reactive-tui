@@ -101,7 +101,7 @@ pub extern "C" fn createTextBuffer(length: u32, _width_method: u8) -> *mut RTuiT
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed; it is not used again after this call.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn destroyTextBuffer(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn destroyTextBuffer(tb: *mut RTuiTextBuffer) {
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn textBufferGetCharPtr(tb: *mut RTuiTextBuffer) -> *mut u32 {
     if tb.is_null() {
@@ -135,7 +135,7 @@ pub unsafe extern "C" fn textBufferGetCharPtr(tb: *mut RTuiTextBuffer) -> *mut u
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no call may destroy it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn textBufferGetLength(tb: *const RTuiTextBuffer) -> u32 {
     if tb.is_null() {
@@ -150,7 +150,7 @@ pub unsafe extern "C" fn textBufferGetLength(tb: *const RTuiTextBuffer) -> u32 {
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no call may destroy it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn textBufferGetCapacity(tb: *const RTuiTextBuffer) -> u32 {
     if tb.is_null() {
@@ -165,7 +165,7 @@ pub unsafe extern "C" fn textBufferGetCapacity(tb: *const RTuiTextBuffer) -> u32
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn textBufferResize(tb: *mut RTuiTextBuffer, new_length: u32) {
     if tb.is_null() {
@@ -198,7 +198,7 @@ pub unsafe extern "C" fn textBufferResize(tb: *mut RTuiTextBuffer, new_length: u
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn textBufferReset(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
@@ -299,7 +299,7 @@ pub unsafe extern "C" fn textBufferWriteChunk(
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 ///
 /// `bg_color` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
 ///
@@ -337,9 +337,9 @@ pub unsafe extern "C" fn textBufferSetSelection(
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no call may destroy it until this one returns.
 ///
-/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn renderTextBufferToSurface(
     tb: *const RTuiTextBuffer,
@@ -424,9 +424,9 @@ pub unsafe extern "C" fn renderTextBufferToSurface(
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no call may destroy it until this one returns.
 ///
-/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn renderTextBufferToRenderer(
     tb: *const RTuiTextBuffer,
@@ -517,9 +517,9 @@ pub unsafe extern "C" fn renderTextBufferToRenderer(
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no call may destroy it until this one returns.
 ///
-/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed.
+/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn renderTextBufferDirect(
     tb: *const RTuiTextBuffer,
@@ -541,7 +541,7 @@ pub unsafe extern "C" fn renderTextBufferDirect(
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn textBufferResetSelection(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
@@ -559,7 +559,7 @@ pub unsafe extern "C" fn textBufferResetSelection(tb: *mut RTuiTextBuffer) {
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no call may destroy it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn textBufferGetSelectionInfo(tb: *const RTuiTextBuffer) -> u64 {
     if tb.is_null() {
@@ -582,7 +582,7 @@ pub unsafe extern "C" fn textBufferGetSelectionInfo(tb: *const RTuiTextBuffer) -
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 ///
 /// `fg` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
 #[reactive_tui_macros::ffi_export]
@@ -604,7 +604,7 @@ pub unsafe extern "C" fn textBufferSetDefaultFg(tb: *mut RTuiTextBuffer, fg: *co
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 ///
 /// `bg` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
 #[reactive_tui_macros::ffi_export]
@@ -648,7 +648,7 @@ pub unsafe extern "C" fn textBufferSetDefaultAttributes(tb: *mut RTuiTextBuffer,
 ///
 /// # Safety
 ///
-/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+/// `tb` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn textBufferResetDefaults(tb: *mut RTuiTextBuffer) {
     if tb.is_null() {
