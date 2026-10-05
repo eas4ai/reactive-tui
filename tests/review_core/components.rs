@@ -292,7 +292,8 @@ fn cmp_002_pin_projection_does_not_claim_an_infallible_pointer_check() {
 
 /// The poll pins the component field while every other method takes the
 /// component by `&mut`, which may move it; that is sound only because a
-/// component is `Unpin`, so this compiles only while the trait says so.
+/// component is `Unpin`, so this compiles only while the trait says so, and
+/// the pin then needs no unsafe code anywhere in the instance module.
 #[test]
 fn cmp_002_a_component_is_unpin_so_pinning_it_for_a_poll_is_sound() {
     fn is_unpin<T: Unpin>() {}
@@ -300,6 +301,13 @@ fn cmp_002_a_component_is_unpin_so_pinning_it_for_a_poll_is_sound() {
         is_unpin::<C>();
     }
     component_is_unpin::<PollingPanel>();
+    let source = include_str!("../../src/component/instance.rs");
+    assert!(
+        !["unsafe {", "unsafe fn", "unsafe impl"]
+            .iter()
+            .any(|code| source.contains(code)),
+        "CMP-002: src/component/instance.rs still pins the component with unsafe code"
+    );
 }
 
 #[reactive_tui::component]
