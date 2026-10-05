@@ -12,6 +12,7 @@ use crate::syntax::theme::hex_to_rgba;
 use lumis::highlight::{Highlighter, Style, UnderlineStyle};
 use lumis::languages::Language;
 use lumis::themes::Appearance;
+use lumis::themes::Theme;
 use std::sync::Arc;
 
 /// Maximum source size accepted by the checked syntax highlighter.
@@ -42,8 +43,9 @@ pub struct SyntaxHighlighter {
     language: Language,
     language_name: String,
     cached_lines: Vec<Option<HighlightedLine>>,
-    /// Document text and theme identity for TXT-002.
-    cached_document: Option<(u64, String)>,
+    /// The hash of the cached document's text and the theme it was
+    /// highlighted under (TXT-002).
+    cached_document: Option<(u64, Theme)>,
     /// How many times the document was parsed, for the tests of TXT-002.
     #[cfg(test)]
     parses: std::sync::atomic::AtomicUsize,
@@ -120,19 +122,38 @@ impl SyntaxHighlighter {
         let Some(theme) = theme else {
             return fallback_range(&lines, start_line, end_line);
         };
-        let identity = (hash_line_content(text), theme.name.clone());
+        self.highlight_lines_with_theme(text, start_line, end_line, theme)
+    }
 
-        // TXT-002: parse once per text or theme change, then serve cached ranges.
-        if self.cached_document.as_ref() != Some(&identity) {
+    /// The visible range of `text` highlighted under `theme`, parsed again
+    /// only when the text or the theme differs from the cached document.
+    fn highlight_lines_with_theme(
+        &mut self,
+        text: &str,
+        start_line: usize,
+        end_line: usize,
+        theme: Theme,
+    ) -> Vec<HighlightedLine> {
+        let lines: Vec<&str> = text.lines().collect();
+        let text_hash = hash_line_content(text);
+
+        // TXT-002: parse once per change of the text or of the theme's
+        // contents (a theme replaced under its name counts), then serve
+        // cached ranges.
+        let cached = self
+            .cached_document
+            .as_ref()
+            .is_some_and(|(hash, cached)| *hash == text_hash && *cached == theme);
+        if !cached {
             let default_fg = Self::default_foreground(&theme);
-            let highlighter = Highlighter::new(self.language, Some(theme));
+            let highlighter = Highlighter::new(self.language, Some(theme.clone()));
             self.note_parse();
             let full = match highlighter.highlight(text) {
                 Ok(segments) => distribute_segments(text, &segments, default_fg),
                 Err(_) => unhighlighted_lines(text),
             };
             self.cached_lines = full.into_iter().map(Some).collect();
-            self.cached_document = Some(identity);
+            self.cached_document = Some((text_hash, theme));
         }
 
         (start_line..end_line.min(lines.len()))
@@ -434,6 +455,38 @@ def world():
             1,
             "TXT-002: two highlight_lines calls on the same text parsed the document {} times",
             highlighter.parse_count()
+        );
+    }
+
+    /// TXT-002: a theme replaced under its name with other colors is a change of theme.
+    #[test]
+    fn txt_002_a_theme_replaced_with_other_colors_is_parsed_again() {
+        let mut highlighter = SyntaxHighlighter::new("Rust").unwrap();
+        let text = "fn main() {}\n";
+        let base = lumis::themes::get("onedark").unwrap();
+        let recolored = |fg: &str| {
+            let mut theme = base.clone();
+            for style in theme.highlights.values_mut() {
+                style.fg = Some(fg.to_string());
+            }
+            theme
+        };
+        let red = highlighter.highlight_lines_with_theme(text, 0, 1, recolored("#ff0000"));
+        highlighter.highlight_lines_with_theme(text, 0, 1, recolored("#ff0000"));
+        assert_eq!(
+            highlighter.parse_count(),
+            1,
+            "TXT-002: the same theme given twice was parsed again"
+        );
+        let blue = highlighter.highlight_lines_with_theme(text, 0, 1, recolored("#0000ff"));
+        assert_eq!(
+            highlighter.parse_count(),
+            2,
+            "TXT-002: a theme with the same name and other colors was served from the cache"
+        );
+        assert_ne!(
+            red[0].runs, blue[0].runs,
+            "TXT-002: the recolored theme painted the old colors"
         );
     }
 

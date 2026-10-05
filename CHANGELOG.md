@@ -57,7 +57,8 @@ This file records user-visible changes to Reactive TUI. The project follows
   changes; `LineCache` is no longer used by the editor (docs/spec/text.md,
   TXT-001).
 - `SyntaxHighlighter::highlight_lines` parses a document once per change of
-  its text or theme and serves repeated calls from its cache;
+  its text or theme and serves repeated calls from its cache; a theme
+  replaced under its name with other colors counts as a change of theme;
   `highlight_lines` and `rehighlight_line` apply `MAX_SYNTAX_BYTES`, and
   `MarkdownRenderer::render_with_sourcepos` applies `MAX_MARKDOWN_BYTES`,
   as the checked entry points do (TXT-002).
