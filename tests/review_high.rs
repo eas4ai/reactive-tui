@@ -609,15 +609,23 @@ mod cht_040 {
 
     const SIZE: (u16, u16) = (80, 24);
 
-    fn one_value(builder: ChartsBuilder) -> ChartProps {
-        builder
-            .size(SIZE.0, SIZE.1)
-            .series(DataSeries::new("only", vec![DataPoint::new(5.0)]))
-            .build()
+    /// A chart, built where the test measures it: `build()` runs a tick
+    /// format over the ticks it lays out.
+    type Build = Box<dyn FnOnce() -> ChartProps + Send>;
+
+    fn one_value(builder: ChartsBuilder) -> Build {
+        Box::new(move || {
+            builder
+                .size(SIZE.0, SIZE.1)
+                .series(DataSeries::new("only", vec![DataPoint::new(5.0)]))
+                .build()
+        })
     }
 
-    /// The charts CHT-040 names, each asking for `count` slots or columns.
-    fn charts(count: usize) -> Vec<(&'static str, ChartProps)> {
+    /// The charts CHT-040 names, each asking for `count` slots or columns,
+    /// and the charts asking for `count` ticks, which its rule covers too:
+    /// the value ticks with a tick format, which `build()` runs per tick.
+    fn charts(count: usize) -> Vec<(&'static str, Build)> {
         vec![
             (
                 "a bar chart's band_count",
@@ -631,18 +639,45 @@ mod cht_040 {
                 "a bar chart's grid_columns",
                 one_value(ChartsBuilder::bar().grid_columns(count)),
             ),
+            (
+                "a bar chart's value_tick_count with a tick format",
+                one_value(
+                    ChartsBuilder::bar()
+                        .value_tick_count(count)
+                        .value_tick_format(|value| format!("{value:.1}")),
+                ),
+            ),
+            (
+                "a line chart's y_tick_count with a tick format",
+                one_value(
+                    ChartsBuilder::line()
+                        .y_tick_count(count)
+                        .y_tick_format(|value| format!("{value:.1}")),
+                ),
+            ),
+            (
+                "a line chart's x_tick_count",
+                one_value(ChartsBuilder::line().x_tick_count(count)),
+            ),
+            (
+                "a bar chart's band_tick_count",
+                one_value(ChartsBuilder::bar().band_tick_count(count)),
+            ),
         ]
     }
 
-    /// Draw `props` until the chart has painted settled frames: the last
-    /// frame's text and how long it took, or why it did not finish.
-    fn draw(props: ChartProps) -> Result<(String, Duration), String> {
+    /// Build the chart and draw it until it has painted settled frames: the
+    /// last frame's text and how long both took, or why they did not finish.
+    fn draw(build: Build) -> Result<(String, Duration), String> {
         let started = Instant::now();
         let frames = within(Duration::from_secs(60), move || {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let props = build();
                 app_input::run(Root(Element::typed::<Chart>(props)), SIZE, vec![(3, None)])
             }))
-            .map_err(|_| "the App did not paint three settled frames".to_owned())
+            .map_err(|_| {
+                "the chart did not build, or the App did not paint three settled frames".to_owned()
+            })
         })
         .ok_or_else(|| "the chart did not finish within 60 seconds".to_owned())??;
         let last = frames
@@ -660,11 +695,11 @@ mod cht_040 {
     }
 
     #[test]
-    fn cht_040_ten_million_slots_or_columns_cost_what_one_value_costs() {
-        for (what, props) in charts(10_000_000) {
+    fn cht_040_ten_million_slots_columns_or_ticks_cost_what_one_value_costs() {
+        for (what, build) in charts(10_000_000) {
             let mark = HELD.load(Ordering::SeqCst);
             PEAK.store(mark, Ordering::SeqCst);
-            let drawn = draw(props);
+            let drawn = draw(build);
             let grew = PEAK.load(Ordering::SeqCst).saturating_sub(mark);
             let (_, took) =
                 drawn.unwrap_or_else(|why| panic!("CHT-040: {what} of 10,000,000: {why}"));
@@ -682,9 +717,9 @@ mod cht_040 {
 
     #[test]
     fn cht_040_a_count_of_usize_max_draws_its_one_value() {
-        for (what, props) in charts(usize::MAX) {
+        for (what, build) in charts(usize::MAX) {
             let (text, _) =
-                draw(props).unwrap_or_else(|why| panic!("CHT-040: {what} of usize::MAX: {why}"));
+                draw(build).unwrap_or_else(|why| panic!("CHT-040: {what} of usize::MAX: {why}"));
             assert!(
                 shows_a_mark(&text),
                 "CHT-040: {what} of usize::MAX left the plot without its one value:\n{text}"
