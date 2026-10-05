@@ -64,17 +64,23 @@ impl ReactiveRuntime {
             if let Some(effect) = self.effects.borrow().get(&effect_id).cloned() {
                 effect.add_dependency(signal_id);
 
-                // Add the effect to the signal's dependent list
+                // Add the effect to the signal's dependent list, once however
+                // many times a run reads the signal (SIG-004)
                 let mut signal_effects = self.signal_effects.borrow_mut();
-                signal_effects
-                    .entry(signal_id)
-                    .or_default()
-                    .push(Rc::downgrade(&effect));
+                let dependents = signal_effects.entry(signal_id).or_default();
+                let dependent = Rc::downgrade(&effect);
+                if !dependents
+                    .iter()
+                    .any(|known| Weak::ptr_eq(known, &dependent))
+                {
+                    dependents.push(dependent);
+                }
             }
         }
     }
 
-    /// Notify that a signal has changed
+    /// Notify that a signal has changed: the effects whose last run read it
+    /// run again (SIG-004)
     pub fn signal_changed(&self, signal_id: SignalId) {
         let effects = self
             .signal_effects
@@ -84,9 +90,16 @@ impl ReactiveRuntime {
             .unwrap_or_default();
         if !effects.is_empty() {
             let batch_depth = *self.batch_depth.borrow();
+            let mut queued = Vec::new();
             for weak_effect in &effects {
                 if let Some(effect) = weak_effect.upgrade() {
                     let effect_id = effect.id();
+                    // An effect whose last run did not read the signal is no
+                    // longer one of its dependents
+                    if !effect.depends_on(signal_id) || queued.contains(&effect_id) {
+                        continue;
+                    }
+                    queued.push(effect_id);
 
                     if batch_depth > 0 {
                         // We're in a batch, queue the effect
@@ -312,17 +325,17 @@ impl RuntimeContext {
         &self.runtime
     }
 
-    /// Create a signal in this runtime
+    /// Create a signal in this runtime. An effect of this context that reads
+    /// it runs again when it changes (SIG-004).
     pub fn create_signal<T>(&self, initial: T) -> Signal<T> {
-        // Could register with runtime for tracking
-        Signal::new(initial)
+        Signal::in_runtime(initial, Rc::downgrade(&self.runtime))
     }
 
-    /// Create an effect in this runtime
-    pub fn create_effect(
-        &self,
-        f: impl FnOnce() -> Option<Box<dyn FnOnce()>> + 'static,
-    ) -> EffectId {
+    /// Create an effect in this runtime. It runs now, and again after each
+    /// change of a signal of this context it read during its last run, after
+    /// the cleanup that run returned, until `unregister_effect` on
+    /// [`Self::runtime`] removes it or the context is dropped (SIG-004).
+    pub fn create_effect(&self, f: impl Fn() -> Option<Box<dyn FnOnce()>> + 'static) -> EffectId {
         let effect = Effect::new(f);
         self.runtime.register_effect(effect)
     }

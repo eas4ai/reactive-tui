@@ -9,7 +9,7 @@ use crate::reactive::hooks::{HookKind, Liveness};
 use crate::reactive::scheduler::TimerId;
 use crate::reactive::{use_effect_with_deps, Hooks, Scheduler, ThreadSafeSignal};
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::time::{Duration, Instant};
 
@@ -95,10 +95,22 @@ struct AnimationRuntime {
 #[derive(Clone)]
 struct AnimationTask {
     id: usize,
-    update: Arc<dyn Fn(f32) + Send + Sync>,
+    update: Arc<dyn Fn(f32) -> Frame + Send + Sync>,
     active: Arc<AtomicBool>,
     start_time: Instant,
     duration: Duration,
+}
+
+/// What a task made of the frame it was given.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Frame {
+    /// The task goes on from here; a paused one holds its place (SIG-005).
+    Continue,
+    /// The pass ended and another begins: the task's clock starts over
+    /// (SIG-007).
+    Restart,
+    /// The task is finished and leaves the runtime.
+    Done,
 }
 
 // Concurrent Apps and callback reentry must not deliver an older frame after a
@@ -150,9 +162,42 @@ impl AnimationRuntime {
                     / task.duration.as_secs_f64())
                 .min(1.0) as f32
             };
-            (task.update)(progress);
-            if progress >= 1.0 {
-                self.remove_animation(task.id);
+            let frame = (task.update)(progress);
+            self.after_frame(&task, frame, now);
+        }
+    }
+
+    /// Keep, restart or remove `task` as its frame said. The task decides
+    /// when it is done: a frame at full progress ends a pass, not always
+    /// the task (SIG-005, SIG-007).
+    fn after_frame(&self, task: &AnimationTask, frame: Frame, now: Instant) {
+        match frame {
+            Frame::Continue => {}
+            Frame::Restart => self.restart(task.id, now),
+            Frame::Done => self.remove_animation(task.id),
+        }
+    }
+
+    /// Start the clock of task `id` over for its next pass. The time past
+    /// the pass's end carries into the next pass while it is less than a
+    /// pass, so the period keeps; after a longer stall the pass starts now.
+    fn restart(&self, id: usize, now: Instant) {
+        let mut tasks = self.animations.write().unwrap();
+        if let Some(task) = tasks.iter_mut().find(|task| task.id == id) {
+            task.start_time = match task.start_time.checked_add(task.duration) {
+                Some(next) if now.saturating_duration_since(next) < task.duration => next,
+                _ => now,
+            };
+        }
+    }
+
+    /// Move the clock of task `id` forward by `span`: time that passed while
+    /// the task was paused, which is not playing time (SIG-005).
+    fn skip(&self, id: usize, span: Duration) {
+        let mut tasks = self.animations.write().unwrap();
+        if let Some(task) = tasks.iter_mut().find(|task| task.id == id) {
+            if let Some(start) = task.start_time.checked_add(span) {
+                task.start_time = start;
             }
         }
     }
@@ -169,7 +214,11 @@ impl AnimationRuntime {
         drop(removed);
     }
 
-    fn add_animation(&self, update: Arc<dyn Fn(f32) + Send + Sync>, duration: Duration) -> usize {
+    fn add_animation(
+        &self,
+        update: Arc<dyn Fn(f32) -> Frame + Send + Sync>,
+        duration: Duration,
+    ) -> usize {
         let id = self
             .next_id
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
@@ -238,6 +287,8 @@ struct AnimationOwner<T: AnimatableValue> {
     scheduler: Arc<Scheduler>,
     pending_transition: Mutex<Option<TimerId>>,
     transition_request: Mutex<Option<(T, Duration)>>,
+    /// When the playing animation was paused, until `resume` (SIG-005).
+    paused_at: Mutex<Option<Instant>>,
     cleanup_registered: AtomicBool,
     generation: AtomicUsize,
     lifetime: Liveness,
@@ -267,6 +318,7 @@ impl<T: AnimatableValue> AnimationOwner<T> {
         if let Some(id) = self.pending_transition.lock().unwrap().take() {
             self.scheduler.cancel_timer(id);
         }
+        *self.paused_at.lock().unwrap() = None;
     }
 
     fn start(self: &Arc<Self>, target: T) {
@@ -284,29 +336,55 @@ impl<T: AnimatableValue> AnimationOwner<T> {
         self.state.set(AnimationState::Playing);
         let config = self.config.read().unwrap().clone();
         let owner = Arc::downgrade(self);
+        // The passes played to their end so far (SIG-007).
+        let passes = AtomicU32::new(0);
         let update = Arc::new(move |progress: f32| {
-            let Some(owner) = owner.upgrade() else { return };
+            let Some(owner) = owner.upgrade() else {
+                return Frame::Done;
+            };
             if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
-                return;
+                return Frame::Done;
             }
             if !owner.controller.lock().unwrap().is_playing() {
-                return;
+                // Paused: the frame does not count, and the task waits (SIG-005).
+                return Frame::Continue;
             }
-            let value = owner.from_value.read().unwrap().interpolate(
-                &owner.to_value.read().unwrap(),
-                config.easing.apply(progress),
-            );
+            let pass = passes.load(Ordering::Acquire);
+            // PingPong plays every second pass from the end back to the start.
+            let backward = config.loop_behavior == LoopMode::PingPong && pass % 2 == 1;
+            let along = if backward { 1.0 - progress } else { progress };
+            let value = owner
+                .from_value
+                .read()
+                .unwrap()
+                .interpolate(&owner.to_value.read().unwrap(), config.easing.apply(along));
             let current = owner.current_animation_id.lock().unwrap();
-            if owner.is_alive()
-                && owner.generation.load(Ordering::Acquire) == generation
-                && current.is_some()
-            {
-                owner.value.set(value);
-                if progress >= 1.0 {
-                    owner.controller.lock().unwrap().stop();
-                    owner.state.set(AnimationState::Stopped);
-                }
+            if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
+                return Frame::Done;
             }
+            if current.is_none() {
+                // Registered but not recorded yet: this frame waits.
+                return Frame::Continue;
+            }
+            owner.value.set(value);
+            if progress < 1.0 {
+                return Frame::Continue;
+            }
+            // A pass ended: another follows for `Some(0)`, and for `Some(n)`
+            // until n have played; `None` plays once (SIG-007).
+            let played = pass.saturating_add(1);
+            let again = match config.loop_count {
+                None => false,
+                Some(0) => true,
+                Some(count) => played < count,
+            };
+            if again {
+                passes.store(played, Ordering::Release);
+                return Frame::Restart;
+            }
+            owner.controller.lock().unwrap().stop();
+            owner.state.set(AnimationState::Stopped);
+            Frame::Done
         });
         let id = RUNTIME.add_animation(update, config.duration);
         *self.current_animation_id.lock().unwrap() = Some(id);
@@ -349,20 +427,38 @@ impl<T: AnimatableValue> AnimationHandle<T> {
         self.owner.start(target);
     }
 
-    /// Pause the current animation
+    /// Pause the playing animation. It keeps its place until `resume`,
+    /// however long it stays paused (SIG-005).
     pub fn pause(&self) {
-        if self.owner.is_alive() {
-            self.owner.controller.lock().unwrap().pause();
-            self.owner.state.set(AnimationState::Paused);
+        if !self.owner.is_alive() {
+            return;
         }
+        let mut controller = self.owner.controller.lock().unwrap();
+        if !controller.is_playing() {
+            return;
+        }
+        controller.pause();
+        drop(controller);
+        *self.owner.paused_at.lock().unwrap() = Some(Instant::now());
+        self.owner.state.set(AnimationState::Paused);
     }
 
-    /// Resume a paused animation
+    /// Resume a paused animation from the value it had when paused, with
+    /// the playing time it had left (SIG-005).
     pub fn resume(&self) {
-        if self.owner.is_alive() {
-            self.owner.controller.lock().unwrap().resume();
-            self.owner.state.set(AnimationState::Playing);
+        if !self.owner.is_alive() {
+            return;
         }
+        let Some(paused_at) = self.owner.paused_at.lock().unwrap().take() else {
+            return;
+        };
+        // The paused span is not playing time: the task's clock skips it.
+        let id = *self.owner.current_animation_id.lock().unwrap();
+        if let Some(id) = id {
+            RUNTIME.skip(id, paused_at.elapsed());
+        }
+        self.owner.controller.lock().unwrap().resume();
+        self.owner.state.set(AnimationState::Playing);
     }
 
     /// Stop the current animation
@@ -396,9 +492,12 @@ pub struct AnimationConfig {
     pub duration: Duration,
     /// Easing function to use for interpolation
     pub easing: EasingFunction,
-    /// Number of times to loop (None for infinite)
+    /// How many times the animation plays: `None` once, `Some(0)` until it
+    /// is stopped, `Some(n)` n times (SIG-007)
     pub loop_count: Option<u32>,
-    /// Behavior when looping
+    /// How a pass after the first runs: `LoopMode::PingPong` plays every
+    /// second pass from the end value back to the start; any other mode
+    /// plays each pass from the start (SIG-007)
     pub loop_behavior: LoopMode,
 }
 
@@ -440,6 +539,7 @@ pub fn use_animation<T: AnimatableValue>(
             scheduler,
             pending_transition: Mutex::new(None),
             transition_request: Mutex::new(None),
+            paused_at: Mutex::new(None),
             cleanup_registered: AtomicBool::new(false),
             generation: AtomicUsize::new(0),
             lifetime,
@@ -530,29 +630,51 @@ impl<T: AnimatableValue> SpringHandle<T> {
             .fetch_add(1, Ordering::AcqRel)
             .wrapping_add(1);
         let owner = Arc::downgrade(&self.owner);
-        let update = Arc::new(move |_progress: f32| {
-            let Some(owner) = owner.upgrade() else { return };
+        // A spring has no set end: its task is a window that starts over
+        // until the spring settles (SIG-006).
+        let window = Duration::from_secs(10);
+        // The progress of the previous frame in this window, as f32 bits.
+        let last = AtomicU32::new(0.0_f32.to_bits());
+        let update = Arc::new(move |progress: f32| {
+            let Some(owner) = owner.upgrade() else {
+                return Frame::Done;
+            };
             if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
-                return;
+                return Frame::Done;
             }
-            let current = owner.value.get().to_f32();
+            // The frame's time is what passed since the previous frame.
+            let since = progress - f32::from_bits(last.load(Ordering::Acquire));
+            let dt = since.max(0.0) * window.as_secs_f32();
+            let position = owner.value.get().to_f32();
+            let velocity = *owner.velocity.read().unwrap();
             let target = owner.target.read().unwrap().to_f32();
             let config = owner.config.read().unwrap().clone();
-            let position = config.calculate_position(0.016, current, target); // 60fps frame
-            let new_velocity = config.calculate_velocity(0.016, current, target);
+            // The spring's own velocity drives it, so an impulse carries into
+            // the frames that follow (SIG-006).
+            let (position, velocity) = config.step(dt, position, velocity, target);
+            let settled =
+                (position - target).abs() < config.precision && velocity.abs() < config.precision;
             let mut animation_id = owner.animation_id.lock().unwrap();
             if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
-                return;
+                return Frame::Done;
             }
-            *owner.velocity.write().unwrap() = new_velocity;
+            if settled {
+                // At rest at the target (SIG-006).
+                *owner.velocity.write().unwrap() = 0.0;
+                owner.value.set(T::from_f32(target));
+                animation_id.take();
+                return Frame::Done;
+            }
+            *owner.velocity.write().unwrap() = velocity;
             owner.value.set(T::from_f32(position));
-            if (position - target).abs() < 0.001f32 && new_velocity.abs() < 0.001f32 {
-                if let Some(id) = animation_id.take() {
-                    RUNTIME.remove_animation(id);
-                }
+            if progress >= 1.0 {
+                last.store(0.0_f32.to_bits(), Ordering::Release);
+                return Frame::Restart;
             }
+            last.store(progress.to_bits(), Ordering::Release);
+            Frame::Continue
         });
-        let id = RUNTIME.add_animation(update, Duration::from_secs(10)); // Max 10 seconds
+        let id = RUNTIME.add_animation(update, window);
         *self.owner.animation_id.lock().unwrap() = Some(id);
     }
 }
@@ -684,10 +806,10 @@ impl<T: AnimatableValue> StaggerOwner<T> {
             let update_owner = Arc::downgrade(&owner);
             let update = Arc::new(move |progress: f32| {
                 let Some(owner) = update_owner.upgrade() else {
-                    return;
+                    return Frame::Done;
                 };
                 if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
-                    return;
+                    return Frame::Done;
                 }
                 let value = from.interpolate(&target, easing.apply(progress));
                 // The checks run again inside the store. cancel_owned_work
@@ -703,6 +825,11 @@ impl<T: AnimatableValue> StaggerOwner<T> {
                             .get(index)
                             .is_some_and(Option::is_some)
                 });
+                if progress >= 1.0 {
+                    Frame::Done
+                } else {
+                    Frame::Continue
+                }
             });
             let id = RUNTIME.add_animation(update, duration);
             let mut ids = owner.animation_ids.lock().unwrap();
@@ -893,19 +1020,27 @@ impl<T: AnimatableValue + KeyframeType> KeyframeHandle<T> {
             .wrapping_add(1);
         let owner = Arc::downgrade(&self.owner);
         let update = Arc::new(move |progress: f32| {
-            let Some(owner) = owner.upgrade() else { return };
-            if owner.is_alive() {
-                if let Some(value) = owner.animation.get_value_at_time(progress) {
-                    // Sampling user-defined values can stop or restart playback.
-                    // Serialize delivery with cancellation after sampling returns.
-                    let current = owner.animation_id.lock().unwrap();
-                    if current.is_some()
-                        && owner.is_alive()
-                        && owner.generation.load(Ordering::Acquire) == generation
-                    {
-                        owner.value.set(value);
-                    }
+            let Some(owner) = owner.upgrade() else {
+                return Frame::Done;
+            };
+            if !owner.is_alive() {
+                return Frame::Done;
+            }
+            if let Some(value) = owner.animation.get_value_at_time(progress) {
+                // Sampling user-defined values can stop or restart playback.
+                // Serialize delivery with cancellation after sampling returns.
+                let current = owner.animation_id.lock().unwrap();
+                if current.is_some()
+                    && owner.is_alive()
+                    && owner.generation.load(Ordering::Acquire) == generation
+                {
+                    owner.value.set(value);
                 }
+            }
+            if progress >= 1.0 {
+                Frame::Done
+            } else {
+                Frame::Continue
             }
         });
         *current = Some(RUNTIME.add_animation(update, self.owner.animation.duration()));
@@ -1004,6 +1139,8 @@ mod tests {
         work()
     }
 
+    /// A frame at `progress` of the current pass for the task `id`, kept,
+    /// restarted or removed as a pass would.
     fn sig_deliver_frame(id: usize, progress: f32) {
         let task = RUNTIME
             .animations
@@ -1013,7 +1150,8 @@ mod tests {
             .find(|task| task.id == id)
             .cloned();
         if let Some(task) = task {
-            (task.update)(progress);
+            let frame = (task.update)(progress);
+            RUNTIME.after_frame(&task, frame, Instant::now());
         }
     }
 
@@ -1690,7 +1828,7 @@ mod tests {
     }
 
     /// The update closure RUNTIME holds for the animation `id`.
-    fn task_update(id: usize) -> Arc<dyn Fn(f32) + Send + Sync> {
+    fn task_update(id: usize) -> Arc<dyn Fn(f32) -> Frame + Send + Sync> {
         RUNTIME
             .animations
             .read()
@@ -1704,7 +1842,10 @@ mod tests {
 
     /// Whether dropping `hooks`, the last clone, while another thread calls
     /// `update` in a loop leaves that thread unable to finish.
-    fn drop_during_updates_hangs(update: Arc<dyn Fn(f32) + Send + Sync>, hooks: Hooks) -> bool {
+    fn drop_during_updates_hangs(
+        update: Arc<dyn Fn(f32) -> Frame + Send + Sync>,
+        hooks: Hooks,
+    ) -> bool {
         let stop = Arc::new(AtomicBool::new(false));
         let calls = Arc::new(AtomicUsize::new(0));
         let (done, done_receiver) = std::sync::mpsc::channel();
@@ -2007,7 +2148,7 @@ mod tests {
             fn drop(&mut self) {
                 let id = self
                     .0
-                    .add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+                    .add_animation(Arc::new(|_| Frame::Continue), Duration::from_secs(10));
                 self.0.remove_animation(id);
             }
         }
@@ -2019,6 +2160,7 @@ mod tests {
                 let id = runtime.add_animation(
                     Arc::new(move |_| {
                         std::hint::black_box(&captured);
+                        Frame::Continue
                     }),
                     Duration::from_secs(10),
                 );
@@ -2044,7 +2186,14 @@ mod tests {
         let delivered = Arc::new(Mutex::new(Vec::new()));
         let output = delivered.clone();
         runtime.add_animation(
-            Arc::new(move |progress| output.lock().unwrap().push(progress)),
+            Arc::new(move |progress| {
+                output.lock().unwrap().push(progress);
+                if progress >= 1.0 {
+                    Frame::Done
+                } else {
+                    Frame::Continue
+                }
+            }),
             Duration::ZERO,
         );
         runtime.update_animations();
@@ -2056,10 +2205,10 @@ mod tests {
     #[serial_test::serial]
     fn keyframe_runtime_ids_do_not_reuse_a_live_animation_after_cancellation() {
         let runtime = AnimationRuntime::new();
-        let first = runtime.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
-        let second = runtime.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+        let first = runtime.add_animation(Arc::new(|_| Frame::Continue), Duration::from_secs(10));
+        let second = runtime.add_animation(Arc::new(|_| Frame::Continue), Duration::from_secs(10));
         runtime.remove_animation(first);
-        let third = runtime.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+        let third = runtime.add_animation(Arc::new(|_| Frame::Continue), Duration::from_secs(10));
         assert_ne!(second, third);
         runtime.remove_animation(second);
         assert_eq!(runtime.animations.read().unwrap().len(), 1);
@@ -2075,8 +2224,10 @@ mod tests {
             let target = runtime.clone();
             runtime.add_animation(
                 Arc::new(move |_| {
-                    let id = target.add_animation(Arc::new(|_| {}), Duration::from_secs(10));
+                    let id = target
+                        .add_animation(Arc::new(|_| Frame::Continue), Duration::from_secs(10));
                     target.remove_animation(id);
+                    Frame::Continue
                 }),
                 Duration::from_secs(10),
             );
