@@ -269,15 +269,12 @@ impl WindowsTty {
         let start_time = std::time::Instant::now();
 
         loop {
-            let remaining_timeout = if let Some(timeout) = timeout {
-                let elapsed = start_time.elapsed();
-                if elapsed >= timeout {
-                    break;
-                }
-                Some(timeout - elapsed)
-            } else {
-                None
-            };
+            // A spent timeout still reads the records that already wait:
+            // a zero wait reads them without blocking and times out when
+            // none is left, so an App that polls with a zero timeout gets
+            // its keys, clicks and focus changes (INP-012).
+            let remaining_timeout =
+                timeout.map(|timeout| timeout.saturating_sub(start_time.elapsed()));
 
             match self.read_input_record(remaining_timeout) {
                 Ok(record) => {
