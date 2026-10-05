@@ -487,20 +487,24 @@ impl Animation {
         // read the animation's progress, state and values, or change its
         // state, without waiting for the lock its own thread holds (SIG-002).
         let values = state.current_values.clone();
+        let frame_time = state.current_time;
         drop(state_guard);
         if let (Some(callback), Some(values)) = (&self.callbacks.on_update, &values) {
             callback(self, values);
         }
 
-        // Check for completion, unless the update callback already moved the
-        // animation out of play.
+        // Complete the frame this update computed, unless the update
+        // callback moved the animation out of it: out of play, or to another
+        // time, as a restart does.
         let completed = {
             let mut state_guard = match self.state.write() {
                 Ok(guard) => guard,
                 Err(_) => return false,
             };
             let state = &mut *state_guard;
-            if raw_progress >= 1.0 && state.state == AnimationState::Playing {
+            let in_this_frame =
+                state.state == AnimationState::Playing && state.current_time == frame_time;
+            if raw_progress >= 1.0 && in_this_frame {
                 match self.config.loop_mode {
                     LoopMode::None => {
                         state.state = AnimationState::Completed;
@@ -526,9 +530,7 @@ impl Animation {
                     }
                 }
             }
-            raw_progress >= 1.0
-                && matches!(self.config.loop_mode, LoopMode::None | LoopMode::Count(_))
-                && state.state == AnimationState::Completed
+            raw_progress >= 1.0 && in_this_frame && state.state == AnimationState::Completed
         };
 
         if completed {

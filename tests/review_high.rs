@@ -173,6 +173,51 @@ mod sig_002 {
             );
         }
     }
+
+    /// An `on_update` that restarts its animation on the frame that
+    /// reaches the end: the restart stands, and no completion runs for the
+    /// frame it left.
+    #[test]
+    fn sig_002_an_update_callback_that_restarts_its_animation_keeps_it_playing() {
+        let completions = Arc::new(AtomicUsize::new(0));
+        let completed = completions.clone();
+        let mut animation = Animation::builder("restarting")
+            .animate_property(AnimatedProperty::Opacity(0.0, 1.0))
+            .duration(Duration::from_millis(100))
+            .on_update(|animation, _| {
+                if let Ok(mut state) = animation.state.write() {
+                    if state.current_time >= Duration::from_millis(100) {
+                        state.state = AnimationState::Playing;
+                        state.current_time = Duration::ZERO;
+                        state.progress = 0.0;
+                    }
+                }
+            })
+            .on_complete(move |_| {
+                completed.fetch_add(1, Ordering::SeqCst);
+            })
+            .build();
+        animation.play();
+        let returned = within(Duration::from_secs(5), move || {
+            animation.update(Duration::from_millis(200));
+            let state = animation.state.read().expect("the animation's state");
+            (state.state, state.current_time)
+        });
+        let (state, time) = returned.expect(
+            "SIG-002: an update whose callback restarts its animation did not return within 5 seconds",
+        );
+        assert_eq!(
+            state,
+            AnimationState::Playing,
+            "SIG-002: an on_update that restarts its animation on its last frame keeps it playing"
+        );
+        assert_eq!(time, Duration::ZERO, "the restart's time stands");
+        assert_eq!(
+            completions.load(Ordering::SeqCst),
+            0,
+            "no completion runs for the frame the callback restarted"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
