@@ -426,7 +426,10 @@ mod thm_004 {
     use reactive_tui::theme::{Theme, ThemeVariables};
     use std::time::{Duration, Instant};
 
-    /// Resolves through two cycles and prints what each gives.
+    /// Resolves through the cycles, the chains and the extended theme and
+    /// asserts what each gives; a stack overflow here ends only this child
+    /// process, which the test below reads. Prints `THM004 done` once every
+    /// assertion has held.
     #[test]
     #[ignore = "run by thm_004_variables_that_name_each_other_resolve_as_undefined"]
     fn thm_004_child() {
@@ -481,21 +484,52 @@ mod thm_004 {
             )
             .extend(base);
         let started = Instant::now();
-        let a = theme.resolve_color("a");
-        let input = theme.resolve_color("input");
-        let surface = theme.resolve_color("surface");
-        let selection = through.resolve_color("selection").is_some();
-        let hover = shared.resolve_color("hover");
-        let neutral = shared.resolve_color("neutral");
-        let long32 = long32.resolve_color("c0").is_some();
-        let long33 = long33.resolve_color("c0").is_some();
-        let e = extending.resolve_color("e");
-        let extending_input = extending.resolve_color("input");
-        let extending_surface = extending.resolve_color("surface");
-        println!(
-            "THM004 a={a:?} input={input:?} surface={surface:?} selection={selection} hover={hover:?} neutral={neutral:?} long32={long32} long33={long33} e={e:?} extending_input={extending_input:?} extending_surface={extending_surface:?} ms={}",
-            started.elapsed().as_millis()
+        assert_eq!(
+            theme.resolve_color("a"),
+            None,
+            "THM-004: a name in a cycle that is not a role resolves to nothing"
         );
+        assert_eq!(
+            theme.resolve_color("input"),
+            theme.resolve_color("surface"),
+            "THM-004: the role `input` in a cycle takes its fallback, its surface"
+        );
+        assert!(
+            through.resolve_color("selection").is_some(),
+            "THM-004: a cycle through a fallback still resolves the role"
+        );
+        assert_eq!(
+            shared.resolve_color("hover"),
+            shared.resolve_color("neutral"),
+            "two roles sharing one alias are no cycle: hover mixes surface and foreground, both the alias"
+        );
+        assert!(
+            long32.resolve_color("c0").is_some(),
+            "THM-004: a chain of 32 names resolves to its color"
+        );
+        assert_eq!(
+            long33.resolve_color("c0"),
+            None,
+            "THM-004: a chain that passes 32 names resolves as undefined"
+        );
+        assert_eq!(
+            extending.resolve_color("e"),
+            None,
+            "THM-004: a cycle split between a theme and the theme it extends resolves to nothing"
+        );
+        let extending_surface = extending.resolve_color("surface");
+        assert!(extending_surface.is_some(), "the extended theme's surface");
+        assert_eq!(
+            extending.resolve_color("input"),
+            extending_surface,
+            "THM-004: the role `input` in a cycle through an extended theme takes its fallback, its surface"
+        );
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "THM-004: resolving took {elapsed:?}"
+        );
+        println!("THM004 done");
     }
 
     #[test]
@@ -518,74 +552,29 @@ mod thm_004 {
         }
         if child.try_wait().expect("the child's status").is_none() {
             let _ = child.kill();
-            panic!("THM-004: resolving variables that name each other did not return within 10 seconds");
+            panic!(
+                "THM-004: resolving variables that name each other did not return within 10 seconds"
+            );
         }
         let output = child.wait_with_output().expect("the child's output");
         let said = String::from_utf8_lossy(&output.stdout).into_owned()
             + &String::from_utf8_lossy(&output.stderr);
         assert!(
             output.status.success(),
-            "THM-004: resolving variables that name each other ended the process ({}): {}",
+            "THM-004: resolving variables that name each other failed in the child ({}): {}",
             output.status,
             said.lines()
-                .filter(|line| line.contains("overflow") || line.contains("THM004"))
+                .filter(|line| line.contains("overflow")
+                    || line.contains("THM-004")
+                    || line.contains("panicked")
+                    || line.contains("left:")
+                    || line.contains("right:"))
                 .collect::<Vec<_>>()
                 .join(" / ")
         );
-        let line = said
-            .lines()
-            .find(|line| line.starts_with("THM004 "))
-            .unwrap_or_else(|| panic!("the child printed its result: {said}"));
-        let field = |name: &str| -> String {
-            line.split_whitespace()
-                .find_map(|part| part.strip_prefix(&format!("{name}=")))
-                .unwrap_or_default()
-                .to_owned()
-        };
-        assert_eq!(
-            field("a"),
-            "None",
-            "THM-004: a name in a cycle that is not a role resolves to nothing: {line}"
-        );
-        assert_eq!(
-            field("input"),
-            field("surface"),
-            "THM-004: the role `input` in a cycle takes its fallback, its surface: {line}"
-        );
-        assert_eq!(
-            field("selection"),
-            "true",
-            "THM-004: a cycle through a fallback still resolves the role: {line}"
-        );
-        assert_eq!(
-            field("hover"),
-            field("neutral"),
-            "two roles sharing one alias are no cycle: hover mixes surface and foreground, both the alias: {line}"
-        );
-        assert_eq!(
-            (field("long32").as_str(), field("long33").as_str()),
-            ("true", "false"),
-            "THM-004: a chain of 32 names resolves and one that passes 32 names resolves as undefined: {line}"
-        );
-        assert_eq!(
-            field("e"),
-            "None",
-            "THM-004: a cycle split between a theme and the theme it extends resolves to nothing: {line}"
-        );
-        assert_eq!(
-            field("extending_input"),
-            field("extending_surface"),
-            "THM-004: the role `input` in a cycle through an extended theme takes its fallback, its surface: {line}"
-        );
-        assert_ne!(
-            field("extending_surface"),
-            "None",
-            "the extended theme's surface: {line}"
-        );
-        let elapsed: u128 = field("ms").parse().unwrap_or(u128::MAX);
         assert!(
-            elapsed < 1000,
-            "THM-004: resolving took {elapsed} ms: {line}"
+            said.lines().any(|line| line == "THM004 done"),
+            "the child ran its test to the end: {said}"
         );
     }
 }
