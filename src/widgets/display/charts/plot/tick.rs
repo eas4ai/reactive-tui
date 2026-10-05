@@ -218,8 +218,12 @@ pub fn labeled_ticks(scale: &ScaleLinear, labels: &[String]) -> Vec<Tick> {
 
 /// One tick per band, centred on the band, labelled from `labels` (falling
 /// back to the index).
-pub fn band_ticks(scale: &ScaleBand, labels: &[Option<String>]) -> Vec<Tick> {
-    (0..scale.count())
+///
+/// Only the first `shown` bands get a tick: a chart laid out for more slots
+/// than it has data labels its data alone, whatever the slot count asks
+/// (CHT-040).
+pub fn band_ticks(scale: &ScaleBand, labels: &[Option<String>], shown: usize) -> Vec<Tick> {
+    (0..scale.count().min(shown))
         .map(|i| Tick {
             value: i as f64,
             position: scale.center(i),
@@ -232,9 +236,10 @@ pub fn band_ticks(scale: &ScaleBand, labels: &[Option<String>]) -> Vec<Tick> {
         .collect()
 }
 
-/// One tick per point, labelled from `labels` (falling back to the index).
-pub fn point_ticks(scale: &ScalePoint, labels: &[Option<String>]) -> Vec<Tick> {
-    (0..scale.count())
+/// One tick per point, labelled from `labels` (falling back to the index),
+/// for the first `shown` points (CHT-040).
+pub fn point_ticks(scale: &ScalePoint, labels: &[Option<String>], shown: usize) -> Vec<Tick> {
+    (0..scale.count().min(shown))
         .map(|i| Tick {
             value: i as f64,
             position: scale.map(i),
@@ -406,12 +411,12 @@ mod tests {
     #[test]
     fn band_and_point_ticks_use_labels_or_indices() {
         let band = ScaleBand::new(2, (0.0, 20.0));
-        let ticks = band_ticks(&band, &[Some("a".into()), None]);
+        let ticks = band_ticks(&band, &[Some("a".into()), None], usize::MAX);
         assert_eq!(ticks[0].label, "a");
         assert_eq!(ticks[1].label, "1");
         assert_eq!(ticks[0].position, 5.0);
         let point = ScalePoint::new(3, (0.0, 20.0));
-        assert_eq!(point_ticks(&point, &[])[2].position, 20.0);
+        assert_eq!(point_ticks(&point, &[], usize::MAX)[2].position, 20.0);
         let custom = labeled_ticks(
             &ScaleLinear::new((0.0, 1.0), (0.0, 10.0)),
             &["s".into(), "e".into()],
