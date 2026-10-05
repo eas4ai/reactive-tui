@@ -17,10 +17,7 @@ pub mod debug;
 pub mod easing;
 /// Keyframe-based animation system
 pub mod keyframes;
-/// Lock-free animation state management to prevent deadlocks
-pub mod lock_free;
-/// Performance monitoring and optimization for animations
-pub mod performance;
+// ANI-006: animations use the shared playback, timeline and manager drivers.
 /// Animation property types and transformations
 pub mod properties;
 /// Spring physics-based animations
@@ -44,7 +41,6 @@ pub use state::{
     LoopMode,
 };
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -60,6 +56,12 @@ type OnStopCallback = Arc<dyn Fn(&Animation) + Send + Sync>;
 
 /// Unique identifier for animations
 pub type AnimationId = String;
+
+/// Draw an id from the shared sequence for all generated animations (ANI-005).
+pub(crate) fn next_generated_id() -> AnimationId {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    format!("anim_{}", COUNTER.fetch_add(1, Ordering::Relaxed))
+}
 
 /// Unique identifier for animation timelines
 pub type TimelineId = String;
@@ -261,7 +263,7 @@ impl Animation {
         };
 
         Self {
-            id: format!("anim_{}", get_monotonic_timer().elapsed().as_millis()),
+            id: next_generated_id(),
             property: AnimatedProperty::Opacity(0.0, 1.0),
             config: AnimationConfig {
                 duration,
@@ -339,7 +341,7 @@ impl Animation {
         let now = get_monotonic_timer().now();
         // Convert monotonic Duration to Instant for compatibility
         let base = get_monotonic_timer().base_time;
-        self.runtime.last_frame_time = Some(base + now);
+        self.runtime.last_frame_time = None;
         self.start_time = Some(base + now);
 
         if let Some(callback) = &self.callbacks.on_start {
@@ -391,8 +393,13 @@ impl Animation {
     pub fn reverse(&mut self) {
         if let Ok(mut state) = self.state.write() {
             state.is_reversed = !state.is_reversed;
-            if state.state == AnimationState::Playing {
-                state.state = AnimationState::Reversed;
+            if matches!(
+                state.state,
+                AnimationState::Playing | AnimationState::Paused
+            ) {
+                // Keep the sampled progress continuous: the animation goes on
+                // from where it is, the other way (ANI-001).
+                state.current_time = self.config.duration.saturating_sub(state.current_time);
             }
         }
     }
@@ -406,7 +413,8 @@ impl Animation {
     /// * `delta_time` - Time elapsed since the last frame
     ///
     /// # Returns
-    /// `true` if the animation is still active, `false` if completed or stopped
+    /// `true` while playing or waiting out the delay after this update;
+    /// `false` when completed, paused or stopped (ANI-002).
     pub fn update(&mut self, delta_time: Duration) -> bool {
         if self
             .target_binding
@@ -430,7 +438,7 @@ impl Animation {
         if let Some(start_time) = self.start_time {
             let monotonic_now = get_monotonic_timer().base_time + get_monotonic_timer().now();
             if monotonic_now.duration_since(start_time) < self.config.delay {
-                return false;
+                return true;
             }
         }
 
@@ -453,6 +461,11 @@ impl Animation {
         // Update time
         let adjusted_delta = Duration::from_secs_f32(delta_time.as_secs_f32() * self.config.speed);
         state.current_time += adjusted_delta;
+        // Record the last advancing frame, rather than playback start (ANI-004).
+        if adjusted_delta > Duration::ZERO {
+            self.runtime.last_frame_time =
+                Some(get_monotonic_timer().base_time + get_monotonic_timer().now());
+        }
 
         // Calculate progress
         let total_duration = self.config.duration;
@@ -463,7 +476,7 @@ impl Animation {
         };
 
         // Apply direction
-        let progress = if state.is_reversed || self.config.reverse {
+        let progress = if state.is_reversed ^ self.config.reverse {
             1.0 - raw_progress
         } else {
             raw_progress
@@ -496,6 +509,7 @@ impl Animation {
         // Complete the frame this update computed, unless the update
         // callback moved the animation out of it: out of play, or to another
         // time, as a restart does.
+        let mut loop_due = None;
         let completed = {
             let mut state_guard = match self.state.write() {
                 Ok(guard) => guard,
@@ -505,33 +519,35 @@ impl Animation {
             let in_this_frame =
                 state.state == AnimationState::Playing && state.current_time == frame_time;
             if raw_progress >= 1.0 && in_this_frame {
-                match self.config.loop_mode {
-                    LoopMode::None => {
-                        state.state = AnimationState::Completed;
-                    }
-                    LoopMode::Infinite => {
-                        state.current_time = Duration::ZERO;
-                        state.progress = 0.0;
+                // One completion path counts passes and schedules callbacks (ANI-003).
+                let another_pass = match self.config.loop_mode {
+                    LoopMode::None => false,
+                    LoopMode::Infinite | LoopMode::PingPong => {
                         state.loops_completed += 1;
+                        true
                     }
                     LoopMode::Count(count) => {
                         state.loops_completed += 1;
-                        if state.loops_completed < count {
-                            state.current_time = Duration::ZERO;
-                            state.progress = 0.0;
-                        } else {
-                            state.state = AnimationState::Completed;
-                        }
+                        state.loops_completed < count
                     }
-                    LoopMode::PingPong => {
+                };
+                if another_pass {
+                    state.current_time = Duration::ZERO;
+                    if self.config.auto_reverse || self.config.loop_mode == LoopMode::PingPong {
                         state.is_reversed = !state.is_reversed;
-                        state.current_time = Duration::ZERO;
-                        state.loops_completed += 1;
                     }
+                    loop_due = Some(state.loops_completed);
+                } else {
+                    state.state = AnimationState::Completed;
                 }
             }
             raw_progress >= 1.0 && in_this_frame && state.state == AnimationState::Completed
         };
+
+        // Loop callbacks may also read or change state without a lock (SIG-002).
+        if let (Some(callback), Some(passes)) = (&self.callbacks.on_loop, loop_due) {
+            callback(self, passes);
+        }
 
         if completed {
             if let Some(callback) = &self.callbacks.on_complete {
@@ -539,59 +555,7 @@ impl Animation {
             }
         }
 
-        true
-    }
-
-    /// Handle animation completion and looping
-    #[allow(dead_code)]
-    fn handle_animation_complete(&mut self, state: &mut AnimationRuntimeState) {
-        match self.config.loop_mode {
-            LoopMode::None => {
-                state.state = AnimationState::Completed;
-                if let Some(callback) = &self.callbacks.on_complete {
-                    callback(self);
-                }
-            }
-            LoopMode::Infinite => {
-                self.restart_animation(state);
-            }
-            LoopMode::Count(count) => {
-                state.loops_completed += 1;
-                if state.loops_completed < count {
-                    self.restart_animation(state);
-                } else {
-                    state.state = AnimationState::Completed;
-                    if let Some(callback) = &self.callbacks.on_complete {
-                        callback(self);
-                    }
-                }
-            }
-            LoopMode::PingPong => {
-                state.is_reversed = !state.is_reversed;
-                state.current_time = Duration::ZERO;
-                state.loops_completed += 1;
-
-                if let Some(callback) = &self.callbacks.on_loop {
-                    callback(self, state.loops_completed);
-                }
-            }
-        }
-    }
-
-    /// Restart animation for looping
-    #[allow(dead_code)]
-    fn restart_animation(&mut self, state: &mut AnimationRuntimeState) {
-        state.current_time = Duration::ZERO;
-        state.progress = 0.0;
-        state.loops_completed += 1;
-
-        if self.config.auto_reverse {
-            state.is_reversed = !state.is_reversed;
-        }
-
-        if let Some(callback) = &self.callbacks.on_loop {
-            callback(self, state.loops_completed);
-        }
+        self.is_playing()
     }
 
     /// Get the current animation state
@@ -623,10 +587,7 @@ impl Animation {
     /// # Returns
     /// `true` if animation is playing (forward or reverse), `false` otherwise
     pub fn is_playing(&self) -> bool {
-        matches!(
-            self.get_state(),
-            AnimationState::Playing | AnimationState::Reversed
-        )
+        self.get_state() == AnimationState::Playing
     }
 
     /// Check if the animation has completed
@@ -930,6 +891,9 @@ impl AnimationTimeline {
 
     /// Add an animation to the timeline
     ///
+    /// This appends even a repeated id. In contrast, [`AnimationManager::add_animation`]
+    /// replaces the earlier animation under that id (ANI-005).
+    ///
     /// # Arguments
     /// * `animation` - The animation to add to this timeline
     pub fn add_animation(&mut self, animation: Animation) {
@@ -975,7 +939,9 @@ impl AnimationTimeline {
             if self.current_index < self.animations.len() {
                 let current_animation = &mut self.animations[self.current_index];
 
-                if !current_animation.update(delta_time) && current_animation.is_completed() {
+                current_animation.update(delta_time);
+                // Start the next child in this frame, without advancing it (ANI-002).
+                if current_animation.is_completed() {
                     self.current_index += 1;
 
                     if self.current_index < self.animations.len() {
@@ -987,14 +953,12 @@ impl AnimationTimeline {
                 }
             }
         } else {
-            let mut any_playing = false;
             for animation in &mut self.animations {
-                if animation.update(delta_time) {
-                    any_playing = true;
-                }
+                animation.update(delta_time);
             }
 
-            if !any_playing {
+            // Waiting or paused children have not completed (ANI-002).
+            if self.animations.iter().all(Animation::is_completed) {
                 *self.state.write().unwrap() = AnimationState::Completed;
                 return false;
             }
@@ -1038,6 +1002,7 @@ impl AnimationManager {
     }
 
     /// Add an animation
+    /// An animation added under an existing id replaces the earlier one (ANI-005).
     pub fn add_animation(&mut self, animation: Animation) -> AnimationId {
         let id = animation.id.clone();
         self.animations.insert(id.clone(), animation);
@@ -1092,7 +1057,7 @@ impl AnimationManager {
         self.animations.get_mut(id)
     }
 
-    /// Remove completed, failed, or stuck animations
+    /// Remove completed animations and timelines, and timelines whose lock is poisoned (ANI-004).
     pub fn cleanup_completed(&mut self) {
         // Remove completed animations
         self.animations
@@ -1115,24 +1080,29 @@ impl AnimationManager {
         });
     }
 
-    /// Clean up all animations including failed/stuck ones
-    /// Returns the number of animations cleaned up
+    /// Remove completed animations and playback past its delay with no advancing
+    /// frame within the threshold. Paused, stopped and delayed animations stay.
+    /// Also remove completed timelines and timelines whose lock is poisoned.
+    /// Returns the total number of animations and timelines removed (ANI-004).
     pub fn cleanup_all_stale(&mut self, stale_threshold: Duration) -> usize {
         let timer = get_monotonic_timer();
         let now = timer.base_time + timer.now();
         let mut removed = 0;
 
-        // Remove animations that are completed or haven't updated recently
+        // Only playback past its delay can become stale (ANI-004).
         self.animations.retain(|_id, animation| {
             let should_keep = if animation.is_completed() {
                 false
-            } else if let Some(start_time) = animation.start_time {
-                // Keep animations that started recently or are still progressing
-                now.duration_since(start_time) < stale_threshold
-                    || animation
-                        .runtime
-                        .last_frame_time
-                        .is_some_and(|t| now.duration_since(t) < stale_threshold)
+            } else if animation.is_playing() {
+                match animation.start_time {
+                    Some(start_time)
+                        if now.duration_since(start_time) >= animation.config.delay =>
+                    {
+                        let last_frame = animation.runtime.last_frame_time.unwrap_or(start_time);
+                        now.duration_since(last_frame) <= stale_threshold
+                    }
+                    _ => true,
+                }
             } else {
                 true // Keep animations that haven't started yet
             };
@@ -1149,13 +1119,11 @@ impl AnimationManager {
         self.timelines.retain(|_id, timeline| {
             let should_keep = match timeline.state.read() {
                 Ok(state) => *state != AnimationState::Completed,
-                Err(_) => {
-                    removed += 1;
-                    false // Remove poisoned timelines
-                }
+                Err(_) => false, // Remove poisoned timelines
             };
 
             if !should_keep {
+                removed += 1;
                 #[cfg(debug_assertions)]
                 log::debug!("Cleaning up stale timeline: {}", _id);
             }
@@ -1349,10 +1317,6 @@ pub use api::{
     PositionValue, PropertyValue, SizeValue, StaggerOptions, TimelineBuilder, TimelineParams,
 };
 
-pub use performance::{
-    AnimationBatch, BatchedUpdate, CacheStats, InterpolationCache, OptimizationLevel,
-    OptimizedAnimationManager, PerformanceMetrics, PerformanceReport,
-};
 // Re-export debug types and functions for direct use
 pub use debug::{
     create_debug_manager, create_performance_debug_manager, create_verbose_debug_manager,
@@ -1617,5 +1581,134 @@ mod tests {
 
         assert_eq!(animation.config.duration, duration);
         assert!(matches!(animation.config.easing, EasingFunction::Spring(_)));
+    }
+
+    #[test]
+    fn ani_001_reverse_configured_backwards_playback_and_complete() {
+        let mut animation = Animation::builder("reverse-configured")
+            .animate_property(AnimatedProperty::Opacity(0.0, 1.0))
+            .duration(Duration::from_secs(1))
+            .easing(EasingFunction::Linear)
+            .build();
+        animation.config.reverse = true;
+        animation.play();
+        assert!(animation.update(Duration::from_millis(250)));
+        animation.reverse();
+        assert!(animation.update(Duration::from_millis(100)));
+        assert!((animation.get_progress() - 0.85).abs() < 0.01);
+        assert!(!animation.update(Duration::from_millis(150)));
+        assert!(animation.is_completed());
+        assert_eq!(
+            animation.get_current_values(),
+            Some(AnimatedValue::Opacity(1.0))
+        );
+    }
+
+    #[test]
+    fn ani_003_loop_callbacks_read_and_change_state_without_a_lock() {
+        for mode in [LoopMode::Infinite, LoopMode::Count(2), LoopMode::PingPong] {
+            let mut animation = Animation::builder("loop-callback")
+                .duration(Duration::from_secs(1))
+                .loop_mode(mode)
+                .auto_reverse(true)
+                .on_loop(|animation, passes| {
+                    assert_eq!(passes, 1);
+                    assert!(animation.is_playing());
+                    assert!(animation.get_current_values().is_some());
+                    let mut state = animation.state.try_write().expect("SIG-002: lock released");
+                    assert!(state.is_reversed);
+                    state.state = AnimationState::Paused;
+                })
+                .build();
+            animation.play();
+            assert!(!animation.update(Duration::from_secs(1)));
+            assert_eq!(animation.get_state(), AnimationState::Paused);
+        }
+    }
+
+    #[test]
+    fn ani_003_ping_pong_flips_once_without_auto_reverse() {
+        let mut animation = Animation::builder("ping-pong")
+            .animate_property(AnimatedProperty::Opacity(0.0, 1.0))
+            .duration(Duration::from_secs(1))
+            .easing(EasingFunction::Linear)
+            .loop_mode(LoopMode::PingPong)
+            .build();
+        animation.play();
+        assert!(animation.update(Duration::from_secs(1)));
+        assert!(animation.state.read().unwrap().is_reversed);
+        assert!(animation.update(Duration::from_millis(250)));
+        assert_eq!(
+            animation.get_current_values(),
+            Some(AnimatedValue::Opacity(0.75))
+        );
+        assert!(animation.update(Duration::from_millis(750)));
+        assert!(!animation.state.read().unwrap().is_reversed);
+        assert_eq!(animation.state.read().unwrap().loops_completed, 2);
+    }
+
+    #[test]
+    fn ani_004_cleanup_removes_only_stale_playback_and_completed_objects() {
+        let now = get_monotonic_timer().base_time + get_monotonic_timer().now();
+        let old = now - Duration::from_secs(20);
+        let mut manager = AnimationManager::new();
+        for (id, state, delay, last_frame) in [
+            ("stale", AnimationState::Playing, Duration::ZERO, None),
+            (
+                "stale-frame",
+                AnimationState::Playing,
+                Duration::ZERO,
+                Some(old),
+            ),
+            (
+                "delayed",
+                AnimationState::Playing,
+                Duration::from_secs(30),
+                None,
+            ),
+            ("paused", AnimationState::Paused, Duration::ZERO, Some(old)),
+            ("stopped", AnimationState::Stopped, Duration::ZERO, None),
+            ("completed", AnimationState::Completed, Duration::ZERO, None),
+        ] {
+            let mut animation = Animation::builder(id).delay(delay).build();
+            animation.state.write().unwrap().state = state;
+            animation.start_time = Some(old);
+            animation.runtime.last_frame_time = last_frame;
+            manager.add_animation(animation);
+        }
+        let timeline = AnimationTimeline::new("completed-timeline", false);
+        *timeline.state.write().unwrap() = AnimationState::Completed;
+        manager.add_timeline(timeline);
+        let poisoned = AnimationTimeline::new("poisoned-timeline", false);
+        let state = poisoned.state.clone();
+        let _ = std::thread::spawn(move || {
+            let _guard = state.write().unwrap();
+            panic!("poison the timeline lock");
+        })
+        .join();
+        manager.add_timeline(poisoned);
+        assert_eq!(manager.cleanup_all_stale(Duration::from_secs(1)), 5);
+        for id in ["delayed", "paused", "stopped"] {
+            assert!(manager.get_animation(id).is_some());
+        }
+        assert!(manager.timelines.is_empty());
+    }
+
+    #[test]
+    fn ani_005_generated_ids_share_one_sequence_across_constructors() {
+        let mut ids = std::collections::HashSet::new();
+        for _ in 0..100 {
+            let animation = Animation::new(
+                Duration::from_secs(1),
+                EasingFunction::Linear,
+                None,
+                LoopMode::None,
+            );
+            assert!(ids.insert(animation.id));
+            assert!(
+                ids.insert(Animation::spring(Duration::from_secs(1), SpringConfig::gentle()).id)
+            );
+            assert!(ids.insert(api::fade_in("target", 1000.0).id));
+        }
     }
 }

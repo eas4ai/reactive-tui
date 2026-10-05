@@ -262,9 +262,7 @@ pub enum AnimationDirection {
 
 /// Generate a unique animation ID
 fn generate_id() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    format!("anim_{}", COUNTER.fetch_add(1, Ordering::Relaxed))
+    super::next_generated_id() // Share the constructor sequence (ANI-005).
 }
 
 /// Main animation creation function
