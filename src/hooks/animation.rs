@@ -95,6 +95,9 @@ struct AnimationRuntime {
 #[derive(Clone)]
 struct AnimationTask {
     id: usize,
+    /// The task's frame: given how far its clock has run in passes (0.0 at
+    /// the start, 1.0 at the end of a pass, more after a stall), it returns
+    /// what the runtime does with the task next.
     update: Arc<dyn Fn(f32) -> Frame + Send + Sync>,
     active: Arc<AtomicBool>,
     start_time: Instant,
@@ -106,8 +109,9 @@ struct AnimationTask {
 enum Frame {
     /// The task goes on from here; a paused one holds its place (SIG-005).
     Continue,
-    /// The pass ended and another begins: the task's clock starts over
-    /// (SIG-007).
+    /// The pass ended and another begins: the task's clock moves on by the
+    /// whole passes the frame spanned, so the time into the current pass
+    /// keeps (SIG-007).
     Restart,
     /// The task is finished and leaves the runtime.
     Done,
@@ -155,39 +159,47 @@ impl AnimationRuntime {
             if !task.active.load(Ordering::Acquire) {
                 continue;
             }
-            let progress = if task.duration.is_zero() {
-                1.0
-            } else {
-                (now.saturating_duration_since(task.start_time).as_secs_f64()
-                    / task.duration.as_secs_f64())
-                .min(1.0) as f32
-            };
-            let frame = (task.update)(progress);
-            self.after_frame(&task, frame, now);
+            let elapsed = Self::elapsed(&task, now);
+            let frame = (task.update)(elapsed);
+            self.after_frame(&task, frame, now, elapsed);
         }
     }
 
+    /// How far the clock of `task` has run at `now`, in passes: 1.0 is the
+    /// end of a pass, 2.5 is half way through the third (SIG-007). A task
+    /// with no duration is at its end at once.
+    fn elapsed(task: &AnimationTask, now: Instant) -> f32 {
+        if task.duration.is_zero() {
+            return 1.0;
+        }
+        (now.saturating_duration_since(task.start_time).as_secs_f64()
+            / task.duration.as_secs_f64()) as f32
+    }
+
     /// Keep, restart or remove `task` as its frame said. The task decides
-    /// when it is done: a frame at full progress ends a pass, not always
-    /// the task (SIG-005, SIG-007).
-    fn after_frame(&self, task: &AnimationTask, frame: Frame, now: Instant) {
+    /// when it is done: a frame at the end of a pass ends the pass, not
+    /// always the task (SIG-005, SIG-007).
+    fn after_frame(&self, task: &AnimationTask, frame: Frame, now: Instant, elapsed: f32) {
         match frame {
             Frame::Continue => {}
-            Frame::Restart => self.restart(task.id, now),
+            Frame::Restart => self.restart(task.id, now, elapsed),
             Frame::Done => self.remove_animation(task.id),
         }
     }
 
-    /// Start the clock of task `id` over for its next pass. The time past
-    /// the pass's end carries into the next pass while it is less than a
-    /// pass, so the period keeps; after a longer stall the pass starts now.
-    fn restart(&self, id: usize, now: Instant) {
+    /// Move the clock of task `id` on by the whole passes `elapsed` holds,
+    /// at least one, so the time into the current pass keeps and the period
+    /// holds across a stall (SIG-007). Should the clock not reach that far,
+    /// the pass starts now.
+    fn restart(&self, id: usize, now: Instant, elapsed: f32) {
         let mut tasks = self.animations.write().unwrap();
         if let Some(task) = tasks.iter_mut().find(|task| task.id == id) {
-            task.start_time = match task.start_time.checked_add(task.duration) {
-                Some(next) if now.saturating_duration_since(next) < task.duration => next,
-                _ => now,
-            };
+            let passes = elapsed.floor().max(1.0) as u32;
+            task.start_time = task
+                .duration
+                .checked_mul(passes)
+                .and_then(|span| task.start_time.checked_add(span))
+                .unwrap_or(now);
         }
     }
 
@@ -338,7 +350,9 @@ impl<T: AnimatableValue> AnimationOwner<T> {
         let owner = Arc::downgrade(self);
         // The passes played to their end so far (SIG-007).
         let passes = AtomicU32::new(0);
-        let update = Arc::new(move |progress: f32| {
+        // PingPong plays every second pass from the end back to the start.
+        let ping_pong = config.loop_behavior == LoopMode::PingPong;
+        let update = Arc::new(move |elapsed: f32| {
             let Some(owner) = owner.upgrade() else {
                 return Frame::Done;
             };
@@ -350,9 +364,30 @@ impl<T: AnimatableValue> AnimationOwner<T> {
                 return Frame::Continue;
             }
             let pass = passes.load(Ordering::Acquire);
-            // PingPong plays every second pass from the end back to the start.
-            let backward = config.loop_behavior == LoopMode::PingPong && pass % 2 == 1;
-            let along = if backward { 1.0 - progress } else { progress };
+            // The passes this frame completed, if it reached the end of one,
+            // and where the animation stands after them: `Some(0)` goes on
+            // forever, `Some(n)` until n have played, `None` once (SIG-007).
+            let whole = elapsed.floor();
+            let (played, again) = if whole < 1.0 {
+                (pass, true)
+            } else {
+                let played = pass.saturating_add(whole as u32);
+                match config.loop_count {
+                    None => (1, false),
+                    Some(0) => (played, true),
+                    Some(count) => (played.min(count), played < count),
+                }
+            };
+            // Forward or back along this pass, and how far: the current pass
+            // after the stall when the animation goes on, else the end of
+            // the last pass it played.
+            let (pass_now, fraction) = if again {
+                (played, elapsed - whole)
+            } else {
+                (played.saturating_sub(1), 1.0)
+            };
+            let backward = ping_pong && pass_now % 2 == 1;
+            let along = if backward { 1.0 - fraction } else { fraction };
             let value = owner
                 .from_value
                 .read()
@@ -367,17 +402,9 @@ impl<T: AnimatableValue> AnimationOwner<T> {
                 return Frame::Continue;
             }
             owner.value.set(value);
-            if progress < 1.0 {
+            if whole < 1.0 {
                 return Frame::Continue;
             }
-            // A pass ended: another follows for `Some(0)`, and for `Some(n)`
-            // until n have played; `None` plays once (SIG-007).
-            let played = pass.saturating_add(1);
-            let again = match config.loop_count {
-                None => false,
-                Some(0) => true,
-                Some(count) => played < count,
-            };
             if again {
                 passes.store(played, Ordering::Release);
                 return Frame::Restart;
@@ -633,17 +660,18 @@ impl<T: AnimatableValue> SpringHandle<T> {
         // A spring has no set end: its task is a window that starts over
         // until the spring settles (SIG-006).
         let window = Duration::from_secs(10);
-        // The progress of the previous frame in this window, as f32 bits.
+        // Where in the window the previous frame fell, as f32 bits.
         let last = AtomicU32::new(0.0_f32.to_bits());
-        let update = Arc::new(move |progress: f32| {
+        let update = Arc::new(move |elapsed: f32| {
             let Some(owner) = owner.upgrade() else {
                 return Frame::Done;
             };
             if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
                 return Frame::Done;
             }
-            // The frame's time is what passed since the previous frame.
-            let since = progress - f32::from_bits(last.load(Ordering::Acquire));
+            // The frame's time is what passed since the previous frame, in
+            // windows, however many a stall spanned.
+            let since = elapsed - f32::from_bits(last.load(Ordering::Acquire));
             let dt = since.max(0.0) * window.as_secs_f32();
             let position = owner.value.get().to_f32();
             let velocity = *owner.velocity.read().unwrap();
@@ -667,11 +695,13 @@ impl<T: AnimatableValue> SpringHandle<T> {
             }
             *owner.velocity.write().unwrap() = velocity;
             owner.value.set(T::from_f32(position));
-            if progress >= 1.0 {
-                last.store(0.0_f32.to_bits(), Ordering::Release);
+            if elapsed >= 1.0 {
+                // The window starts over; the clock keeps what is past the
+                // whole windows, as this frame's mark does.
+                last.store((elapsed - elapsed.floor()).to_bits(), Ordering::Release);
                 return Frame::Restart;
             }
-            last.store(progress.to_bits(), Ordering::Release);
+            last.store(elapsed.to_bits(), Ordering::Release);
             Frame::Continue
         });
         let id = RUNTIME.add_animation(update, window);
@@ -804,13 +834,14 @@ impl<T: AnimatableValue> StaggerOwner<T> {
             }
             let from = owner.items[index].get();
             let update_owner = Arc::downgrade(&owner);
-            let update = Arc::new(move |progress: f32| {
+            let update = Arc::new(move |elapsed: f32| {
                 let Some(owner) = update_owner.upgrade() else {
                     return Frame::Done;
                 };
                 if !owner.is_alive() || owner.generation.load(Ordering::Acquire) != generation {
                     return Frame::Done;
                 }
+                let progress = elapsed.min(1.0);
                 let value = from.interpolate(&target, easing.apply(progress));
                 // The checks run again inside the store. cancel_owned_work
                 // settles every item after raising the generation, so a pass
@@ -1019,13 +1050,14 @@ impl<T: AnimatableValue + KeyframeType> KeyframeHandle<T> {
             .fetch_add(1, Ordering::AcqRel)
             .wrapping_add(1);
         let owner = Arc::downgrade(&self.owner);
-        let update = Arc::new(move |progress: f32| {
+        let update = Arc::new(move |elapsed: f32| {
             let Some(owner) = owner.upgrade() else {
                 return Frame::Done;
             };
             if !owner.is_alive() {
                 return Frame::Done;
             }
+            let progress = elapsed.min(1.0);
             if let Some(value) = owner.animation.get_value_at_time(progress) {
                 // Sampling user-defined values can stop or restart playback.
                 // Serialize delivery with cancellation after sampling returns.
@@ -1151,7 +1183,7 @@ mod tests {
             .cloned();
         if let Some(task) = task {
             let frame = (task.update)(progress);
-            RUNTIME.after_frame(&task, frame, Instant::now());
+            RUNTIME.after_frame(&task, frame, Instant::now(), progress);
         }
     }
 
@@ -1388,6 +1420,74 @@ mod tests {
                 0.25,
                 "SIG-007: PingPong's second pass did not continue moving toward 0"
             );
+        });
+    }
+
+    /// A frame that arrives after more than a pass of playing time counts
+    /// every pass it spans: `Some(2)` is over once two durations have passed,
+    /// however the frames fell (review finding 5).
+    #[test]
+    #[serial_test::serial]
+    fn sig_007_a_frame_after_a_stall_counts_every_pass_it_spans() {
+        without_other_passes(|| {
+            let hooks = Hooks::new();
+            let handle = use_animation(
+                &hooks,
+                0.0_f32,
+                AnimationConfig {
+                    duration: Duration::from_millis(100),
+                    easing: EasingFunction::Linear,
+                    loop_count: Some(2),
+                    ..AnimationConfig::default()
+                },
+            );
+            handle.animate_to(1.0);
+            let id = handle.owner.current_animation_id.lock().unwrap().unwrap();
+            sig_expire_task(id, Duration::from_millis(250));
+            assert_ne!(
+                handle.state(),
+                AnimationState::Playing,
+                "SIG-007: Some(2) was still Playing when its first frame came two and a half durations in"
+            );
+            assert_eq!(
+                handle.value(),
+                1.0,
+                "SIG-007: Some(2) did not end at the end value after a stall"
+            );
+        });
+    }
+
+    /// A stalled PingPong animation knows which way its current pass runs
+    /// from the passes the stall spanned (review finding 5).
+    #[test]
+    #[serial_test::serial]
+    fn sig_007_ping_pong_keeps_its_direction_across_a_stall() {
+        without_other_passes(|| {
+            let hooks = Hooks::new();
+            let handle = use_animation(
+                &hooks,
+                0.0_f32,
+                AnimationConfig {
+                    duration: Duration::from_millis(100),
+                    easing: EasingFunction::Linear,
+                    loop_count: Some(0),
+                    loop_behavior: LoopMode::PingPong,
+                },
+            );
+            handle.animate_to(1.0);
+            let id = handle.owner.current_animation_id.lock().unwrap().unwrap();
+            sig_expire_task(id, Duration::from_millis(225));
+            assert_eq!(
+                handle.state(),
+                AnimationState::Playing,
+                "SIG-007: Some(0) stopped after a stall"
+            );
+            assert!(
+                (handle.value() - 0.25).abs() < 0.01,
+                "SIG-007: two and a quarter passes in, a PingPong animation reported {} instead of a quarter of the way forward on its third pass",
+                handle.value()
+            );
+            handle.stop();
         });
     }
 
