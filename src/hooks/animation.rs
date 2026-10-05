@@ -1004,6 +1004,250 @@ mod tests {
         work()
     }
 
+    fn sig_deliver_frame(id: usize, progress: f32) {
+        let task = RUNTIME
+            .animations
+            .read()
+            .unwrap()
+            .iter()
+            .find(|task| task.id == id)
+            .cloned();
+        if let Some(task) = task {
+            (task.update)(progress);
+        }
+    }
+
+    fn sig_expire_task(id: usize, elapsed: Duration) {
+        if let Some(task) = RUNTIME
+            .animations
+            .write()
+            .unwrap()
+            .iter_mut()
+            .find(|task| task.id == id)
+        {
+            task.start_time = Instant::now() - elapsed;
+        }
+        RUNTIME.deliver();
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn sig_005_a_long_pause_preserves_the_remaining_playing_time() {
+        without_other_passes(|| {
+            let hooks = Hooks::new();
+            let handle = use_animation(
+                &hooks,
+                0.0_f32,
+                AnimationConfig {
+                    duration: Duration::from_millis(100),
+                    easing: EasingFunction::Linear,
+                    ..AnimationConfig::default()
+                },
+            );
+            handle.animate_to(1.0);
+            let id = handle.owner.current_animation_id.lock().unwrap().unwrap();
+            sig_deliver_frame(id, 0.2);
+            let paused = handle.value();
+            handle.pause();
+            sig_expire_task(id, Duration::from_millis(320));
+            handle.resume();
+            assert_eq!(
+                handle.state(),
+                AnimationState::Playing,
+                "SIG-005: after a 300 ms pause, resume did not report Playing"
+            );
+            assert_eq!(
+                handle.value(),
+                paused,
+                "SIG-005: resume changed the value held during the pause"
+            );
+            sig_deliver_frame(id, 0.6);
+            assert!(
+                handle.value() > paused && handle.value() < 1.0,
+                "SIG-005: after resume and 40 ms more playing time, value {} did not advance from {paused}",
+                handle.value()
+            );
+            sig_deliver_frame(id, 0.99);
+            assert_eq!(
+                handle.state(),
+                AnimationState::Playing,
+                "SIG-005: the animation finished before its remaining 80 ms of playing time"
+            );
+            sig_deliver_frame(id, 1.0);
+            assert_eq!(
+                handle.value(),
+                1.0,
+                "SIG-005: the animation did not reach its target after 80 ms more playing time"
+            );
+            assert_ne!(
+                handle.state(),
+                AnimationState::Playing,
+                "SIG-005: the animation was still Playing after its remaining time elapsed"
+            );
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn sig_006_an_impulse_moves_a_resting_spring_and_settles() {
+        without_other_passes(|| {
+            let hooks = Hooks::new();
+            let spring = use_spring(&hooks, 0.0_f32, SpringConfig::default());
+            spring.apply_impulse(10.0);
+            let id = spring.owner.animation_id.lock().unwrap().unwrap();
+            sig_deliver_frame(id, 0.0016);
+            assert!(
+                spring.value() > 0.0,
+                "SIG-006: the first frame after impulse 10 reported position {} instead of moving above 0",
+                spring.value()
+            );
+            for frame in 2..=625 {
+                sig_deliver_frame(id, frame as f32 * 0.0016);
+            }
+            assert!(
+                spring.value().abs() < 0.001 && spring.velocity().abs() < 0.001,
+                "SIG-006: after 10 seconds of frames, position {} and velocity {} had not settled at 0",
+                spring.value(),
+                spring.velocity()
+            );
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn sig_007_zero_loop_count_keeps_playing_after_two_durations() {
+        without_other_passes(|| {
+            let hooks = Hooks::new();
+            let handle = use_animation(
+                &hooks,
+                0.0_f32,
+                AnimationConfig {
+                    duration: Duration::from_millis(100),
+                    easing: EasingFunction::Linear,
+                    loop_count: Some(0),
+                    ..AnimationConfig::default()
+                },
+            );
+            handle.animate_to(1.0);
+            let id = handle.owner.current_animation_id.lock().unwrap().unwrap();
+            sig_expire_task(id, Duration::from_millis(200));
+            assert_eq!(
+                handle.state(),
+                AnimationState::Playing,
+                "SIG-007: Some(0) reported Stopped two durations after starting"
+            );
+            handle.stop();
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn sig_007_two_loops_play_a_second_pass_then_stop() {
+        without_other_passes(|| {
+            let hooks = Hooks::new();
+            let handle = use_animation(
+                &hooks,
+                0.0_f32,
+                AnimationConfig {
+                    duration: Duration::from_millis(100),
+                    easing: EasingFunction::Linear,
+                    loop_count: Some(2),
+                    ..AnimationConfig::default()
+                },
+            );
+            handle.animate_to(1.0);
+            let id = handle.owner.current_animation_id.lock().unwrap().unwrap();
+            sig_deliver_frame(id, 1.0);
+            assert_eq!(
+                handle.state(),
+                AnimationState::Playing,
+                "SIG-007: Some(2) stopped after its first duration, before playing twice"
+            );
+            sig_expire_task(id, Duration::from_millis(300));
+            assert_ne!(
+                handle.state(),
+                AnimationState::Playing,
+                "SIG-007: Some(2) was still Playing after three durations"
+            );
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn sig_007_ping_pong_moves_back_during_the_second_pass() {
+        without_other_passes(|| {
+            let hooks = Hooks::new();
+            let handle = use_animation(
+                &hooks,
+                0.0_f32,
+                AnimationConfig {
+                    duration: Duration::from_millis(100),
+                    easing: EasingFunction::Linear,
+                    loop_count: Some(2),
+                    loop_behavior: LoopMode::PingPong,
+                },
+            );
+            handle.animate_to(1.0);
+            let id = handle.owner.current_animation_id.lock().unwrap().unwrap();
+            sig_deliver_frame(id, 1.0);
+            sig_deliver_frame(id, 0.25);
+            assert_eq!(
+                handle.value(),
+                0.75,
+                "SIG-007: PingPong's second pass did not return a quarter of the way from 1 to 0"
+            );
+            sig_deliver_frame(id, 0.75);
+            assert_eq!(
+                handle.value(),
+                0.25,
+                "SIG-007: PingPong's second pass did not continue moving toward 0"
+            );
+        });
+    }
+
+    #[test]
+    fn sig_007_loop_count_docs_do_not_describe_none_as_infinite() {
+        let source = syn::parse_file(include_str!("animation.rs")).unwrap();
+        let config = source
+            .items
+            .iter()
+            .find_map(|item| match item {
+                syn::Item::Struct(item) if item.ident == "AnimationConfig" => Some(item),
+                _ => None,
+            })
+            .unwrap();
+        let field = config
+            .fields
+            .iter()
+            .find(|field| {
+                field
+                    .ident
+                    .as_ref()
+                    .is_some_and(|ident| ident == "loop_count")
+            })
+            .unwrap();
+        let docs = field
+            .attrs
+            .iter()
+            .filter_map(|attribute| match &attribute.meta {
+                syn::Meta::NameValue(meta) if meta.path.is_ident("doc") => match &meta.value {
+                    syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(text),
+                        ..
+                    }) => Some(text.value()),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        let lower = docs.to_lowercase();
+        assert!(
+            !(lower.contains("none for infinite") || lower.contains("none loops forever")),
+            "SIG-007: loop_count's doc comment says None repeats: {docs}"
+        );
+    }
+
     #[derive(Clone, Copy)]
     struct Rac001Observation {
         owner_count: usize,
