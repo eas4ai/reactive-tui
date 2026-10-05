@@ -553,7 +553,6 @@ fn ani_008_a_displacement_below_precision_still_moves_by_its_velocity() {
     }
 }
 
-
 #[test]
 fn ani_009_the_spring_has_settled_at_full_progress() {
     for config in [
