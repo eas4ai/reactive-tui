@@ -218,20 +218,47 @@ impl SpringConfig {
     /// Where a spring at `position` moving at `velocity` toward `target` is
     /// after `dt` seconds, and how fast it moves then. The velocity is the
     /// spring's own, so an impulse added to it carries into the motion
-    /// (SIG-006). A long step is taken in parts of at most a sixtieth of a
-    /// second, so a frame after a stall cannot fling the spring.
+    /// (SIG-006). The step is the exact solution of the damped motion over
+    /// `dt`, so a frame of any length, after a stall or with damping that
+    /// outweighs the mass, lands where the spring is then and can neither
+    /// fling it nor turn it against its impulse.
     pub(crate) fn step(&self, dt: f32, position: f32, velocity: f32, target: f32) -> (f32, f32) {
-        const LONGEST_PART: f32 = 1.0 / 60.0;
-        let parts = (dt / LONGEST_PART).ceil().clamp(1.0, 4096.0);
-        let part = dt / parts;
-        let (mut position, mut velocity) = (position, velocity);
-        for _ in 0..parts as u32 {
-            let acceleration =
-                (self.stiffness * (target - position) - self.damping * velocity) / self.mass;
-            velocity += acceleration * part;
-            position += velocity * part;
+        if dt <= 0.0 {
+            return (position, velocity);
         }
-        (position, velocity)
+        let (mass, stiffness, damping) =
+            (f64::from(self.mass), f64::from(self.stiffness), f64::from(self.damping));
+        let (y0, v0, t) = (
+            f64::from(position - target),
+            f64::from(velocity),
+            f64::from(dt),
+        );
+        let omega = (stiffness / mass).sqrt();
+        let zeta = damping / (2.0 * (mass * stiffness).sqrt());
+        let (y, v) = if zeta < 1.0 - 1e-6 {
+            // Under-damped: a decaying oscillation.
+            let omega_d = omega * (1.0 - zeta * zeta).sqrt();
+            let decay = (-zeta * omega * t).exp();
+            let b = (v0 + zeta * omega * y0) / omega_d;
+            let (sin, cos) = (omega_d * t).sin_cos();
+            let y = decay * (y0 * cos + b * sin);
+            (y, -zeta * omega * y + decay * omega_d * (b * cos - y0 * sin))
+        } else if zeta <= 1.0 + 1e-6 {
+            // Critically damped: the quickest return without overshoot.
+            let decay = (-omega * t).exp();
+            let b = v0 + omega * y0;
+            let y = decay * (y0 + b * t);
+            (y, -omega * y + decay * b)
+        } else {
+            // Over-damped: two decays, the slower setting the pace.
+            let spread = omega * (zeta * zeta - 1.0).sqrt();
+            let (r1, r2) = (-zeta * omega + spread, -zeta * omega - spread);
+            let b = (v0 - r1 * y0) / (r2 - r1);
+            let a = y0 - b;
+            let (e1, e2) = ((r1 * t).exp(), (r2 * t).exp());
+            (a * e1 + b * e2, a * r1 * e1 + b * r2 * e2)
+        };
+        (target + y as f32, v as f32)
     }
 
     /// Create a spring easing function that can be used with the animation system
