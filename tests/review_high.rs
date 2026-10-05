@@ -71,10 +71,32 @@ mod sig_002 {
     use super::*;
     use reactive_tui::animation::{AnimatedProperty, Animation, AnimationManager, AnimationState};
 
+    /// What an `on_complete` callback does to its animation, through its
+    /// shared state: the one way a callback holding `&Animation` can.
+    #[derive(Clone, Copy, Debug)]
+    enum Then {
+        Stop,
+        Pause,
+        Restart,
+    }
+
+    impl Then {
+        const ALL: [Then; 3] = [Then::Stop, Then::Pause, Then::Restart];
+
+        /// The state the animation is in after its callback ran.
+        fn leaves(self) -> AnimationState {
+            match self {
+                Then::Stop => AnimationState::Stopped,
+                Then::Pause => AnimationState::Paused,
+                Then::Restart => AnimationState::Playing,
+            }
+        }
+    }
+
     /// An animation of 100 ms whose `on_update` reads its own progress,
-    /// state and values, and whose `on_complete` reads its state and then
-    /// stops it through its shared state: what a callback may do.
-    fn reentering(calls: Arc<AtomicUsize>) -> Animation {
+    /// state and values, and whose `on_complete` reads them too and then
+    /// stops, pauses or restarts it: what a callback may do.
+    fn reentering(calls: Arc<AtomicUsize>, then: Then) -> Animation {
         let completed = calls.clone();
         let mut animation = Animation::builder("reentering")
             .animate_property(AnimatedProperty::Opacity(0.0, 1.0))
@@ -86,9 +108,15 @@ mod sig_002 {
                 calls.fetch_add(1, Ordering::SeqCst);
             })
             .on_complete(move |animation| {
+                let _ = animation.get_progress();
                 let _ = animation.get_state();
+                let _ = animation.get_current_values();
                 if let Ok(mut state) = animation.state.write() {
-                    state.state = AnimationState::Stopped;
+                    state.state = then.leaves();
+                    if let Then::Restart = then {
+                        state.current_time = Duration::ZERO;
+                        state.progress = 0.0;
+                    }
                 }
                 completed.fetch_add(1000, Ordering::SeqCst);
             })
@@ -98,48 +126,52 @@ mod sig_002 {
     }
 
     #[test]
-    fn sig_002_callbacks_that_read_and_stop_their_animation_return_when_updated_directly() {
-        let calls = Arc::new(AtomicUsize::new(0));
-        let mut animation = reentering(calls.clone());
-        let returned = within(Duration::from_secs(5), move || {
-            // A frame inside the animation, then one past its end.
-            animation.update(Duration::from_millis(16));
-            animation.update(Duration::from_millis(200));
-            animation.get_state()
-        });
-        assert!(
-            returned.is_some(),
-            "SIG-002: an update whose callbacks read and stop their own animation did not return within 5 seconds"
-        );
-        assert!(
-            calls.load(Ordering::SeqCst) >= 1001,
-            "the update and completion callbacks both ran ({})",
-            calls.load(Ordering::SeqCst)
-        );
-        assert_eq!(returned, Some(AnimationState::Stopped));
+    fn sig_002_callbacks_that_read_and_change_their_animation_return_when_updated_directly() {
+        for then in Then::ALL {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let mut animation = reentering(calls.clone(), then);
+            let returned = within(Duration::from_secs(5), move || {
+                // A frame inside the animation, then one past its end.
+                animation.update(Duration::from_millis(16));
+                animation.update(Duration::from_millis(200));
+                animation.get_state()
+            });
+            assert!(
+                returned.is_some(),
+                "SIG-002: an update whose callbacks read their own animation and {then:?} it did not return within 5 seconds"
+            );
+            assert!(
+                calls.load(Ordering::SeqCst) >= 1001,
+                "the update and completion callbacks both ran ({then:?}: {})",
+                calls.load(Ordering::SeqCst)
+            );
+            assert_eq!(returned, Some(then.leaves()), "{then:?}");
+        }
     }
 
     #[test]
-    fn sig_002_callbacks_that_read_and_stop_their_animation_return_when_a_manager_updates_it() {
-        let calls = Arc::new(AtomicUsize::new(0));
-        let animation = reentering(calls.clone());
-        let returned = within(Duration::from_secs(5), move || {
-            let mut manager = AnimationManager::new();
-            manager.add_animation(animation);
-            manager.update();
-            std::thread::sleep(Duration::from_millis(150));
-            manager.update();
-            manager.active_count()
-        });
-        assert!(
-            returned.is_some(),
-            "SIG-002: a manager update whose animation's callbacks read and stop it did not return within 5 seconds"
-        );
-        assert!(
-            calls.load(Ordering::SeqCst) >= 1001,
-            "the update and completion callbacks both ran ({})",
-            calls.load(Ordering::SeqCst)
-        );
+    fn sig_002_callbacks_that_read_and_change_their_animation_return_when_a_manager_updates_it() {
+        for then in Then::ALL {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let animation = reentering(calls.clone(), then);
+            let returned = within(Duration::from_secs(5), move || {
+                let mut manager = AnimationManager::new();
+                manager.add_animation(animation);
+                manager.update();
+                std::thread::sleep(Duration::from_millis(150));
+                manager.update();
+                manager.active_count()
+            });
+            assert!(
+                returned.is_some(),
+                "SIG-002: a manager update whose animation's callbacks read it and {then:?} it did not return within 5 seconds"
+            );
+            assert!(
+                calls.load(Ordering::SeqCst) >= 1001,
+                "the update and completion callbacks both ran ({then:?}: {})",
+                calls.load(Ordering::SeqCst)
+            );
+        }
     }
 }
 
@@ -419,6 +451,35 @@ mod thm_004 {
                 .set("--color-surface", "neutral")
                 .set("--color-foreground", "neutral"),
         );
+        // Chains of 32 and of 33 names, the last naming a color: the first
+        // passes no more than 32 names, the second passes 32.
+        let chain = |names: usize| {
+            let mut variables = ThemeVariables::new();
+            for at in 0..names {
+                let value = if at + 1 == names {
+                    "#0a0b0c".to_owned()
+                } else {
+                    format!("c{}", at + 1)
+                };
+                variables = variables.set(format!("--color-c{at}"), value);
+            }
+            Theme::new("chain").with_variables(variables)
+        };
+        let (long32, long33) = (chain(32), chain(33));
+        // A cycle split between a theme and the theme it extends.
+        let base = Theme::new("base").with_variables(
+            ThemeVariables::new()
+                .set("--color-e", "f")
+                .set("--color-input", "hover")
+                .set("--color-surface", "#654321"),
+        );
+        let extending = Theme::new("extending")
+            .with_variables(
+                ThemeVariables::new()
+                    .set("--color-f", "e")
+                    .set("--color-hover", "input"),
+            )
+            .extend(base);
         let started = Instant::now();
         let a = theme.resolve_color("a");
         let input = theme.resolve_color("input");
@@ -426,8 +487,13 @@ mod thm_004 {
         let selection = through.resolve_color("selection").is_some();
         let hover = shared.resolve_color("hover");
         let neutral = shared.resolve_color("neutral");
+        let long32 = long32.resolve_color("c0").is_some();
+        let long33 = long33.resolve_color("c0").is_some();
+        let e = extending.resolve_color("e");
+        let extending_input = extending.resolve_color("input");
+        let extending_surface = extending.resolve_color("surface");
         println!(
-            "THM004 a={a:?} input={input:?} surface={surface:?} selection={selection} hover={hover:?} neutral={neutral:?} ms={}",
+            "THM004 a={a:?} input={input:?} surface={surface:?} selection={selection} hover={hover:?} neutral={neutral:?} long32={long32} long33={long33} e={e:?} extending_input={extending_input:?} extending_surface={extending_surface:?} ms={}",
             started.elapsed().as_millis()
         );
     }
@@ -495,6 +561,26 @@ mod thm_004 {
             field("hover"),
             field("neutral"),
             "two roles sharing one alias are no cycle: hover mixes surface and foreground, both the alias: {line}"
+        );
+        assert_eq!(
+            (field("long32").as_str(), field("long33").as_str()),
+            ("true", "false"),
+            "THM-004: a chain of 32 names resolves and one that passes 32 names resolves as undefined: {line}"
+        );
+        assert_eq!(
+            field("e"),
+            "None",
+            "THM-004: a cycle split between a theme and the theme it extends resolves to nothing: {line}"
+        );
+        assert_eq!(
+            field("extending_input"),
+            field("extending_surface"),
+            "THM-004: the role `input` in a cycle through an extended theme takes its fallback, its surface: {line}"
+        );
+        assert_ne!(
+            field("extending_surface"),
+            "None",
+            "the extended theme's surface: {line}"
         );
         let elapsed: u128 = field("ms").parse().unwrap_or(u128::MAX);
         assert!(
