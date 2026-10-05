@@ -6,8 +6,8 @@ did not change. `--range` limits the scan to files changed since --base/$CAIRN_B
 
 Every tracked text file is read, the CI workflows and the specification
 included, except the records that cite paths as they were (below); a path a
-requirement forbids is listed with that requirement (FORBIDDEN, below). These
-forms of reference are checked:
+requirement's Agreed text forbids is listed with that requirement (FORBIDDEN,
+below), for the specification alone. These forms of reference are checked:
 
 - a path under any top-level directory the tree has or once had, with any
   leading `./` and `../` resolved from the file's own directory; in
@@ -77,12 +77,12 @@ EXTERNAL = {
     ("docs/spec/charts.md", "/".join(("crates", "component", "src", "chart"))):
         "a directory of gpui-kit 0.6.6, the model the charts follow",
 }
-# References to a path a requirement forbids: the requirement's falsifier
-# and the test that observes it must name what may not exist. Each entry
-# gives the requirement; the paths are written in parts for the same reason.
+# References to a path a requirement forbids, in the specification only: the
+# Agreed text names what may not exist, and a started commitment's text is
+# frozen. Code and tests build such a path in parts instead. Each entry gives
+# the requirement; the paths are written in parts for the same reason.
 FORBIDDEN = {
-    (document, "/".join(("src", "animation", name))): "ANI-006 requires its absence"
-    for document in ("docs/spec/animation.md", "tests/review_native/animation.rs")
+    ("docs/spec/animation.md", "/".join(("src", "animation", name))): "ANI-006 requires its absence"
     for name in ("performance.rs", "lock_free.rs")
 }
 # Installed at build time, never tracked.

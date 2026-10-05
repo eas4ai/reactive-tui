@@ -387,9 +387,16 @@ fn ani_005_add_animation_documents_a_repeated_id() {
 
 #[test]
 fn ani_006_the_alternate_drivers_are_gone() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    for file in ["src/animation/performance.rs", "src/animation/lock_free.rs"] {
-        assert!(!root.join(file).exists(), "ANI-006: {file} still exists");
+    // The two files are named in parts: a path that must not exist is not a
+    // reference the dangling-paths gate (BAR-007) should find here.
+    let module = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("animation");
+    for file in ["performance.rs", "lock_free.rs"] {
+        assert!(
+            !module.join(file).exists(),
+            "ANI-006: src/animation still holds {file}"
+        );
     }
     let source = include_str!("../../src/animation/mod.rs");
     for name in [
