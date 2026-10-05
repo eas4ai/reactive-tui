@@ -246,8 +246,14 @@ pub unsafe extern "C" fn rtui_element_builder_set_key(
 }
 
 /// Add a child element to builder (REAL in-place modification)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed.
+///
+/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_element_builder_add_child(
+pub unsafe extern "C" fn rtui_element_builder_add_child(
     builder: *mut RTuiElementBuilder,
     child: *mut RTuiElement,
 ) -> ReactiveError {
@@ -300,8 +306,12 @@ pub unsafe extern "C" fn rtui_element_builder_build(
 }
 
 /// Destroy an element builder
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_element_builder_destroy(builder: *mut RTuiElementBuilder) {
+pub unsafe extern "C" fn rtui_element_builder_destroy(builder: *mut RTuiElementBuilder) {
     if !builder.is_null() {
         unsafe {
             let _ = Box::from_raw(builder as *mut FFIElementBuilder);
@@ -310,8 +320,12 @@ pub extern "C" fn rtui_element_builder_destroy(builder: *mut RTuiElementBuilder)
 }
 
 /// Destroy an element
+///
+/// # Safety
+///
+/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
+pub unsafe extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
     if !element.is_null() {
         unsafe {
             let _ = Box::from_raw(element as *mut FFIElement);
@@ -379,26 +393,42 @@ fn text_container_builder(
 }
 
 /// Create a paragraph builder using the native paragraph classes.
+///
+/// # Safety
+///
+/// `out` must be null or point to a writable `*mut RTuiElementBuilder`.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_p(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+pub unsafe extern "C" fn rtui_p(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     text_container_builder(crate::builder::p, out)
 }
 
 /// Create a level-one heading builder using the native heading classes.
+///
+/// # Safety
+///
+/// `out` must be null or point to a writable `*mut RTuiElementBuilder`.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_h1(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+pub unsafe extern "C" fn rtui_h1(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     text_container_builder(crate::builder::h1, out)
 }
 
 /// Create a level-two heading builder using the native heading classes.
+///
+/// # Safety
+///
+/// `out` must be null or point to a writable `*mut RTuiElementBuilder`.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_h2(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+pub unsafe extern "C" fn rtui_h2(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     text_container_builder(crate::builder::h2, out)
 }
 
 /// Create a level-three heading builder using the native heading classes.
+///
+/// # Safety
+///
+/// `out` must be null or point to a writable `*mut RTuiElementBuilder`.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_h3(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
+pub unsafe extern "C" fn rtui_h3(out: *mut *mut RTuiElementBuilder) -> ReactiveError {
     text_container_builder(crate::builder::h3, out)
 }
 
@@ -451,8 +481,14 @@ pub unsafe extern "C" fn rtui_element_builder_key(
 }
 
 /// Append and consume a live child through the legacy builder name.
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed.
+///
+/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_element_builder_child(
+pub unsafe extern "C" fn rtui_element_builder_child(
     builder: *mut RTuiElementBuilder,
     child: *mut RTuiElement,
 ) -> ReactiveError {

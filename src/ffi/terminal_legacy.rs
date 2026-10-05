@@ -40,8 +40,12 @@ pub unsafe extern "C" fn rtui_terminal_create(
 }
 
 /// Release a terminal handle. Null and unregistered handles are ignored.
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `ReactiveTerminal` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
+pub unsafe extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
     destroyTerminal(terminal.cast());
 }
 
@@ -77,8 +81,12 @@ pub unsafe extern "C" fn rtui_terminal_get_dimensions(
 }
 
 /// Begin or end a synchronized terminal update.
+///
+/// # Safety
+///
+/// `terminal` must be null or a live `ReactiveTerminal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_terminal_sync(
+pub unsafe extern "C" fn rtui_terminal_sync(
     terminal: *mut ReactiveTerminal,
     begin: bool,
 ) -> ReactiveError {

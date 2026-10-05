@@ -367,6 +367,9 @@ mod ffi_001 {
         let mut sources = Vec::new();
         rust_files(&root, &mut sources);
         let (checked, problems) = audit(&sources).expect("src/ffi parses");
+        for problem in &problems {
+            eprintln!("FFI-001 problem: {problem}");
+        }
         assert!(checked >= 200, "the audit read the exports ({checked})");
         assert!(
             problems.is_empty(),

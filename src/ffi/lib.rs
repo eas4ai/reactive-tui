@@ -95,8 +95,12 @@ pub extern "C" fn createRenderer(width: u32, height: u32) -> *mut RTuiRenderer {
 }
 
 /// Destroy a renderer
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn destroyRenderer(
+pub unsafe extern "C" fn destroyRenderer(
     renderer: *mut RTuiRenderer,
     _use_alternate_screen: bool,
     _split_height: u32,
@@ -137,8 +141,14 @@ pub extern "C" fn destroyRenderer(
 }
 
 /// Set renderer background color
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
+///
+/// `color` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn setBackgroundColor(renderer: *mut RTuiRenderer, color: *const f32) {
+pub unsafe extern "C" fn setBackgroundColor(renderer: *mut RTuiRenderer, color: *const f32) {
     if renderer.is_null() || color.is_null() {
         return;
     }
@@ -151,8 +161,12 @@ pub extern "C" fn setBackgroundColor(renderer: *mut RTuiRenderer, color: *const 
 }
 
 /// Render the current frame
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn render(renderer: *mut RTuiRenderer, force: bool) {
+pub unsafe extern "C" fn render(renderer: *mut RTuiRenderer, force: bool) {
     if renderer.is_null() {
         return;
     }
@@ -166,8 +180,12 @@ pub extern "C" fn render(renderer: *mut RTuiRenderer, force: bool) {
 }
 
 /// Resize renderer
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn resizeRenderer(renderer: *mut RTuiRenderer, width: u32, height: u32) {
+pub unsafe extern "C" fn resizeRenderer(renderer: *mut RTuiRenderer, width: u32, height: u32) {
     if renderer.is_null() || width == 0 || height == 0 {
         return;
     }
@@ -207,8 +225,12 @@ pub extern "C" fn createOptimizedBuffer(
 }
 
 /// Destroy an optimized buffer
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn destroyOptimizedBuffer(buffer: *mut RTuiBuffer) {
+pub unsafe extern "C" fn destroyOptimizedBuffer(buffer: *mut RTuiBuffer) {
     if buffer.is_null() {
         return;
     }
@@ -222,8 +244,12 @@ pub extern "C" fn destroyOptimizedBuffer(buffer: *mut RTuiBuffer) {
 }
 
 /// Get buffer width
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn getBufferWidth(buffer: *const RTuiBuffer) -> u32 {
+pub unsafe extern "C" fn getBufferWidth(buffer: *const RTuiBuffer) -> u32 {
     if buffer.is_null() {
         return 0;
     }
@@ -233,8 +259,12 @@ pub extern "C" fn getBufferWidth(buffer: *const RTuiBuffer) -> u32 {
 }
 
 /// Get buffer height
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn getBufferHeight(buffer: *const RTuiBuffer) -> u32 {
+pub unsafe extern "C" fn getBufferHeight(buffer: *const RTuiBuffer) -> u32 {
     if buffer.is_null() {
         return 0;
     }
@@ -244,8 +274,14 @@ pub extern "C" fn getBufferHeight(buffer: *const RTuiBuffer) -> u32 {
 }
 
 /// Clear buffer with background color
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
+///
+/// `bg` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferClear(buffer: *mut RTuiBuffer, bg: *const f32) {
+pub unsafe extern "C" fn bufferClear(buffer: *mut RTuiBuffer, bg: *const f32) {
     if buffer.is_null() || bg.is_null() {
         return;
     }
@@ -310,8 +346,16 @@ pub unsafe extern "C" fn bufferDrawText(
 }
 
 /// Set a single cell with alpha blending
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
+///
+/// `fg` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
+///
+/// `bg` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferSetCellWithAlphaBlending(
+pub unsafe extern "C" fn bufferSetCellWithAlphaBlending(
     buffer: *mut RTuiBuffer,
     x: u32,
     y: u32,
@@ -343,8 +387,14 @@ pub extern "C" fn bufferSetCellWithAlphaBlending(
 }
 
 /// Fill rectangle with background color
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
+///
+/// `bg` must be null or point to four readable `f32` values: red, green, blue and alpha, each from 0 to 1.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferFillRect(
+pub unsafe extern "C" fn bufferFillRect(
     buffer: *mut RTuiBuffer,
     x: u32,
     y: u32,
@@ -388,8 +438,12 @@ pub extern "C" fn bufferFillRect(
 /// - The caller must not access beyond width * height elements
 /// - Concurrent access must be synchronized by the caller
 /// - The caller must call bufferReleaseCharPtr to free the memory
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferGetCharPtr(buffer: *mut RTuiBuffer) -> *mut u32 {
+pub unsafe extern "C" fn bufferGetCharPtr(buffer: *mut RTuiBuffer) -> *mut u32 {
     if buffer.is_null() {
         return std::ptr::null_mut();
     }
@@ -406,8 +460,12 @@ pub extern "C" fn bufferGetCharPtr(buffer: *mut RTuiBuffer) -> *mut u32 {
 ///
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetCharPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetCharPtr()
+///
+/// # Safety
+///
+/// `ptr` must be null or a pointer that `bufferGetCharPtr` returned and that has not been released; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferReleaseCharPtr(ptr: *mut u32, _length: usize) {
+pub unsafe extern "C" fn bufferReleaseCharPtr(ptr: *mut u32, _length: usize) {
     if ptr.is_null() {
         return;
     }
@@ -424,8 +482,12 @@ pub extern "C" fn bufferReleaseCharPtr(ptr: *mut u32, _length: usize) {
 /// - The returned pointer is valid until its matching release call
 /// - The caller must not access beyond width * height * 4 elements
 /// - The caller must call bufferReleaseFgPtr to free the memory
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferGetFgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
+pub unsafe extern "C" fn bufferGetFgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
     if buffer.is_null() {
         return std::ptr::null_mut();
     }
@@ -448,8 +510,12 @@ pub extern "C" fn bufferGetFgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
 ///
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetFgPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetFgPtr()
+///
+/// # Safety
+///
+/// `ptr` must be null or a pointer that `bufferGetFgPtr` returned and that has not been released; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferReleaseFgPtr(ptr: *mut f32, _length: usize) {
+pub unsafe extern "C" fn bufferReleaseFgPtr(ptr: *mut f32, _length: usize) {
     if ptr.is_null() {
         return;
     }
@@ -466,8 +532,12 @@ pub extern "C" fn bufferReleaseFgPtr(ptr: *mut f32, _length: usize) {
 /// - The returned pointer is valid until its matching release call
 /// - The caller must not access beyond width * height * 4 elements
 /// - The caller must call bufferReleaseBgPtr to free the memory
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferGetBgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
+pub unsafe extern "C" fn bufferGetBgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
     if buffer.is_null() {
         return std::ptr::null_mut();
     }
@@ -490,8 +560,12 @@ pub extern "C" fn bufferGetBgPtr(buffer: *mut RTuiBuffer) -> *mut f32 {
 ///
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetBgPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetBgPtr()
+///
+/// # Safety
+///
+/// `ptr` must be null or a pointer that `bufferGetBgPtr` returned and that has not been released; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferReleaseBgPtr(ptr: *mut f32, _length: usize) {
+pub unsafe extern "C" fn bufferReleaseBgPtr(ptr: *mut f32, _length: usize) {
     if ptr.is_null() {
         return;
     }
@@ -508,8 +582,12 @@ pub extern "C" fn bufferReleaseBgPtr(ptr: *mut f32, _length: usize) {
 /// - The returned pointer is valid until its matching release call
 /// - The caller must not access beyond width * height elements
 /// - The caller must call bufferReleaseAttributesPtr to free the memory
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferGetAttributesPtr(buffer: *mut RTuiBuffer) -> *mut u8 {
+pub unsafe extern "C" fn bufferGetAttributesPtr(buffer: *mut RTuiBuffer) -> *mut u8 {
     if buffer.is_null() {
         return std::ptr::null_mut();
     }
@@ -530,8 +608,12 @@ pub extern "C" fn bufferGetAttributesPtr(buffer: *mut RTuiBuffer) -> *mut u8 {
 ///
 /// **REQUIRED:** Must be called for every pointer returned by bufferGetAttrPtr()
 /// **SAFETY:** Only call this once per pointer, and only with pointers from bufferGetAttrPtr()
+///
+/// # Safety
+///
+/// `ptr` must be null or a pointer that `bufferGetAttrPtr` returned and that has not been released; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferReleaseAttrPtr(ptr: *mut u8, _length: usize) {
+pub unsafe extern "C" fn bufferReleaseAttrPtr(ptr: *mut u8, _length: usize) {
     if ptr.is_null() {
         return;
     }
@@ -555,8 +637,12 @@ pub extern "C" fn bufferGetRespectAlpha(buffer: *const RTuiBuffer) -> bool {
 /// Controls whether alpha blending is respected when rendering.
 /// When enabled, transparent colors will blend with background.
 /// When disabled, alpha values are ignored and colors are rendered opaque.
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferSetRespectAlpha(buffer: *mut RTuiBuffer, respect_alpha: bool) {
+pub unsafe extern "C" fn bufferSetRespectAlpha(buffer: *mut RTuiBuffer, respect_alpha: bool) {
     if buffer.is_null() {
         return;
     }
@@ -577,8 +663,12 @@ pub extern "C" fn bufferSetRespectAlpha(buffer: *mut RTuiBuffer, respect_alpha: 
 }
 
 /// Resize buffer
+///
+/// # Safety
+///
+/// `buffer` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn bufferResize(buffer: *mut RTuiBuffer, width: u32, height: u32) {
+pub unsafe extern "C" fn bufferResize(buffer: *mut RTuiBuffer, width: u32, height: u32) {
     if buffer.is_null() || width == 0 || height == 0 {
         return;
     }
@@ -624,8 +714,14 @@ pub extern "C" fn bufferResize(buffer: *mut RTuiBuffer, width: u32, height: u32)
 /// Render surface to terminal through renderer
 ///
 /// This integrates Surface → Renderer → Terminal in a single operation
+///
+/// # Safety
+///
+/// `surface` must be null or a live `RTuiBuffer` handle that this library returned and has not destroyed.
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn renderSurfaceToTerminal(
+pub unsafe extern "C" fn renderSurfaceToTerminal(
     surface: *const RTuiBuffer,
     terminal: *mut super::terminal::RTuiTerminal,
 ) -> bool {
@@ -671,8 +767,14 @@ pub extern "C" fn renderSurfaceToTerminal(
 /// Complete rendering pipeline: TextBuffer → Surface → Renderer → Terminal
 ///
 /// This integrates all systems in a single high-level operation
+///
+/// # Safety
+///
+/// `text_buffer` must be null or a live `RTuiTextBuffer` handle that this library returned and has not destroyed.
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn renderTextToTerminal(
+pub unsafe extern "C" fn renderTextToTerminal(
     text_buffer: *const super::text::RTuiTextBuffer,
     terminal: *mut super::terminal::RTuiTerminal,
     x: u32,
@@ -717,8 +819,14 @@ pub extern "C" fn renderTextToTerminal(
 /// Integrated renderer with stats collection
 ///
 /// This combines Renderer → Terminal with automatic stats collection
+///
+/// # Safety
+///
+/// `renderer` must be null or a live `RTuiRenderer` handle that this library returned and has not destroyed.
+///
+/// `terminal` must be null or a live `RTuiTerminal` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn renderWithStats(
+pub unsafe extern "C" fn renderWithStats(
     renderer: *mut super::lib::RTuiRenderer,
     terminal: *mut super::terminal::RTuiTerminal,
     collect_stats: bool,

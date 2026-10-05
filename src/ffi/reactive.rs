@@ -449,14 +449,24 @@ pub unsafe extern "C" fn rtui_signal_bool_create(
 }
 
 /// Destroy a signal
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_signal_destroy(signal: *mut RTuiSignal) {
+pub unsafe extern "C" fn rtui_signal_destroy(signal: *mut RTuiSignal) {
     rtui_signal_destroy_new(signal);
 }
 
 /// Get string signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
+///
+/// `buffer` must be null or point to at least `buffer_size` writable bytes.
 #[no_mangle]
-pub extern "C" fn rtui_signal_string_get(
+pub unsafe extern "C" fn rtui_signal_string_get(
     signal: *const RTuiSignal,
     buffer: *mut c_char,
     buffer_size: usize,
@@ -534,8 +544,12 @@ pub unsafe extern "C" fn rtui_signal_int_get(
 }
 
 /// Set integer signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_int_set(signal: *mut RTuiSignal, value: i64) -> ReactiveError {
+pub unsafe extern "C" fn rtui_signal_int_set(signal: *mut RTuiSignal, value: i64) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -572,8 +586,15 @@ pub unsafe extern "C" fn rtui_signal_float_get(
 }
 
 /// Set float signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_float_set(signal: *mut RTuiSignal, value: f64) -> ReactiveError {
+pub unsafe extern "C" fn rtui_signal_float_set(
+    signal: *mut RTuiSignal,
+    value: f64,
+) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -610,8 +631,15 @@ pub unsafe extern "C" fn rtui_signal_bool_get(
 }
 
 /// Set boolean signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_bool_set(signal: *mut RTuiSignal, value: bool) -> ReactiveError {
+pub unsafe extern "C" fn rtui_signal_bool_set(
+    signal: *mut RTuiSignal,
+    value: bool,
+) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -656,8 +684,12 @@ pub unsafe extern "C" fn rtui_thread_safe_signal_string_create(
 }
 
 /// Destroy a thread-safe signal
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiThreadSafeSignal` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_thread_safe_signal_destroy(signal: *mut RTuiThreadSafeSignal) {
+pub unsafe extern "C" fn rtui_thread_safe_signal_destroy(signal: *mut RTuiThreadSafeSignal) {
     if !signal.is_null() {
         unsafe {
             let _ = Box::from_raw(signal as *mut ThreadSafeSignal<String>);
@@ -666,8 +698,14 @@ pub extern "C" fn rtui_thread_safe_signal_destroy(signal: *mut RTuiThreadSafeSig
 }
 
 /// Get thread-safe string signal value
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiThreadSafeSignal` handle that this library returned and has not destroyed.
+///
+/// `buffer` must be null or point to at least `buffer_size` writable bytes.
 #[no_mangle]
-pub extern "C" fn rtui_thread_safe_signal_string_get(
+pub unsafe extern "C" fn rtui_thread_safe_signal_string_get(
     signal: *const RTuiThreadSafeSignal,
     buffer: *mut c_char,
     buffer_size: usize,
@@ -751,8 +789,12 @@ pub unsafe extern "C" fn rtui_effect_create(
 }
 
 /// Destroy an effect
+///
+/// # Safety
+///
+/// `effect` must be null or a live `RTuiEffect` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_effect_destroy(effect: *mut RTuiEffect) {
+pub unsafe extern "C" fn rtui_effect_destroy(effect: *mut RTuiEffect) {
     if !effect.is_null() {
         unsafe {
             let effect_data = Box::from_raw(
@@ -771,8 +813,12 @@ pub extern "C" fn rtui_effect_destroy(effect: *mut RTuiEffect) {
 }
 
 /// Run an effect
+///
+/// # Safety
+///
+/// `effect` must be null or a live `RTuiEffect` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_effect_run(effect: *const RTuiEffect) -> ReactiveError {
+pub unsafe extern "C" fn rtui_effect_run(effect: *const RTuiEffect) -> ReactiveError {
     if effect.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -858,8 +904,12 @@ pub extern "C" fn rtui_signal_new_float(initial_value: f64) -> *mut RTuiSignal {
 }
 
 /// Get the current value of an integer signal (improved API)
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_get_int(signal: *const RTuiSignal) -> c_int {
+pub unsafe extern "C" fn rtui_signal_get_int(signal: *const RTuiSignal) -> c_int {
     if signal.is_null() {
         return 0;
     }
@@ -874,8 +924,15 @@ pub extern "C" fn rtui_signal_get_int(signal: *const RTuiSignal) -> c_int {
 }
 
 /// Set the value of an integer signal (improved API)
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_set_int(signal: *mut RTuiSignal, value: c_int) -> ReactiveError {
+pub unsafe extern "C" fn rtui_signal_set_int(
+    signal: *mut RTuiSignal,
+    value: c_int,
+) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -892,8 +949,12 @@ pub extern "C" fn rtui_signal_set_int(signal: *mut RTuiSignal, value: c_int) -> 
 /// The string is released with `rtui_string_free`; until then the caller may
 /// read it but must not shorten it or write a NUL into it, since the free
 /// relies on the terminator where this library put it.
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_get_string_owned(signal: *const RTuiSignal) -> *mut c_char {
+pub unsafe extern "C" fn rtui_signal_get_string_owned(signal: *const RTuiSignal) -> *mut c_char {
     if signal.is_null() {
         return std::ptr::null_mut();
     }
@@ -936,8 +997,12 @@ pub unsafe extern "C" fn rtui_signal_set_string_new(
 }
 
 /// Get the current value of a boolean signal (improved API)
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_get_bool_new(signal: *const RTuiSignal) -> bool {
+pub unsafe extern "C" fn rtui_signal_get_bool_new(signal: *const RTuiSignal) -> bool {
     if signal.is_null() {
         return false;
     }
@@ -952,8 +1017,15 @@ pub extern "C" fn rtui_signal_get_bool_new(signal: *const RTuiSignal) -> bool {
 }
 
 /// Set the value of a boolean signal (improved API)
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_set_bool_new(signal: *mut RTuiSignal, value: bool) -> ReactiveError {
+pub unsafe extern "C" fn rtui_signal_set_bool_new(
+    signal: *mut RTuiSignal,
+    value: bool,
+) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -966,8 +1038,12 @@ pub extern "C" fn rtui_signal_set_bool_new(signal: *mut RTuiSignal, value: bool)
 }
 
 /// Get the current value of a float signal (improved API)
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_get_float_new(signal: *const RTuiSignal) -> f64 {
+pub unsafe extern "C" fn rtui_signal_get_float_new(signal: *const RTuiSignal) -> f64 {
     if signal.is_null() {
         return 0.0;
     }
@@ -982,8 +1058,15 @@ pub extern "C" fn rtui_signal_get_float_new(signal: *const RTuiSignal) -> f64 {
 }
 
 /// Set the value of a float signal (improved API)
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_signal_set_float_new(signal: *mut RTuiSignal, value: f64) -> ReactiveError {
+pub unsafe extern "C" fn rtui_signal_set_float_new(
+    signal: *mut RTuiSignal,
+    value: f64,
+) -> ReactiveError {
     if signal.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -996,8 +1079,12 @@ pub extern "C" fn rtui_signal_set_float_new(signal: *mut RTuiSignal, value: f64)
 }
 
 /// Destroy a signal (improved API with proper type safety)
+///
+/// # Safety
+///
+/// `signal` must be null or a live `RTuiSignal` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_signal_destroy_new(signal: *mut RTuiSignal) {
+pub unsafe extern "C" fn rtui_signal_destroy_new(signal: *mut RTuiSignal) {
     if !signal.is_null() {
         unsafe {
             let _ = Box::from_raw(signal as *mut FFISignal);
@@ -1081,8 +1168,12 @@ pub extern "C" fn rtui_hooks_new() -> *mut RTuiHooks {
 }
 
 /// Destroy a hooks context
+///
+/// # Safety
+///
+/// `hooks` must be null or a live `RTuiHooks` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_hooks_destroy(hooks: *mut RTuiHooks) {
+pub unsafe extern "C" fn rtui_hooks_destroy(hooks: *mut RTuiHooks) {
     if !hooks.is_null() {
         unsafe {
             let _ = Box::from_raw(hooks as *mut FFIHooks);

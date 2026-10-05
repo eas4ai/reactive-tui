@@ -79,7 +79,7 @@ mod terminal_tests {
             "FFI call failed"
         );
         assert!(!terminal.is_null());
-        rtui_terminal_destroy(terminal);
+        unsafe { rtui_terminal_destroy(terminal) };
     }
 
     #[test]
@@ -113,7 +113,7 @@ mod terminal_tests {
         assert!(dims.width > 0);
         assert!(dims.height > 0);
 
-        rtui_terminal_destroy(terminal);
+        unsafe { rtui_terminal_destroy(terminal) };
     }
 
     #[test]
@@ -146,7 +146,7 @@ mod terminal_tests {
             ReactiveError::NullPointer
         );
 
-        rtui_terminal_destroy(terminal);
+        unsafe { rtui_terminal_destroy(terminal) };
     }
 
     #[test]
@@ -159,17 +159,17 @@ mod terminal_tests {
         );
 
         assert_eq!(
-            rtui_terminal_sync(terminal, true),
+            unsafe { rtui_terminal_sync(terminal, true) },
             ReactiveError::Success,
             "FFI call failed"
         ); // begin
         assert_eq!(
-            rtui_terminal_sync(terminal, false),
+            unsafe { rtui_terminal_sync(terminal, false) },
             ReactiveError::Success,
             "FFI call failed"
         ); // end
 
-        rtui_terminal_destroy(terminal);
+        unsafe { rtui_terminal_destroy(terminal) };
     }
 
     #[test]
@@ -196,7 +196,7 @@ mod terminal_tests {
             let result = unsafe { rtui_terminal_poll_event(0, &mut event) };
             assert!(result == ReactiveError::NotFound || result == ReactiveError::Success);
 
-            rtui_terminal_destroy(terminal);
+            unsafe { rtui_terminal_destroy(terminal) };
         });
     }
 }
@@ -213,7 +213,7 @@ mod surface_tests {
             "FFI call failed"
         );
         assert!(!surface.is_null());
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
     }
 
     #[test]
@@ -254,7 +254,7 @@ mod surface_tests {
         assert_eq!(dims.width, 100);
         assert_eq!(dims.height, 50);
 
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
     }
 
     #[test]
@@ -267,12 +267,12 @@ mod surface_tests {
         );
 
         assert_eq!(
-            rtui_surface_clear(surface, 0, 0, 0),
+            unsafe { rtui_surface_clear(surface, 0, 0, 0) },
             ReactiveError::Success,
             "FFI call failed"
         );
 
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
     }
 
     #[test]
@@ -337,7 +337,7 @@ mod surface_tests {
         assert!(retrieved.attrs.bold);
         assert!(retrieved.attrs.underline);
 
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
     }
 
     #[test]
@@ -387,7 +387,7 @@ mod surface_tests {
         assert_eq!(cell.ch, 'H' as u32);
         assert_eq!(cell.fg.r, 255);
 
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
     }
 
     #[test]
@@ -448,7 +448,7 @@ mod surface_tests {
         assert_eq!(cell.fg.r, 128);
         assert_eq!(cell.bg.r, 32);
 
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
     }
 }
 
@@ -473,8 +473,8 @@ mod renderer_tests {
             );
             assert!(!renderer.is_null());
 
-            rtui_renderer_destroy(renderer);
-            rtui_terminal_destroy(terminal);
+            unsafe { rtui_renderer_destroy(renderer) };
+            unsafe { rtui_terminal_destroy(terminal) };
         });
     }
 
@@ -514,18 +514,18 @@ mod renderer_tests {
             );
 
             assert_eq!(
-                rtui_renderer_frame(renderer, true),
+                unsafe { rtui_renderer_frame(renderer, true) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
             assert_eq!(
-                rtui_renderer_frame(renderer, false),
+                unsafe { rtui_renderer_frame(renderer, false) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
 
-            rtui_renderer_destroy(renderer);
-            rtui_terminal_destroy(terminal);
+            unsafe { rtui_renderer_destroy(renderer) };
+            unsafe { rtui_terminal_destroy(terminal) };
         });
     }
 
@@ -547,7 +547,7 @@ mod renderer_tests {
             );
 
             assert_eq!(
-                rtui_renderer_frame(renderer, true),
+                unsafe { rtui_renderer_frame(renderer, true) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
@@ -574,13 +574,13 @@ mod renderer_tests {
             );
 
             assert_eq!(
-                rtui_renderer_frame(renderer, false),
+                unsafe { rtui_renderer_frame(renderer, false) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
 
-            rtui_renderer_destroy(renderer);
-            rtui_terminal_destroy(terminal);
+            unsafe { rtui_renderer_destroy(renderer) };
+            unsafe { rtui_terminal_destroy(terminal) };
         });
     }
 
@@ -602,13 +602,13 @@ mod renderer_tests {
             );
 
             assert_eq!(
-                rtui_renderer_resize(renderer, 120, 40),
+                unsafe { rtui_renderer_resize(renderer, 120, 40) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
 
-            rtui_renderer_destroy(renderer);
-            rtui_terminal_destroy(terminal);
+            unsafe { rtui_renderer_destroy(renderer) };
+            unsafe { rtui_terminal_destroy(terminal) };
         });
     }
 
@@ -630,13 +630,13 @@ mod renderer_tests {
             );
 
             assert_eq!(
-                rtui_renderer_clear(renderer, 0, 0, 0),
+                unsafe { rtui_renderer_clear(renderer, 0, 0, 0) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
 
-            rtui_renderer_destroy(renderer);
-            rtui_terminal_destroy(terminal);
+            unsafe { rtui_renderer_destroy(renderer) };
+            unsafe { rtui_terminal_destroy(terminal) };
         });
     }
 
@@ -658,13 +658,13 @@ mod renderer_tests {
             );
 
             assert_eq!(
-                rtui_renderer_shutdown(renderer),
+                unsafe { rtui_renderer_shutdown(renderer) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
 
-            rtui_renderer_destroy(renderer);
-            rtui_terminal_destroy(terminal);
+            unsafe { rtui_renderer_destroy(renderer) };
+            unsafe { rtui_terminal_destroy(terminal) };
         });
     }
 }
@@ -692,24 +692,24 @@ mod error_handling_tests {
     fn test_null_pointer_checks() {
         // Test various null pointer scenarios
         // destroy should safely handle null
-        rtui_terminal_destroy(ptr::null_mut());
+        unsafe { rtui_terminal_destroy(ptr::null_mut()) };
 
         assert_eq!(
-            rtui_terminal_sync(ptr::null_mut(), true),
+            unsafe { rtui_terminal_sync(ptr::null_mut(), true) },
             ReactiveError::NullPointer,
             "Expected error {:?}",
             ReactiveError::NullPointer
         );
 
         assert_eq!(
-            rtui_surface_clear(ptr::null_mut(), 0, 0, 0),
+            unsafe { rtui_surface_clear(ptr::null_mut(), 0, 0, 0) },
             ReactiveError::NullPointer,
             "Expected error {:?}",
             ReactiveError::NullPointer
         );
 
         assert_eq!(
-            rtui_renderer_frame(ptr::null_mut(), true),
+            unsafe { rtui_renderer_frame(ptr::null_mut(), true) },
             ReactiveError::NullPointer,
             "Expected error {:?}",
             ReactiveError::NullPointer
@@ -729,9 +729,9 @@ mod memory_safety_tests {
             "FFI call failed"
         );
 
-        rtui_terminal_destroy(terminal);
+        unsafe { rtui_terminal_destroy(terminal) };
         // Second destroy should be safe (no crash)
-        rtui_terminal_destroy(terminal);
+        unsafe { rtui_terminal_destroy(terminal) };
     }
 
     #[test]
@@ -743,11 +743,11 @@ mod memory_safety_tests {
             "FFI call failed"
         );
 
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
 
         // These should not crash (undefined behavior protection)
         // They should either safely fail or be no-ops
-        let result = rtui_surface_clear(surface, 0, 0, 0);
+        let result = unsafe { rtui_surface_clear(surface, 0, 0, 0) };
         assert!(result != ReactiveError::Success);
     }
 
@@ -797,7 +797,7 @@ mod memory_safety_tests {
             "FFI call failed"
         );
 
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
     }
 
     #[test]
@@ -842,7 +842,7 @@ mod memory_safety_tests {
             "in-bounds set succeeds"
         );
 
-        rtui_surface_destroy(surface);
+        unsafe { rtui_surface_destroy(surface) };
     }
 }
 
@@ -869,7 +869,7 @@ fn test_full_integration() {
         // Simulate a few frames
         for i in 0..3 {
             assert_eq!(
-                rtui_renderer_frame(renderer, true),
+                unsafe { rtui_renderer_frame(renderer, true) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
@@ -897,19 +897,19 @@ fn test_full_integration() {
             );
 
             assert_eq!(
-                rtui_renderer_frame(renderer, false),
+                unsafe { rtui_renderer_frame(renderer, false) },
                 ReactiveError::Success,
                 "FFI call failed"
             );
         }
 
         assert_eq!(
-            rtui_renderer_shutdown(renderer),
+            unsafe { rtui_renderer_shutdown(renderer) },
             ReactiveError::Success,
             "FFI call failed"
         );
-        rtui_renderer_destroy(renderer);
-        rtui_terminal_destroy(terminal);
+        unsafe { rtui_renderer_destroy(renderer) };
+        unsafe { rtui_terminal_destroy(terminal) };
 
         rtui_cleanup();
     });

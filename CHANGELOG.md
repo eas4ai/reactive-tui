@@ -5,6 +5,29 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- An animation runs its `on_update` and `on_complete` callbacks with its own
+  lock released, so a callback may read the animation's progress, state and
+  values and stop or pause it through its shared state; before, such a
+  callback waited forever on its own thread (docs/spec/reactive.md,
+  SIG-002).
+- The functions exported to C that read or write through their caller's
+  pointer are `unsafe extern "C" fn` on the Rust side, each with a
+  `# Safety` section; Rust code that calls one directly now needs `unsafe`.
+  The C headers and the TypeScript binding are unchanged (docs/spec/ffi.md,
+  FFI-001).
+- On Windows, an App on `DirectTtyBackend` gets its keys, clicks and focus
+  changes: the console reader returned before reading whenever the App
+  polled with a zero timeout (docs/spec/input.md, INP-012).
+- Theme variables whose values name each other resolve as undefined, a role
+  taking its fallback color, instead of overflowing the stack
+  (docs/spec/theme.md, THM-004).
+- A chart holding the smallest subnormal value draws and builds instead of
+  looping forever in its worker or in `build()` (CHT-026), and a chart's
+  `band_count`, `point_count` and `grid_columns` no longer make it format
+  a label or keep values for every requested slot: ten million or
+  `usize::MAX` slots cost what the data costs (docs/spec/charts.md,
+  CHT-040).
+
 - On a terminal that takes Kitty graphics or Sixel, with `wgpu-graphics`,
   the controls and rounded boxes draw their looks as pixel pictures around
   their text (docs/spec/pixel-looks.md): an element with a background role

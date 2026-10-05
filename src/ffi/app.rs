@@ -146,8 +146,14 @@ impl RootComponent for ElementRoot {
 
 /// Retain an Element root, consuming it on success. Nested foreign components
 /// use the normal fallible component runtime without an infallible root callback.
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+///
+/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_app_builder_root_element(
+pub unsafe extern "C" fn rtui_app_builder_root_element(
     builder: *mut RTuiAppBuilder,
     element: *mut RTuiElement,
 ) -> ReactiveError {
@@ -214,8 +220,12 @@ pub unsafe extern "C" fn rtui_app_builder_create(
 }
 
 /// Destroy an app builder
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_app_builder_destroy(builder: *mut RTuiAppBuilder) {
+pub unsafe extern "C" fn rtui_app_builder_destroy(builder: *mut RTuiAppBuilder) {
     if !builder.is_null() {
         let raw = builder.cast::<NativeAppBuilder>();
         if app_builder_tracker().unregister(raw) {
@@ -227,8 +237,12 @@ pub extern "C" fn rtui_app_builder_destroy(builder: *mut RTuiAppBuilder) {
 }
 
 /// Set debug mode for app builder (safe in-place modification)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_app_builder_debug(
+pub unsafe extern "C" fn rtui_app_builder_debug(
     builder: *mut RTuiAppBuilder,
     debug: bool,
 ) -> ReactiveError {
@@ -248,8 +262,12 @@ pub extern "C" fn rtui_app_builder_debug(
 }
 
 /// Set performance mode for app builder (safe in-place modification)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_app_builder_performance_mode(
+pub unsafe extern "C" fn rtui_app_builder_performance_mode(
     builder: *mut RTuiAppBuilder,
     mode: RTuiPerformanceMode,
 ) -> ReactiveError {
@@ -269,8 +287,12 @@ pub extern "C" fn rtui_app_builder_performance_mode(
 }
 
 /// Set backend for app builder (creates debug backend with specified size)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_app_builder_backend_debug(
+pub unsafe extern "C" fn rtui_app_builder_backend_debug(
     builder: *mut RTuiAppBuilder,
     width: u16,
     height: u16,
@@ -296,22 +318,38 @@ pub extern "C" fn rtui_app_builder_backend_debug(
 /// The builder owns that session until build transfers it to the App, or the
 /// builder is destroyed. Setup errors leave the existing builder value intact.
 /// Re-selecting either native terminal route retains its current session.
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_app_builder_backend_suprtui(builder: *mut RTuiAppBuilder) -> ReactiveError {
+pub unsafe extern "C" fn rtui_app_builder_backend_suprtui(
+    builder: *mut RTuiAppBuilder,
+) -> ReactiveError {
     select_terminal_backend(builder, SuprTuiBackend::new)
 }
 
 /// Set backend for app builder (creates crossterm backend)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_app_builder_backend_crossterm(
+pub unsafe extern "C" fn rtui_app_builder_backend_crossterm(
     builder: *mut RTuiAppBuilder,
 ) -> ReactiveError {
     select_terminal_backend(builder, CrosstermBackend::new)
 }
 
 /// Set root component for app builder (safe in-place modification)
+///
+/// # Safety
+///
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+///
+/// `user_data` must stay valid for as long as the callback it is passed back to can run.
 #[no_mangle]
-pub extern "C" fn rtui_app_builder_root_component(
+pub unsafe extern "C" fn rtui_app_builder_root_component(
     builder: *mut RTuiAppBuilder,
     callback: RTuiRootComponentCallback,
     user_data: *mut std::ffi::c_void,
@@ -370,8 +408,12 @@ pub unsafe extern "C" fn rtui_app_builder_build(
 }
 
 /// Destroy an app
+///
+/// # Safety
+///
+/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed; it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
-pub extern "C" fn rtui_app_destroy(app: *mut RTuiApp) {
+pub unsafe extern "C" fn rtui_app_destroy(app: *mut RTuiApp) {
     if !app.is_null() {
         unsafe {
             let _ = Box::from_raw(app.cast::<NativeApp>());
@@ -382,8 +424,12 @@ pub extern "C" fn rtui_app_destroy(app: *mut RTuiApp) {
 /// Run the app as a blocking call. The handle remains valid until destroy.
 /// While this call is active, only quit is available; other app calls return
 /// InvalidState.
+///
+/// # Safety
+///
+/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_app_run(app: *mut RTuiApp) -> ReactiveError {
+pub unsafe extern "C" fn rtui_app_run(app: *mut RTuiApp) -> ReactiveError {
     if app.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -402,8 +448,12 @@ pub extern "C" fn rtui_app_run(app: *mut RTuiApp) -> ReactiveError {
 }
 
 /// Stop the app
+///
+/// # Safety
+///
+/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_app_quit(app: *mut RTuiApp) -> ReactiveError {
+pub unsafe extern "C" fn rtui_app_quit(app: *mut RTuiApp) -> ReactiveError {
     if app.is_null() {
         return ReactiveError::NullPointer;
     }
@@ -443,8 +493,12 @@ pub unsafe extern "C" fn rtui_app_get_size(
 }
 
 /// Set app performance mode
+///
+/// # Safety
+///
+/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed.
 #[no_mangle]
-pub extern "C" fn rtui_app_set_performance_mode(
+pub unsafe extern "C" fn rtui_app_set_performance_mode(
     app: *mut RTuiApp,
     mode: RTuiPerformanceMode,
 ) -> ReactiveError {
