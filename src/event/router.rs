@@ -946,6 +946,85 @@ mod tests {
     use std::sync::Mutex;
 
     #[test]
+    fn cmp_006_colliding_node_ids_keep_both_handler_chains() {
+        use crate::event::cache::{EventDiscriminant, HandlerChain, HandlerLookup};
+        let first = Arc::new(HandlerChain::new());
+        let second = Arc::new(HandlerChain::new());
+        let mut lookup = HandlerLookup::new();
+        lookup.insert(
+            NodeId(1),
+            EventDiscriminant::Paste,
+            EventPhase::Target,
+            first.clone(),
+        );
+        lookup.insert(
+            NodeId(257),
+            EventDiscriminant::Paste,
+            EventPhase::Target,
+            second.clone(),
+        );
+        let first_found = lookup.get(NodeId(1), EventDiscriminant::Paste, EventPhase::Target);
+        let second_found = lookup.get(NodeId(257), EventDiscriminant::Paste, EventPhase::Target);
+        assert!(
+            first_found.is_some_and(|found| Arc::ptr_eq(found, &first))
+                && second_found.is_some_and(|found| Arc::ptr_eq(found, &second)),
+            "CMP-006: inserting node 257 lost or returned the wrong chain for node 1"
+        );
+    }
+
+    #[test]
+    fn cmp_006_an_unregistered_colliding_id_has_no_handler_chain() {
+        use crate::event::cache::{EventDiscriminant, HandlerChain, HandlerLookup};
+        let mut lookup = HandlerLookup::new();
+        lookup.insert(
+            NodeId(1),
+            EventDiscriminant::Paste,
+            EventPhase::Target,
+            Arc::new(HandlerChain::new()),
+        );
+        let found = lookup.get(NodeId(257), EventDiscriminant::Paste, EventPhase::Target);
+        assert!(
+            found.is_none(),
+            "CMP-006: lookup returned a chain for node 257 although only node 1 was inserted"
+        );
+    }
+
+    fn cmp_chain_result(result: EventResult) -> EventResult {
+        use crate::event::cache::HandlerChain;
+        let mut chain = HandlerChain::new();
+        chain.add(EventHandler {
+            id: HandlerId::new(),
+            event_type: "paste".into(),
+            phase: EventPhase::Target,
+            handler: Arc::new(move |_| result),
+            priority: 0,
+        });
+        chain.execute(&Event::Paste(crate::event::types::PasteEvent::new(
+            "input".into(),
+        )))
+    }
+
+    #[test]
+    fn cmp_006_a_handled_chain_returns_handled() {
+        let result = cmp_chain_result(EventResult::Handled);
+        assert_eq!(
+            result,
+            EventResult::Handled,
+            "CMP-006: a handler returned Handled but its chain returned {result:?}"
+        );
+    }
+
+    #[test]
+    fn cmp_006_a_captured_chain_returns_handled() {
+        let result = cmp_chain_result(EventResult::Captured);
+        assert_eq!(
+            result,
+            EventResult::Handled,
+            "CMP-006: a handler returned Captured but its chain returned {result:?}"
+        );
+    }
+
+    #[test]
     fn hover_capture_receives_each_own_boundary_once() {
         use crate::event::{
             hit::Bounds,
