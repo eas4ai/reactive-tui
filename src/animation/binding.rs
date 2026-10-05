@@ -225,7 +225,8 @@ mod tests {
             },
         )
         .unwrap();
-        assert!(!animation.update(Duration::ZERO));
+        // Waiting out the delay is still active playback (ANI-002).
+        assert!(animation.update(Duration::ZERO));
         owner.publish(&element(0.5), None, 0).unwrap();
         animation.start_time = Some(Instant::now() - Duration::from_secs(20));
         assert!(animation.update(Duration::ZERO));

@@ -16,7 +16,7 @@ pub struct SpringConfig {
     pub stiffness: f32,
     /// Damping factor (affects energy dissipation)
     pub damping: f32,
-    /// Initial velocity of the system
+    /// Initial rate of change of position from `from` toward `to` (ANI-008)
     pub velocity: f32,
     /// Precision threshold for determining when spring has settled
     pub precision: f32,
@@ -46,7 +46,7 @@ impl SpringConfig {
         }
     }
 
-    /// Set initial velocity
+    /// Set the initial rate of change of position from `from` toward `to`
     pub fn with_velocity(mut self, velocity: f32) -> Self {
         self.velocity = velocity;
         self
@@ -95,9 +95,10 @@ impl SpringConfig {
         damping_ratio: f32,
     ) -> f32 {
         let damped_frequency = angular_frequency * (1.0 - damping_ratio * damping_ratio).sqrt();
+        // ANI-008: the remaining displacement starts with derivative -velocity.
         let a = displacement;
         let b =
-            (self.velocity + damping_ratio * angular_frequency * displacement) / damped_frequency;
+            (-self.velocity + damping_ratio * angular_frequency * displacement) / damped_frequency;
 
         let envelope = (-damping_ratio * angular_frequency * time).exp();
         let oscillation = a * (damped_frequency * time).cos() + b * (damped_frequency * time).sin();
@@ -113,7 +114,7 @@ impl SpringConfig {
         angular_frequency: f32,
     ) -> f32 {
         let a = displacement;
-        let b = self.velocity + angular_frequency * displacement;
+        let b = -self.velocity + angular_frequency * displacement;
 
         (a + b * time) * (-angular_frequency * time).exp()
     }
@@ -130,7 +131,7 @@ impl SpringConfig {
         let r1 = -angular_frequency * (damping_ratio + sqrt_term);
         let r2 = -angular_frequency * (damping_ratio - sqrt_term);
 
-        let a = (self.velocity - r2 * displacement) / (r1 - r2);
+        let a = (-self.velocity - r2 * displacement) / (r1 - r2);
         let b = displacement - a;
 
         a * (r1 * time).exp() + b * (r2 * time).exp()
@@ -154,7 +155,7 @@ impl SpringConfig {
             // Underdamped
             let damped_frequency = angular_frequency * (1.0 - damping_ratio * damping_ratio).sqrt();
             let a = displacement;
-            let b = (self.velocity + damping_ratio * angular_frequency * displacement)
+            let b = (-self.velocity + damping_ratio * angular_frequency * displacement)
                 / damped_frequency;
 
             let envelope = (-damping_ratio * angular_frequency * time).exp();
@@ -168,7 +169,7 @@ impl SpringConfig {
         } else if damping_ratio == 1.0 {
             // Critically damped
             let a = displacement;
-            let b = self.velocity + angular_frequency * displacement;
+            let b = -self.velocity + angular_frequency * displacement;
 
             let exp_term = (-angular_frequency * time).exp();
             -(-angular_frequency * (a + b * time) + b) * exp_term
@@ -178,7 +179,7 @@ impl SpringConfig {
             let r1 = -angular_frequency * (damping_ratio + sqrt_term);
             let r2 = -angular_frequency * (damping_ratio - sqrt_term);
 
-            let a = (self.velocity - r2 * displacement) / (r1 - r2);
+            let a = (-self.velocity - r2 * displacement) / (r1 - r2);
             let b = displacement - a;
 
             -(a * r1 * (r1 * time).exp() + b * r2 * (r2 * time).exp())
@@ -353,15 +354,34 @@ mod tests {
 
     #[test]
     fn test_spring_velocity_calculation() {
-        let spring = SpringConfig::new(1.0, 100.0, 10.0).with_velocity(0.0);
+        // ANI-008: test a nonzero initial position velocity.
+        let spring = SpringConfig::new(1.0, 100.0, 10.0).with_velocity(1.0);
 
         // At t=0, should have initial velocity
         let vel_start = spring.calculate_velocity(0.0, 0.0, 100.0);
-        assert!((vel_start - 0.0).abs() < 0.01);
+        assert!((vel_start - 1.0).abs() < 0.01);
 
         // Should have positive velocity when moving towards target
         let vel_early = spring.calculate_velocity(0.01, 0.0, 100.0);
         assert!(vel_early > 0.0);
+    }
+
+    #[test]
+    fn ani_008_velocity_matches_position_derivative_in_every_regime() {
+        for damping in [10.0, 20.0, 50.0] {
+            for velocity in [-2.0, 0.0, 2.0] {
+                let spring = SpringConfig::new(1.0, 100.0, damping).with_velocity(velocity);
+                for (from, to) in [(0.0, 1.0), (1.0, 0.0)] {
+                    for time in [0.01, 0.1, 0.5] {
+                        let dt = 0.0001;
+                        let slope = (spring.calculate_position(time + dt, from, to)
+                            - spring.calculate_position(time - dt, from, to))
+                            / (2.0 * dt);
+                        assert!((slope - spring.calculate_velocity(time, from, to)).abs() < 0.005);
+                    }
+                }
+            }
+        }
     }
 
     #[test]

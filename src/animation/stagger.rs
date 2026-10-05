@@ -7,6 +7,11 @@ use super::EasingFunction;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+// ANI-007: invalid or unrepresentable delays become zero.
+fn delay_from_secs(seconds: f32) -> Duration {
+    Duration::try_from_secs_f32(seconds).unwrap_or(Duration::ZERO)
+}
+
 /// Stagger animation configuration for creating delayed animation sequences
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StaggerConfig {
@@ -117,7 +122,7 @@ impl StaggerConfig {
                 for delay in &mut delays {
                     let t = delay.as_secs_f32() / max_delay.as_secs_f32();
                     let eased_t = ease.apply(t);
-                    *delay = Duration::from_secs_f32(max_delay.as_secs_f32() * eased_t);
+                    *delay = delay_from_secs(max_delay.as_secs_f32() * eased_t);
                 }
             }
         }
@@ -128,7 +133,7 @@ impl StaggerConfig {
             for delay in &mut delays {
                 let factor = min_range
                     + (max_range - min_range) * (delay.as_secs_f32() / base_delay).clamp(0.0, 1.0);
-                *delay = Duration::from_secs_f32(base_delay * factor);
+                *delay = delay_from_secs(base_delay * factor);
             }
         }
 
@@ -148,26 +153,25 @@ impl StaggerConfig {
             for y in 0..grid_h {
                 for x in 0..grid_w {
                     let delay = match self.from {
-                        StaggerOrigin::First => Duration::from_secs_f32(
-                            self.delay.as_secs_f32() * (y * grid_w + x) as f32,
-                        ),
+                        StaggerOrigin::First => {
+                            delay_from_secs(self.delay.as_secs_f32() * (y * grid_w + x) as f32)
+                        }
                         StaggerOrigin::Center => {
                             let center_x = grid_w as f32 / 2.0;
                             let center_y = grid_h as f32 / 2.0;
                             let distance = ((x as f32 - center_x).powi(2)
                                 + (y as f32 - center_y).powi(2))
                             .sqrt();
-                            Duration::from_secs_f32(self.delay.as_secs_f32() * distance)
+                            delay_from_secs(self.delay.as_secs_f32() * distance)
                         }
                         StaggerOrigin::Position(px, py) => {
-                            let distance = ((x as i16 - px).pow(2) + (y as i16 - py).pow(2)) as f32;
-                            Duration::from_secs_f32(
-                                self.delay.as_secs_f32() * distance.sqrt() / 10.0,
-                            )
+                            // ANI-007: widen before subtracting and squaring.
+                            let dx = x as f32 - f32::from(px);
+                            let dy = y as f32 - f32::from(py);
+                            let distance = dx * dx + dy * dy;
+                            delay_from_secs(self.delay.as_secs_f32() * distance.sqrt() / 10.0)
                         }
-                        _ => Duration::from_secs_f32(
-                            self.delay.as_secs_f32() * (y * grid_w + x) as f32,
-                        ),
+                        _ => delay_from_secs(self.delay.as_secs_f32() * (y * grid_w + x) as f32),
                     };
                     delays.push(delay);
                 }
@@ -209,7 +213,7 @@ impl StaggerConfig {
                 for delay in &mut delays {
                     let t = delay.as_secs_f32() / max_delay.as_secs_f32();
                     let eased_t = ease.apply(t);
-                    *delay = Duration::from_secs_f32(max_delay.as_secs_f32() * eased_t);
+                    *delay = delay_from_secs(max_delay.as_secs_f32() * eased_t);
                 }
             }
         }
@@ -220,7 +224,7 @@ impl StaggerConfig {
             for delay in &mut delays {
                 let factor = min_range
                     + (max_range - min_range) * (delay.as_secs_f32() / base_delay).clamp(0.0, 1.0);
-                *delay = Duration::from_secs_f32(base_delay * factor);
+                *delay = delay_from_secs(base_delay * factor);
             }
         }
 
@@ -232,9 +236,7 @@ impl StaggerConfig {
         let mut delays = Vec::with_capacity(count);
         for i in 0..count {
             let index = if reverse { count - 1 - i } else { i };
-            delays.push(Duration::from_secs_f32(
-                self.delay.as_secs_f32() * index as f32,
-            ));
+            delays.push(delay_from_secs(self.delay.as_secs_f32() * index as f32));
         }
         delays
     }
@@ -244,7 +246,7 @@ impl StaggerConfig {
         (0..count)
             .map(|i| {
                 let distance = (i as f32 - center).abs();
-                Duration::from_secs_f32(self.delay.as_secs_f32() * distance)
+                delay_from_secs(self.delay.as_secs_f32() * distance)
             })
             .collect()
     }
@@ -259,7 +261,7 @@ impl StaggerConfig {
                 i.hash(&mut hasher);
                 let hash = hasher.finish();
                 let random_factor = (hash % 1000) as f32 / 1000.0; // 0.0 to 1.0
-                Duration::from_secs_f32(self.delay.as_secs_f32() * random_factor * count as f32)
+                delay_from_secs(self.delay.as_secs_f32() * random_factor * count as f32)
             })
             .collect()
     }
@@ -269,7 +271,7 @@ impl StaggerConfig {
         (0..count)
             .map(|i| {
                 let distance = i.abs_diff(start);
-                Duration::from_secs_f32(self.delay.as_secs_f32() * distance as f32)
+                delay_from_secs(self.delay.as_secs_f32() * distance as f32)
             })
             .collect()
     }
@@ -283,8 +285,11 @@ impl StaggerConfig {
         positions
             .iter()
             .map(|(x, y)| {
-                let distance = (((x - start_x).pow(2) + (y - start_y).pow(2)) as f32).sqrt();
-                Duration::from_secs_f32(self.delay.as_secs_f32() * distance / 100.0)
+                // ANI-007: opposite i16 endpoints must not overflow.
+                let dx = f32::from(*x) - f32::from(start_x);
+                let dy = f32::from(*y) - f32::from(start_y);
+                let distance = (dx * dx + dy * dy).sqrt();
+                delay_from_secs(self.delay.as_secs_f32() * distance / 100.0)
             })
             .collect()
     }
@@ -421,4 +426,44 @@ pub fn stagger_grid_center(delay_ms: u64, width: usize, height: usize) -> Stagge
 /// Create a stagger builder
 pub fn stagger_builder(delay_ms: u64) -> StaggerBuilder {
     StaggerBuilder::new(delay_ms)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ani_007_extreme_positions_keep_their_distance() {
+        let delays = stagger_from_position(100, i16::MIN, i16::MIN)
+            .calculate_delays(1, &[(i16::MAX, i16::MAX)]);
+        let expected = 0.1 * (2.0_f32 * 65535.0_f32.powi(2)).sqrt() / 100.0;
+        assert!((delays[0].as_secs_f32() - expected).abs() < 0.001);
+        let grid = StaggerBuilder::new(100)
+            .from(StaggerOrigin::Position(i16::MIN, i16::MIN))
+            .grid(32767, 1)
+            .build()
+            .calculate_grid_delays(32767, 1);
+        let expected = 0.1 * (65534.0_f32.powi(2) + 32768.0_f32.powi(2)).sqrt() / 10.0;
+        assert!((grid[32766].as_secs_f32() - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn ani_007_invalid_ranges_and_easing_make_zero_delays() {
+        for value in [-1.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let config = StaggerBuilder::new(100)
+                .grid(2, 1)
+                .range(value, value)
+                .build();
+            assert_eq!(config.calculate_delays(2, &[]), vec![Duration::ZERO; 2]);
+            assert_eq!(config.calculate_grid_delays(2, 1), vec![Duration::ZERO; 2]);
+        }
+        for easing in [
+            EasingFunction::InBack(2.0),
+            EasingFunction::InPower(f32::NAN),
+        ] {
+            let config = StaggerBuilder::new(100).grid(3, 1).ease(easing).build();
+            assert_eq!(config.calculate_delays(3, &[])[1], Duration::ZERO);
+            assert_eq!(config.calculate_grid_delays(3, 1)[1], Duration::ZERO);
+        }
+    }
 }

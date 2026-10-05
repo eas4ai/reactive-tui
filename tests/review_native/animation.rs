@@ -346,7 +346,7 @@ fn ani_005_generated_ids_are_unique_within_a_millisecond() {
 fn ani_005_add_animation_documents_a_repeated_id() {
     let docs = docs_above(
         include_str!("../../src/animation/mod.rs"),
-        "pub fn add_animation(&mut self, animation: Animation)",
+        "pub fn add_animation(&mut self, animation: Animation) -> AnimationId",
     );
     assert!(
         docs.contains("replaces"),

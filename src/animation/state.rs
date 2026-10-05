@@ -50,7 +50,7 @@ pub enum AnimationState {
     Paused,
     /// Animation has completed
     Completed,
-    /// Animation is playing in reverse
+    /// Legacy reverse state; playback uses Playing with a direction flag (ANI-001).
     Reversed,
 }
 
@@ -88,7 +88,7 @@ pub struct AnimationRuntimeState {
 /// Non-serializable runtime data
 #[derive(Debug, Default)]
 pub struct AnimationRuntime {
-    /// Last frame timestamp
+    /// Time of the last frame that advanced playback (ANI-004).
     pub last_frame_time: Option<Instant>,
 }
 

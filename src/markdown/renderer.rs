@@ -90,6 +90,10 @@ impl<'a> MarkdownRenderer<'a> {
         &self,
         markdown: &str,
     ) -> (Vec<StyledLine>, HashMap<usize, (usize, usize)>) {
+        // TXT-002: source-position rendering obeys the same Markdown limit.
+        if markdown.len() > MAX_MARKDOWN_BYTES {
+            return (self.render_to_styled_lines(markdown), HashMap::new());
+        }
         let mut options = self.options.clone();
         options.render.sourcepos = true;
 
