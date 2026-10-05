@@ -113,8 +113,24 @@ pub fn nice_domain(domain: (f64, f64), pinned: (bool, bool), count: usize) -> (f
     let intervals = (count - 1) as f64;
     let mut step = tick_step(high - low, count - 1);
     match pinned {
-        (true, false) => (low, low + intervals * step),
-        (false, true) => (high - intervals * step, high),
+        // A round free end past the largest finite value leaves the domain
+        // as it is (CHT-026).
+        (true, false) => {
+            let end = low + intervals * step;
+            if end.is_finite() {
+                (low, end)
+            } else {
+                domain
+            }
+        }
+        (false, true) => {
+            let start = high - intervals * step;
+            if start.is_finite() {
+                (start, high)
+            } else {
+                domain
+            }
+        }
         _ => {
             // Each round step is larger than the last, so the domain is
             // covered within a few hundred steps of a positive normal step;
@@ -394,6 +410,19 @@ mod tests {
         assert_eq!(nice_domain((0.0, 7.0), (false, true), 5), (-1.0, 7.0));
         assert_eq!(nice_domain((0.0, 7.0), (true, true), 5), (0.0, 7.0));
         assert_eq!(nice_domain((0.0, 7.0), (false, false), 1), (0.0, 7.0));
+        // A round end past the largest finite value is not taken.
+        assert_eq!(
+            nice_domain((0.0, 1.1e308), (true, false), 3),
+            (0.0, 1.1e308)
+        );
+        assert_eq!(
+            nice_domain((-1.1e308, 0.0), (false, true), 3),
+            (-1.1e308, 0.0)
+        );
+        assert_eq!(
+            nice_domain((-1.1e308, 1.1e308), (false, false), 3),
+            (-1.1e308, 1.1e308)
+        );
     }
 
     #[test]
