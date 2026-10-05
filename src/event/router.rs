@@ -289,6 +289,21 @@ impl EventRouter {
         handler_id
     }
 
+    /// Drop the hold `nodes` have on the pointer: the press one of them took
+    /// and the click one of them last made, so an element that went inert or
+    /// hidden gets no drag, no release and no multi-click count (STY-002).
+    pub(crate) fn release_pointer_from(&mut self, nodes: &std::collections::HashSet<NodeId>) {
+        if self.press.is_some_and(|(_, id)| nodes.contains(&id)) {
+            self.press = None;
+        }
+        if self
+            .last_click
+            .is_some_and(|click| nodes.contains(&click.node))
+        {
+            self.last_click = None;
+        }
+    }
+
     /// Remove an event handler
     pub(crate) fn clear_handlers(&mut self, node_id: NodeId) {
         if let Some(node) = self.nodes.get_mut(&node_id) {

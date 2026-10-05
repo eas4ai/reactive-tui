@@ -5,6 +5,11 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- An element hidden by `display: none` after a press on it, itself or
+  through an ancestor, keeps no hold on the pointer: the drag and the release
+  that follow reach neither it nor its children, which also lose their
+  handlers and focus for as long as they are hidden (STY-002, review finding
+  6).
 - A `use_animation` frame that arrives after more than a pass of playing
   time counts every pass it spans: `Some(n)` ends once n durations have
   played however the frames fell, `PingPong` knows which way its current

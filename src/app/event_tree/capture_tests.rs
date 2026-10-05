@@ -107,3 +107,54 @@ fn disabled_and_inert_capture_handlers_do_not_run_and_removal_releases_capture()
     tree.clear(&mut router);
     assert!(weak.upgrade().is_none());
 }
+
+/// An element hidden by `display: none` after a press on it keeps no hold on
+/// the pointer: the drag and the release that follow reach no handler of it
+/// or its children (STY-002, review finding 6).
+#[test]
+fn sty_002_an_element_hidden_after_a_press_gets_no_drag_or_release() {
+    use crate::{
+        backend::PaintedNode,
+        event::{
+            hit::Bounds,
+            types::{MouseButton, MouseEvent, MouseEventKind, Position},
+        },
+    };
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let mut root = Element::text("ROOT");
+    let mut target = Element::text("TARGET");
+    let observer = seen.clone();
+    target.metadata.events.push(Arc::new(move |event| {
+        if let Event::Mouse(mouse) = event {
+            if matches!(
+                mouse.kind,
+                MouseEventKind::Down | MouseEventKind::Drag | MouseEventKind::Up
+            ) {
+                observer.lock().unwrap().push(mouse.kind.clone());
+            }
+        }
+        EventResult::Handled
+    }));
+    root.children.push(target);
+    let mouse = |kind, x, y| {
+        Event::Mouse(MouseEvent::new(kind, Position::cell(x, y)).with_button(MouseButton::Left))
+    };
+    let node = |element_index, width| PaintedNode {
+        element_index,
+        bounds: Bounds::new(0.0, 0.0, width, 1.0),
+    };
+    let mut tree = EventTree::default();
+    let mut router = EventRouter::new();
+    tree.sync(&root, &[node(0, 10.0), node(1, 5.0)], None, None, &mut router);
+    router.process_event(&mouse(MouseEventKind::Down, 1, 0));
+    // The next frame paints the target no more: `display: none` leaves an
+    // element out of the painted nodes.
+    tree.sync(&root, &[node(0, 10.0)], None, None, &mut router);
+    router.process_event(&mouse(MouseEventKind::Drag, 1, 0));
+    router.process_event(&mouse(MouseEventKind::Up, 1, 0));
+    assert_eq!(
+        *seen.lock().unwrap(),
+        [MouseEventKind::Down],
+        "STY-002: the element hidden after the press still received the drag or the release"
+    );
+}
