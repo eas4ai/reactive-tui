@@ -321,5 +321,3 @@ questions about the license, go to
 The project builds on Taffy for layout, Crossterm for terminal control, Comrak for
 Markdown, Syntect for syntax highlighting, AccessKit for accessibility semantics,
 and libghostty for embedded terminal interpretation.
-
-See docs/spec/no_such_file.md for the violating example.
