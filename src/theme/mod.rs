@@ -126,22 +126,56 @@ impl Theme {
     /// The color this theme, or a theme it extends, gives the variable
     /// that `token` names.
     fn defined(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
-        let value = self.get_variable(&Self::color_variable(token))?;
-        crate::layout::colors::parse_color_literal(&value).or_else(|| {
-            (value != token)
-                .then(|| self.resolve_variable(&value))
-                .flatten()
-        })
+        self.defined_following(token, &mut Vec::new())
+    }
+
+    /// The most variables one resolution follows from name to name.
+    const MOST_FOLLOWED: usize = 32;
+
+    /// `defined` along `path`, the variables the resolution has followed to
+    /// reach `token`: a variable already on it, or a path of
+    /// [`Self::MOST_FOLLOWED`] names, is one no theme defines, so a cycle
+    /// of names ends and its roles take their fallbacks (THM-004).
+    fn defined_following(
+        &self,
+        token: &str,
+        path: &mut Vec<String>,
+    ) -> Option<(f32, f32, f32, f32)> {
+        let variable = Self::color_variable(token);
+        if path.contains(&variable) || path.len() >= Self::MOST_FOLLOWED {
+            return None;
+        }
+        let value = self.get_variable(&variable)?;
+        if let Some(color) = crate::layout::colors::parse_color_literal(&value) {
+            return Some(color);
+        }
+        if value == token {
+            return None;
+        }
+        path.push(variable);
+        let resolved = self.resolve_following(&value, path);
+        path.pop();
+        resolved
     }
 
     /// Resolve a token that names one of this theme's color variables. A
     /// color role (THM-001) that the theme leaves out still resolves, to
     /// the color THM-002 gives it; any other name the theme does not
-    /// define resolves to nothing.
+    /// define resolves to nothing. Names that lead back to one another
+    /// resolve as names no theme defines (THM-004).
     pub fn resolve_variable(&self, token: &str) -> Option<(f32, f32, f32, f32)> {
-        self.defined(token).or_else(|| {
+        self.resolve_following(token, &mut Vec::new())
+    }
+
+    /// `resolve_variable` along `path` (THM-004).
+    fn resolve_following(
+        &self,
+        token: &str,
+        path: &mut Vec<String>,
+    ) -> Option<(f32, f32, f32, f32)> {
+        self.defined_following(token, path).or_else(|| {
             let variable = Self::color_variable(token);
-            self.fallback(variable.strip_prefix("--color-")?)
+            self.fallback(variable.strip_prefix("--color-")?, path)
         })
     }
 

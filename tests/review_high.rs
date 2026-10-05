@@ -403,12 +403,28 @@ mod thm_004 {
                 .set("--color-hover", "input")
                 .set("--color-surface", "#123456"),
         );
+        // A cycle that runs through a fallback (selection falls back to
+        // primary), and two roles that share one alias, which is no cycle.
+        let through = Theme::new("through-fallback").with_variables(
+            ThemeVariables::new()
+                .set("--color-primary", "selection")
+                .set("--color-selection", "primary"),
+        );
+        let shared = Theme::new("shared-alias").with_variables(
+            ThemeVariables::new()
+                .set("--color-neutral", "#abcdef")
+                .set("--color-surface", "neutral")
+                .set("--color-foreground", "neutral"),
+        );
         let started = Instant::now();
         let a = theme.resolve_color("a");
         let input = theme.resolve_color("input");
         let surface = theme.resolve_color("surface");
+        let selection = through.resolve_color("selection").is_some();
+        let hover = shared.resolve_color("hover");
+        let neutral = shared.resolve_color("neutral");
         println!(
-            "THM004 a={a:?} input={input:?} surface={surface:?} ms={}",
+            "THM004 a={a:?} input={input:?} surface={surface:?} selection={selection} hover={hover:?} neutral={neutral:?} ms={}",
             started.elapsed().as_millis()
         );
     }
@@ -466,6 +482,16 @@ mod thm_004 {
             field("input"),
             field("surface"),
             "THM-004: the role `input` in a cycle takes its fallback, its surface: {line}"
+        );
+        assert_eq!(
+            field("selection"),
+            "true",
+            "THM-004: a cycle through a fallback still resolves the role: {line}"
+        );
+        assert_eq!(
+            field("hover"),
+            field("neutral"),
+            "two roles sharing one alias are no cycle: hover mixes surface and foreground, both the alias: {line}"
         );
         let elapsed: u128 = field("ms").parse().unwrap_or(u128::MAX);
         assert!(

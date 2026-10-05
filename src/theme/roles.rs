@@ -83,20 +83,23 @@ impl Theme {
     /// `surface` and one of its `foreground`; and every other role is the
     /// built-in light preset's when the theme's `background` is light, and
     /// the dark preset's otherwise. `None` when `role` is not a role.
-    pub(super) fn fallback(&self, role: &str) -> Option<Rgba> {
+    /// A fallback resolves the roles it is made of along `path`, the
+    /// variables the resolution has followed, so a cycle through a fallback
+    /// ends too (THM-004).
+    pub(super) fn fallback(&self, role: &str, path: &mut Vec<String>) -> Option<Rgba> {
         if let Some(fill) = role.strip_suffix("-foreground") {
             return FILLS
                 .contains(&fill)
-                .then(|| self.resolve_variable(fill))
+                .then(|| self.resolve_following(fill, path))
                 .flatten()
                 .map(text_on);
         }
         match role {
-            "selection" | "ring" => self.resolve_variable("primary"),
-            "input" => self.resolve_variable("surface"),
+            "selection" | "ring" => self.resolve_following("primary", path),
+            "input" => self.resolve_following("surface", path),
             "hover" => {
-                let surface = self.resolve_variable("surface")?;
-                let foreground = self.resolve_variable("foreground")?;
+                let surface = self.resolve_following("surface", path)?;
+                let foreground = self.resolve_following("foreground", path)?;
                 let mixed = |ground: f32, text: f32| (7.0 * ground + text) / 8.0;
                 Some((
                     mixed(surface.0, foreground.0),
@@ -107,7 +110,7 @@ impl Theme {
             }
             role if PLAIN.contains(&role) || FILLS.contains(&role) => {
                 let light = self
-                    .defined("background")
+                    .defined_following("background", path)
                     .is_some_and(|ground| contrast(BLACK, ground) > contrast(WHITE, ground));
                 preset(light).defined(role)
             }
