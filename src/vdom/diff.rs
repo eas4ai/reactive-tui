@@ -219,9 +219,33 @@ fn nodes_equal(old: &VNode, new: &VNode) -> bool {
     }
 }
 
-/// Check if a node can be patched (same type and key)
+/// Check whether a node's identity, properties and handlers permit patching.
 fn can_patch(old: &VNode, new: &VNode) -> bool {
-    old.node_type() == new.node_type() && old.key() == new.key()
+    if old.node_type() != new.node_type() || old.key() != new.key() {
+        return false;
+    }
+    // Type-erased props are unchanged only when shared allocations match (CMP-005).
+    match (old, new) {
+        (VNode::Element(old), VNode::Element(new)) => {
+            old.tag == new.tag
+                && old.props.len() == new.props.len()
+                && old.props.iter().all(|(key, value)| {
+                    new.props
+                        .get(key)
+                        .is_some_and(|new| std::sync::Arc::ptr_eq(value, new))
+                })
+                && old.event_handlers.len() == new.event_handlers.len()
+                && old.event_handlers.iter().all(|(key, value)| {
+                    new.event_handlers
+                        .get(key)
+                        .is_some_and(|new| std::sync::Arc::ptr_eq(value, new))
+                })
+        }
+        (VNode::Component(old), VNode::Component(new)) => {
+            old.name == new.name && std::sync::Arc::ptr_eq(&old.props, &new.props)
+        }
+        _ => true,
+    }
 }
 
 /// Diff attributes

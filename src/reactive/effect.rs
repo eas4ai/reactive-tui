@@ -34,8 +34,8 @@ pub struct Effect {
 }
 
 struct EffectInner {
-    /// The effect function to run
-    effect_fn: Option<Box<dyn FnOnce() -> Option<Cleanup>>>,
+    /// The effect function, run again on every `run` (SIG-004)
+    effect_fn: Rc<dyn Fn() -> Option<Cleanup>>,
 
     /// Cleanup function from the last execution
     cleanup: Option<Cleanup>,
@@ -51,12 +51,13 @@ struct EffectInner {
 }
 
 impl Effect {
-    /// Create a new effect
-    pub fn new(effect_fn: impl FnOnce() -> Option<Cleanup> + 'static) -> Self {
+    /// Create a new effect. Its function runs on every [`Effect::run`], so
+    /// it is an `Fn`, not an `FnOnce` (SIG-004).
+    pub fn new(effect_fn: impl Fn() -> Option<Cleanup> + 'static) -> Self {
         Self {
             id: EffectId::new(),
             inner: Rc::new(RefCell::new(EffectInner {
-                effect_fn: Some(Box::new(effect_fn)),
+                effect_fn: Rc::new(effect_fn),
                 cleanup: None,
                 dependencies: HashSet::new(),
                 running: false,
@@ -70,8 +71,8 @@ impl Effect {
         self.id
     }
 
-    /// Run the effect
-    /// Execute the effect
+    /// Run the effect: the cleanup its last run returned first, then its
+    /// function again (SIG-004).
     pub fn run(&self) {
         let mut inner = self.inner.borrow_mut();
 
@@ -84,24 +85,30 @@ impl Effect {
             drop(inner); // Release borrow before running cleanup
             cleanup();
             inner = self.inner.borrow_mut();
+            if inner.disposed {
+                return;
+            }
         }
 
         // Clear previous dependencies
         inner.dependencies.clear();
         inner.running = true;
+        let effect_fn = Rc::clone(&inner.effect_fn);
+        drop(inner); // Release borrow before running effect
 
-        // Take the effect function (it can only run once)
-        if let Some(effect_fn) = inner.effect_fn.take() {
-            drop(inner); // Release borrow before running effect
+        // Run the effect and capture cleanup
+        let cleanup = effect_fn();
 
-            // Run the effect and capture cleanup
-            let cleanup = effect_fn();
-
-            let mut inner = self.inner.borrow_mut();
-            inner.cleanup = cleanup;
-            inner.running = false;
+        let mut inner = self.inner.borrow_mut();
+        inner.running = false;
+        if inner.disposed {
+            // Disposed while running: this run's cleanup runs now
+            drop(inner);
+            if let Some(cleanup) = cleanup {
+                cleanup();
+            }
         } else {
-            inner.running = false;
+            inner.cleanup = cleanup;
         }
     }
 
@@ -208,9 +215,9 @@ mod tests {
         effect.run();
         assert_eq!(counter.get(), 1);
 
-        // Effect function is consumed, running again does nothing
+        // The function is kept, so running again runs it again (SIG-004)
         effect.run();
-        assert_eq!(counter.get(), 1);
+        assert_eq!(counter.get(), 2);
     }
 
     #[test]
@@ -223,6 +230,7 @@ mod tests {
 
         let effect = Effect::new(move || {
             effect_clone.set(effect_clone.get() + 1);
+            let cleanup_clone = cleanup_clone.clone();
             Some(Box::new(move || {
                 cleanup_clone.set(cleanup_clone.get() + 1);
             }))
@@ -232,8 +240,13 @@ mod tests {
         assert_eq!(effect_counter.get(), 1);
         assert_eq!(cleanup_counter.get(), 0);
 
-        effect.dispose();
+        // A second run runs the first run's cleanup before the function (SIG-004)
+        effect.run();
+        assert_eq!(effect_counter.get(), 2);
         assert_eq!(cleanup_counter.get(), 1);
+
+        effect.dispose();
+        assert_eq!(cleanup_counter.get(), 2);
     }
 
     #[test]

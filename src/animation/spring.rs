@@ -215,6 +215,25 @@ impl SpringConfig {
         (position - to).abs() < self.precision && velocity.abs() < self.precision
     }
 
+    /// Where a spring at `position` moving at `velocity` toward `target` is
+    /// after `dt` seconds, and how fast it moves then. The velocity is the
+    /// spring's own, so an impulse added to it carries into the motion
+    /// (SIG-006). A long step is taken in parts of at most a sixtieth of a
+    /// second, so a frame after a stall cannot fling the spring.
+    pub(crate) fn step(&self, dt: f32, position: f32, velocity: f32, target: f32) -> (f32, f32) {
+        const LONGEST_PART: f32 = 1.0 / 60.0;
+        let parts = (dt / LONGEST_PART).ceil().clamp(1.0, 4096.0);
+        let part = dt / parts;
+        let (mut position, mut velocity) = (position, velocity);
+        for _ in 0..parts as u32 {
+            let acceleration =
+                (self.stiffness * (target - position) - self.damping * velocity) / self.mass;
+            velocity += acceleration * part;
+            position += velocity * part;
+        }
+        (position, velocity)
+    }
+
     /// Create a spring easing function that can be used with the animation system
     pub fn to_easing_function(self) -> EasingFunction {
         EasingFunction::Spring(self)

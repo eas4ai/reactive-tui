@@ -1,13 +1,13 @@
 //! CSS-in-Rust support for reactive-tui
 //!
-//! This module provides macros and utilities for writing CSS directly in Rust code
-//! with type safety and compile-time validation.
+//! This module provides macros and utilities for writing styles in Rust.
+//! Property names are matched when the style is built. An unknown property
+//! or a value of the wrong kind is ignored (STY-004).
 //!
 //! # Features
-//! - Type-safe CSS property macros
-//! - Compile-time validation of CSS values
+//! - CSS property macros with runtime matching
 //! - Integration with the existing CSS utility system
-//! - Support for all CSS properties used in reactive-tui
+//! - Conversions for the supported Rust value types
 //!
 //! # Example
 //! ```rust
@@ -30,9 +30,8 @@ use taffy::style::{AlignItems, Display, FlexDirection, JustifyContent, Position}
 
 /// Main CSS-in-Rust macro for creating styles
 ///
-/// This macro provides a type-safe way to write CSS properties directly in Rust.
-/// All properties are validated at compile time and converted to the appropriate
-/// internal representations.
+/// Property names are matched when the style is built. An unknown property
+/// or a value of the wrong kind is ignored (STY-004).
 ///
 /// # Supported Properties
 /// - `display`: Display (Flex, Block, None, etc.)
@@ -79,8 +78,7 @@ macro_rules! css {
 /// Apply a single CSS property to a StyleBuilder
 ///
 /// This function is used internally by the `css!` macro to apply individual
-/// CSS properties. It provides type-safe conversion from Rust values to
-/// the internal style representation.
+/// CSS properties. An unknown property or a value of the wrong kind is ignored.
 pub fn apply_css_property<T>(sb: StyleBuilder, property: &str, value: T) -> StyleBuilder
 where
     T: IntoCssValue,
@@ -110,7 +108,7 @@ impl IntoCssValue for Display {
     fn apply_to_style_builder(self, sb: StyleBuilder, property: &str) -> StyleBuilder {
         match property {
             "display" => match self {
-                Display::None => sb, // None means don't display - handled by visibility
+                Display::None => sb.display_none(), // Hide the subtree (STY-002).
                 Display::Flex => sb.display_flex(),
                 Display::Grid => sb.display_grid(),
                 Display::Block => sb, // Block is the default in TUI context

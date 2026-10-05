@@ -96,6 +96,7 @@ pub struct ElementNode {
     dirty: bool,
     /// Component instance for component elements (automatic memory management)
     component_instance: Option<AnyComponentInstance>,
+    registration: Option<crate::component::registry::RegistrationOwner>,
 }
 
 impl ElementNode {
@@ -114,6 +115,7 @@ impl ElementNode {
             children: Vec::new(),
             dirty: true,
             component_instance: None,
+            registration: None,
         }
     }
 
@@ -228,12 +230,12 @@ impl RenderNode for ElementNode {
 impl Drop for ElementNode {
     fn drop(&mut self) {
         self.clear_complete_element();
-        // Automatic cleanup: unregister component instance if present
-        if self.component_instance.is_some()
-            && crate::component::registry::get_global_registry()
-                .unregister_instance(&self.key)
+        // Cleanup belongs only to the instance registered by this node (CMP-001).
+        if self.registration.as_ref().is_some_and(|owner| {
+            crate::component::registry::get_global_registry()
+                .unregister_owned_instance(&self.key, owner)
                 .is_err()
-        {
+        }) {
             // Log error in debug mode, but don't panic during drop
             #[cfg(debug_assertions)]
             log::warn!("Failed to unregister component instance during ElementNode drop");
@@ -536,17 +538,20 @@ fn convert_elements(root: Element, composite_keys: bool, instantiate: bool) -> B
                             crate::component::registry::get_global_registry()
                                 .create_by_name(&component_name, element.props.as_ref())
                         {
-                            if let Err(_error) = crate::component::registry::get_global_registry()
-                                .register_instance_with_element(
+                            match crate::component::registry::get_global_registry()
+                                .register_owned_instance_with_element(
                                     node.key().clone(),
                                     instance.clone(),
                                     &element,
-                                )
-                            {
-                                #[cfg(debug_assertions)]
-                                log::warn!("Failed to register component instance: {_error}");
-                            } else {
-                                node = node.with_component_instance(instance);
+                                ) {
+                                Err(_error) => {
+                                    #[cfg(debug_assertions)]
+                                    log::warn!("Failed to register component instance: {_error}");
+                                }
+                                Ok(owner) => {
+                                    node.registration = Some(owner);
+                                    node = node.with_component_instance(instance);
+                                }
                             }
                         }
                     }

@@ -104,8 +104,8 @@ pub fn apply_aspect_ratio(token: &str, sb: StyleBuilder) -> Option<StyleBuilder>
             Some(apply_aspect_ratio_constraint(sb, 5.0, 4.0))
         }
         "aspect-auto" => {
-            // Remove aspect ratio constraint
-            Some(sb)
+            // Clear a ratio set by an earlier utility (STY-003).
+            Some(sb.aspect_auto())
         }
         _ => {
             // Try to parse custom aspect ratio like aspect-[2/1]

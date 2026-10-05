@@ -1,49 +1,11 @@
-//! Component registry performance optimizations
-//!
-//! Pre-computed lookups and caching for common components
+//! LRU caching for component instances.
 
 use super::instance::AnyComponentInstance;
 use lru::LruCache;
-use once_cell::sync::Lazy;
 use std::any::TypeId;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
-
-/// Pre-computed TypeIds for common components
-/// These are computed at compile-time and stored in a perfect hash map
-pub struct CommonComponents {
-    map: HashMap<&'static str, TypeId>,
-}
-
-impl CommonComponents {
-    /// Get TypeId for a common component name
-    #[inline(always)]
-    pub fn get(&self, name: &str) -> Option<TypeId> {
-        self.map.get(name).copied()
-    }
-
-    /// Register a common component
-    pub fn register(&mut self, name: &'static str, type_id: TypeId) {
-        self.map.insert(name, type_id);
-    }
-}
-
-/// Global common components lookup
-static COMMON_COMPONENTS: Lazy<CommonComponents> = Lazy::new(|| {
-    // Register common built-in components here
-    // These will be populated by the registry when components are registered
-
-    CommonComponents {
-        map: HashMap::with_capacity(32),
-    }
-});
-
-/// Get the common components registry
-pub fn common_components() -> &'static CommonComponents {
-    &COMMON_COMPONENTS
-}
 
 thread_local! {
     /// Thread-local LRU cache for component instances

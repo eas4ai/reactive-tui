@@ -25,6 +25,17 @@ pub struct Signal<T> {
     /// Shared inner state
     inner: Rc<RefCell<SignalInner<T>>>,
     app_subscribers: Rc<super::wake::Subscriptions>,
+    /// The runtime whose effects a read makes dependents of this signal and
+    /// a change runs again: the one of the `RuntimeContext` that created the
+    /// signal (SIG-004).
+    runtime: Option<Weak<super::runtime::ReactiveRuntime>>,
+}
+
+thread_local! {
+    /// The memos whose compute functions run on this thread, the innermost
+    /// last. A signal read while one runs subscribes it (SIG-003).
+    static COMPUTING: RefCell<Vec<Weak<RefCell<dyn Subscriber>>>> =
+        const { RefCell::new(Vec::new()) };
 }
 
 /// Internal signal state
@@ -57,6 +68,16 @@ impl<T> Signal<T> {
                 subscribers: Vec::new(),
                 wakers: Vec::new(),
             })),
+            runtime: None,
+        }
+    }
+
+    /// A signal of `runtime`: its effects that read the signal run again
+    /// when it changes (SIG-004).
+    pub(crate) fn in_runtime(value: T, runtime: Weak<super::runtime::ReactiveRuntime>) -> Self {
+        Self {
+            runtime: Some(runtime),
+            ..Self::new(value)
         }
     }
 
@@ -70,15 +91,44 @@ impl<T> Signal<T> {
     where
         T: Clone,
     {
-        self.app_subscribers.track();
+        self.track_read();
         self.inner.borrow().value.clone()
     }
 
     /// Get a reference to the current value
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        self.app_subscribers.track();
+        self.track_read();
         let inner = self.inner.borrow();
         f(&inner.value)
+    }
+
+    /// Record a read: for the App rendering on this thread, for the memo
+    /// computing on this thread (SIG-003), and for the effect the signal's
+    /// runtime is running (SIG-004).
+    fn track_read(&self) {
+        self.app_subscribers.track();
+        let memo = COMPUTING.with(|computing| computing.borrow().last().cloned());
+        if let Some(memo) = memo {
+            let mut inner = self.inner.borrow_mut();
+            if !inner
+                .subscribers
+                .iter()
+                .any(|subscriber| Weak::ptr_eq(subscriber, &memo))
+            {
+                inner.subscribers.push(memo);
+            }
+        }
+        if let Some(runtime) = self.runtime.as_ref().and_then(Weak::upgrade) {
+            runtime.track_signal(self.id);
+        }
+    }
+
+    /// Run the effects of the signal's runtime whose last run read it
+    /// (SIG-004).
+    fn changed_in_runtime(&self) {
+        if let Some(runtime) = self.runtime.as_ref().and_then(Weak::upgrade) {
+            runtime.signal_changed(self.id);
+        }
     }
 
     /// Set a new value for the signal
@@ -129,6 +179,8 @@ impl<T> Signal<T> {
             for waker in wakers_to_wake {
                 waker.wake();
             }
+
+            self.changed_in_runtime();
         }
     }
 
@@ -182,6 +234,8 @@ impl<T> Signal<T> {
             for waker in wakers_to_wake {
                 waker.wake();
             }
+
+            self.changed_in_runtime();
         }
     }
 
@@ -222,6 +276,7 @@ impl<T> Clone for Signal<T> {
             id: self.id,
             inner: Rc::clone(&self.inner),
             app_subscribers: Rc::clone(&self.app_subscribers),
+            runtime: self.runtime.clone(),
         }
     }
 }
@@ -295,12 +350,27 @@ impl<T> Clone for WriteSignal<T> {
     }
 }
 
-/// Computed signal that derives its value from other signals
+/// What a memo knows between computations: whether a `Signal` its last
+/// computation read has changed since (SIG-003).
+struct MemoState {
+    stale: bool,
+}
+
+impl Subscriber for MemoState {
+    fn notify(&mut self, _: SignalId) {
+        self.stale = true;
+    }
+}
+
+/// Computed signal that derives its value from other signals. `get`
+/// computes the value again after a `Signal` the compute function read has
+/// changed (SIG-003).
 #[derive(Clone)]
 pub struct Memo<T> {
     signal: Signal<T>,
     compute: Rc<RefCell<Box<dyn Fn() -> T>>>,
     dependencies: Rc<RefCell<HashSet<SignalId>>>,
+    state: Rc<RefCell<MemoState>>,
 }
 
 impl<T> Memo<T> {
@@ -309,14 +379,31 @@ impl<T> Memo<T> {
     where
         T: Clone + PartialEq + 'static,
     {
-        let initial = compute();
-        let memo = Self {
+        let state = Rc::new(RefCell::new(MemoState { stale: false }));
+        let initial = Self::computing(&state, &compute);
+        Self {
             signal: Signal::new(initial),
             compute: Rc::new(RefCell::new(Box::new(compute))),
             dependencies: Rc::new(RefCell::new(HashSet::new())),
-        };
-        memo.recompute();
-        memo
+            state,
+        }
+    }
+
+    /// `compute()`, with every `Signal` it reads subscribing `state`, so a
+    /// change of one marks the memo stale (SIG-003). A signal a later
+    /// computation no longer reads keeps its subscription: it can only mark
+    /// the memo stale once more than needed.
+    fn computing(state: &Rc<RefCell<MemoState>>, compute: &dyn Fn() -> T) -> T {
+        struct Computing;
+        impl Drop for Computing {
+            fn drop(&mut self) {
+                COMPUTING.with(|computing| computing.borrow_mut().pop());
+            }
+        }
+        let reader: Weak<RefCell<dyn Subscriber>> = Rc::<RefCell<MemoState>>::downgrade(state);
+        COMPUTING.with(|computing| computing.borrow_mut().push(reader));
+        let _computing = Computing;
+        compute()
     }
 
     /// Recompute the memo's value
@@ -324,15 +411,22 @@ impl<T> Memo<T> {
     where
         T: PartialEq,
     {
-        let new_value = (self.compute.borrow())();
+        self.state.borrow_mut().stale = false;
+        let compute = self.compute.borrow();
+        let new_value = Self::computing(&self.state, &**compute);
+        drop(compute);
         self.signal.set(new_value);
     }
 
-    /// Get the current computed value
+    /// The computed value, computed again first when a `Signal` the compute
+    /// function read has changed (SIG-003).
     pub fn get(&self) -> T
     where
-        T: Clone,
+        T: Clone + PartialEq,
     {
+        if self.state.borrow().stale {
+            self.recompute();
+        }
         self.signal.get()
     }
 
@@ -387,8 +481,8 @@ mod tests {
         let doubled = Memo::new(move || count_clone.get() * 2);
         assert_eq!(doubled.get(), 2);
 
+        // The next get computes again after the source changed (SIG-003)
         count.set(5);
-        doubled.recompute();
         assert_eq!(doubled.get(), 10);
     }
 }

@@ -48,6 +48,47 @@ impl Slot {
 #[derive(Default)]
 pub(crate) struct EventTree {
     nodes: HashMap<Vec<Slot>, NodeId>,
+    pressed: Option<(crate::event::types::MouseButton, Vec<Slot>)>,
+}
+
+struct StyleState<'a> {
+    focus: Option<&'a [Slot]>,
+    hover: Option<&'a [Slot]>,
+    active: Option<&'a [Slot]>,
+    width: u16,
+}
+
+impl StyleState<'_> {
+    fn matches(
+        &self,
+        variant: &str,
+        element: &Element,
+        path: &[Slot],
+        position: (usize, usize),
+        group: [bool; 3],
+    ) -> Option<bool> {
+        let (index, siblings) = position;
+        Some(match variant {
+            "focus" => !element.metadata.disabled && self.focus == Some(path),
+            "focus-within" => self.focus.is_some_and(|focused| focused.starts_with(path)),
+            "hover" => self.hover.is_some_and(|hovered| hovered.starts_with(path)),
+            "active" => self.active.is_some_and(|pressed| pressed.starts_with(path)),
+            "visited" => false,
+            "first" => siblings > 0 && index == 0,
+            "last" => siblings > 0 && index + 1 == siblings,
+            "odd" => siblings > 0 && index.is_multiple_of(2),
+            "even" => siblings > 0 && !index.is_multiple_of(2),
+            "group-hover" => group[0],
+            "group-focus" => group[1],
+            "group-active" => group[2],
+            "disabled" => element.metadata.disabled,
+            "sm" => self.width >= 40,
+            "md" => self.width >= 80,
+            "lg" => self.width >= 120,
+            "xl" => self.width >= 160,
+            _ => return None,
+        })
+    }
 }
 
 struct Registration<'a> {
@@ -62,6 +103,40 @@ struct Registration<'a> {
 }
 
 impl EventTree {
+    pub(crate) fn track_press(&mut self, event: &Event, router: &EventRouter) -> bool {
+        use crate::event::types::MouseEventKind;
+        let Event::Mouse(mouse) = event else {
+            return false;
+        };
+        if !matches!(mouse.kind, MouseEventKind::Down | MouseEventKind::Up) {
+            return false;
+        }
+        let previous = self.pressed.clone();
+        match mouse.kind {
+            MouseEventKind::Down
+                if self
+                    .pressed
+                    .as_ref()
+                    .is_none_or(|(button, _)| *button == mouse.button) =>
+            {
+                // Retain the pressed path even if the pointer leaves it (STY-001).
+                self.pressed = self
+                    .path_for(router.target_under_pointer(event))
+                    .map(|path| (mouse.button, path.to_vec()));
+            }
+            MouseEventKind::Up
+                if self
+                    .pressed
+                    .as_ref()
+                    .is_some_and(|(button, _)| *button == mouse.button) =>
+            {
+                self.pressed = None;
+            }
+            _ => {}
+        }
+        previous != self.pressed
+    }
+
     pub(crate) fn innermost_component(&self, id: NodeId) -> Option<u64> {
         let path = self.path_for(id)?;
         let mut innermost = None;
@@ -79,7 +154,13 @@ impl EventTree {
     pub(crate) fn styled(&self, element: &Element, router: &EventRouter, width: u16) -> Element {
         let focus = router.get_focus().and_then(|id| self.path_for(id));
         let hover = router.hovered_node().and_then(|id| self.path_for(id));
-        Self::style_node(element.clone(), Vec::new(), 0, focus, hover, width)
+        let state = StyleState {
+            focus,
+            hover,
+            active: self.pressed.as_ref().map(|(_, path)| path.as_slice()),
+            width,
+        };
+        Self::style_node(element.clone(), Vec::new(), 0, 0, &state, [false; 3])
     }
 
     fn path_for(&self, id: NodeId) -> Option<&[Slot]> {
@@ -92,11 +173,28 @@ impl EventTree {
         mut element: Element,
         mut path: Vec<Slot>,
         index: usize,
-        focus: Option<&[Slot]>,
-        hover: Option<&[Slot]>,
-        width: u16,
+        siblings: usize,
+        state: &StyleState<'_>,
+        group: [bool; 3],
     ) -> Element {
         Slot::append(&mut path, &element, index);
+        let focused = !element.metadata.disabled && state.focus == Some(path.as_slice());
+        let hovered = state
+            .hover
+            .is_some_and(|hovered| hovered.starts_with(&path));
+        let pressed = state
+            .active
+            .is_some_and(|pressed| pressed.starts_with(&path));
+        // Children use the nearest group ancestor, never the element itself (STY-001).
+        let child_group = if element
+            .class
+            .as_ref()
+            .is_some_and(|class| class.split_whitespace().any(|token| token == "group"))
+        {
+            [hovered, focused, pressed]
+        } else {
+            group
+        };
         if let Some(class) = &element.class {
             element.class = Some(
                 class
@@ -104,20 +202,10 @@ impl EventTree {
                     .filter_map(|token| {
                         let mut base = token;
                         while let Some((variant, rest)) = base.split_once(':') {
-                            let matches = match variant {
-                                "focus" => {
-                                    !element.metadata.disabled && focus == Some(path.as_slice())
-                                }
-                                "focus-within" => {
-                                    focus.is_some_and(|focused| focused.starts_with(&path))
-                                }
-                                "hover" => hover.is_some_and(|hovered| hovered.starts_with(&path)),
-                                "disabled" => element.metadata.disabled,
-                                "sm" => width >= 40,
-                                "md" => width >= 80,
-                                "lg" => width >= 120,
-                                "xl" => width >= 160,
-                                _ => break,
+                            let Some(matches) =
+                                state.matches(variant, &element, &path, (index, siblings), group)
+                            else {
+                                break;
                             };
                             if !matches {
                                 return None;
@@ -130,11 +218,14 @@ impl EventTree {
                     .join(" "),
             );
         }
+        let siblings = element.children.len();
         element.children = element
             .children
             .into_iter()
             .enumerate()
-            .map(|(index, child)| Self::style_node(child, path.clone(), index, focus, hover, width))
+            .map(|(index, child)| {
+                Self::style_node(child, path.clone(), index, siblings, state, child_group)
+            })
             .collect();
         element
     }
@@ -286,6 +377,7 @@ impl EventTree {
     }
 
     pub(crate) fn clear(&mut self, router: &mut EventRouter) {
+        self.pressed = None;
         let nodes: Vec<_> = self.nodes.drain().map(|(_, id)| id).collect();
         router.remove_nodes(&nodes);
     }
