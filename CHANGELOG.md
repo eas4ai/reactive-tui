@@ -7,8 +7,8 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 - An animation runs its `on_update` and `on_complete` callbacks with its own
   lock released, so a callback may read the animation's progress, state and
-  values and stop or pause it through its shared state; before, such a
-  callback waited forever on its own thread (docs/spec/reactive.md,
+  values and stop, pause or restart it through its shared state; before,
+  such a callback waited forever on its own thread (docs/spec/reactive.md,
   SIG-002).
 - The functions exported to C that read or write through their caller's
   pointer are `unsafe extern "C" fn` on the Rust side, each with a
@@ -22,11 +22,14 @@ This file records user-visible changes to Reactive TUI. The project follows
   taking its fallback color, instead of overflowing the stack
   (docs/spec/theme.md, THM-004).
 - A chart holding the smallest subnormal value draws and builds instead of
-  looping forever in its worker or in `build()` (CHT-026), and a chart's
-  `band_count`, `point_count` and `grid_columns` no longer make it format
-  a label or keep values for every requested slot: ten million or
-  `usize::MAX` slots cost what the data costs (docs/spec/charts.md,
-  CHT-040).
+  looping forever in its worker or in `build()`, and a value near the
+  largest finite one under a pinned axis end keeps the axis finite instead
+  of drawing the value at zero (CHT-026). A chart's `band_count`,
+  `point_count` and `grid_columns` no longer make it format a label or keep
+  values for every requested slot, and its value and y tick counts no
+  longer make `build()` run a tick format, or the renderer draw a tick, for
+  more ticks than the chart has cells: ten million or `usize::MAX` cost what
+  the data costs (docs/spec/charts.md, CHT-040).
 
 - On a terminal that takes Kitty graphics or Sixel, with `wgpu-graphics`,
   the controls and rounded boxes draw their looks as pixel pictures around
