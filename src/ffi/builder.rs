@@ -249,9 +249,9 @@ pub unsafe extern "C" fn rtui_element_builder_set_key(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 ///
-/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
+/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_builder_add_child(
     builder: *mut RTuiElementBuilder,
@@ -309,7 +309,7 @@ pub unsafe extern "C" fn rtui_element_builder_build(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed; it is not used again after this call.
+/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_element_builder_destroy(builder: *mut RTuiElementBuilder) {
     if !builder.is_null() {
@@ -323,7 +323,7 @@ pub unsafe extern "C" fn rtui_element_builder_destroy(builder: *mut RTuiElementB
 ///
 /// # Safety
 ///
-/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed; it is not used again after this call.
+/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_element_destroy(element: *mut RTuiElement) {
     if !element.is_null() {
@@ -484,9 +484,9 @@ pub unsafe extern "C" fn rtui_element_builder_key(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiElementBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 ///
-/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
+/// `child` must be null or a live `RTuiElement` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_element_builder_child(
     builder: *mut RTuiElementBuilder,

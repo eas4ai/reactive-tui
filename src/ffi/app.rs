@@ -149,9 +149,9 @@ impl RootComponent for ElementRoot {
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 ///
-/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
+/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_builder_root_element(
     builder: *mut RTuiAppBuilder,
@@ -223,7 +223,7 @@ pub unsafe extern "C" fn rtui_app_builder_create(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed; it is not used again after this call.
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_app_builder_destroy(builder: *mut RTuiAppBuilder) {
     if !builder.is_null() {
@@ -240,7 +240,7 @@ pub unsafe extern "C" fn rtui_app_builder_destroy(builder: *mut RTuiAppBuilder) 
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_builder_debug(
     builder: *mut RTuiAppBuilder,
@@ -265,7 +265,7 @@ pub unsafe extern "C" fn rtui_app_builder_debug(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_builder_performance_mode(
     builder: *mut RTuiAppBuilder,
@@ -290,7 +290,7 @@ pub unsafe extern "C" fn rtui_app_builder_performance_mode(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_builder_backend_debug(
     builder: *mut RTuiAppBuilder,
@@ -321,7 +321,7 @@ pub unsafe extern "C" fn rtui_app_builder_backend_debug(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_app_builder_backend_suprtui(
     builder: *mut RTuiAppBuilder,
@@ -333,7 +333,7 @@ pub unsafe extern "C" fn rtui_app_builder_backend_suprtui(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_app_builder_backend_crossterm(
     builder: *mut RTuiAppBuilder,
@@ -345,7 +345,7 @@ pub unsafe extern "C" fn rtui_app_builder_backend_crossterm(
 ///
 /// # Safety
 ///
-/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed.
+/// `builder` must be null or a live `RTuiAppBuilder` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 ///
 /// `user_data` must stay valid for as long as the callback it is passed back to can run.
 #[no_mangle]
@@ -411,7 +411,7 @@ pub unsafe extern "C" fn rtui_app_builder_build(
 ///
 /// # Safety
 ///
-/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed; it is not used again after this call.
+/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_app_destroy(app: *mut RTuiApp) {
     if !app.is_null() {
@@ -427,7 +427,7 @@ pub unsafe extern "C" fn rtui_app_destroy(app: *mut RTuiApp) {
 ///
 /// # Safety
 ///
-/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed.
+/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_run(app: *mut RTuiApp) -> ReactiveError {
     if app.is_null() {
@@ -451,7 +451,7 @@ pub unsafe extern "C" fn rtui_app_run(app: *mut RTuiApp) -> ReactiveError {
 ///
 /// # Safety
 ///
-/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed.
+/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_quit(app: *mut RTuiApp) -> ReactiveError {
     if app.is_null() {
@@ -496,7 +496,7 @@ pub unsafe extern "C" fn rtui_app_get_size(
 ///
 /// # Safety
 ///
-/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed.
+/// `app` must be null or a live `RTuiApp` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_app_set_performance_mode(
     app: *mut RTuiApp,

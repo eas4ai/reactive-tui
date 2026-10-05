@@ -41,9 +41,13 @@ pointer its caller passes is an `unsafe extern "C" fn`, and its
 documentation has a `# Safety` section that says what the caller must
 guarantee: a live handle this library returned and has not destroyed, four
 readable `f32` color channels, a buffer of at least the size given, or a
-pointer the matching get call returned and that has not been released. Rust
-code that calls one directly wraps the call in `unsafe`; C and TypeScript
-callers see the same names and signatures as before.
+pointer the matching get call returned and that has not been released. A
+handle also says which other calls may use it while the call runs: none for
+a handle passed as `*mut`, which the call may change, and none that destroys
+it for a handle passed as `*const`. A caller that shares a handle between
+threads keeps the calls on it from overlapping that way. Rust code that
+calls one directly wraps the call in `unsafe`; C and TypeScript callers see
+the same names and signatures as before.
 
 Panic boundaries convert Rust failures into ABI error values. Functions that
 return allocated strings or arrays provide matching release functions. Buffer

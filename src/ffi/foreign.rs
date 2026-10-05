@@ -440,7 +440,7 @@ pub unsafe extern "C" fn rtui_foreign_component_set_state(
 ///
 /// # Safety
 ///
-/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed.
+/// `element` must be null or a live `RTuiElement` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_element_set_focus(
     element: *mut RTuiElement,

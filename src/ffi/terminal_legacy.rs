@@ -43,7 +43,7 @@ pub unsafe extern "C" fn rtui_terminal_create(
 ///
 /// # Safety
 ///
-/// `terminal` must be null or a live `ReactiveTerminal` handle that this library returned and has not destroyed; it is not used again after this call.
+/// `terminal` must be null or a live `ReactiveTerminal` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_terminal_destroy(terminal: *mut ReactiveTerminal) {
     destroyTerminal(terminal.cast());
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn rtui_terminal_get_dimensions(
 ///
 /// # Safety
 ///
-/// `terminal` must be null or a live `ReactiveTerminal` handle that this library returned and has not destroyed.
+/// `terminal` must be null or a live `ReactiveTerminal` handle that this library returned and has not destroyed, and no other call may use it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_terminal_sync(
     terminal: *mut ReactiveTerminal,

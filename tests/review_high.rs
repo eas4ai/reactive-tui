@@ -183,14 +183,17 @@ mod ffi_001 {
     use std::path::Path;
     use syn::visit::Visit;
 
-    /// The raw-pointer parameter names of a function.
-    fn pointer_parameters(signature: &syn::Signature) -> Vec<String> {
+    /// The raw-pointer parameters of a function: each name, and whether
+    /// it is a `*mut` pointer.
+    fn pointer_parameters(signature: &syn::Signature) -> Vec<(String, bool)> {
         signature
             .inputs
             .iter()
             .filter_map(|input| match input {
                 syn::FnArg::Typed(typed) => match (&*typed.pat, &*typed.ty) {
-                    (syn::Pat::Ident(name), syn::Type::Ptr(_)) => Some(name.ident.to_string()),
+                    (syn::Pat::Ident(name), syn::Type::Ptr(pointer)) => {
+                        Some((name.ident.to_string(), pointer.mutability.is_some()))
+                    }
                     _ => None,
                 },
                 syn::FnArg::Receiver(_) => None,
@@ -260,13 +263,90 @@ mod ffi_001 {
         }
     }
 
-    fn documented_safety(attributes: &[syn::Attribute]) -> bool {
-        attributes.iter().any(|attribute| {
-            attribute.path().is_ident("doc")
-                && matches!(&attribute.meta, syn::Meta::NameValue(value)
+    /// How many `# Safety` headings a function's documentation has.
+    fn safety_headings(attributes: &[syn::Attribute]) -> usize {
+        attributes
+            .iter()
+            .filter(|attribute| attribute.path().is_ident("doc"))
+            .filter(|attribute| {
+                matches!(&attribute.meta, syn::Meta::NameValue(value)
                     if matches!(&value.value, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(text), .. })
                         if text.value().trim_start().starts_with("# Safety")))
-        })
+            })
+            .count()
+    }
+
+    /// The text of the `# Safety` section of a function's documentation,
+    /// its lines joined by spaces, or `None` without one.
+    fn safety_section(attributes: &[syn::Attribute]) -> Option<String> {
+        let lines: Vec<String> = attributes
+            .iter()
+            .filter(|attribute| attribute.path().is_ident("doc"))
+            .filter_map(|attribute| match &attribute.meta {
+                syn::Meta::NameValue(value) => match &value.value {
+                    syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(text),
+                        ..
+                    }) => Some(text.value().trim().to_owned()),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect();
+        let start = lines.iter().position(|line| line.starts_with("# Safety"))?;
+        Some(
+            lines[start + 1..]
+                .iter()
+                .take_while(|line| !line.starts_with('#'))
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+                .join(" "),
+        )
+    }
+
+    /// Why the `# Safety` text `safety` does not say what the caller of a
+    /// pointer parameter must guarantee, or `None`: the parameter must be
+    /// named, and a handle must say which other calls may use it while
+    /// this one runs: none for a `*mut` handle, none that destroys it for
+    /// a `*const` one.
+    fn unstated(safety: &str, pointer: &str, mutable: bool) -> Option<String> {
+        let named = format!("`{pointer}`");
+        if !safety.contains(&named) {
+            return Some(format!("does not name its pointer {named}"));
+        }
+        let sentences: Vec<&str> = safety.split(". ").map(str::trim).collect();
+        for (at, sentence) in sentences.iter().enumerate() {
+            if !(sentence.starts_with(&named) && sentence.contains(" handle")) {
+                continue;
+            }
+            // The rule may follow in the next sentence when that one does
+            // not turn to another parameter.
+            let next = sentences
+                .get(at + 1)
+                .filter(|next| !next.starts_with('`'))
+                .copied()
+                .unwrap_or("");
+            let rule = format!("{sentence} {next}");
+            let says = |phrases: &[&str]| phrases.iter().any(|phrase| rule.contains(phrase));
+            let exclusive = says(&[
+                "no other call may use it",
+                "no other call may use them",
+                "no other call may use or destroy it",
+                "no other call may use or destroy them",
+            ]);
+            let kept = exclusive || says(&["no call may destroy it", "no call may destroy them"]);
+            if mutable && !exclusive {
+                return Some(format!(
+                    "does not say that no other call may use the handle {named} until it returns"
+                ));
+            }
+            if !kept {
+                return Some(format!(
+                    "does not say that no call may destroy the handle {named} until it returns"
+                ));
+            }
+        }
+        None
     }
 
     /// The exports in `sources` that break FFI-001, with why.
@@ -296,22 +376,48 @@ mod ffi_001 {
             self.checked += 1;
             let pointers = pointer_parameters(signature);
             let name = &signature.ident;
+            let used = |pointer: &str| {
+                let mut uses = Uses {
+                    name: pointer.to_owned(),
+                    ..Uses::default()
+                };
+                uses.visit_block(block);
+                uses.all > uses.null_checks
+            };
             if signature.unsafety.is_some() {
-                if !pointers.is_empty() && !documented_safety(attributes) {
+                if pointers.is_empty() {
+                    return;
+                }
+                if safety_headings(attributes) > 1 {
+                    // rustdoc shows both, and a reader may stop at the first.
+                    self.problems.push(format!(
+                        "{}: unsafe export {name} has more than one `# Safety` section",
+                        self.file
+                    ));
+                    return;
+                }
+                let Some(safety) = safety_section(attributes) else {
                     self.problems.push(format!(
                         "{}: unsafe export {name} takes a pointer and has no `# Safety` section",
                         self.file
                     ));
+                    return;
+                };
+                for (pointer, mutable) in pointers {
+                    if !used(&pointer) {
+                        continue;
+                    }
+                    if let Some(why) = unstated(&safety, &pointer, mutable) {
+                        self.problems.push(format!(
+                            "{}: unsafe export {name}'s `# Safety` section {why}",
+                            self.file
+                        ));
+                    }
                 }
                 return;
             }
-            for pointer in pointers {
-                let mut uses = Uses {
-                    name: pointer.clone(),
-                    ..Uses::default()
-                };
-                uses.visit_block(block);
-                if uses.all > uses.null_checks {
+            for (pointer, _) in pointers {
+                if used(&pointer) {
                     self.problems.push(format!(
                         "{}: safe export {name} uses its pointer `{pointer}` for more than a null check",
                         self.file
@@ -377,19 +483,64 @@ mod ffi_001 {
             ///
             /// # Safety
             ///
-            /// `handle` is a live handle the library returned.
+            /// `handle` is a live handle the library returned, and no call may
+            /// destroy it until this one returns.
             #[no_mangle]
             pub unsafe extern "C" fn documented(handle: *const u8) -> u8 { unsafe { *handle } }
+            /// Changes a handle.
+            ///
+            /// # Safety
+            ///
+            /// `handle` must be a live handle the library returned and has not
+            /// destroyed, and no other call may use it until this one returns.
+            #[no_mangle]
+            pub unsafe extern "C" fn exclusive(handle: *mut u32) { unsafe { *handle = 1 } }
+            /// Changes a handle.
+            ///
+            /// # Safety
+            ///
+            /// `handle` must be a live handle the library returned.
+            #[no_mangle]
+            pub unsafe extern "C" fn shared_write(handle: *mut u32) { unsafe { *handle = 1 } }
+            /// Reads a handle.
+            ///
+            /// # Safety
+            ///
+            /// `handle` must be a live handle the library returned.
+            #[no_mangle]
+            pub unsafe extern "C" fn unguarded_read(handle: *const u8) -> u8 { unsafe { *handle } }
+            /// Reads a buffer.
+            ///
+            /// # Safety
+            ///
+            /// The caller passes a readable buffer.
+            #[no_mangle]
+            pub unsafe extern "C" fn unnamed(buffer: *const u8) -> u8 { unsafe { *buffer } }
+            /// Reads a handle.
+            ///
+            /// # Safety
+            /// - The result lives until it is released
+            ///
+            /// # Safety
+            ///
+            /// `handle` must be a live handle the library returned, and no call may
+            /// destroy it until this one returns.
+            #[no_mangle]
+            pub unsafe extern "C" fn twice(handle: *const u8) -> u8 { unsafe { *handle } }
         "#;
         let (checked, problems) = audit(&[("fixture.rs".into(), violating.into())]).unwrap();
-        assert_eq!(checked, 4);
+        assert_eq!(checked, 9);
         assert_eq!(
             problems,
             vec![
                 "fixture.rs: safe export reads uses its pointer `handle` for more than a null check".to_owned(),
                 "fixture.rs: unsafe export undocumented takes a pointer and has no `# Safety` section".to_owned(),
+                "fixture.rs: unsafe export shared_write's `# Safety` section does not say that no other call may use the handle `handle` until it returns".to_owned(),
+                "fixture.rs: unsafe export unguarded_read's `# Safety` section does not say that no call may destroy the handle `handle` until it returns".to_owned(),
+                "fixture.rs: unsafe export unnamed's `# Safety` section does not name its pointer `buffer`".to_owned(),
+                "fixture.rs: unsafe export twice has more than one `# Safety` section".to_owned(),
             ],
-            "the audit finds the safe export that reads through its pointer and the undocumented unsafe one, and passes the null check and the documented export"
+            "the audit finds the safe export that reads through its pointer, the undocumented unsafe one, the handles whose sections leave other calls free to use or destroy them, the pointer the section never names and the doubled section; it passes the null check and the two documented handles"
         );
     }
 
@@ -405,7 +556,7 @@ mod ffi_001 {
         assert!(checked >= 200, "the audit read the exports ({checked})");
         assert!(
             problems.is_empty(),
-            "FFI-001: {} of {checked} C exports break the rule, for example: {}",
+            "FFI-001: {} problems in {checked} C exports, for example: {}",
             problems.len(),
             problems
                 .iter()
