@@ -76,6 +76,63 @@ pub fn supports_keyboard_enhancement() -> std::io::Result<bool> {
     Ok(false)
 }
 
+/// Asks the terminal for its background color, then its primary device
+/// attributes, whose reply ends the exchange, and waits at most `timeout`
+/// for the replies (INP-013). Raw mode must be on. A pseudo console forwards
+/// the questions to its terminal and hands this process the reply as key
+/// records with no key code, which the event source assembles into the
+/// replies while they are due; keys typed meanwhile stay queued for the
+/// next read, in order, and the replies never reach it as events. A console
+/// that does not take escape sequences is asked nothing. The keyboard
+/// protocol and graphics are not asked on Windows, and the device
+/// attributes reply is not read beyond ending the exchange.
+#[cfg(feature = "events")]
+pub fn query_startup(timeout: std::time::Duration) -> io::Result<super::StartupReplies> {
+    use crate::event::sys::windows::startup::STARTUP_REPLIES_PENDING;
+    use crate::event::{filter::StartupReplyFilter, poll_internal, read_internal, InternalEvent};
+    use std::io::Write;
+    use std::sync::atomic::Ordering;
+    use std::time::Instant;
+
+    // Every exit ends the exchange, including timeout and I/O errors.
+    struct PendingReplies;
+    impl Drop for PendingReplies {
+        fn drop(&mut self) {
+            STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
+        }
+    }
+
+    let mut replies = super::StartupReplies::default();
+    // The questions are escape sequences; a console that does not take
+    // them would print them.
+    if !crate::ansi_support::supports_ansi() {
+        return Ok(replies);
+    }
+    // ESC ] 11 ; ?   the background color, ended by ST
+    // ESC [ c        the primary device attributes, which every terminal answers
+    const QUERY: &[u8] = b"\x1B]11;?\x1B\\\x1B[c";
+
+    STARTUP_REPLIES_PENDING.store(true, Ordering::Release);
+    let _pending = PendingReplies;
+    let mut stdout = io::stdout();
+    stdout.write_all(QUERY)?;
+    stdout.flush()?;
+    let deadline = Instant::now() + timeout;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() || !poll_internal(Some(remaining), &StartupReplyFilter)? {
+            return Ok(replies);
+        }
+        match read_internal(&StartupReplyFilter)? {
+            InternalEvent::BackgroundColor(red, green, blue) => {
+                replies.background = Some((red, green, blue))
+            }
+            InternalEvent::PrimaryDeviceAttributes { .. } => return Ok(replies),
+            _ => {}
+        }
+    }
+}
+
 pub(crate) fn clear(clear_type: ClearType) -> std::io::Result<()> {
     let screen_buffer = ScreenBuffer::current()?;
     let csbi = screen_buffer.info()?;

@@ -34,7 +34,19 @@ the startup queries:
 - The Unix event sources parse again the bytes left after each event, so a
   key read in the same buffer as a reply stays apart from it.
 
-Windows code remains upstream.
+The Windows terminal and input code serves the startup exchange too
+(INP-013): `terminal::query_startup` writes `OSC 11 ; ?` and `CSI c` to the
+console and reads the replies through the event reader, so keys typed
+meanwhile stay queued in order. A pseudo console hands the child a
+terminal's reply as one key record per character with no virtual-key code,
+which upstream parsed as typed characters and whose Escape it dropped; while
+the replies are due (`event::sys::windows::startup::STARTUP_REPLIES_PENDING`),
+`WindowsEventSource` feeds such records to a collector
+(`event::sys::startup::ReplyCollector`, next to the reply readers both
+systems share) that assembles the background color and device attributes
+replies and gives every other record back as the key it is. `StartupReplies`
+is one type for both systems; on Windows only its background color is set.
+The rest of the Windows code remains upstream.
 
 The upstream event-stream-async-std example and its async-std
 dev-dependency are removed: async-std is discontinued (RUSTSEC-2025-0052).

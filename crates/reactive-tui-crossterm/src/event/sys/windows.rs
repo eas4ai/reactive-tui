@@ -8,6 +8,7 @@ use crossterm_winapi::{ConsoleMode, Handle};
 
 pub(crate) mod parse;
 pub(crate) mod poll;
+pub(crate) mod startup;
 #[cfg(feature = "event-stream")]
 pub(crate) mod waker;
 

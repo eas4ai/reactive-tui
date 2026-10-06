@@ -1,9 +1,16 @@
+use std::collections::VecDeque;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use crossterm_winapi::{Console, Handle, InputRecord};
+use crossterm_winapi::{Console, Handle, InputRecord, KeyEventRecord};
 
 use crate::event::{
-    sys::windows::{parse::MouseButtonsPressed, poll::WinApiPoll},
+    sys::startup::{Fed, ReplyCollector},
+    sys::windows::{
+        parse::MouseButtonsPressed,
+        poll::WinApiPoll,
+        startup::{reply_character, STARTUP_REPLIES_PENDING},
+    },
     Event,
 };
 
@@ -21,6 +28,12 @@ pub(crate) struct WindowsEventSource {
     poll: WinApiPoll,
     surrogate_buffer: Option<u16>,
     mouse_buttons_pressed: MouseButtonsPressed,
+    /// Assembles a startup reply from the key records that carry no key
+    /// code while the replies are due (INP-013).
+    replies: ReplyCollector<KeyEventRecord>,
+    /// Events parsed from records the collector gave back, delivered in
+    /// their order before any new record is read.
+    queued: VecDeque<InternalEvent>,
 }
 
 impl WindowsEventSource {
@@ -36,7 +49,41 @@ impl WindowsEventSource {
 
             surrogate_buffer: None,
             mouse_buttons_pressed: MouseButtonsPressed::default(),
+            replies: ReplyCollector::default(),
+            queued: VecDeque::new(),
         })
+    }
+
+    /// Parses the key records the collector gave back, in their order.
+    fn queue_keys(&mut self, records: Vec<KeyEventRecord>) {
+        for record in records {
+            if let Some(event) = handle_key_event(record, &mut self.surrogate_buffer) {
+                self.queued.push_back(InternalEvent::Event(event));
+            }
+        }
+    }
+
+    /// One key record: a key, or, while the startup replies are due, part
+    /// of a reply the collector holds or completes.
+    fn key_record(&mut self, record: KeyEventRecord) -> Option<InternalEvent> {
+        if !STARTUP_REPLIES_PENDING.load(Ordering::Acquire) {
+            return handle_key_event(record, &mut self.surrogate_buffer).map(InternalEvent::Event);
+        }
+        let character = reply_character(&record);
+        match self.replies.feed(record, character) {
+            Fed::Held => None,
+            Fed::Reply(reply) => {
+                // The device attributes reply ends the exchange.
+                if matches!(reply, InternalEvent::PrimaryDeviceAttributes { .. }) {
+                    STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
+                }
+                Some(reply)
+            }
+            Fed::Keys(records) => {
+                self.queue_keys(records);
+                self.queued.pop_front()
+            }
+        }
     }
 }
 
@@ -45,13 +92,22 @@ impl EventSource for WindowsEventSource {
         let poll_timeout = PollTimeout::new(timeout);
 
         loop {
+            if let Some(event) = self.queued.pop_front() {
+                return Ok(Some(event));
+            }
+            // The exchange ended while a reply was incomplete: its records
+            // are keys after all.
+            if !self.replies.is_empty() && !STARTUP_REPLIES_PENDING.load(Ordering::Acquire) {
+                let records = self.replies.release();
+                self.queue_keys(records);
+                continue;
+            }
+
             if let Some(event_ready) = self.poll.poll(poll_timeout.leftover())? {
                 let number = self.console.number_of_console_input_events()?;
                 if event_ready && number != 0 {
                     let event = match self.console.read_single_input_event()? {
-                        InputRecord::KeyEvent(record) => {
-                            handle_key_event(record, &mut self.surrogate_buffer)
-                        }
+                        InputRecord::KeyEvent(record) => self.key_record(record),
                         InputRecord::MouseEvent(record) => {
                             let mouse_event =
                                 handle_mouse_event(record, &self.mouse_buttons_pressed);
@@ -61,14 +117,14 @@ impl EventSource for WindowsEventSource {
                                 middle: record.button_state.middle_button(),
                             };
 
-                            mouse_event
+                            mouse_event.map(InternalEvent::Event)
                         }
                         InputRecord::WindowBufferSizeEvent(record) => {
                             // windows starts counting at 0, unix at 1, add one to replicate unix behaviour.
-                            Some(Event::Resize(
+                            Some(InternalEvent::Event(Event::Resize(
                                 (record.size.x as i32 + 1) as u16,
                                 (record.size.y as i32 + 1) as u16,
-                            ))
+                            )))
                         }
                         InputRecord::FocusEvent(record) => {
                             let event = if record.set_focus {
@@ -76,13 +132,13 @@ impl EventSource for WindowsEventSource {
                             } else {
                                 Event::FocusLost
                             };
-                            Some(event)
+                            Some(InternalEvent::Event(event))
                         }
                         _ => None,
                     };
 
                     if let Some(event) = event {
-                        return Ok(Some(InternalEvent::Event(event)));
+                        return Ok(Some(event));
                     }
                 }
             }

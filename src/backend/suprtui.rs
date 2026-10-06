@@ -204,12 +204,9 @@ impl SuprTuiBackend {
         let (width, height) = crossterm::terminal::size()?;
         let raw_mode = RawMode::enter()?;
         images.refresh_cell_pixels();
-        // Before the input stream exists, so the replies never reach it (INP-011).
-        #[cfg(unix)]
+        // Before the input stream exists, so the replies never reach it
+        // (INP-011 on Unix, INP-013 on Windows).
         let replies = crossterm::terminal::query_startup(STARTUP_QUERY_WAIT).unwrap_or_default();
-        // Windows reads console input records, which cannot carry the replies.
-        #[cfg(not(unix))]
-        let replies = StartupReplies::default();
         follow_terminal_background(replies.background);
         // What the terminal answered adds to what the environment said; a
         // terminal that answers nothing keeps the environment's (GFX-006).
@@ -1063,23 +1060,12 @@ const PICTURE_POLL: Duration = Duration::from_millis(2);
 /// How long `sync` waits for the canvas pictures being made ready.
 const PICTURE_SETTLE: Duration = Duration::from_secs(30);
 
-/// How long the startup queries wait for their replies (INP-011).
-#[cfg(unix)]
+/// How long the startup queries wait for their replies (INP-011, INP-013).
 const STARTUP_QUERY_WAIT: Duration = Duration::from_millis(200);
 
-/// What a terminal that cannot be asked answers: nothing.
-#[cfg(not(unix))]
-#[derive(Default)]
-struct StartupReplies {
-    keyboard: Option<()>,
-    background: Option<(u16, u16, u16)>,
-    kitty_graphics: bool,
-    kitty_shared_memory: bool,
-    sixel: bool,
-}
-
 /// Make the light preset active on a terminal whose background's relative
-/// luminance is above 0.5, when the application has set no theme (INP-011).
+/// luminance is above 0.5, when the application has set no theme (INP-011
+/// on Unix, INP-013 on Windows).
 fn follow_terminal_background(background: Option<(u16, u16, u16)>) {
     let Some((red, green, blue)) = background else {
         return;
