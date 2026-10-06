@@ -26,9 +26,13 @@ This file records user-visible changes to Reactive TUI. The project follows
   override only what they speak of, and the probe no longer flips the
   terminal descriptor's non-blocking flag (PLT-003).
 - `TokioEventLoop` leaves the caller's standard input as it found it: when
-  stdin is a terminal it reads through its own description of `/dev/tty`,
-  and when stdin is a pipe or file it reads a duplicate without changing
-  the shared flags, polling before each read (PLT-011).
+  stdin is a terminal it reads through its own description of that terminal
+  (by its name, not `/dev/tty`, which may be another terminal or none), when
+  stdin is a pipe or file it opens its own description of it where the
+  system allows (Linux), and where neither is possible (a socket, other
+  Unixes) it makes the shared description non-blocking for the run, so a
+  read that lost its bytes to another reader cannot block, and restores the
+  flags when it stops (PLT-011).
 - A stopped `TokioEventLoop` starts again: each run has its own shutdown
   signal and a fresh parser, so the second `start_async` reads input until
   the next stop (PLT-012).

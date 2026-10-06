@@ -479,6 +479,20 @@ pub struct TokioEventLoop {
 #[cfg(feature = "tokio")]
 struct TokioRunningGuard(Arc<AtomicBool>);
 
+/// Puts a shared stdin description's flags back when the reader ends (PLT-011).
+#[cfg(all(feature = "tokio", unix))]
+struct RestoreSharedFlags<'a> {
+    descriptor: &'a std::os::fd::OwnedFd,
+    flags: Option<libc::c_int>,
+}
+
+#[cfg(all(feature = "tokio", unix))]
+impl Drop for RestoreSharedFlags<'_> {
+    fn drop(&mut self) {
+        TokioEventLoop::restore_shared_flags(self.descriptor, self.flags);
+    }
+}
+
 #[cfg(feature = "tokio")]
 impl Drop for TokioRunningGuard {
     fn drop(&mut self) {
@@ -602,28 +616,32 @@ impl TokioEventLoop {
         mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
         running: TokioRunningGuard,
     ) -> Result<tokio::task::JoinHandle<()>> {
-        use std::os::fd::{FromRawFd, OwnedFd};
-
-        // PLT-011: a duplicate shares flags; only a fresh tty open is nonblocking.
-        let descriptor = unsafe {
-            let fd = if libc::isatty(libc::STDIN_FILENO) == 1 {
-                libc::open(
-                    c"/dev/tty".as_ptr(),
-                    libc::O_RDONLY | libc::O_CLOEXEC | libc::O_NONBLOCK | libc::O_NOCTTY,
-                )
-            } else {
-                libc::fcntl(libc::STDIN_FILENO, libc::F_DUPFD_CLOEXEC, 0)
-            };
-            if fd < 0 {
-                return Err(std::io::Error::last_os_error().into());
+        // PLT-011: read through the loop's own description where one can be
+        // opened, so no flag of the caller's stdin changes: the terminal
+        // attached to stdin by its name (not /dev/tty, the controlling
+        // terminal, which may be another or none), or on Linux a fresh
+        // description of the same pipe or file through /proc. Where neither
+        // is possible (a socket, other Unixes), the shared description is
+        // made non-blocking for the run, so a read that lost its bytes to
+        // another reader returns instead of blocking, and its flags are
+        // restored when the reader ends or the start fails.
+        let (descriptor, shared_flags) = Self::input_descriptor()?;
+        let cancellation = match super::input_receiver::Cancellation::new() {
+            Ok(cancellation) => Arc::new(cancellation),
+            Err(error) => {
+                Self::restore_shared_flags(&descriptor, shared_flags);
+                return Err(error.into());
             }
-            OwnedFd::from_raw_fd(fd)
         };
-        let cancellation = Arc::new(super::input_receiver::Cancellation::new()?);
         let reader_cancellation = Arc::clone(&cancellation);
         let reader = tokio::task::spawn_blocking(move || {
             let mut buffer = [0u8; 1024];
             let mut timeout = None;
+            // Restores a shared description's flags however the loop ends.
+            let _restore = RestoreSharedFlags {
+                descriptor: &descriptor,
+                flags: shared_flags,
+            };
             loop {
                 match reader_cancellation.read(&descriptor, &mut buffer, timeout) {
                     Ok(Some(0)) => break, // EOF or cancellation wake
@@ -667,6 +685,68 @@ impl TokioEventLoop {
             cancellation.cancel();
             let _ = reader.await;
         }))
+    }
+
+    /// The descriptor the reader reads and, for a shared description made
+    /// non-blocking for the run, the flags to restore (PLT-011).
+    #[cfg(unix)]
+    fn input_descriptor() -> Result<(std::os::fd::OwnedFd, Option<libc::c_int>)> {
+        use std::os::fd::{FromRawFd, OwnedFd};
+
+        let open_fresh = |path: *const libc::c_char| {
+            // SAFETY: opens a path for reading; the descriptor is owned below.
+            let fd = unsafe {
+                libc::open(
+                    path,
+                    libc::O_RDONLY | libc::O_CLOEXEC | libc::O_NONBLOCK | libc::O_NOCTTY,
+                )
+            };
+            (fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(fd) })
+        };
+        // SAFETY: isatty and ttyname_r read descriptor 0's properties into a
+        // buffer this function owns.
+        if unsafe { libc::isatty(libc::STDIN_FILENO) } == 1 {
+            let mut name = [0 as libc::c_char; 256];
+            if unsafe { libc::ttyname_r(libc::STDIN_FILENO, name.as_mut_ptr(), name.len()) } != 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            return match open_fresh(name.as_ptr()) {
+                Some(descriptor) => Ok((descriptor, None)),
+                None => Err(std::io::Error::last_os_error().into()),
+            };
+        }
+        #[cfg(target_os = "linux")]
+        if let Some(descriptor) = open_fresh(c"/proc/self/fd/0".as_ptr()) {
+            return Ok((descriptor, None));
+        }
+        // SAFETY: duplicates descriptor 0 and changes the status flags of the
+        // description they share; the original flags are kept to restore.
+        unsafe {
+            let fd = libc::fcntl(libc::STDIN_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+            if fd < 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            let descriptor = OwnedFd::from_raw_fd(fd);
+            let flags = libc::fcntl(fd, libc::F_GETFL);
+            if flags < 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            if libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) < 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            Ok((descriptor, Some(flags)))
+        }
+    }
+
+    #[cfg(unix)]
+    fn restore_shared_flags(descriptor: &std::os::fd::OwnedFd, flags: Option<libc::c_int>) {
+        use std::os::fd::AsRawFd;
+        if let Some(flags) = flags {
+            // SAFETY: puts back the flags read from this description.
+            unsafe {
+                libc::fcntl(descriptor.as_raw_fd(), libc::F_SETFL, flags);
+            }
+        }
     }
 
     fn begin_shutdown(&mut self) -> Option<tokio::task::JoinHandle<()>> {
@@ -1285,6 +1365,139 @@ mod review_terminal {
                 }))
             ),
             "PLT-012: after a stop and a second start, the key typed gave {event:?}"
+        );
+    }
+}
+
+/// The adversary's findings on the Tokio loop's descriptor: the terminal on
+/// stdin rather than the controlling one, and a read that cannot hang when
+/// another reader takes the bytes it was told about.
+#[cfg(all(test, unix, feature = "tokio"))]
+mod review_terminal_findings {
+    use super::TokioEventLoop;
+    use crate::platform::{KeyCode, TerminalEvent};
+    use serial_test::serial;
+    use std::io::Write;
+    use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+    use std::time::Duration;
+
+    /// Descriptor 0 replaced by `fd`, the original put back on drop.
+    struct Stdin {
+        saved: OwnedFd,
+    }
+
+    impl Stdin {
+        fn replace_with(fd: libc::c_int) -> Self {
+            // SAFETY: plain descriptor calls on descriptor 0 and a live `fd`.
+            unsafe {
+                let saved = libc::fcntl(libc::STDIN_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+                assert!(saved >= 0);
+                assert_eq!(libc::dup2(fd, libc::STDIN_FILENO), libc::STDIN_FILENO);
+                Self {
+                    saved: OwnedFd::from_raw_fd(saved),
+                }
+            }
+        }
+    }
+
+    impl Drop for Stdin {
+        fn drop(&mut self) {
+            // SAFETY: puts the saved duplicate back on descriptor 0.
+            unsafe {
+                libc::dup2(self.saved.as_raw_fd(), libc::STDIN_FILENO);
+            }
+        }
+    }
+
+    fn runtime() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+    }
+
+    /// PLT-011 (finding 7): with stdin a terminal, the loop reads that
+    /// terminal, not the controlling one; this process has none.
+    #[test]
+    #[serial]
+    fn plt_011_the_loop_reads_the_terminal_on_stdin_not_the_controlling_one() {
+        let (mut master, mut slave) = (-1, -1);
+        // SAFETY: openpty fills both descriptors; both are owned below.
+        assert_eq!(
+            unsafe {
+                libc::openpty(
+                    &mut master,
+                    &mut slave,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                )
+            },
+            0
+        );
+        let master = unsafe { std::fs::File::from_raw_fd(master) };
+        let stdin = Stdin::replace_with(slave);
+        unsafe { libc::close(slave) };
+        let runtime = runtime();
+        let event = runtime.block_on(async {
+            let mut events = TokioEventLoop::new();
+            let started = events.start_async().await;
+            assert!(
+                started.is_ok(),
+                "PLT-011: the loop did not start with stdin on a pseudo-terminal that is not the controlling terminal: {started:?}"
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            (&master).write_all(b"a\n").unwrap();
+            let event = tokio::time::timeout(Duration::from_secs(2), events.next_event_async()).await;
+            let _ = tokio::time::timeout(Duration::from_secs(2), events.stop_async()).await;
+            event
+        });
+        runtime.shutdown_timeout(Duration::from_secs(2));
+        drop(stdin);
+        assert!(
+            matches!(
+                event,
+                Ok(Some(TerminalEvent::Key {
+                    code: KeyCode::Char('a'),
+                    ..
+                }))
+            ),
+            "PLT-011: the key typed on stdin's terminal gave {event:?}"
+        );
+    }
+
+    /// PLT-011 (finding 5): a description the loop must share (a socket,
+    /// which cannot be reopened) is non-blocking only while the loop runs,
+    /// so a read that lost its bytes to another reader returns instead of
+    /// blocking; the caller's flags are back once the loop has stopped.
+    #[test]
+    #[serial]
+    fn plt_011_a_shared_description_is_non_blocking_only_while_the_loop_runs() {
+        let (ours, _peer) = std::os::unix::net::UnixStream::pair().unwrap();
+        let stdin = Stdin::replace_with(ours.as_raw_fd());
+        // SAFETY: reads a flag of descriptor 0.
+        let nonblocking =
+            || unsafe { libc::fcntl(libc::STDIN_FILENO, libc::F_GETFL) } & libc::O_NONBLOCK != 0;
+        assert!(!nonblocking(), "the socket starts blocking");
+        let runtime = runtime();
+        let during = runtime.block_on(async {
+            let mut events = TokioEventLoop::new();
+            events.start_async().await.unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            let during = nonblocking();
+            let _ = tokio::time::timeout(Duration::from_secs(2), events.stop_async()).await;
+            during
+        });
+        runtime.shutdown_timeout(Duration::from_secs(2));
+        let after = nonblocking();
+        drop(stdin);
+        assert!(
+            during,
+            "PLT-011: while the loop ran on a shared socket description its read could block: O_NONBLOCK was not set"
+        );
+        assert!(
+            !after,
+            "PLT-011: after the loop stopped, O_NONBLOCK stayed set on the caller's descriptor"
         );
     }
 }
