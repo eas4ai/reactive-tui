@@ -467,11 +467,23 @@ fn forward_stderr(mut reader: std::fs::File, mut terminal: std::fs::File) -> std
 
 #[cfg(unix)]
 fn driver_conformance_warning(line: &[u8]) -> bool {
-    // PLT-016: match the complete RADV warning, including its WARNING prefix.
+    // PLT-016: exactly the line a Mesa Vulkan driver prints about itself,
+    // "WARNING: <driver> is not a conformant Vulkan implementation, testing
+    // use only." (radv, lavapipe and the others), and no other diagnostic
+    // that happens to quote those words.
     let text = String::from_utf8_lossy(line);
-    text.trim_start().starts_with("WARNING:")
-        && text.contains("radv")
-        && text.contains("not a conformant Vulkan implementation")
+    let text = text.trim_end_matches(['\r', '\n', ' ']);
+    let Some(rest) = text.strip_prefix("WARNING: ") else {
+        return false;
+    };
+    let Some((driver, tail)) = rest.split_once(' ') else {
+        return false;
+    };
+    !driver.is_empty()
+        && driver
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        && tail.eq_ignore_ascii_case("is not a conformant Vulkan implementation, testing use only.")
 }
 
 #[cfg(unix)]
@@ -940,5 +952,35 @@ mod stderr_tests {
             !text.contains("WARNING: radv is not a conformant Vulkan implementation"),
             "{text}"
         );
+    }
+}
+
+#[cfg(all(test, unix))]
+mod filter_tests {
+    use super::driver_conformance_warning;
+
+    /// PLT-016 (the adversary's finding 4): only the driver's own warning
+    /// line is filtered, whichever Mesa driver prints it.
+    #[test]
+    fn plt_016_only_the_drivers_warning_line_is_filtered() {
+        for line in [
+            "WARNING: radv is not a conformant Vulkan implementation, testing use only.\n",
+            "WARNING: lavapipe is not a conformant vulkan implementation, testing use only.\n",
+        ] {
+            assert!(
+                driver_conformance_warning(line.as_bytes()),
+                "PLT-016: the driver line {line:?} is not filtered"
+            );
+        }
+        for line in [
+            "WARNING: application could not suppress radv text 'not a conformant Vulkan implementation'\n",
+            "WARNING: radv is not a conformant Vulkan implementation, testing use only. (seen twice)\n",
+            "radv is not a conformant Vulkan implementation, testing use only.\n",
+        ] {
+            assert!(
+                !driver_conformance_warning(line.as_bytes()),
+                "PLT-016: the diagnostic {line:?} is filtered as the driver's line"
+            );
+        }
     }
 }

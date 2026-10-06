@@ -26,9 +26,13 @@ This file records user-visible changes to Reactive TUI. The project follows
   override only what they speak of, and the probe no longer flips the
   terminal descriptor's non-blocking flag (PLT-003).
 - `TokioEventLoop` leaves the caller's standard input as it found it: when
-  stdin is a terminal it reads through its own description of `/dev/tty`,
-  and when stdin is a pipe or file it reads a duplicate without changing
-  the shared flags, polling before each read (PLT-011).
+  stdin is a terminal it reads through its own description of that terminal
+  (by its name, not `/dev/tty`, which may be another terminal or none), when
+  stdin is a pipe or file it opens its own description of it where the
+  system allows (Linux), and where neither is possible (a socket, other
+  Unixes) it makes the shared description non-blocking for the run, so a
+  read that lost its bytes to another reader cannot block, and restores the
+  flags when it stops (PLT-011).
 - A stopped `TokioEventLoop` starts again: each run has its own shutdown
   signal and a fresh parser, so the second `start_async` reads input until
   the next stop (PLT-012).
@@ -64,9 +68,12 @@ This file records user-visible changes to Reactive TUI. The project follows
   linearized by the sRGB transfer function before their relative luminance
   is taken; gray 0.4 against black is 3.66, not 9 (PLT-010).
 - The public escape parser (`reactive_tui::escape::Parser`) decodes its input
-  as UTF-8, whole or split across `feed` calls, prints U+FFFD for an invalid
-  sequence and never takes a continuation byte for a C1 control; a
-  standalone byte in 0x80..0x9F keeps its 8-bit control meaning (PLT-005).
+  as UTF-8 in every state, whole or split across `feed` calls: a character
+  inside an OSC or DCS string joins the string, an invalid byte prints as
+  U+FFFD, and no byte at or above 0x80 starts a control sequence any more.
+  The parser has no 8-bit C1 controls (0x9B as CSI, 0x9C as ST and the
+  others), which cannot be told from UTF-8 continuation bytes; strings end
+  on BEL or `ESC \` (PLT-005).
 - The same parser ends an OSC string on BEL and on `ESC \`, a DCS, SOS, PM
   or APC string on `ESC \` (the two bytes may arrive in separate calls),
   dispatches the string's action and prints the text that follows; an ESC
@@ -78,8 +85,9 @@ This file records user-visible changes to Reactive TUI. The project follows
   no longer panic on a reversed interval (PLT-015).
 - Graphics startup no longer discards the process's stderr. While a hybrid
   renderer initializes and stderr is a terminal, stderr passes through a
-  pipe: every line is forwarded to the terminal in order except the Vulkan
-  driver's `WARNING: ... not a conformant Vulkan implementation` line, and
+  pipe: every line is forwarded to the terminal in order except the one a
+  Mesa Vulkan driver prints about itself, exactly `WARNING: <driver> is not
+  a conformant Vulkan implementation, testing use only.`, and
   `MESA_VK_IGNORE_CONFORMANCE_WARNING=true` is set when the host left it
   unset. The manual's graphics chapter says so (PLT-016).
 - `Animation::reverse` keeps a playing animation playing: it turns around
