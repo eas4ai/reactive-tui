@@ -101,7 +101,12 @@ impl AdaptiveFpsManager {
             .clamp(config.min_fps, config.max_fps);
 
         // Override with performance mode if set
-        let target_fps = config.mode.target_fps().unwrap_or(recommended_fps);
+        // PLT-015: fixed modes obey the same bounds as Auto.
+        let target_fps = config
+            .mode
+            .target_fps()
+            .unwrap_or(recommended_fps)
+            .clamp(config.min_fps, config.max_fps);
 
         Self {
             target_fps,
@@ -255,12 +260,12 @@ impl AdaptiveFpsManager {
         if metrics.should_reduce_fps() {
             // Too many dropped frames - reduce FPS
             let new_fps = (self.target_fps as f32 * 0.8) as u32;
-            self.target_fps = new_fps.clamp(self.config.min_fps, self.target_fps);
+            self.target_fps = new_fps.clamp(self.config.min_fps, self.config.max_fps);
             self.performance_monitor.mark_adjustment();
         } else if metrics.can_increase_fps(self.target_fps, self.config.max_fps) {
             // Very stable and fast - try increasing FPS
             let new_fps = (self.target_fps as f32 * 1.2) as u32;
-            self.target_fps = new_fps.min(self.config.max_fps);
+            self.target_fps = new_fps.clamp(self.config.min_fps, self.config.max_fps);
             self.performance_monitor.mark_adjustment();
         }
     }
@@ -280,7 +285,10 @@ impl AdaptiveFpsManager {
         } else {
             // Auto mode
             self.config.auto_adapt = true;
-            self.target_fps = self.capabilities.calculate_recommended_fps();
+            self.target_fps = self
+                .capabilities
+                .calculate_recommended_fps()
+                .clamp(self.config.min_fps, self.config.max_fps);
         }
 
         self.config.quality_preference = mode.quality_preference();

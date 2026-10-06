@@ -356,23 +356,15 @@ impl Drop for GraphicsWorker {
     }
 }
 
-/// Stderr sent to nowhere while a renderer is made, when stderr is the
-/// terminal: a Vulkan driver prints what it thinks of itself as its
-/// instance is created (Mesa's radv: "not a conformant Vulkan
-/// implementation"), and once an App holds the screen those lines land in
-/// the frame and scroll it. A stderr that is a file or a pipe keeps them.
-/// Anything another thread writes to a terminal stderr meanwhile is lost
-/// with them.
+/// PLT-016: filter the driver's warning while preserving other stderr bytes.
 #[cfg(unix)]
 struct QuietTerminalStderr {
-    saved: Option<libc::c_int>,
-    /// Held for the guard's life: two threads making renderers at once
-    /// take turns, so neither can save the other's /dev/null as the
-    /// terminal and leave stderr there.
+    saved: Option<std::fs::File>,
+    forwarder: Option<std::thread::JoinHandle<std::io::Result<()>>>,
+    /// Renderer startups take turns so each saves the actual terminal.
     _turn: std::sync::MutexGuard<'static, ()>,
 }
 
-/// The one guard at a time.
 #[cfg(unix)]
 static QUIET_STDERR: Mutex<()> = Mutex::new(());
 
@@ -380,50 +372,136 @@ static QUIET_STDERR: Mutex<()> = Mutex::new(());
 impl QuietTerminalStderr {
     fn start() -> Self {
         let turn = QUIET_STDERR.lock().unwrap_or_else(|e| e.into_inner());
-        // SAFETY: plain descriptor calls on the process's own stderr; every
-        // descriptor opened here is closed here or in `drop`.
-        unsafe {
-            if libc::isatty(libc::STDERR_FILENO) != 1 {
-                return Self {
-                    saved: None,
-                    _turn: turn,
-                };
+        let mut guard = Self {
+            saved: None,
+            forwarder: None,
+            _turn: turn,
+        };
+        // SAFETY: isatty only inspects the process's stderr descriptor.
+        if unsafe { libc::isatty(libc::STDERR_FILENO) } != 1 {
+            return guard;
+        }
+        match Self::capture() {
+            Ok((saved, forwarder)) => {
+                guard.saved = Some(saved);
+                guard.forwarder = Some(forwarder);
             }
-            let null = libc::open(c"/dev/null".as_ptr(), libc::O_WRONLY | libc::O_CLOEXEC);
-            if null < 0 {
-                return Self {
-                    saved: None,
-                    _turn: turn,
-                };
+            Err(error) => eprintln!("graphics stderr filter could not start: {error}"),
+        }
+        guard
+    }
+
+    fn capture() -> std::io::Result<(std::fs::File, std::thread::JoinHandle<std::io::Result<()>>)> {
+        use std::os::fd::{AsRawFd, FromRawFd};
+        // SAFETY: each new descriptor is immediately owned by a File.
+        let (saved, reader, writer) = unsafe {
+            let fd = libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+            if fd < 0 {
+                return Err(std::io::Error::last_os_error());
             }
-            let saved = libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0);
-            let moved = saved >= 0 && libc::dup2(null, libc::STDERR_FILENO) == libc::STDERR_FILENO;
-            libc::close(null);
-            if !moved {
-                if saved >= 0 {
-                    libc::close(saved);
+            let saved = std::fs::File::from_raw_fd(fd);
+            let mut pipe = [-1; 2];
+            if libc::pipe(pipe.as_mut_ptr()) < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            let reader = std::fs::File::from_raw_fd(pipe[0]);
+            let writer = std::fs::File::from_raw_fd(pipe[1]);
+            for fd in pipe {
+                if libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) < 0 {
+                    return Err(std::io::Error::last_os_error());
                 }
-                return Self {
-                    saved: None,
-                    _turn: turn,
-                };
             }
-            Self {
-                saved: Some(saved),
-                _turn: turn,
+            (saved, reader, writer)
+        };
+        let terminal = saved.try_clone()?;
+        let forwarder = std::thread::Builder::new()
+            .name("rtui-stderr".into())
+            .spawn(move || forward_stderr(reader, terminal))?;
+        // SAFETY: writer owns a live pipe descriptor; dup2 replaces descriptor 2.
+        if unsafe { libc::dup2(writer.as_raw_fd(), libc::STDERR_FILENO) } < 0 {
+            let error = std::io::Error::last_os_error();
+            drop(writer);
+            let _ = forwarder.join();
+            return Err(error);
+        }
+        // Only descriptor 2 keeps the write end alive; restoring it produces EOF.
+        drop(writer);
+        Ok((saved, forwarder))
+    }
+}
+
+#[cfg(unix)]
+fn forward_stderr(mut reader: std::fs::File, mut terminal: std::fs::File) -> std::io::Result<()> {
+    use std::io::{Read, Write};
+    let mut buffer = [0; 4096];
+    let mut line = Vec::new();
+    let mut passthrough = false;
+    loop {
+        let count = match reader.read(&mut buffer) {
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            result => result?,
+        };
+        if count == 0 {
+            if passthrough || !driver_conformance_warning(&line) {
+                terminal.write_all(&line)?;
+            }
+            return Ok(());
+        }
+        for &byte in &buffer[..count] {
+            line.push(byte);
+            if byte == b'\n' {
+                if passthrough || !driver_conformance_warning(&line) {
+                    terminal.write_all(&line)?;
+                }
+                line.clear();
+                passthrough = false;
+            } else if line.len() == 8192 {
+                // Bound memory for arbitrary diagnostics without dropping bytes.
+                terminal.write_all(&line)?;
+                line.clear();
+                passthrough = true;
             }
         }
     }
 }
 
 #[cfg(unix)]
+fn driver_conformance_warning(line: &[u8]) -> bool {
+    // PLT-016: match the complete RADV warning, including its WARNING prefix.
+    let text = String::from_utf8_lossy(line);
+    text.trim_start().starts_with("WARNING:")
+        && text.contains("radv")
+        && text.contains("not a conformant Vulkan implementation")
+}
+
+#[cfg(unix)]
 impl Drop for QuietTerminalStderr {
     fn drop(&mut self) {
+        use std::os::fd::AsRawFd;
         if let Some(saved) = self.saved.take() {
-            // SAFETY: `saved` is the duplicate `start` made of stderr.
-            unsafe {
-                libc::dup2(saved, libc::STDERR_FILENO);
-                libc::close(saved);
+            // SAFETY: saved owns the original stderr. Restore before joining so
+            // later writes go directly to the terminal and the pipe reaches EOF.
+            loop {
+                if unsafe { libc::dup2(saved.as_raw_fd(), libc::STDERR_FILENO) } >= 0 {
+                    break;
+                }
+                let error = std::io::Error::last_os_error();
+                if error.kind() == std::io::ErrorKind::Interrupted {
+                    continue;
+                }
+                // SAFETY: close the remaining writer to let the reader drain.
+                unsafe {
+                    libc::close(libc::STDERR_FILENO);
+                }
+                log::error!("could not restore graphics stderr: {error}");
+                break;
+            }
+            if let Some(forwarder) = self.forwarder.take() {
+                match forwarder.join() {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => log::error!("graphics stderr forwarding failed: {error}"),
+                    Err(_) => log::error!("graphics stderr forwarding thread panicked"),
+                }
             }
         }
     }
@@ -433,6 +511,10 @@ fn run(shared: Arc<Shared>, options: GraphicsOptions) {
     let mut renderer = {
         #[cfg(unix)]
         let _quiet = QuietTerminalStderr::start();
+        // PLT-016: use Mesa's own warning switch unless the host already set it.
+        if std::env::var_os("MESA_VK_IGNORE_CONFORMANCE_WARNING").is_none() {
+            std::env::set_var("MESA_VK_IGNORE_CONFORMANCE_WARNING", "true");
+        }
         HybridRenderer::new(options)
     };
     {
@@ -768,5 +850,95 @@ mod tests {
                 "stderr is on the terminal again after both guards, not on /dev/null"
             );
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod stderr_tests {
+    use super::QuietTerminalStderr;
+    use std::io::Read;
+    use std::os::fd::{AsRawFd, FromRawFd};
+
+    // PLT-016: isolate descriptor 2 from other tests and exercise terminal forwarding.
+    #[test]
+    fn plt_016_startup_preserves_other_threads_stderr() {
+        const CHILD: &str = "RTUI_PLT_016_STDERR_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "graphics::worker::stderr_tests::plt_016_startup_preserves_other_threads_stderr", "--nocapture"])
+                .env(CHILD, "1")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        // SAFETY: the child owns these descriptors and restores stderr before assertions.
+        let (mut master, slave, saved) = unsafe {
+            let (mut master, mut slave) = (-1, -1);
+            assert_eq!(
+                libc::openpty(
+                    &mut master,
+                    &mut slave,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut()
+                ),
+                0
+            );
+            let saved = libc::dup(libc::STDERR_FILENO);
+            assert!(saved >= 0);
+            assert_eq!(libc::dup2(slave, libc::STDERR_FILENO), libc::STDERR_FILENO);
+            (
+                std::fs::File::from_raw_fd(master),
+                std::fs::File::from_raw_fd(slave),
+                std::fs::File::from_raw_fd(saved),
+            )
+        };
+        let guard = QuietTerminalStderr::start();
+        let writer = std::thread::spawn(|| {
+            let bytes = b"during-startup\nWARNING: radv is not a conformant Vulkan implementation, testing use only.\nordinary diagnostic\nradv: not a conformant Vulkan implementation diagnostic\nWARNING: unrelated warning\npartial-diagnostic";
+            // SAFETY: descriptor 2 is the child's writable stderr.
+            unsafe { libc::write(libc::STDERR_FILENO, bytes.as_ptr().cast(), bytes.len()) }
+        });
+        let written = writer.join().unwrap();
+        drop(guard);
+        // SAFETY: descriptor 2 is restored to the slave; saved owns the original stderr.
+        unsafe {
+            let after = b"after-startup\n";
+            libc::write(libc::STDERR_FILENO, after.as_ptr().cast(), after.len());
+            libc::dup2(saved.as_raw_fd(), libc::STDERR_FILENO);
+            libc::fcntl(master.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK);
+        }
+        let mut bytes = Vec::new();
+        let result = master.read_to_end(&mut bytes);
+        drop(slave);
+        assert!(result.is_ok() || result.unwrap_err().kind() == std::io::ErrorKind::WouldBlock);
+        assert!(written > 0);
+        let text = String::from_utf8_lossy(&bytes);
+        let during = text.find("during-startup").expect("marker during guard");
+        let diagnostic = text
+            .find("ordinary diagnostic")
+            .expect("unrelated diagnostic");
+        let after = text.find("after-startup").expect("marker after guard");
+        let partial = text
+            .find("partial-diagnostic")
+            .expect("final bytes without a newline");
+        assert!(
+            during < diagnostic && diagnostic < partial && partial < after,
+            "{text}"
+        );
+        assert!(
+            text.contains("radv: not a conformant Vulkan implementation diagnostic"),
+            "{text}"
+        );
+        assert!(text.contains("WARNING: unrelated warning"), "{text}");
+        assert!(
+            !text.contains("WARNING: radv is not a conformant Vulkan implementation"),
+            "{text}"
+        );
     }
 }
