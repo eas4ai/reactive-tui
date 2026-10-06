@@ -162,38 +162,7 @@ impl SpanDiffWriter {
 
     /// Diff two surfaces and generate optimal update sequences
     pub fn diff(&mut self, old: &GraphemeSurface, new: &GraphemeSurface) {
-        self.clear();
-
-        let (width, height) = new.dims();
-        let (old_width, old_height) = old.dims();
-
-        // Handle size changes
-        if width != old_width || height != old_height {
-            // Clear and redraw everything on resize
-            self.write_str("\x1b[2J"); // Clear screen
-            self.move_to(0, 0);
-
-            for row in 0..height {
-                let spans = new.to_row_spans(row);
-                for span in &spans {
-                    self.write_span(span, row);
-                }
-            }
-            return;
-        }
-
-        // Row-by-row diff
-        for row in 0..height {
-            let old_spans = old.to_row_spans(row);
-            let new_spans = new.to_row_spans(row);
-
-            if old_spans != new_spans {
-                // Row changed, output new spans
-                for span in &new_spans {
-                    self.write_span(span, row);
-                }
-            }
-        }
+        self.diff_counting(old, new);
     }
 }
 
@@ -212,6 +181,11 @@ pub struct DiffStats {
 impl SpanDiffWriter {
     /// Generate diff with statistics
     pub fn diff_with_stats(&mut self, old: &GraphemeSurface, new: &GraphemeSurface) -> DiffStats {
+        self.diff_counting(old, new)
+    }
+
+    // PLT-008: statistics and ordinary diffs share the resize/redraw path.
+    fn diff_counting(&mut self, old: &GraphemeSurface, new: &GraphemeSurface) -> DiffStats {
         self.clear();
 
         let mut stats = DiffStats {
@@ -221,13 +195,17 @@ impl SpanDiffWriter {
             style_changes: 0,
         };
 
-        let (_width, height) = new.dims();
+        let (_, height) = new.dims();
+        let resized = old.dims() != new.dims();
+        if resized {
+            self.write_str("\x1b[2J");
+            self.move_to(0, 0);
+        }
 
         for row in 0..height {
-            let old_spans = old.to_row_spans(row);
             let new_spans = new.to_row_spans(row);
 
-            if old_spans != new_spans {
+            if resized || old.to_row_spans(row) != new_spans {
                 stats.rows_changed += 1;
 
                 for span in &new_spans {
@@ -260,6 +238,30 @@ impl SpanDiffWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plt_008_stats_and_plain_diff_emit_identical_bytes() {
+        let old = GraphemeSurface::new(5, 2);
+        for (width, height) in [(5, 2), (3, 2), (5, 1)] {
+            let mut new = GraphemeSurface::new(width, height);
+            new.write_str(0, 0, "ABC", Rgba::white(), Rgba::black(), Attr::BOLD);
+            let mut plain = SpanDiffWriter::new();
+            let mut counted = SpanDiffWriter::new();
+            plain.diff(&old, &new);
+            let stats = counted.diff_with_stats(&old, &new);
+            assert_eq!(plain.output(), counted.output());
+            assert_eq!(stats.bytes_written, counted.output().len());
+            if old.dims() != new.dims() {
+                assert_eq!(stats.rows_changed, height);
+                assert_eq!(
+                    stats.spans_written,
+                    (0..height)
+                        .map(|row| new.to_row_spans(row).len())
+                        .sum::<usize>()
+                );
+            }
+        }
+    }
 
     #[test]
     fn test_span_diff_no_change() {

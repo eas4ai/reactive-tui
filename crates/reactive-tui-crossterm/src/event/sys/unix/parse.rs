@@ -7,13 +7,16 @@ use crate::event::{
 
 use super::super::super::InternalEvent;
 
-/// Whether the startup queries' replies are still due: from the moment
-/// [`crate::terminal::query_startup`] writes them until the device attributes
-/// reply that ends them. Only then is `ESC ] 11 ;` read as the background
-/// color reply, and is a key read together with a reply split from it (see
-/// [`parse_held`]); the rest of the time `ESC ]` stays Alt+].
+/// Whether startup replies are due, until DA1, timeout or an I/O error.
+/// While pending, `ESC ] 11 ;` can start a background reply and keys read
+/// together with replies are split from them (see [`parse_held`]).
+/// Otherwise, standalone `ESC ]` is Alt+].
 pub(crate) static STARTUP_REPLIES_PENDING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
+
+// Tests that set the process-wide startup flag take turns.
+#[cfg(test)]
+pub(crate) static STARTUP_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Parses the bytes held so far into `events`, as the event source's parser
 /// feeds them one at a time. An event that used only the front of the bytes
@@ -1759,7 +1762,7 @@ mod tests {
     #[test]
     fn test_parse_background_color_only_while_the_startup_replies_are_due() {
         use std::sync::atomic::Ordering;
-        let _turn = STARTUP_FLAG
+        let _turn = STARTUP_TEST_LOCK
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
@@ -1795,7 +1798,7 @@ mod tests {
     #[test]
     fn test_parse_the_graphics_replies_while_the_startup_replies_are_due() {
         use std::sync::atomic::Ordering;
-        let _turn = STARTUP_FLAG
+        let _turn = STARTUP_TEST_LOCK
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         STARTUP_REPLIES_PENDING.store(true, Ordering::Release);
@@ -1831,9 +1834,6 @@ mod tests {
         );
     }
 
-    /// The tests that set the process-wide startup flag take turns.
-    static STARTUP_FLAG: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
     /// The events `chunks` make, each chunk one read, as the parser feeds them.
     fn held_events(chunks: &[&[u8]]) -> Vec<InternalEvent> {
         let mut held = Vec::new();
@@ -1850,7 +1850,7 @@ mod tests {
     #[test]
     fn test_keys_read_with_the_startup_replies_stay_apart_from_them() {
         use std::sync::atomic::Ordering;
-        let _turn = STARTUP_FLAG
+        let _turn = STARTUP_TEST_LOCK
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         let key =

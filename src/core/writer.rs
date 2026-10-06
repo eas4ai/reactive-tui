@@ -27,6 +27,7 @@ pub struct WriteStats {
 pub struct TerminalWriter<W: Write> {
     writer: BufWriter<W>,
     synchronized_output: bool,
+    current_attr: Attr,
     stats: WriteStats,
     buffer_size: usize,
 }
@@ -50,6 +51,7 @@ impl<W: Write> TerminalWriter<W> {
         Self {
             writer: BufWriter::with_capacity(buffer_size, writer),
             synchronized_output: false,
+            current_attr: Attr::empty(),
             stats,
             buffer_size,
         }
@@ -98,6 +100,7 @@ impl<W: Write> TerminalWriter<W> {
 
             RenderOp::ResetStyle => {
                 write!(self.writer, "\x1b[0m")?;
+                self.current_attr = Attr::empty();
             }
 
             RenderOp::PrintRun(text) => {
@@ -178,24 +181,22 @@ impl<W: Write> TerminalWriter<W> {
 
     /// Apply text attributes
     fn apply_attributes(&mut self, attr: Attr) -> io::Result<()> {
-        // Reset first to clear any existing attributes
-        write!(self.writer, "\x1b[0m")?;
-
-        if attr.contains(Attr::BOLD) {
-            write!(self.writer, "\x1b[1m")?;
+        // PLT-007: selective resets preserve the colors already in force.
+        let old = self.current_attr;
+        for (flag, off, on) in [
+            (Attr::BOLD, 22, 1),
+            (Attr::ITALIC, 23, 3),
+            (Attr::UNDERLINE, 24, 4),
+            (Attr::REVERSE, 27, 7),
+            (Attr::STRIKE, 29, 9),
+        ] {
+            if old.contains(flag) && !attr.contains(flag) {
+                write!(self.writer, "\x1b[{off}m")?;
+            } else if !old.contains(flag) && attr.contains(flag) {
+                write!(self.writer, "\x1b[{on}m")?;
+            }
         }
-        if attr.contains(Attr::ITALIC) {
-            write!(self.writer, "\x1b[3m")?;
-        }
-        if attr.contains(Attr::UNDERLINE) {
-            write!(self.writer, "\x1b[4m")?;
-        }
-        if attr.contains(Attr::REVERSE) {
-            write!(self.writer, "\x1b[7m")?;
-        }
-        if attr.contains(Attr::STRIKE) {
-            write!(self.writer, "\x1b[9m")?;
-        }
+        self.current_attr = attr;
 
         Ok(())
     }
@@ -302,9 +303,68 @@ mod tests {
         let output = render_ops_to_ansi(&ops);
         let output_str = String::from_utf8_lossy(&output);
 
-        assert!(output_str.contains("\x1b[0m")); // Reset
+        // PLT-007: setting attributes must preserve the colors in force.
+        assert!(!output_str.contains("\x1b[0m"));
         assert!(output_str.contains("\x1b[1m")); // Bold
         assert!(output_str.contains("\x1b[3m")); // Italic
+    }
+
+    #[test]
+    fn plt_007_resets_and_separate_batches_keep_style_state_consistent() {
+        let mut bytes = Vec::new();
+        {
+            let mut writer = TerminalWriter::new(&mut bytes);
+            let mut first = RenderOpsBuilder::new();
+            first.print_styled(
+                "A",
+                Rgba::new(1.0, 0.0, 0.0, 1.0),
+                Rgba::new(0.0, 0.0, 1.0, 1.0),
+                Attr::BOLD,
+            );
+            writer.execute(&first.build()).unwrap();
+
+            let mut second = RenderOpsBuilder::new();
+            second.print_styled(
+                "B",
+                Rgba::new(1.0, 0.0, 0.0, 1.0),
+                Rgba::new(0.0, 0.0, 1.0, 1.0),
+                Attr::empty(),
+            );
+            second.reset_style();
+            second.print_styled(
+                "C",
+                Rgba::new(1.0, 0.0, 0.0, 1.0),
+                Rgba::new(0.0, 0.0, 1.0, 1.0),
+                Attr::BOLD,
+            );
+            second.clear_screen();
+            second.move_to(0, 0);
+            second.print_styled(
+                "D",
+                Rgba::new(1.0, 0.0, 0.0, 1.0),
+                Rgba::new(0.0, 0.0, 1.0, 1.0),
+                Attr::empty(),
+            );
+            writer.execute(&second.build()).unwrap();
+        }
+        let mut terminal = vt100::Parser::new(1, 10, 0);
+        let reset = bytes
+            .windows(4)
+            .position(|part| part == b"\x1b[2J")
+            .unwrap();
+        terminal.process(&bytes[..reset]);
+        for (col, bold) in [(0, true), (1, false), (2, true)] {
+            let cell = terminal.screen().cell(0, col).unwrap();
+            assert_eq!(cell.fgcolor(), vt100::Color::Rgb(255, 0, 0));
+            assert_eq!(cell.bgcolor(), vt100::Color::Rgb(0, 0, 255));
+            assert_eq!(cell.bold(), bold);
+        }
+        terminal.process(&bytes[reset..]);
+        let cell = terminal.screen().cell(0, 0).unwrap();
+        assert_eq!(cell.contents(), "D");
+        assert!(!cell.bold());
+        assert_eq!(cell.fgcolor(), vt100::Color::Rgb(255, 0, 0));
+        assert_eq!(cell.bgcolor(), vt100::Color::Rgb(0, 0, 255));
     }
 
     #[test]
