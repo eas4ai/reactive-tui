@@ -343,6 +343,25 @@ impl AsRawFd for UnixTty {
     }
 }
 
+#[cfg(test)]
+impl UnixTty {
+    /// A session over `fd`, a socket or pipe end, for tests: no terminal state
+    /// is saved, changed or restored and no resize dispatcher is owned.
+    pub(crate) fn over_descriptor(fd: OwnedFd) -> Self {
+        let raw = fd.as_raw_fd();
+        let state = Arc::new(TtyState {
+            fd,
+            // SAFETY: termios is plain data; it is never written back since
+            // `restored` starts true.
+            original_termios: unsafe { std::mem::zeroed() },
+            restored: AtomicBool::new(true),
+            workers: Mutex::new(Vec::new()),
+            signal_owner: AtomicBool::new(false),
+        });
+        UnixTty { fd: raw, state }
+    }
+}
+
 /// Install a SIGWINCH self-pipe and dispatch callbacks outside signal context.
 fn install_signal_handlers() -> Result<()> {
     use std::io::Read;
@@ -674,6 +693,85 @@ mod tests {
 
         let original = unsafe { original.assume_init() };
         unsafe { libc::sigaction(libc::SIGWINCH, &original, std::ptr::null_mut()) };
+    }
+
+    static PLT013_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static PLT013_GATE: Mutex<()> = Mutex::new(());
+
+    extern "C" fn plt013_blocking_callback(_context: *mut std::ffi::c_void) {
+        let _gate = PLT013_GATE.lock().unwrap_or_else(|e| e.into_inner());
+    }
+
+    extern "C" fn plt013_counting_callback(_context: *mut std::ffi::c_void) {
+        PLT013_COUNT.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// PLT-013: a callback registered by a new owner while the previous
+    /// generation's teardown joins its worker survives that teardown.
+    #[test]
+    #[serial]
+    fn plt_013_a_new_owners_resize_callback_survives_the_old_teardown() {
+        reset_signal_handlers();
+        PLT013_COUNT.store(0, Ordering::SeqCst);
+        install_signal_handlers().unwrap();
+        UnixTty::register_winch_handler(std::ptr::null_mut(), plt013_blocking_callback).unwrap();
+        // The old worker enters its callback and waits for the gate.
+        let gate = PLT013_GATE.lock().unwrap_or_else(|e| e.into_inner());
+        unsafe { libc::raise(libc::SIGWINCH) };
+        std::thread::sleep(Duration::from_millis(50));
+        // The last old owner leaves; its teardown blocks joining the worker.
+        let teardown = std::thread::spawn(release_signal_handler);
+        std::thread::sleep(Duration::from_millis(50));
+        // A new owner installs the dispatcher again and registers its callback.
+        install_signal_handlers().unwrap();
+        UnixTty::register_winch_handler(std::ptr::null_mut(), plt013_counting_callback).unwrap();
+        drop(gate);
+        teardown.join().unwrap();
+
+        unsafe { libc::raise(libc::SIGWINCH) };
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while PLT013_COUNT.load(Ordering::SeqCst) == 0 && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let count = PLT013_COUNT.load(Ordering::SeqCst);
+        release_signal_handler();
+        assert_eq!(
+            count, 1,
+            "PLT-013: the callback registered by the new owner during the old generation's teardown ran {count} times on SIGWINCH"
+        );
+    }
+
+    /// PLT-014: two sessions started independently on one terminal share its
+    /// mode: raw while either lives, the first saved state restored last.
+    #[test]
+    fn plt_014_independent_sessions_share_the_terminals_mode() {
+        on_terminal(
+            "platform::unix::tests::plt_014_independent_sessions_share_the_terminals_mode",
+            || {
+                let canonical = || {
+                    let mut termios = std::mem::MaybeUninit::<libc::termios>::uninit();
+                    assert_eq!(unsafe { libc::tcgetattr(0, termios.as_mut_ptr()) }, 0);
+                    unsafe { termios.assume_init() }.c_lflag & libc::ICANON != 0
+                };
+                assert!(canonical(), "the pseudo-terminal starts in cooked mode");
+                let first = UnixTty::init().unwrap();
+                let second = UnixTty::init().unwrap();
+                assert!(
+                    !canonical(),
+                    "two sessions started and the terminal is not raw"
+                );
+                drop(first);
+                assert!(
+                    !canonical(),
+                    "PLT-014: dropping the first session while the second lives put the terminal into cooked mode"
+                );
+                drop(second);
+                assert!(
+                    canonical(),
+                    "PLT-014: dropping the last session left the terminal raw"
+                );
+            },
+        );
     }
 
     #[test]

@@ -643,8 +643,73 @@ mod tests {
     /// so neither saves the other's /dev/null as the terminal: afterwards
     /// stderr is on the terminal it was on. A pseudo-terminal stands in for
     /// the terminal for the test's few milliseconds.
+    /// PLT-016: a line another thread writes to stderr while graphics start
+    /// reaches the terminal, in order with what follows.
     #[cfg(unix)]
     #[test]
+    #[serial_test::serial]
+    fn plt_016_stderr_written_while_graphics_start_reaches_the_terminal() {
+        // SAFETY: descriptor calls on a pseudo-terminal this test opens and
+        // closes, and on stderr, which it saves first and restores last.
+        unsafe {
+            let (mut master, mut slave) = (0, 0);
+            assert_eq!(
+                libc::openpty(
+                    &mut master,
+                    &mut slave,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut()
+                ),
+                0,
+                "a pseudo-terminal"
+            );
+            let flags = libc::fcntl(master, libc::F_GETFL);
+            assert!(libc::fcntl(master, libc::F_SETFL, flags | libc::O_NONBLOCK) >= 0);
+            let saved = libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+            assert!(saved >= 0);
+            assert_eq!(libc::dup2(slave, libc::STDERR_FILENO), libc::STDERR_FILENO);
+
+            let guard = QuietTerminalStderr::start();
+            std::thread::spawn(|| {
+                let line = b"PLT016 first\n";
+                libc::write(libc::STDERR_FILENO, line.as_ptr().cast(), line.len());
+            })
+            .join()
+            .unwrap();
+            drop(guard);
+            let line = b"PLT016 second\n";
+            libc::write(libc::STDERR_FILENO, line.as_ptr().cast(), line.len());
+
+            let mut got = Vec::new();
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while Instant::now() < deadline && !String::from_utf8_lossy(&got).contains("second") {
+                let mut buffer = [0u8; 256];
+                let read = libc::read(master, buffer.as_mut_ptr().cast(), buffer.len());
+                if read > 0 {
+                    got.extend_from_slice(&buffer[..read as usize]);
+                } else {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            }
+            libc::dup2(saved, libc::STDERR_FILENO);
+            libc::close(saved);
+            libc::close(slave);
+            libc::close(master);
+
+            let text = String::from_utf8_lossy(&got).into_owned();
+            let first = text.find("PLT016 first");
+            let second = text.find("PLT016 second");
+            assert!(
+                first.is_some() && second.is_some() && first < second,
+                "PLT-016: the terminal received {text:?}: the line written to stderr while graphics started is missing or out of order"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[serial_test::serial]
     fn two_guards_at_once_leave_stderr_on_the_terminal() {
         // SAFETY: descriptor calls on a pseudo-terminal this test opens and
         // closes, and on stderr, which it saves first and restores last.

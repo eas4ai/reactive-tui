@@ -1109,3 +1109,114 @@ mod tests {
         assert_eq!(collected, events);
     }
 }
+
+/// The review's findings on the Tokio event loop: stdin is a pipe for the
+/// test's life, so the loop reads what the test writes.
+#[cfg(all(test, unix, feature = "tokio"))]
+mod review_terminal {
+    use super::TokioEventLoop;
+    use crate::platform::{KeyCode, TerminalEvent};
+    use serial_test::serial;
+    use std::io::Write;
+    use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+    use std::time::Duration;
+
+    /// Descriptor 0 replaced by the read end of a pipe, the original put back
+    /// on drop.
+    struct PipedStdin {
+        saved: OwnedFd,
+        writer: std::fs::File,
+    }
+
+    impl PipedStdin {
+        fn install() -> Self {
+            let mut fds = [0; 2];
+            // SAFETY: plain descriptor calls; every descriptor made here is
+            // owned by this value or closed below.
+            unsafe {
+                assert_eq!(libc::pipe(fds.as_mut_ptr()), 0);
+                let saved = libc::fcntl(libc::STDIN_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+                assert!(saved >= 0);
+                assert_eq!(libc::dup2(fds[0], libc::STDIN_FILENO), libc::STDIN_FILENO);
+                libc::close(fds[0]);
+                Self {
+                    saved: OwnedFd::from_raw_fd(saved),
+                    writer: std::fs::File::from_raw_fd(fds[1]),
+                }
+            }
+        }
+
+        fn stdin_nonblocking(&self) -> bool {
+            // SAFETY: reads a flag of descriptor 0.
+            unsafe { libc::fcntl(libc::STDIN_FILENO, libc::F_GETFL) & libc::O_NONBLOCK != 0 }
+        }
+    }
+
+    impl Drop for PipedStdin {
+        fn drop(&mut self) {
+            // SAFETY: puts the saved duplicate back on descriptor 0.
+            unsafe {
+                libc::dup2(self.saved.as_raw_fd(), libc::STDIN_FILENO);
+            }
+        }
+    }
+
+    fn runtime() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+    }
+
+    /// PLT-011: the loop leaves stdin's flags as it found them.
+    #[test]
+    #[serial]
+    fn plt_011_the_tokio_loop_leaves_stdins_flags_as_it_found_them() {
+        let stdin = PipedStdin::install();
+        assert!(!stdin.stdin_nonblocking(), "the pipe starts blocking");
+        let runtime = runtime();
+        runtime.block_on(async {
+            let mut events = TokioEventLoop::new();
+            events.start_async().await.unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            events.stop_async().await.unwrap();
+        });
+        let nonblocking = stdin.stdin_nonblocking();
+        drop(runtime);
+        assert!(
+            !nonblocking,
+            "PLT-011: after the loop started and stopped, stdin is non-blocking"
+        );
+    }
+
+    /// PLT-012: a stopped loop starts again and delivers the next key.
+    #[test]
+    #[serial]
+    fn plt_012_a_stopped_tokio_loop_starts_again_and_reads() {
+        let mut stdin = PipedStdin::install();
+        let runtime = runtime();
+        let event = runtime.block_on(async {
+            let mut events = TokioEventLoop::new();
+            events.start_async().await.unwrap();
+            events.stop_async().await.unwrap();
+            events.start_async().await.unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            stdin.writer.write_all(b"a").unwrap();
+            let event =
+                tokio::time::timeout(Duration::from_secs(2), events.next_event_async()).await;
+            events.stop_async().await.unwrap();
+            event
+        });
+        drop(runtime);
+        assert!(
+            matches!(
+                event,
+                Ok(Some(TerminalEvent::Key {
+                    code: KeyCode::Char('a'),
+                    ..
+                }))
+            ),
+            "PLT-012: after a stop and a second start, the key typed gave {event:?}"
+        );
+    }
+}
