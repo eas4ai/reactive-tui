@@ -19,7 +19,7 @@ mod windows {
     use reactive_tui::component::Element;
     use reactive_tui::error::Result;
     use reactive_tui::event::router::EventResult;
-    use reactive_tui::event::types::{Event, KeyCode, KeyModifiers};
+    use reactive_tui::event::types::{Event, KeyCode, KeyEventKind, KeyModifiers};
     use reactive_tui::terminal::{PseudoTerminal, TerminalConfig};
     use reactive_tui::theme::{high_contrast_theme, Theme};
     use std::io::Write;
@@ -68,8 +68,12 @@ mod windows {
         }
 
         fn try_handle_event(&mut self, event: &Event) -> Result<EventResult> {
+            // A console reports each key's release too; a key typed once is
+            // one press.
             if let Event::Key(key) = event {
-                log(format!("KEY {:?}", key.code));
+                if key.kind != KeyEventKind::Release {
+                    log(format!("KEY {:?}", key.code));
+                }
             }
             Ok(EventResult::Ignored)
         }
@@ -162,18 +166,21 @@ mod windows {
             if queried_after.is_none() && contains(&bytes, BACKGROUND_QUERY) {
                 queried_after = Some(start.elapsed());
                 if !terminal.typed_before.is_empty() {
-                    pty.write_input(terminal.typed_before).expect("keys typed before the replies");
+                    pty.write_input(terminal.typed_before)
+                        .expect("keys typed before the replies");
                 }
                 if !terminal.silent {
                     if let Some(color) = terminal.background {
                         pty.write_input(color).expect("the background reply");
                     }
                     if contains(&bytes, ATTRIBUTES_QUERY) {
-                        pty.write_input(ATTRIBUTES_REPLY).expect("the attributes reply");
+                        pty.write_input(ATTRIBUTES_REPLY)
+                            .expect("the attributes reply");
                     }
                 }
                 if !terminal.typed_after.is_empty() {
-                    pty.write_input(terminal.typed_after).expect("keys typed after the replies");
+                    pty.write_input(terminal.typed_after)
+                        .expect("keys typed after the replies");
                 }
             }
             if painted_after.is_none() && contains(&bytes, PROBE.as_bytes()) {
@@ -216,7 +223,10 @@ mod windows {
             .collect();
         let _ = std::fs::remove_file(&log_path);
         Run {
-            theme: lines.iter().find(|line| line.starts_with("THEME ")).cloned(),
+            theme: lines
+                .iter()
+                .find(|line| line.starts_with("THEME "))
+                .cloned(),
             keys: lines
                 .iter()
                 .filter(|line| line.starts_with("KEY "))
@@ -230,7 +240,9 @@ mod windows {
     }
 
     fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-        haystack.windows(needle.len()).any(|window| window == needle)
+        haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
     }
 
     // -----------------------------------------------------------------------
