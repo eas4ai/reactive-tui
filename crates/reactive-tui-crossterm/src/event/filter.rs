@@ -48,13 +48,14 @@ impl Filter for PrimaryDeviceAttributesFilter {
 }
 
 /// The replies to the startup queries: keyboard flags, background color,
-/// Kitty graphics, and the device attributes reply that ends them.
-#[cfg(unix)]
+/// Kitty graphics, and the device attributes reply that ends them. On
+/// Windows only the background color and the device attributes are asked
+/// (INP-013).
 #[derive(Debug, Clone)]
 pub(crate) struct StartupReplyFilter;
 
-#[cfg(unix)]
 impl Filter for StartupReplyFilter {
+    #[cfg(unix)]
     fn eval(&self, event: &InternalEvent) -> bool {
         matches!(
             *event,
@@ -64,20 +65,22 @@ impl Filter for StartupReplyFilter {
                 | InternalEvent::PrimaryDeviceAttributes { .. }
         )
     }
+
+    #[cfg(windows)]
+    fn eval(&self, event: &InternalEvent) -> bool {
+        matches!(
+            *event,
+            InternalEvent::BackgroundColor(..) | InternalEvent::PrimaryDeviceAttributes { .. }
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct EventFilter;
 
 impl Filter for EventFilter {
-    #[cfg(unix)]
     fn eval(&self, event: &InternalEvent) -> bool {
         matches!(*event, InternalEvent::Event(_))
-    }
-
-    #[cfg(windows)]
-    fn eval(&self, _: &InternalEvent) -> bool {
-        true
     }
 }
 

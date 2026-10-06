@@ -249,7 +249,6 @@ pub fn poll(timeout: Duration) -> std::io::Result<bool> {
 pub fn read() -> std::io::Result<Event> {
     match read_internal(&EventFilter)? {
         InternalEvent::Event(event) => Ok(event),
-        #[cfg(unix)]
         _ => unreachable!(),
     }
 }
@@ -1499,7 +1498,6 @@ pub(crate) enum InternalEvent {
     KeyboardEnhancementFlags(KeyboardEnhancementFlags),
     /// Attributes and architectural class of the terminal: whether it
     /// lists Sixel graphics (attribute 4).
-    #[cfg(unix)]
     PrimaryDeviceAttributes { sixel: bool },
     /// The reply to a Kitty graphics query with id `id`: `ok` when the
     /// terminal accepted the query's transmission medium.
@@ -1507,7 +1505,6 @@ pub(crate) enum InternalEvent {
     KittyGraphicsReply { id: u32, ok: bool },
     /// The terminal's background color, as 16-bit red, green and blue, from
     /// the reply to `OSC 11 ; ?`.
-    #[cfg(unix)]
     BackgroundColor(u16, u16, u16),
     /// The key events of one sequence: text of several characters that the
     /// terminal reports for a key, one press per character. The parser

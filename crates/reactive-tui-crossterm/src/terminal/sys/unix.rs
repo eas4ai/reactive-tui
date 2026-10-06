@@ -265,23 +265,8 @@ fn query_keyboard_enhancement_flags_raw() -> io::Result<Option<KeyboardEnhanceme
     }
 }
 
-/// What the terminal answered to the startup queries.
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct StartupReplies {
-    /// The keyboard enhancement flags, when the terminal reports the Kitty
-    /// keyboard protocol.
-    pub keyboard: Option<KeyboardEnhancementFlags>,
-    /// The background color, as 16-bit red, green and blue.
-    pub background: Option<(u16, u16, u16)>,
-    /// Whether the terminal accepts Kitty graphics sent directly (`t=d`).
-    pub kitty_graphics: bool,
-    /// Whether it also read Kitty graphics from shared memory (`t=s`), which
-    /// only a terminal on the same machine can.
-    pub kitty_shared_memory: bool,
-    /// Whether its device attributes list Sixel graphics (attribute 4).
-    pub sixel: bool,
-}
+use super::StartupReplies;
 
 /// The ids of the Kitty graphics queries sent directly and through shared
 /// memory.

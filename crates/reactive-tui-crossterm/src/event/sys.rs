@@ -3,6 +3,7 @@ pub(crate) use unix::waker::Waker;
 #[cfg(all(windows, feature = "event-stream"))]
 pub(crate) use windows::waker::Waker;
 
+pub(crate) mod startup;
 #[cfg(unix)]
 pub(crate) mod unix;
 #[cfg(windows)]

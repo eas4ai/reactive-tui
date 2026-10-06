@@ -403,10 +403,7 @@ fn parse_csi_primary_device_attributes(buffer: &[u8]) -> io::Result<Option<Inter
 
     // Of the attributes (<https://vt100.net/docs/vt510-rm/DA1.html>), only
     // Sixel graphics, attribute 4, is read.
-    let attributes = &buffer[3..buffer.len() - 1];
-    let sixel = attributes
-        .split(|byte| *byte == b';')
-        .any(|attribute| attribute == b"4");
+    let sixel = crate::event::sys::startup::lists_sixel(&buffer[3..buffer.len() - 1]);
 
     STARTUP_REPLIES_PENDING.store(false, std::sync::atomic::Ordering::Release);
     Ok(Some(InternalEvent::PrimaryDeviceAttributes { sixel }))
@@ -632,38 +629,10 @@ fn parse_kitty_graphics_reply(buffer: &[u8]) -> io::Result<Option<InternalEvent>
 
 /// The reply to `OSC 11 ; ?`: `ESC ] 11 ; rgb:R/G/B`, ended by BEL or ST,
 /// each channel one to four hex digits, scaled to 16 bits. Anything else
-/// after `ESC ] 11 ;` is dropped.
+/// after `ESC ] 11 ;` is dropped. The same reader serves Windows
+/// (event::sys::startup).
 fn parse_background_color(buffer: &[u8]) -> io::Result<Option<InternalEvent>> {
-    assert!(buffer.starts_with(b"\x1B]")); // ESC ]
-    let body = &buffer[2..];
-    let text = if let Some(text) = body.strip_suffix(b"\x07") {
-        text
-    } else if let Some(text) = body.strip_suffix(b"\x1B\\") {
-        text
-    } else if body.len() > 64 {
-        return Err(could_not_parse_event_error());
-    } else {
-        return Ok(None);
-    };
-    let channels: Vec<u16> = std::str::from_utf8(text)
-        .ok()
-        .and_then(|text| text.strip_prefix("11;rgb:"))
-        .map(|rgb| {
-            rgb.split('/')
-                .filter_map(|hex| {
-                    let digits = u32::try_from(hex.len())
-                        .ok()
-                        .filter(|n| (1..=4).contains(n))?;
-                    let value = u32::from_str_radix(hex, 16).ok()?;
-                    Some((value * 0xFFFF / ((1 << (4 * digits)) - 1)) as u16)
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    match channels[..] {
-        [red, green, blue] => Ok(Some(InternalEvent::BackgroundColor(red, green, blue))),
-        _ => Err(could_not_parse_event_error()),
-    }
+    crate::event::sys::startup::background_color(buffer)
 }
 
 pub(crate) fn parse_csi_u_encoded_key_code(buffer: &[u8]) -> io::Result<Option<InternalEvent>> {
