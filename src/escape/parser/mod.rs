@@ -10,8 +10,10 @@ const MAX_PARAMS_SIZE: usize = 32; // VT standard allows max 16 params
 /// VT parser state machine for ANSI escape sequences
 /// Based on Paul Williams' state machine design: <https://vt100.net/emu/dec_ansi_parser>
 ///
-/// PLT-005: ground text is streaming UTF-8. Standalone C1 bytes keep their
-/// 8-bit control meaning; bytes completing a UTF-8 character never do.
+/// PLT-005: the input is streaming UTF-8 in every state. A byte at or above
+/// 0x80 is part of a character or an invalid byte (printed as U+FFFD, or
+/// appended to the string being collected); the parser has no 8-bit C1
+/// controls, which cannot be told from UTF-8 continuation bytes.
 pub struct Parser {
     state: State,
     intermediate_bytes: Vec<u8>,
@@ -76,7 +78,24 @@ impl Parser {
 
     /// Process a single byte through the state machine
     fn process_byte(&mut self, byte: u8) {
-        if self.collect_utf8(byte) || self.consume_string_escape(byte) {
+        // PLT-005: bytes at or above 0x80 are UTF-8 in every state, so no
+        // continuation byte can start a control sequence and no state loses
+        // a character.
+        // A byte that broke the character being collected is handled again
+        // on its own below.
+        if self.utf8_len > 0 && self.collect_utf8(byte) {
+            return;
+        }
+        if (0xC2..=0xF4).contains(&byte) {
+            self.utf8_buffer[0] = byte;
+            self.utf8_len = 1;
+            return;
+        }
+        if byte >= 0x80 {
+            self.deliver_char('\u{FFFD}');
+            return;
+        }
+        if self.consume_string_escape(byte) {
             return;
         }
         // C0 control characters are handled specially in most states
@@ -110,34 +129,6 @@ impl Parser {
             }
         }
 
-        // PLT-005: standalone C1 bytes retain their 8-bit control meaning.
-        if (0x80..=0x9F).contains(&byte) {
-            match byte {
-                0x90 => {
-                    // DCS
-                    self.transition_to(State::DCSEntry);
-                    return;
-                }
-                0x9B => {
-                    // CSI
-                    self.transition_to(State::CSIEntry);
-                    return;
-                }
-                0x9D => {
-                    // OSC
-                    self.transition_to(State::OSCString);
-                    return;
-                }
-                0x98 | 0x9E | 0x9F => {
-                    // SOS, PM, APC
-                    self.string_kind = byte;
-                    self.transition_to(State::SOSPMAPCString);
-                    return;
-                }
-                _ => {} // Other C1 controls
-            }
-        }
-
         // State-specific processing
         match self.state {
             State::Ground => self.ground(byte),
@@ -158,29 +149,60 @@ impl Parser {
         }
     }
 
+    /// Adds `byte` to the character being collected: true when the byte
+    /// belongs to it (complete or not), false when it broke it, after
+    /// delivering U+FFFD for the broken prefix; the byte is then handled
+    /// again on its own (PLT-005).
     fn collect_utf8(&mut self, byte: u8) -> bool {
-        // PLT-005: collect UTF-8 before C1 dispatch, even across feeds.
-        if self.utf8_len == 0 {
-            return false;
-        }
         self.utf8_buffer[self.utf8_len] = byte;
         self.utf8_len += 1;
         match std::str::from_utf8(&self.utf8_buffer[..self.utf8_len]) {
             Ok(text) => {
-                self.actions
-                    .push(Action::Print(text.chars().next().unwrap()));
+                let character = text.chars().next().unwrap();
                 self.utf8_len = 0;
-                return true;
+                self.deliver_char(character);
+                true
             }
-            Err(error) if error.error_len().is_none() => return true,
+            Err(error) if error.error_len().is_none() => true,
             Err(_) => {
                 self.utf8_len = 0;
-                self.actions.push(Action::Print('\u{FFFD}'));
-                self.transition_to(State::Ground);
-                // Reprocess the byte that invalidated the character.
+                self.deliver_char('\u{FFFD}');
+                false
             }
         }
-        false
+    }
+
+    /// A decoded character (or U+FFFD) in the current state: printed in the
+    /// ground state, appended to the string being collected, and otherwise
+    /// ending the sequence it interrupts before it prints (PLT-005).
+    fn deliver_char(&mut self, character: char) {
+        let mut encoded = [0u8; 4];
+        let bytes = character.encode_utf8(&mut encoded).as_bytes();
+        match self.state {
+            State::Ground => self.actions.push(Action::Print(character)),
+            State::OSCString | State::SOSPMAPCString => {
+                if self.osc_string.len() + bytes.len() <= MAX_OSC_STRING_SIZE {
+                    self.osc_string.extend_from_slice(bytes);
+                }
+            }
+            State::DCSPassthrough => {
+                if self.dcs_string.len() + bytes.len() <= MAX_DCS_STRING_SIZE {
+                    self.dcs_string.extend_from_slice(bytes);
+                }
+            }
+            State::DCSIgnore => {}
+            State::StringEscape => {
+                // An ESC inside a string followed by text aborts the string.
+                self.osc_string.clear();
+                self.dcs_string.clear();
+                self.transition_to(State::Ground);
+                self.actions.push(Action::Print(character));
+            }
+            _ => {
+                self.transition_to(State::Ground);
+                self.actions.push(Action::Print(character));
+            }
+        }
     }
 
     fn consume_string_escape(&mut self, byte: u8) -> bool {
@@ -244,11 +266,6 @@ impl Parser {
     fn ground(&mut self, byte: u8) {
         if (0x20..0x7F).contains(&byte) {
             self.actions.push(Action::Print(byte as char));
-        } else if (0xC2..=0xF4).contains(&byte) {
-            self.utf8_buffer[0] = byte;
-            self.utf8_len = 1;
-        } else if byte >= 0xA0 {
-            self.actions.push(Action::Print('\u{FFFD}'));
         }
     }
 
@@ -570,34 +587,24 @@ impl Parser {
     }
 
     fn dcs_passthrough(&mut self, byte: u8) {
-        // Collect DCS data until ST (String Terminator).
-        if byte == 0x9C {
-            self.dcs_dispatch();
-            self.transition_to(State::Ground);
+        // PLT-006: the string ends on ESC backslash, handled before this.
+        if self.dcs_string.len() < MAX_DCS_STRING_SIZE {
+            self.dcs_string.push(byte);
         } else {
-            // Prevent unbounded buffer growth
-            if self.dcs_string.len() < MAX_DCS_STRING_SIZE {
-                self.dcs_string.push(byte);
-            } else {
-                // Buffer full - silently drop excess data and mark as in error state
-                #[cfg(debug_assertions)]
-                log::warn!("DCS string buffer full; dropping data");
-                self.transition_to(State::DCSIgnore);
-            }
+            // Buffer full - silently drop excess data and mark as in error state
+            #[cfg(debug_assertions)]
+            log::warn!("DCS string buffer full; dropping data");
+            self.transition_to(State::DCSIgnore);
         }
     }
 
-    fn dcs_ignore(&mut self, byte: u8) {
-        if byte == 0x9C {
-            self.dcs_string.clear();
-            self.transition_to(State::Ground);
-        }
+    fn dcs_ignore(&mut self, _byte: u8) {
+        // PLT-006: the string ends on ESC backslash, handled before this.
     }
 
     fn osc_string(&mut self, byte: u8) {
-        if byte == 0x07 || byte == 0x9C {
+        if byte == 0x07 {
             self.osc_end();
-            self.transition_to(State::Ground);
         } else {
             // Prevent unbounded buffer growth
             if self.osc_string.len() < MAX_OSC_STRING_SIZE {
@@ -613,6 +620,7 @@ impl Parser {
     }
 
     fn sos_pm_apc_string(&mut self, byte: u8) {
+        // PLT-006: the string ends on ESC backslash, which hands this 0x9C.
         if byte == 0x9C {
             let payload = mem::take(&mut self.osc_string);
             let action = match self.string_kind {
@@ -720,8 +728,11 @@ mod tests {
                 vec![Action::Print('\u{FFFD}'), Action::Print('X')]
             );
         }
+        // PLT-005: the byte that broke a character is handled again on its
+        // own, and a lone continuation byte is itself invalid, so each broken
+        // prefix and each stray byte prints its own U+FFFD.
         for (bytes, replacements) in [
-            (&b"\xe0\x80X"[..], 1),
+            (&b"\xe0\x80X"[..], 2),
             (&b"\xed\xa0X"[..], 2),
             (&b"\xf4\xbfX"[..], 2),
         ] {
@@ -739,9 +750,14 @@ mod tests {
             Parser::new().feed(b"\xc3\xc3\xa9"),
             vec![Action::Print('\u{FFFD}'), Action::Print('é')]
         );
+        // PLT-005: a bare 0x9B is an invalid UTF-8 byte, not the 8-bit CSI.
         assert_eq!(
             Parser::new().feed(b"\x9b2A"),
-            vec![Action::CSI(CSIAction::CursorUp(2))]
+            vec![
+                Action::Print('\u{FFFD}'),
+                Action::Print('2'),
+                Action::Print('A')
+            ]
         );
     }
 

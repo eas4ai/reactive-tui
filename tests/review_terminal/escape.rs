@@ -80,3 +80,36 @@ fn plt_006_the_public_parser_ends_its_strings_on_bel_and_st() {
         "PLT-006: a DCS string ended by ESC backslash and followed by X gave {actions:?}"
     );
 }
+
+/// PLT-005 (the adversary's finding 1): UTF-8 is decoded inside strings too,
+/// and a lone byte in 0x80..0x9F is an invalid UTF-8 byte, never a C1
+/// control introducer.
+#[test]
+fn plt_005_utf8_inside_strings_and_no_c1_controls() {
+    let actions = fed(b"\x1b]2;\xc3\x9b\x07X");
+    assert_eq!(
+        actions,
+        vec![
+            Action::OSC(OSCAction::SetTitle("Û".to_string())),
+            Action::Print('X')
+        ],
+        "PLT-005: a title holding Û (C3 9B) followed by X gave {actions:?}"
+    );
+
+    let actions = fed(b"\x9b2A");
+    assert_eq!(
+        actions,
+        vec![
+            Action::Print('\u{FFFD}'),
+            Action::Print('2'),
+            Action::Print('A')
+        ],
+        "PLT-005: a lone 0x9B followed by 2A gave {actions:?}"
+    );
+
+    let actions = fed(b"\x1bPq\xc3\xa9\x1b\\X");
+    assert!(
+        matches!(actions.as_slice(), [Action::DCS(payload), Action::Print('X')] if payload.ends_with("é".as_bytes())),
+        "PLT-005: a DCS payload holding é gave {actions:?}"
+    );
+}

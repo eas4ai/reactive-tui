@@ -64,9 +64,12 @@ This file records user-visible changes to Reactive TUI. The project follows
   linearized by the sRGB transfer function before their relative luminance
   is taken; gray 0.4 against black is 3.66, not 9 (PLT-010).
 - The public escape parser (`reactive_tui::escape::Parser`) decodes its input
-  as UTF-8, whole or split across `feed` calls, prints U+FFFD for an invalid
-  sequence and never takes a continuation byte for a C1 control; a
-  standalone byte in 0x80..0x9F keeps its 8-bit control meaning (PLT-005).
+  as UTF-8 in every state, whole or split across `feed` calls: a character
+  inside an OSC or DCS string joins the string, an invalid byte prints as
+  U+FFFD, and no byte at or above 0x80 starts a control sequence any more.
+  The parser has no 8-bit C1 controls (0x9B as CSI, 0x9C as ST and the
+  others), which cannot be told from UTF-8 continuation bytes; strings end
+  on BEL or `ESC \` (PLT-005).
 - The same parser ends an OSC string on BEL and on `ESC \`, a DCS, SOS, PM
   or APC string on `ESC \` (the two bytes may arrive in separate calls),
   dispatches the string's action and prints the text that follows; an ESC
