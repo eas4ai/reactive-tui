@@ -9,8 +9,9 @@ This file records user-visible changes to Reactive TUI. The project follows
   before its first frame and ends the exchange with a device-attributes
   query, as it does on Unix: an application that sets no theme starts with
   the light preset on a light Windows Terminal. The exchange waits at most
-  200 ms, the reply never reaches the App as keys, and keys typed meanwhile
-  arrive in order. In the crossterm copy, `terminal::query_startup` and
+  200 ms, the reply never reaches the App as keys, also when it arrives
+  after the wait (it is then consumed and not used), and keys typed
+  meanwhile arrive in order. In the crossterm copy, `terminal::query_startup` and
   `StartupReplies` exist on Windows too; the Windows exchange asks no
   keyboard-protocol or graphics question and sets only the background color
   (docs/spec/input.md, INP-013).
