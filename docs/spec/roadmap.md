@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: review-native-findings
+Current: review-terminal-findings
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1505,3 +1505,61 @@ changelog names what changed for an application: reversal, timelines, loop
 callbacks and `auto_reverse`, stale cleanup, generated ids, the removed
 drivers, stagger delays, the spring's velocity and easing, the editor's
 highlighting, the highlighter's reuse and limits, and Markdown tables.
+
+## review-terminal-findings
+
+Requirements: PLT-001, PLT-002, PLT-003, PLT-004, PLT-005, PLT-006, PLT-007, PLT-008, PLT-009, PLT-010, PLT-011, PLT-012, PLT-013, PLT-014, PLT-015, PLT-016, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The fourth commitment cut from the next-feature item
+review-2026-10-04-remediation (2e1476c7), the developer's production code
+review of 2026-10-04 over the tree at 65e618ec. On 2026-10-05 the developer
+chose its terminal and platform findings, T02 to T17, four of them risks,
+as the next commitment, ranking them above the waiting backlog item
+windows-startup-queries, which follows this commitment (escalation
+0d8bb098), and confirmed the sixteen requirements with the choices they
+carry: a lone Escape becomes the Escape key after 50 ms of silence; a paste
+is one event bounded at 1 MiB; the startup exchange's pending state ends
+with the exchange and a late reply is consumed, not shown as keys; native
+sessions on one terminal share its mode rather than refusing a second
+session; a stopped Tokio event loop starts again; the Tokio loop reads the
+terminal through its own file description; graphics startup forwards the
+process's stderr through a filtered pipe rather than silencing it or
+letting the driver's warning onto the screen; the public escape parser is
+fixed, not removed; a wide glyph without room is not placed. Each finding
+was checked against the code at 34b7958b before the requirements were
+drafted and holds: T02 a lone Escape stays pending (PLT-001); T03 a paste
+becomes keys (PLT-002); T07 the startup probe swallows typed keys
+(PLT-003); T15 the startup exchange's pending flag never clears (PLT-004);
+T05 the public parser casts UTF-8 bytes (PLT-005); T06 it mishandles BEL
+and `ESC \` (PLT-006); T04 the writer resets colors with attributes
+(PLT-007); T16 `diff_with_stats` skips the resize redraw (PLT-008); T17
+wide glyph overwrites leave half a glyph (PLT-009); T10 the WCAG contrast
+skips linearization (PLT-010); T08 the Tokio loop leaves stdin non-blocking
+(PLT-011); T11 a stopped Tokio loop cannot restart (PLT-012); T12 resize
+teardown clears a new owner's callback (PLT-013); T13 independent sessions
+restore each other's terminal state (PLT-014); T09 frame-rate targets leave
+their bounds (PLT-015); T14 graphics startup discards stderr (PLT-016).
+
+Delivered here: the direct TTY backend delivers Escape, pastes and the keys
+typed at startup as they are and takes the environment's word when the
+terminal says nothing; the default backend's startup exchange releases what
+it held when it ends; the public escape parser decodes UTF-8 and ends its
+strings; the legacy writer keeps its colors, its diff clears on resize, its
+grapheme surface keeps wide glyphs whole and its contrast ratio is WCAG's;
+the Tokio event loop leaves stdin alone and starts again after a stop; the
+resize dispatcher and the terminal's mode have one owner at a time; the
+frame-rate manager keeps its bounds; and graphics startup keeps the
+process's stderr. The review-terminal mechanism (scripts/cairn/review_terminal.py,
+tests/review_terminal.rs and unit tests named by requirement in the modules
+whose private parts they need, one of them on a pseudo-terminal) checks
+every new requirement on the Linux host. The review's other findings, the C
+facade (N14 to N20, N22) and the widgets (W03, W05 to W08), stay in the
+next-feature item for later commitments by subsystem.
+
+Done when every named requirement passes; review-terminal has recorded a
+fail on the tree as it was at the start for each new requirement; and the
+changelog names what changed for an application: the Escape deadline, paste
+events, the startup probe and exchange, the public escape parser, the
+writer's colors, `diff_with_stats`, wide glyphs, the contrast ratio, the
+Tokio loop's stdin and restart, resize callbacks, terminal-mode ownership,
+frame-rate bounds and graphics startup's stderr.

@@ -71,6 +71,7 @@ component library as closely as a cell grid allows.
 | styles.md | STY | class variants that apply only while their condition holds, `display: none` in `css!`, `aspect-auto`, what the `css!` documentation promises |
 | animation.md | ANI | the animation module an application drives or hands to its App: an animation reversed keeps playing, timelines complete when their animations do, loop callbacks and `auto_reverse` run, stale cleanup keeps what is advancing, unique generated ids, no alternate drivers, stagger delays that cannot overflow, a spring's velocity and a spring easing that reaches its target |
 | text.md | TXT | the syntax editor painting with the whole document's context, the highlighter's cached reuse and byte limits, a Markdown table's separator and alignment |
+| platform.md | PLT | the direct TTY backend's Escape, paste and startup probe, the default backend's startup exchange ending, the public escape parser's UTF-8 and string endings, the legacy writer and surfaces, the WCAG contrast, the Tokio loop's stdin and restart, resize-dispatcher and terminal-mode ownership, frame-rate bounds, graphics startup's stderr |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
 
@@ -81,7 +82,10 @@ becomes a domain file when a commitment reaches it. Until then, nothing here
 is contract.
 
 - Application loop, terminal restoration on panic and signals (src/app.rs,
-  src/backend other than presentation). Orphaned runners for panic and signal fixtures,
+  src/backend other than presentation), other than platform.md's
+  requirements on the direct TTY backend, the platform layer's input paths
+  and event loops, the native sessions' terminal-mode ownership and the
+  frame-rate bounds. Orphaned runners for panic and signal fixtures,
   docs/recon.md section 8.
 - Components, elements, hooks, the single-threaded signal, scheduler, wake
   (src/component, src/reactive), other than reactive.md's thread-safe signal,
@@ -99,7 +103,10 @@ is contract.
   controls, the layout widgets and the data widgets (src/widgets): the
   images and the embedded terminal.
 - Image protocols and terminal capability detection (src/widgets/display/image
-  other than fallback, src/core/capabilities).
+  other than fallback, src/core/capabilities), other than platform.md's
+  startup probe of the direct backend and startup exchange of the default
+  backend, and the public escape parser (src/escape) and the legacy output
+  types of src/core other than platform.md's requirements.
 - Embedded terminal and PTY other than terminal.md's stop of a child, Windows
   ConPTY (src/embedded, src/terminal).
 - Accessibility (src/accessibility).
