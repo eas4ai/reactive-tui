@@ -53,7 +53,7 @@ component library as closely as a cell grid allows.
 | rasterizer.md | RAS | the SuprTUI rasterizer: cursor and style elision, allocation-free emission, replay equivalence, byte and time bounds |
 | painter.md | PNT | the frame painter's fast path, the per-cell hit grid, one element copy per present, layout reuse, an element's explicit cells at its own opacity |
 | presentation.md | PIP | pipelined presentation: geometry returned before the terminal write, one frame in flight, flush failure reporting |
-| input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging, the Kitty keyboard protocol, lock and media keys, terminal focus reports, suspend and resume, startup queries; console input on Windows through the direct TTY backend |
+| input.md | INP | terminal input on the default backend: mouse and paste modes, event translation, drag capture, clicks, wheel routing, motion merging, the Kitty keyboard protocol, lock and media keys, terminal focus reports, suspend and resume, startup queries on Unix and on Windows; console input on Windows through the direct TTY backend |
 | blitters.md | BLT | image fallback to block glyphs: half, quadrant, sextant, octant and braille blitters and their tier choice |
 | layout.md | LAY | gaps, grid tracks and spans in whole cells, the spacing classes' unit, the gap and grid classes, layout that settles |
 | theme.md | THM | the theme's color roles, their contrast, what a theme that lacks a role gets, and a change of theme |

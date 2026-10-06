@@ -69,6 +69,18 @@ Observed for keyboard-and-queries at 059bb9a6, by reading:
   ~/workspace2/textual-rs/src/driver/live.rs,
   ~/workspace2/textual-rs/src/driver/typeahead.rs).
 
+Observed on 2026-10-06 on the Windows test tablet (Windows 11 build 26200,
+the pinned ConPTY runtime 1.24), by a program run as a pseudo console's
+child: the pseudo console forwards the child's `OSC 11 ; ?` (ended by ST or
+BEL), `CSI c` and `CSI ? u` to its terminal unchanged, and hands the child
+the terminal's reply as one key-down record per character, each with
+virtual-key code 0 and scan code 0, in raw mode and with virtual-terminal
+input alike; keys typed on the terminal side arrive with their virtual-key
+codes (`x` as 0x58, Enter as 0x0D, Up as 0x26, Tab as 0x09). The crossterm
+copy's Windows parser drops a record with virtual-key code 0 whose character
+is a control character, so a reply's Escape was lost and the rest of the
+reply read as typed characters.
+
 ## Observed
 
 (none yet)
@@ -136,3 +148,9 @@ Falsifier: On the Windows test tablet, an App on `DirectTtyBackend` running in a
 Mechanism: review-high
 Rationale: The reader returned before its first read whenever the timeout was zero, and the App's polling loop polls with a zero timeout, so no key, click or focus change reached an App on this backend (the developer's code review of 2026-10-04, T01).
 Status: Agreed 2026-10-04
+
+[INP-013] On Windows, before its first frame the default backend MUST ask the terminal for its background color and end with a device-attributes query, and MUST wait for the replies at most 200 ms; no reply character MAY reach the App as an event, every key typed meanwhile MUST reach it in order, and when the application has set no theme the backend MUST make the light preset active for a background whose relative luminance is above 0.5 and keep the dark preset otherwise.
+Falsifier: On the Windows test tablet, in a pseudo console (ConPTY) whose terminal side answers the background query with `rgb:ffff/ffff/ffff`, an App on the default backend paints its first frame with the dark preset; with `rgb:0000/0000/0000`, or with an application theme set, the active theme changes; a reply character reaches the App as a key; keys typed before the replies arrive late, out of order or not at all; or, with no reply at all, the first frame comes more than 400 ms after the queries were written.
+Mechanism: startup-windows
+Rationale: The default backend asked the terminal nothing on Windows, so an App on a light Windows Terminal started with the dark preset (backlog item windows-startup-queries, 2026-09-27). A pseudo console forwards the questions to its terminal and hands the child the reply as one console record per character with no key code, which the crossterm copy's Windows parser read as typed characters and whose Escape it dropped; the copy now collects those records into the reply while the exchange is pending and gives every other record back as the key it is.
+Status: Agreed 2026-10-06

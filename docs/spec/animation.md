@@ -14,8 +14,9 @@ delays (src/animation/stagger.rs), the spring physics (src/animation/spring.rs,
 whose `step` the `use_spring` hook uses and whose analytic position and
 velocity the `EasingFunction::Spring` easing uses, src/animation/easing.rs),
 and two alternate drivers nothing in the crate uses: the optimized batch,
-its interpolation cache and metrics (src/animation/performance.rs) and the
-lock-free state (src/animation/lock_free.rs). The hook animations
+its interpolation cache and metrics (the `animation::performance` module) and
+the lock-free state (the `animation::lock_free` module), both removed by
+ANI-006. The hook animations
 (`use_animation`, `use_spring`, `use_stagger`) have their own frame driver,
 covered by reactive.md.
 
@@ -72,10 +73,10 @@ Rationale: `Animation::new` named the animation after the elapsed millisecond, s
 Status: Agreed 2026-10-05
 
 [ANI-006] The crate MUST NOT ship the alternate drivers `animation::performance` (`AnimationBatch`, `BatchedUpdate`, `CacheStats`, `InterpolationCache`, `OptimizationLevel`, `OptimizedAnimationManager`, `PerformanceMetrics`, `PerformanceReport`) and `animation::lock_free` (`LockFreeAnimationState`, `LockFreeAnimationUpdater`): animations are driven by `Animation::update`, `AnimationTimeline` and `AnimationManager`, and the changelog MUST name the removal and the names that went.
-Falsifier: src/animation/performance.rs or src/animation/lock_free.rs exists, `reactive_tui::animation` exports one of those names, or CHANGELOG.md does not record their removal.
+Falsifier: A source file for the module `animation::performance` or `animation::lock_free` exists in the animation module's directory, `reactive_tui::animation` exports one of those names, or CHANGELOG.md does not record their removal.
 Mechanism: review-native
 Rationale: The optimized batch returned progress for an opacity and the destination for a transform, the interpolation cache answered for other endpoints, and the lock-free state lost concurrent updates and could not finish a loop count above 255; nothing in the crate, the C interface or the manual used them (N08, N09, N10).
-Status: Agreed 2026-10-05
+Status: Agreed 2026-10-06
 
 [ANI-007] Every stagger delay MUST be a finite, non-negative duration for any grid up to 32,767 cells a side and any element position within `i16`: distances are computed in a type that cannot overflow, and an eased or ranged delay that is negative or not finite is clamped to zero.
 Falsifier: `StaggerBuilder::new(100).from(StaggerOrigin::Position(0, 0)).grid(200, 1).build().calculate_grid_delays(200, 1)` panics, returns fewer than 200 delays, or gives element 182 a delay other than 1.82 s (within 10 ms); `stagger_from_position(100, 0, 0).calculate_delays(1, &[(182, 0)])` panics; or a stagger built with `range(-1.0, -1.0)` panics in `calculate_delays`.

@@ -132,8 +132,8 @@ Mechanism: review-terminal
 Rationale: `with_config` and the Auto branch stored the mode's fixed target without clamping, and a later reduction called `clamp` with the minimum above the target, which panics (T09).
 Status: Agreed 2026-10-05
 
-[PLT-016] Graphics initialization MUST not discard the process's standard error: while a hybrid renderer starts, output other threads write to descriptor 2 MUST reach the terminal (or wherever descriptor 2 points) in order, at the latest when initialization ends; the driver's conformance warning MUST be kept off the terminal by a targeted means (the driver's own switch when it is unset, and a filter on the lines the driver prints), and the manual MUST say what is filtered.
+[PLT-016] Graphics initialization MUST not discard the process's standard error: while a hybrid renderer starts, output other threads write to descriptor 2 MUST reach the terminal (or wherever descriptor 2 points) in order, at the latest when initialization ends; the driver's conformance warning MUST be kept off the terminal by a targeted means (a filter on the lines the driver prints), and the manual MUST say what is filtered.
 Falsifier: With descriptor 2 pointing at the slave of a pseudo-terminal pair, a marker line written to descriptor 2 by another thread while the guard is held is not read from the master once the guard is released; a line that is not the driver's conformance warning is dropped; or manual/wgpu-graphics.md still says that stderr goes nowhere or that another thread's writes are lost, or does not quote the driver line that is filtered (`not a conformant Vulkan implementation`).
 Mechanism: review-terminal
 Rationale: `QuietTerminalStderr` put /dev/null over descriptor 2 for the whole of `HybridRenderer::new`, whose GPU waits run up to five seconds each, so any diagnostic another thread wrote in that time was lost (T14).
-Status: Agreed 2026-10-05
+Status: Agreed 2026-10-06

@@ -81,9 +81,10 @@ EXTERNAL = {
 # Agreed text names what may not exist, and a started commitment's text is
 # frozen. Code and tests build such a path in parts instead. Each entry gives
 # the requirement; the paths are written in parts for the same reason.
-FORBIDDEN = {
-    ("docs/spec/animation.md", "/".join(("src", "animation", name))): "ANI-006 requires its absence"
-    for name in ("performance.rs", "lock_free.rs")
+FORBIDDEN: dict[tuple[str, str], str] = {
+    # (specification file, path) -> the requirement that forbids the path.
+    # Empty since the animation specification names its removed drivers as
+    # modules (ANI-006, reworded 2026-10-06).
 }
 # Installed at build time, never tracked.
 INSTALLED = "/node_modules/"
@@ -231,7 +232,7 @@ def former_directories(tracked: set[str]) -> set[str]:
     return {d for d in found if d and d not in (".", "..")}
 
 
-def path_pattern(tracked: set[str], former: set[str] = frozenset()) -> re.Pattern:
+def path_pattern(tracked: set[str], former: set[str] | frozenset[str] = frozenset()) -> re.Pattern:
     """A path under any top-level directory the tree has or once had; the
     leading ./ and ../ segments are captured, so a link of the wrong depth
     is caught."""

@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: review-terminal-findings
+Current: windows-startup-queries
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1563,3 +1563,51 @@ events, the startup probe and exchange, the public escape parser, the
 writer's colors, `diff_with_stats`, wide glyphs, the contrast ratio, the
 Tokio loop's stdin and restart, resize callbacks, terminal-mode ownership,
 frame-rate bounds and graphics startup's stderr.
+
+## windows-startup-queries
+
+Requirements: INP-013, BAR-001, BAR-002, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+Promoted from the backlog item windows-startup-queries (1947687f), which
+keyboard-and-queries left waiting on 2026-09-27 with the developer's ok and
+which the developer ranked next on 2026-10-05, after the review's terminal
+findings. INP-011 asks the terminal for its background color on Unix only,
+so an App on the default backend on a light Windows Terminal started with
+the dark preset. On 2026-10-06 a program run as a pseudo console's child on
+the Windows test tablet showed the way: the pseudo console forwards the
+child's background and device-attributes questions to its terminal
+unchanged and hands the child the reply as one console input record per
+character with no key code, while typed keys arrive with their key codes;
+the crossterm copy's Windows parser read such a reply as typed characters
+and dropped its Escape. The developer confirmed INP-013 the same day with
+its choices: only the background color is asked on Windows, no
+keyboard-protocol or graphics question, and the device-attributes reply
+only ends the exchange (its Sixel attribute is not read on Windows, GFX-006
+being a Unix requirement); the contract test runs on the Windows test
+tablet in a pseudo console and is recorded unverified when the tablet
+cannot be reached.
+
+Delivered here: the crossterm copy's Windows terminal module gains the
+startup exchange the Unix one has, `query_startup` and `StartupReplies`,
+which writes `OSC 11 ; ?` and `CSI c`, collects the no-key-code records
+that form a reply while the exchange is pending, ends on the
+device-attributes reply or after 200 ms, and gives every other record back
+as the key it is, in order; the default backend calls the same function on
+both systems and loses its Windows-only stub that answered nothing; the
+copy's patch record names the Windows change; the startup-windows
+mechanism (scripts/cairn/startup_windows.py) ships tests/startup_windows.rs
+to the Windows test tablet over SSH through the test host file, where a
+pseudo console answers an App's questions as a light terminal, a dark one,
+a silent one, and one whose user types while the replies are due; and the
+changelog says what changes for an application started in Windows Terminal.
+
+In the same spec phase the developer confirmed two rewordings of Agreed
+text: PLT-016 no longer names the driver's own switch, which the developer
+ruled out on 2026-10-05, and the animation specification names the removed
+drivers as modules rather than file paths, so the dangling-paths exemption
+table is empty again.
+
+Done when every named requirement passes; startup-windows has recorded a
+fail on the tree as it was at the start, on the Windows test tablet; and
+the changelog names the startup exchange on Windows for an application
+started in Windows Terminal.
