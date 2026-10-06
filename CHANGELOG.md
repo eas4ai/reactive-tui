@@ -81,8 +81,9 @@ This file records user-visible changes to Reactive TUI. The project follows
   no longer panic on a reversed interval (PLT-015).
 - Graphics startup no longer discards the process's stderr. While a hybrid
   renderer initializes and stderr is a terminal, stderr passes through a
-  pipe: every line is forwarded to the terminal in order except the Vulkan
-  driver's `WARNING: ... not a conformant Vulkan implementation` line, and
+  pipe: every line is forwarded to the terminal in order except the one a
+  Mesa Vulkan driver prints about itself, exactly `WARNING: <driver> is not
+  a conformant Vulkan implementation, testing use only.`, and
   `MESA_VK_IGNORE_CONFORMANCE_WARNING=true` is set when the host left it
   unset. The manual's graphics chapter says so (PLT-016).
 - `Animation::reverse` keeps a playing animation playing: it turns around

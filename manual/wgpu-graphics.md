@@ -263,8 +263,10 @@ every picture of the software renderer, so the canvas shows its message.
 While the thread makes its renderer and the process's stderr is the
 terminal, stderr passes through a pipe. Lines other than the driver's
 warning are forwarded to the saved terminal in order. The filter drops
-only the driver's `WARNING:` line containing Mesa's `radv` text and
-`not a conformant Vulkan implementation`. Before initialization,
+only the line a Mesa Vulkan driver prints about itself, exactly
+`WARNING: <driver> is not a conformant Vulkan implementation, testing use
+only.` (radv, lavapipe and the others); a diagnostic of yours that quotes
+those words passes. Before initialization,
 `MESA_VK_IGNORE_CONFORMANCE_WARNING=true` is set when unset, using Mesa's
 own switch. A stderr that is a file or a pipe keeps its output directly.
 A thread started before the App, as the catalog does, prints before the
