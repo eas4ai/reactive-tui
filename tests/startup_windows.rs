@@ -186,13 +186,14 @@ mod windows {
             if painted_after.is_none() && contains(&bytes, PROBE.as_bytes()) {
                 painted_after = Some(start.elapsed());
             }
-            if painted_after.is_some() && !quit_sent {
-                // The keys typed around the replies come first; a short wait
-                // lets the App log them before the quit key ends it.
-                if start.elapsed() >= painted_after.unwrap() + Duration::from_millis(300) {
-                    pty.write_input(b"q").expect("the quit key");
-                    quit_sent = true;
-                }
+            // The keys typed around the replies come first; a short wait
+            // after the first frame lets the App log them before the quit
+            // key ends it.
+            let settled =
+                |painted: Duration| start.elapsed() >= painted + Duration::from_millis(300);
+            if !quit_sent && painted_after.is_some_and(settled) {
+                pty.write_input(b"q").expect("the quit key");
+                quit_sent = true;
             }
             ended = pty.try_wait().expect("the child's status");
             if ended.is_some() {

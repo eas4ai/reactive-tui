@@ -1514,9 +1514,12 @@ fn inp_011_a_dark_terminal_and_an_application_theme_keep_theirs() {
 
 #[test]
 fn inp_011_replies_are_not_keys_and_typed_keys_keep_their_order() {
+    // The replies come after the keys typed below, and well inside the
+    // backend's 200 ms wait on a slow host too: at 150 ms the macOS CI
+    // runner let them arrive late, and they reached the App as keys.
     let terminal = Terminal {
         background: Some(WHITE),
-        hold: Duration::from_millis(150),
+        hold: Duration::from_millis(50),
         ..Terminal::KITTY
     };
     let mut session = Session::spawn("theme", terminal);
