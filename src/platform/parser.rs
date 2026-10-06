@@ -14,6 +14,22 @@ pub(super) const INPUT_DEADLINE: Duration = Duration::from_millis(50);
 pub const MAX_PASTE_BYTES: usize = 1024 * 1024;
 const PASTE_END: &[u8] = b"\x1b[201~";
 
+/// The text of a paste: its bytes as UTF-8 with invalid sequences replaced,
+/// cut at a character boundary so the text itself stays within
+/// `MAX_PASTE_BYTES` (PLT-002), since a replacement is longer than the byte
+/// it stands for.
+fn paste_text(bytes: &[u8]) -> String {
+    let mut text = String::from_utf8_lossy(bytes).into_owned();
+    if text.len() > MAX_PASTE_BYTES {
+        let mut end = MAX_PASTE_BYTES;
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        text.truncate(end);
+    }
+    text
+}
+
 /// Key state for compatibility
 #[derive(Debug, Clone, Default)]
 pub struct KeyState;
@@ -149,9 +165,7 @@ impl EscapeSequenceParser {
             let available = MAX_PASTE_BYTES - paste.len();
             paste.extend(self.paste_end.drain(..).take(available));
             self.paste_end.clear();
-            return vec![TerminalEvent::Paste(
-                String::from_utf8_lossy(&paste).into_owned(),
-            )];
+            return vec![TerminalEvent::Paste(paste_text(&paste))];
         }
         if self.pending_escape() {
             self.pending.clear();
@@ -196,9 +210,7 @@ impl EscapeSequenceParser {
                 let paste = self.paste.take().unwrap();
                 self.paste_end.clear();
                 return ParseResult {
-                    event: Some(TerminalEvent::Paste(
-                        String::from_utf8_lossy(&paste).into_owned(),
-                    )),
+                    event: Some(TerminalEvent::Paste(paste_text(&paste))),
                     n: offset + 1,
                 };
             }
