@@ -32,6 +32,13 @@ impl Run {
 /// pseudo-terminal of 80 by 24 cells with `env` set, waits for it to exit,
 /// and returns its status and output.
 pub fn run_test(test: &str, env: &[(&str, &str)]) -> Run {
+    run_test_with_input(test, env, &[])
+}
+
+/// [`run_test`], with the terminal side typing `input`: each chunk is written
+/// to the pseudo-terminal's master once its delay since the copy started has
+/// passed, in order.
+pub fn run_test_with_input(test: &str, env: &[(&str, &str)], input: &[(Duration, &[u8])]) -> Run {
     let (master, slave) = open_pty().expect("a pseudo-terminal");
     let mut command = Command::new(std::env::current_exe().expect("the test binary's path"));
     command
@@ -70,7 +77,15 @@ pub fn run_test(test: &str, env: &[(&str, &str)]) -> Run {
     let mut output = Vec::new();
     let mut buffer = [0; 8192];
     let started = Instant::now();
+    let mut typed = 0;
     let status = loop {
+        while typed < input.len() && started.elapsed() >= input[typed].0 {
+            use std::io::Write;
+            master
+                .write_all(input[typed].1)
+                .expect("typing on the pseudo-terminal");
+            typed += 1;
+        }
         loop {
             match master.read(&mut buffer) {
                 Ok(0) => break,
