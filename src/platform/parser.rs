@@ -6,6 +6,14 @@ use super::{
     ColorScheme, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind, TerminalEvent,
 };
 
+use std::time::{Duration, Instant};
+
+// PLT-001/PLT-002: every reader shares the quiet-input deadline.
+pub(super) const INPUT_DEADLINE: Duration = Duration::from_millis(50);
+/// Maximum retained payload of one bracketed paste (PLT-002).
+pub const MAX_PASTE_BYTES: usize = 1024 * 1024;
+const PASTE_END: &[u8] = b"\x1b[201~";
+
 /// Key state for compatibility
 #[derive(Debug, Clone, Default)]
 pub struct KeyState;
@@ -53,33 +61,41 @@ pub enum ParserState {
 }
 
 /// Escape sequence parser with comprehensive terminal support
+#[derive(Default)]
 pub struct EscapeSequenceParser {
     pending: Vec<u8>,
+    paste: Option<Vec<u8>>,
+    paste_end: Vec<u8>,
+    pending_since: Option<Instant>,
+    queued: Vec<TerminalEvent>,
 }
 
 impl EscapeSequenceParser {
     /// Create a new parser
     pub fn new() -> Self {
-        Self {
-            pending: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Parse input bytes and return terminal events
     pub fn parse(&mut self, input: &[u8]) -> Vec<TerminalEvent> {
-        const MAX_PENDING: usize = 4096;
-        if self.pending.len().saturating_add(input.len()) > MAX_PENDING {
-            self.pending.clear();
-            return vec![TerminalEvent::Error(format!(
-                "terminal input sequence exceeds the {MAX_PENDING}-byte parser limit"
-            ))];
+        let mut events = std::mem::take(&mut self.queued);
+        if self.pending_timeout() == Some(Duration::ZERO) {
+            events.extend(self.flush_pending());
         }
         let mut pending = std::mem::take(&mut self.pending);
         pending.extend_from_slice(input);
-        let mut events = Vec::new();
         let mut offset = 0;
 
         while offset < pending.len() {
+            // PLT-002: paste bytes never enter the ordinary sequence buffer.
+            if self.paste.is_some() {
+                let result = self.parse_paste(&pending[offset..]);
+                offset += result.n;
+                if let Some(event) = result.event {
+                    events.push(event);
+                }
+                continue;
+            }
             let remaining = &pending[offset..];
             if remaining == [0x1b] {
                 break;
@@ -97,13 +113,47 @@ impl EscapeSequenceParser {
 
             offset += result.n;
         }
-        self.pending.extend_from_slice(&pending[offset..]);
+        if let Some(error) = self.retain_pending(&pending[offset..], !input.is_empty()) {
+            events.push(error);
+        }
         events
     }
 
-    /// Resolve an ambiguous lone Escape byte after the caller's input timeout.
+    fn retain_pending(&mut self, remaining: &[u8], received_input: bool) -> Option<TerminalEvent> {
+        const MAX_PENDING: usize = 4096;
+        self.pending.extend_from_slice(remaining);
+        let error = if self.pending.len() > MAX_PENDING {
+            self.pending.clear();
+            Some(TerminalEvent::Error(format!(
+                "terminal input sequence exceeds the {MAX_PENDING}-byte parser limit"
+            )))
+        } else {
+            None
+        };
+        self.pending_since = if self.pending_escape() || self.paste.is_some() {
+            if !received_input {
+                self.pending_since
+            } else {
+                Some(Instant::now())
+            }
+        } else {
+            None
+        };
+        error
+    }
+
+    /// Resolve a lone Escape or interrupted paste after the quiet-input deadline.
     pub fn flush_pending(&mut self) -> Vec<TerminalEvent> {
-        if self.pending == [0x1b] {
+        self.pending_since = None;
+        if let Some(mut paste) = self.paste.take() {
+            let available = MAX_PASTE_BYTES - paste.len();
+            paste.extend(self.paste_end.drain(..).take(available));
+            self.paste_end.clear();
+            return vec![TerminalEvent::Paste(
+                String::from_utf8_lossy(&paste).into_owned(),
+            )];
+        }
+        if self.pending_escape() {
             self.pending.clear();
             vec![TerminalEvent::Key {
                 code: KeyCode::Escape,
@@ -112,6 +162,50 @@ impl EscapeSequenceParser {
             }]
         } else {
             Vec::new()
+        }
+    }
+
+    /// Whether a lone Escape awaits another byte.
+    pub fn pending_escape(&self) -> bool {
+        self.pending == [0x1b]
+    }
+
+    pub(super) fn pending_timeout(&self) -> Option<Duration> {
+        self.pending_since
+            .map(|since| INPUT_DEADLINE.saturating_sub(since.elapsed()))
+    }
+
+    // PLT-003: retain events parsed during the startup exchange.
+    #[cfg(unix)]
+    pub(super) fn queue_input(&mut self, input: &[u8]) {
+        let events = self.parse(input);
+        self.queued.extend(events);
+    }
+
+    fn parse_paste(&mut self, input: &[u8]) -> ParseResult {
+        for (offset, byte) in input.iter().enumerate() {
+            self.paste_end.push(*byte);
+            let paste = self.paste.as_mut().expect("paste in progress");
+            while !PASTE_END.starts_with(&self.paste_end) {
+                if paste.len() < MAX_PASTE_BYTES {
+                    paste.push(self.paste_end[0]);
+                }
+                self.paste_end.remove(0);
+            }
+            if self.paste_end == PASTE_END {
+                let paste = self.paste.take().unwrap();
+                self.paste_end.clear();
+                return ParseResult {
+                    event: Some(TerminalEvent::Paste(
+                        String::from_utf8_lossy(&paste).into_owned(),
+                    )),
+                    n: offset + 1,
+                };
+            }
+        }
+        ParseResult {
+            event: None,
+            n: input.len(),
         }
     }
 
@@ -682,8 +776,12 @@ impl EscapeSequenceParser {
             21 => KeyCode::F(10),
             23 => KeyCode::F(11),
             24 => KeyCode::F(12),
-            200 => return Some(TerminalEvent::PasteStart),
-            201 => return Some(TerminalEvent::PasteEnd),
+            // PLT-002: delimiters change paste state without becoming events.
+            200 => {
+                self.paste = Some(Vec::new());
+                return None;
+            }
+            201 => return None,
             57427 => KeyCode::Char('5'), // KP_BEGIN
             _ => return None,
         };
@@ -1011,12 +1109,6 @@ impl EscapeSequenceParser {
     }
 }
 
-impl Default for EscapeSequenceParser {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1028,6 +1120,43 @@ mod tests {
 
         let default_parser = EscapeSequenceParser::default();
         assert!(default_parser.pending.is_empty());
+    }
+
+    #[test]
+    fn paste_is_bounded_and_keeps_split_delimiters_and_invalid_utf8() {
+        let mut parser = EscapeSequenceParser::new();
+        assert!(parser.parse(b"\x1b[200~\xff\r\x1b[20").is_empty());
+        let events = parser.parse(b"1~x");
+        assert!(
+            matches!(events.as_slice(), [TerminalEvent::Paste(text), TerminalEvent::Key { code: KeyCode::Char('x'), .. }] if text == "\u{fffd}\r")
+        );
+
+        let mut parser = EscapeSequenceParser::new();
+        assert!(parser.parse(b"\x1b[200~").is_empty());
+        assert!(parser.parse(&vec![b'a'; MAX_PASTE_BYTES + 100]).is_empty());
+        assert_eq!(parser.paste.as_ref().unwrap().len(), MAX_PASTE_BYTES);
+        assert!(parser.pending.is_empty());
+        let events = parser.parse(b"\x1b[201~");
+        assert!(
+            matches!(events.as_slice(), [TerminalEvent::Paste(text)] if text.len() == MAX_PASTE_BYTES && text.bytes().all(|b| b == b'a'))
+        );
+    }
+
+    #[test]
+    fn quiet_deadline_releases_partial_paste_and_separates_late_keys() {
+        let mut parser = EscapeSequenceParser::new();
+        assert!(parser.parse(b"\x1b[200~a\r\x1b[20").is_empty());
+        parser.pending_since = Some(Instant::now() - INPUT_DEADLINE);
+        let events = parser.parse(&[]);
+        assert!(matches!(events.as_slice(), [TerminalEvent::Paste(text)] if text == "a\r\x1b[20"));
+        assert!(parser.pending_timeout().is_none());
+
+        assert!(parser.parse(b"\x1b").is_empty());
+        parser.pending_since = Some(Instant::now() - INPUT_DEADLINE);
+        let events = parser.parse(b"a");
+        assert!(
+            matches!(events.as_slice(), [TerminalEvent::Key { code: KeyCode::Escape, .. }, TerminalEvent::Key { code: KeyCode::Char('a'), modifiers, .. }] if !modifiers.alt)
+        );
     }
 
     /// CHT-028: the mode 2027 reply reaches the charts' glyph report; a

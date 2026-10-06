@@ -100,15 +100,10 @@ mod tty_tests {
             }
         }
 
-        // Test paste events
-        let events = parser.parse(b"\x1b[200~"); // Paste start
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            TerminalEvent::PasteStart => {}
-            other => {
-                panic!("Expected PasteStart event, got: {:?}", other);
-            }
-        }
+        // PLT-002: delimiters wait for one complete paste event.
+        assert!(parser.parse(b"\x1b[200~").is_empty());
+        let events = parser.parse(b"a\r\x1b[201~");
+        assert!(matches!(events.as_slice(), [TerminalEvent::Paste(text)] if text == "a\r"));
     }
 
     #[test]

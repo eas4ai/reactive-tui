@@ -221,13 +221,15 @@ pub enum TerminalEvent {
     /// Focus lost
     FocusLost,
 
-    /// Paste start (bracketed paste)
+    /// Paste start (bracketed paste). No longer produced: the parser
+    /// collects a bracketed paste into one `Paste` event (PLT-002).
     PasteStart,
 
-    /// Paste end (bracketed paste)
+    /// Paste end (bracketed paste). No longer produced, as `PasteStart`.
     PasteEnd,
 
-    /// Paste content
+    /// Paste content: a whole bracketed paste, with its line endings as
+    /// pasted, at most `parser::MAX_PASTE_BYTES` long.
     Paste(String),
 
     /// Terminal capability response
@@ -569,15 +571,18 @@ impl DirectTty {
     ) -> Result<Vec<TerminalEvent>> {
         #[cfg(unix)]
         {
-            let mut buffer = [0u8; 1024];
-            match self.inner.read(&mut buffer, timeout) {
-                Ok(n) if n > 0 => {
-                    let events = self.parser.parse(&buffer[..n]);
-                    Ok(events)
-                }
-                Ok(_) => Ok(vec![]), // No data
-                Err(e) => Err(e),
+            let events = self.parser.parse(&[]);
+            if !events.is_empty() {
+                return Ok(events);
             }
+            let timeout = match (timeout, self.parser.pending_timeout()) {
+                (Some(caller), Some(pending)) => Some(caller.min(pending)),
+                (None, pending @ Some(_)) => pending,
+                (caller, None) => caller,
+            };
+            let mut buffer = [0u8; 1024];
+            let count = self.inner.read(&mut buffer, timeout)?;
+            Ok(self.parser.parse(&buffer[..count]))
         }
 
         #[cfg(windows)]
@@ -591,7 +596,10 @@ impl DirectTty {
     #[cfg(unix)]
     pub fn start_async_events(&self) -> Result<InputReceiver<TerminalEvent>> {
         let mut parser = parser::EscapeSequenceParser::new();
-        self.inner.spawn_input(move |data| parser.parse(data))
+        self.inner.spawn_input(move |data| {
+            let events = parser.parse(data);
+            (events, parser.pending_timeout())
+        })
     }
 
     /// Write raw bytes to terminal
@@ -1221,30 +1229,26 @@ impl DirectTty {
 
     /// Detect terminal capabilities by sending queries
     fn detect_capabilities(&mut self) -> Result<()> {
-        // Windows reads console input records, so it cannot read the answers,
-        // and the console would deliver them as typed keys: it sends no query
-        // and detects from the environment below.
+        // PLT-003: replies override only the evidence they actually supply.
+        self.detect_from_environment();
         #[cfg(unix)]
-        let (buffer, total_read) = self.query_capabilities()?;
-        #[cfg(windows)]
-        let (buffer, total_read) = ([0u8; 0], 0);
-
-        if total_read > 0 {
-            let response = String::from_utf8_lossy(&buffer[..total_read]);
-            self.parse_capability_responses(&response);
-
-            // Debug: print what we received
-            #[cfg(debug_assertions)]
-            {
-                log::debug!(
-                    "Capability responses received ({} bytes): {:?}",
-                    total_read,
-                    response
-                );
+        {
+            let (buffer, total_read) = self.query_capabilities()?;
+            let input = &buffer[..total_read];
+            let mut ordinary = Vec::new();
+            let mut offset = 0;
+            while offset < input.len() {
+                if let Some(count) = Self::capability_reply_len(&input[offset..]) {
+                    self.parse_capability_responses(&String::from_utf8_lossy(
+                        &input[offset..offset + count],
+                    ));
+                    offset += count;
+                } else {
+                    ordinary.push(input[offset]);
+                    offset += 1;
+                }
             }
-        } else {
-            // Fallback to environment-based detection
-            self.detect_from_environment();
+            self.parser.queue_input(&ordinary);
         }
 
         Ok(())
@@ -1254,9 +1258,6 @@ impl DirectTty {
     #[cfg(unix)]
     fn query_capabilities(&mut self) -> Result<([u8; 8192], usize)> {
         use std::time::Duration;
-
-        // Temporarily set non-blocking for capability detection
-        self.inner.set_nonblocking(true)?;
 
         // Send every startup capability query, ten milliseconds apart.
         for query in sequences::STARTUP_QUERIES {
@@ -1275,11 +1276,7 @@ impl DirectTty {
         // Wait for responses to arrive
         std::thread::sleep(Duration::from_millis(50));
 
-        let answers = self.read_capability_responses();
-
-        // Restore blocking mode
-        self.inner.set_nonblocking(false)?;
-        Ok(answers)
+        Ok(self.read_capability_responses())
     }
 
     /// The answers to the capability queries, read for up to 200 ms and
@@ -1321,7 +1318,82 @@ impl DirectTty {
         (buffer, total_read)
     }
 
+    // Recognize complete replies; unrelated bytes stay ordinary input (PLT-003).
+    #[cfg(unix)]
+    fn capability_reply_len(input: &[u8]) -> Option<usize> {
+        Self::capability_csi_reply_len(input)
+            .or_else(|| Self::capability_graphics_reply_len(input))
+            .or_else(|| Self::capability_color_reply_len(input))
+    }
+
+    #[cfg(unix)]
+    fn capability_csi_reply_len(input: &[u8]) -> Option<usize> {
+        if input.starts_with(b"\x1b[?") || input.starts_with(b"\x1b[>") {
+            let end = input[3..]
+                .iter()
+                .position(|byte| (0x40..=0x7e).contains(byte))?
+                + 3;
+            let body = &input[3..end];
+            let numeric = |bytes: &[u8]| {
+                bytes
+                    .split(|b| *b == b';')
+                    .all(|field| !field.is_empty() && field.iter().all(u8::is_ascii_digit))
+            };
+            if (input[end] == b'c' && numeric(body))
+                || (input[2] == b'?'
+                    && input[end] == b'y'
+                    && body.strip_suffix(b"$").is_some_and(numeric))
+                || (input[2] == b'?' && input[end] == b'u' && numeric(body))
+            {
+                return Some(end + 1);
+            }
+        }
+        None
+    }
+
+    #[cfg(unix)]
+    fn capability_graphics_reply_len(input: &[u8]) -> Option<usize> {
+        if let Some(status) = input.strip_prefix(b"\x1b_Gi=1;") {
+            let end = status.windows(2).position(|bytes| bytes == b"\x1b\\")?;
+            let status = &status[..end];
+            if status == b"OK"
+                || (status.starts_with(b"E")
+                    && status.iter().all(|byte| (0x20..=0x7e).contains(byte)))
+            {
+                return Some(b"\x1b_Gi=1;".len() + end + 2);
+            }
+        }
+        None
+    }
+
+    #[cfg(unix)]
+    fn capability_color_reply_len(input: &[u8]) -> Option<usize> {
+        if input.starts_with(b"\x1b]10;rgb:") || input.starts_with(b"\x1b]11;rgb:") {
+            let (end, length) = input.iter().enumerate().find_map(|(index, byte)| {
+                if *byte == 7 {
+                    Some((index, 1))
+                } else if input[index..].starts_with(b"\x1b\\") {
+                    Some((index, 2))
+                } else {
+                    None
+                }
+            })?;
+            let channels: Vec<_> = input[9..end].split(|b| *b == b'/').collect();
+            if channels.len() == 3
+                && channels.iter().all(|channel| {
+                    !channel.is_empty()
+                        && channel.len() <= 4
+                        && channel.iter().all(u8::is_ascii_hexdigit)
+                })
+            {
+                return Some(end + length);
+            }
+        }
+        None
+    }
+
     /// Parse terminal capability responses
+    #[cfg(unix)]
     fn parse_capability_responses(&mut self, response: &str) {
         // Parse primary device attributes (DA1) - ESC[?...c
         if let Some(da1_start) = response.find("\x1b[?") {
@@ -1340,8 +1412,14 @@ impl DirectTty {
         }
 
         // Parse Kitty graphics response - ESC_Gi=1;OK ESC\
-        if response.contains("\x1b_Gi=1;OK\x1b\\") {
-            self.capabilities.kitty_graphics = true;
+        if let Some(status) = response
+            .strip_prefix("\x1b_Gi=1;")
+            .and_then(|reply| reply.strip_suffix("\x1b\\"))
+        {
+            self.capabilities.kitty_graphics = status == "OK";
+        }
+        if response.starts_with("\x1b[?") && response.ends_with('u') {
+            self.capabilities.enhanced_keyboard = true;
         }
 
         // Parse DECRQM responses for various modes
@@ -1349,6 +1427,7 @@ impl DirectTty {
     }
 
     /// Parse DA1 (Primary Device Attributes) response
+    #[cfg(unix)]
     fn parse_da1_response(&mut self, da1: &str) {
         // DA1 format: ESC[?<params>c
         // Extract parameters between ? and c
@@ -1388,6 +1467,7 @@ impl DirectTty {
     }
 
     /// Parse DA2 (Secondary Device Attributes) response
+    #[cfg(unix)]
     fn parse_da2_response(&mut self, da2: &str) {
         // DA2 format: ESC[><terminal_type>;<version>;<options>c
         if let Some(params_str) = da2.strip_prefix("\x1b[>").and_then(|s| s.strip_suffix("c")) {
@@ -1443,6 +1523,7 @@ impl DirectTty {
     }
 
     /// Parse DECRQM (Request Mode) responses
+    #[cfg(unix)]
     fn parse_decrqm_responses(&mut self, response: &str) {
         // DECRQM response format: ESC[?<mode>;<value>$y
         let mut pos = 0;
@@ -1549,5 +1630,64 @@ impl DirectTty {
 impl Drop for DirectTty {
     fn drop(&mut self) {
         let _ = self.inner.restore();
+    }
+}
+
+#[cfg(all(test, unix))]
+mod capability_probe_tests {
+    use super::*;
+    use std::io::Write;
+    use std::os::unix::net::UnixStream;
+
+    #[test]
+    fn reply_recognizer_stops_before_typed_bytes_and_rejects_malformed_replies() {
+        let reply = b"\x1b]11;rgb:ffff/0000/abcd\x1b\\";
+        let mut input = reply.to_vec();
+        input.extend_from_slice(b"x\x07");
+        assert_eq!(DirectTty::capability_reply_len(&input), Some(reply.len()));
+        assert_eq!(DirectTty::capability_reply_len(b"\x1b[?;c"), None);
+        assert_eq!(
+            DirectTty::capability_reply_len(b"\x1b]11;rgb:typed text\x07"),
+            None
+        );
+        let reply = b"\x1b_Gi=1;ENOTSUPPORTED\x1b\\";
+        assert_eq!(DirectTty::capability_reply_len(reply), Some(reply.len()));
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn probe_separates_replies_from_keys_and_merges_environment_evidence() {
+        let previous = std::env::var_os("TERM_PROGRAM");
+        std::env::set_var("TERM_PROGRAM", "WezTerm");
+        let (ours, mut peer) = UnixStream::pair().unwrap();
+        let mut tty = DirectTty {
+            inner: unix::UnixTty::over_descriptor(ours.into()),
+            capabilities: TerminalCapabilities::default(),
+            parser: parser::EscapeSequenceParser::new(),
+        };
+        // A mode reply overrides WezTerm's sync estimate; DA1 and the keys coexist.
+        peer.write_all(b"a\x1b[?1;2c\x1b[?2026;0$yx").unwrap();
+        tty.detect_capabilities().unwrap();
+        match previous {
+            Some(value) => std::env::set_var("TERM_PROGRAM", value),
+            None => std::env::remove_var("TERM_PROGRAM"),
+        }
+        assert!(tty.capabilities.true_color);
+        assert!(tty.capabilities.sixel_graphics);
+        assert!(!tty.capabilities.synchronized_output);
+        let events = tty.poll_events(Some(std::time::Duration::ZERO)).unwrap();
+        assert!(matches!(
+            events.as_slice(),
+            [
+                TerminalEvent::Key {
+                    code: KeyCode::Char('a'),
+                    ..
+                },
+                TerminalEvent::Key {
+                    code: KeyCode::Char('x'),
+                    ..
+                }
+            ]
+        ));
     }
 }

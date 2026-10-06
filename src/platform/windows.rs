@@ -6,6 +6,7 @@ use super::PlatformTty;
 use crate::error::Result;
 use std::collections::VecDeque;
 use std::os::windows::io::{AsRawHandle, BorrowedHandle, OwnedHandle, RawHandle};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, TryLockError};
 use std::time::Duration;
 
@@ -47,6 +48,15 @@ fn decode_character(unit: u16, pending: &mut Option<u16>) -> Option<char> {
     char::from_u32(u32::from(unit))
 }
 
+// PLT-014: console sessions share the modes saved by the first owner.
+static CONSOLE_MODES: Mutex<Option<ConsoleModes>> = Mutex::new(None);
+
+struct ConsoleModes {
+    input: u32,
+    output: u32,
+    owners: usize,
+}
+
 /// Windows TTY implementation using Console API
 #[cfg(windows)]
 pub struct WindowsTty {
@@ -54,10 +64,7 @@ pub struct WindowsTty {
     stdin_handle: OwnedHandle,
     /// Handle to console output  
     stdout_handle: OwnedHandle,
-    /// Original input mode to restore
-    original_input_mode: u32,
-    /// Original output mode to restore
-    original_output_mode: u32,
+    restored: AtomicBool,
     input: Mutex<InputState>,
 }
 
@@ -100,6 +107,19 @@ impl WindowsTty {
             let stdin_owner = BorrowedHandle::borrow_raw(stdin_handle).try_clone_to_owned()?;
             let stdout_owner = BorrowedHandle::borrow_raw(stdout_handle).try_clone_to_owned()?;
 
+            let mut modes = CONSOLE_MODES
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            if let Some(modes) = modes.as_mut() {
+                modes.owners += 1;
+                return Ok(WindowsTty {
+                    stdin_handle: stdin_owner,
+                    stdout_handle: stdout_owner,
+                    restored: AtomicBool::new(false),
+                    input: Mutex::new(InputState::default()),
+                });
+            }
+
             // Get original console modes
             let mut original_input_mode = 0;
             let mut original_output_mode = 0;
@@ -132,11 +152,15 @@ impl WindowsTty {
                 return Err(std::io::Error::last_os_error().into());
             }
 
+            *modes = Some(ConsoleModes {
+                input: original_input_mode,
+                output: original_output_mode,
+                owners: 1,
+            });
             Ok(WindowsTty {
                 stdin_handle: stdin_owner,
                 stdout_handle: stdout_owner,
-                original_input_mode,
-                original_output_mode,
+                restored: AtomicBool::new(false),
                 input: Mutex::new(InputState::default()),
             })
         }
@@ -491,20 +515,28 @@ impl WindowsTty {
 
     /// Restore original console modes
     pub fn restore(&self) -> Result<()> {
-        unsafe {
-            let input_result =
-                SetConsoleMode(self.stdin_handle.as_raw_handle(), self.original_input_mode);
-            let output_result = SetConsoleMode(
-                self.stdout_handle.as_raw_handle(),
-                self.original_output_mode,
-            );
-
-            if input_result == 0 || output_result == 0 {
-                Err(std::io::Error::last_os_error().into())
-            } else {
-                Ok(())
-            }
+        let mut modes = CONSOLE_MODES
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if self.restored.load(Ordering::Acquire) {
+            return Ok(());
         }
+        let saved = modes.as_mut().expect("active console mode owner");
+        if saved.owners == 1 {
+            unsafe {
+                let input_result = SetConsoleMode(self.stdin_handle.as_raw_handle(), saved.input);
+                let output_result =
+                    SetConsoleMode(self.stdout_handle.as_raw_handle(), saved.output);
+                if input_result == 0 || output_result == 0 {
+                    return Err(std::io::Error::last_os_error().into());
+                }
+            }
+            *modes = None;
+        } else {
+            saved.owners -= 1;
+        }
+        self.restored.store(true, Ordering::Release);
+        Ok(())
     }
 }
 

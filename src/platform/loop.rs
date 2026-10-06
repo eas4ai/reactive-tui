@@ -283,14 +283,19 @@ fn spawn_unix_input(
         .name("rtui-event-loop-input".into())
         .spawn(move || {
             let mut buffer = [0u8; 1024];
-            while let Ok(count) = reader.read(&descriptor, &mut buffer) {
-                if count == 0 {
+            let mut timeout = None;
+            while let Ok(count) = reader.read(&descriptor, &mut buffer, timeout) {
+                if count == Some(0) {
                     break;
                 }
-                let events = parser
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner())
-                    .parse(&buffer[..count]);
+                let events = {
+                    let mut parser = parser
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    let events = parser.parse(&buffer[..count.unwrap_or(0)]);
+                    timeout = parser.pending_timeout();
+                    events
+                };
                 if events.into_iter().any(|event| !queue.push(event)) {
                     break;
                 }
@@ -504,6 +509,15 @@ impl TokioEventLoop {
             return Ok(()); // Already started
         }
 
+        // PLT-012: each run owns a fresh shutdown signal and parser state.
+        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+        self.shutdown_tx = Some(shutdown_tx);
+        self.shutdown_rx = Some(shutdown_rx);
+        *self
+            .parser
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = EscapeSequenceParser::new();
+
         let sender = self
             .sender
             .as_ref()
@@ -590,39 +604,34 @@ impl TokioEventLoop {
     ) -> Result<tokio::task::JoinHandle<()>> {
         use std::os::fd::{FromRawFd, OwnedFd};
 
+        // PLT-011: a duplicate shares flags; only a fresh tty open is nonblocking.
         let descriptor = unsafe {
-            let fd = libc::fcntl(libc::STDIN_FILENO, libc::F_DUPFD_CLOEXEC, 0);
+            let fd = if libc::isatty(libc::STDIN_FILENO) == 1 {
+                libc::open(
+                    c"/dev/tty".as_ptr(),
+                    libc::O_RDONLY | libc::O_CLOEXEC | libc::O_NONBLOCK | libc::O_NOCTTY,
+                )
+            } else {
+                libc::fcntl(libc::STDIN_FILENO, libc::F_DUPFD_CLOEXEC, 0)
+            };
             if fd < 0 {
                 return Err(std::io::Error::last_os_error().into());
             }
             OwnedFd::from_raw_fd(fd)
         };
-        let flags = unsafe { libc::fcntl(descriptor.as_raw_fd(), libc::F_GETFL) };
-        if flags < 0 {
-            return Err(std::io::Error::last_os_error().into());
-        }
-        if unsafe {
-            libc::fcntl(
-                descriptor.as_raw_fd(),
-                libc::F_SETFL,
-                flags | libc::O_NONBLOCK,
-            )
-        } < 0
-        {
-            return Err(std::io::Error::last_os_error().into());
-        }
-        use std::os::fd::AsRawFd as _;
         let cancellation = Arc::new(super::input_receiver::Cancellation::new()?);
         let reader_cancellation = Arc::clone(&cancellation);
         let reader = tokio::task::spawn_blocking(move || {
             let mut buffer = [0u8; 1024];
+            let mut timeout = None;
             loop {
-                match reader_cancellation.read(&descriptor, &mut buffer) {
-                    Ok(0) => break, // EOF or cancellation wake
+                match reader_cancellation.read(&descriptor, &mut buffer, timeout) {
+                    Ok(Some(0)) => break, // EOF or cancellation wake
                     Ok(n) => {
                         // Parse input and generate events
                         if let Ok(mut parser) = parser.lock() {
-                            let events = parser.parse(&buffer[..n]);
+                            let events = parser.parse(&buffer[..n.unwrap_or(0)]);
+                            timeout = parser.pending_timeout();
 
                             // Send events through the channel
                             let mut closed = false;
@@ -1166,6 +1175,65 @@ mod review_terminal {
             .enable_all()
             .build()
             .unwrap()
+    }
+
+    #[test]
+    #[serial]
+    fn tokio_reader_releases_escape_and_partial_paste_on_silence() {
+        let mut stdin = PipedStdin::install();
+        runtime().block_on(async {
+            let mut events = TokioEventLoop::new();
+            events.start_async().await.unwrap();
+            stdin.writer.write_all(b"\x1b").unwrap();
+            let escape = tokio::time::timeout(Duration::from_secs(2), events.next_event_async()).await.unwrap();
+            assert!(matches!(escape, Some(TerminalEvent::Key { code: KeyCode::Escape, .. })));
+            stdin.writer.write_all(b"a").unwrap();
+            let key = tokio::time::timeout(Duration::from_secs(2), events.next_event_async()).await.unwrap();
+            assert!(matches!(key, Some(TerminalEvent::Key { code: KeyCode::Char('a'), modifiers, .. }) if !modifiers.alt));
+            stdin.writer.write_all(b"\x1b[200~a\r").unwrap();
+            let paste = tokio::time::timeout(Duration::from_secs(2), events.next_event_async()).await.unwrap();
+            assert!(matches!(paste, Some(TerminalEvent::Paste(text)) if text == "a\r"));
+            events.stop_async().await.unwrap();
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn threaded_reader_releases_escape_and_partial_paste_on_silence() {
+        use super::{EventLoop, ThreadedEventLoop};
+        let mut stdin = PipedStdin::install();
+        let mut events = ThreadedEventLoop::new();
+        events.start().unwrap();
+        let mut next = || {
+            let deadline = std::time::Instant::now() + Duration::from_secs(2);
+            loop {
+                if let event @ Some(_) = events.try_event() {
+                    return event;
+                }
+                if std::time::Instant::now() >= deadline {
+                    return None;
+                }
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        };
+        stdin.writer.write_all(b"\x1b").unwrap();
+        let escape = next();
+        assert!(matches!(
+            escape,
+            Some(TerminalEvent::Key {
+                code: KeyCode::Escape,
+                ..
+            })
+        ));
+        stdin.writer.write_all(b"a").unwrap();
+        let key = next();
+        assert!(
+            matches!(key, Some(TerminalEvent::Key { code: KeyCode::Char('a'), modifiers, .. }) if !modifiers.alt)
+        );
+        stdin.writer.write_all(b"\x1b[200~a\r").unwrap();
+        let paste = next();
+        assert!(matches!(paste, Some(TerminalEvent::Paste(text)) if text == "a\r"));
+        events.stop().unwrap();
     }
 
     /// PLT-011: the loop leaves stdin's flags as it found them.
