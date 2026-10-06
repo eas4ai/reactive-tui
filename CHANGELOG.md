@@ -5,6 +5,83 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- On the Unix input paths of the platform layer (the direct TTY backend's
+  poll and async events, the threaded and the Tokio event loops) a lone
+  Escape byte is delivered as the Escape key once no further byte arrives
+  within 50 ms, and a byte after that deadline is its own key, not an
+  Alt-modified one; a sequence whose bytes arrive within the deadline still
+  forms. `EscapeSequenceParser::pending_escape` says when an Escape waits
+  (docs/spec/platform.md, PLT-001).
+- The direct TTY backend delivers a bracketed paste as one `Paste` event
+  with the text as pasted, assembled across reads and bounded at 1 MiB
+  (`parser::MAX_PASTE_BYTES`); the delimiters produce no key events, so a
+  pasted carriage return no longer acts as Enter, and a paste whose end
+  never arrives is released as what was collected after the 50 ms deadline.
+  `TerminalEvent::PasteStart` and `PasteEnd` are no longer produced
+  (PLT-002).
+- The direct TTY backend's startup probe keeps what the user types while it
+  waits: bytes that are not a recognized capability reply reach the input
+  parser and come out of the first poll, the environment's evidence
+  (`COLORTERM`, `TERM`, `TERM_PROGRAM`) is read first and recognized replies
+  override only what they speak of, and the probe no longer flips the
+  terminal descriptor's non-blocking flag (PLT-003).
+- `TokioEventLoop` leaves the caller's standard input as it found it: when
+  stdin is a terminal it reads through its own description of `/dev/tty`,
+  and when stdin is a pipe or file it reads a duplicate without changing
+  the shared flags, polling before each read (PLT-011).
+- A stopped `TokioEventLoop` starts again: each run has its own shutdown
+  signal and a fresh parser, so the second `start_async` reads input until
+  the next stop (PLT-012).
+- A resize callback registered with `UnixTty::register_winch_handler`
+  belongs to the running dispatcher's generation: tearing down an earlier
+  generation can no longer clear it. Registering without a running
+  dispatcher (no live session) now returns an error instead of queuing the
+  callback for a later one (PLT-013).
+- Native terminal sessions (`UnixTty`, `WindowsTty`) started independently
+  on the same terminal share its mode: the first saves the terminal's state
+  and sets raw mode, the terminal stays raw while any lives, and the first
+  saved state is restored when the last ends, by restore or by drop
+  (PLT-014).
+- The default backend's startup exchange on Unix ends its "replies pending"
+  state when the exchange ends, by the device attributes reply, by its
+  timeout or by an error: an `ESC ]` or `ESC _` typed meanwhile and held as
+  a possible reply is delivered as Alt+] or Alt+_ when the exchange ends,
+  and a device attributes reply that arrives later is still consumed, never
+  shown as keys (docs/spec/platform.md, PLT-004).
+- `TerminalWriter` changes text attributes with selective resets (SGR 22,
+  23, 24, 27, 29) instead of SGR 0, so the foreground and background set
+  before a run stay in force; `RenderOpsBuilder` emits the attributes once
+  per batch and invalidates its color caches on a style reset (PLT-007).
+- `SpanDiffWriter::diff_with_stats` and `diff` share one path: a surface
+  that changed size clears the screen and redraws under both, so no cell
+  outside the new size keeps old content (PLT-008).
+- `GraphemeSurface` keeps wide glyphs whole: writing into either column of a
+  wide glyph clears both of its cells first, a wide glyph without room at
+  the right edge is not placed, and `to_row_spans` gives each span the
+  columns its text occupies, joining cells only across continuous columns
+  (PLT-009).
+- `Rgba::contrast_ratio` is the WCAG 2 contrast ratio: both colors are
+  linearized by the sRGB transfer function before their relative luminance
+  is taken; gray 0.4 against black is 3.66, not 9 (PLT-010).
+- The public escape parser (`reactive_tui::escape::Parser`) decodes its input
+  as UTF-8, whole or split across `feed` calls, prints U+FFFD for an invalid
+  sequence and never takes a continuation byte for a C1 control; a
+  standalone byte in 0x80..0x9F keeps its 8-bit control meaning (PLT-005).
+- The same parser ends an OSC string on BEL and on `ESC \`, a DCS, SOS, PM
+  or APC string on `ESC \` (the two bytes may arrive in separate calls),
+  dispatches the string's action and prints the text that follows; an ESC
+  followed by anything but a backslash aborts the string; SOS, PM and APC
+  strings now produce their actions (PLT-006).
+- `AdaptiveFpsManager` keeps every target within its configured bounds:
+  construction with a fixed mode, `set_performance_mode(Auto)` and the
+  adaptive adjustments all clamp to `[min_fps, max_fps]`, so a reduction can
+  no longer panic on a reversed interval (PLT-015).
+- Graphics startup no longer discards the process's stderr. While a hybrid
+  renderer initializes and stderr is a terminal, stderr passes through a
+  pipe: every line is forwarded to the terminal in order except the Vulkan
+  driver's `WARNING: ... not a conformant Vulkan implementation` line, and
+  `MESA_VK_IGNORE_CONFORMANCE_WARNING=true` is set when the host left it
+  unset. The manual's graphics chapter says so (PLT-016).
 - `Animation::reverse` keeps a playing animation playing: it turns around
   from where it is and its callbacks keep running; the `Reversed` state is no
   longer set (docs/spec/animation.md, ANI-001).
