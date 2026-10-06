@@ -73,13 +73,19 @@ pub(crate) enum Fed<R> {
 /// Assembles a startup reply from input that arrives one character per
 /// record, as a Windows console delivers a terminal's reply (INP-013): each
 /// character comes as a key record with no key code, so a record with a key
-/// code is a typed key and never part of a reply.
+/// code is a typed key and never part of a reply. A typed key passes
+/// through at once, whatever is held: it says nothing about the records
+/// around it, which the terminal sent.
 ///
 /// A reply starts with an Escape. While the collector holds records it
 /// decides on each new one: an OSC string that ends is the background color
-/// reply or dropped; a CSI sequence that ends is the device attributes reply
-/// or dropped; an Escape followed by anything else, or a typed key arriving
-/// before the sequence ends, gives every held record back as keys.
+/// reply; a CSI sequence that ends is the device attributes reply; an Escape
+/// followed by anything else gives the held records back as keys. Any other
+/// complete sequence is from the terminal too: while the startup exchange is
+/// pending it is dropped, and afterwards it is given back as keys, as it
+/// read before the collector existed. The collector keeps collecting after
+/// the exchange, so a reply that arrives late is still a reply, which the
+/// event source then consumes.
 ///
 /// Only the Windows event source feeds it; the Unix parsers read a reply
 /// from a byte buffer. It is built and tested on every platform.
@@ -110,21 +116,27 @@ impl<R> ReplyCollector<R> {
         self.held.is_empty()
     }
 
-    /// Gives back every held record, for when the exchange ended while a
-    /// reply was incomplete.
-    pub(crate) fn release(&mut self) -> Vec<R> {
+    /// Takes every held record.
+    fn take(&mut self) -> Vec<R> {
         self.bytes.clear();
         std::mem::take(&mut self.held)
     }
 
+    /// What a complete sequence that is no reply becomes: nothing while the
+    /// exchange is pending, keys afterwards.
+    fn not_a_reply(&mut self, pending: bool) -> Fed<R> {
+        let held = self.take();
+        Fed::Keys(if pending { Vec::new() } else { held })
+    }
+
     /// Feeds one record; `character` is its character when it has no key
-    /// code (a candidate reply character), and `None` for a typed key.
-    pub(crate) fn feed(&mut self, record: R, character: Option<char>) -> Fed<R> {
+    /// code (a candidate reply character), and `None` for a typed key;
+    /// `pending` says whether the startup exchange still waits for replies.
+    pub(crate) fn feed(&mut self, record: R, character: Option<char>, pending: bool) -> Fed<R> {
         let Some(character) = character else {
-            // A typed key: whatever was held was not a reply after all.
-            let mut keys = self.release();
-            keys.push(record);
-            return Fed::Keys(keys);
+            // A typed key: delivered at once, around whatever the terminal
+            // is sending.
+            return Fed::Keys(vec![record]);
         };
         if self.held.is_empty() {
             if character != '\x1B' {
@@ -139,46 +151,33 @@ impl<R> ReplyCollector<R> {
         self.bytes
             .extend_from_slice(character.encode_utf8(&mut utf8).as_bytes());
         match self.bytes.get(1) {
-            Some(b']') => {
-                match background_color(&self.bytes) {
-                    Ok(None) if self.bytes.len() <= LONGEST_REPLY => Fed::Held,
-                    Ok(Some(reply)) => {
-                        self.release();
-                        Fed::Reply(reply)
-                    }
-                    // Another OSC string, or one too long to be the reply:
-                    // from the terminal, so no one typed it.
-                    _ => {
-                        self.release();
-                        Fed::Keys(Vec::new())
-                    }
+            Some(b']') => match background_color(&self.bytes) {
+                Ok(None) if self.bytes.len() <= LONGEST_REPLY => Fed::Held,
+                Ok(Some(reply)) => {
+                    self.take();
+                    Fed::Reply(reply)
                 }
-            }
+                // Another OSC string, or one too long to be the reply.
+                _ => self.not_a_reply(pending),
+            },
             Some(b'[') => {
                 let last = *self.bytes.last().unwrap();
                 if self.bytes.len() > 2 && (0x40..=0x7E).contains(&last) {
-                    let reply = if last == b'c' && self.bytes.get(2) == Some(&b'?') {
-                        let attributes = &self.bytes[3..self.bytes.len() - 1];
-                        Some(InternalEvent::PrimaryDeviceAttributes {
-                            sixel: lists_sixel(attributes),
-                        })
+                    if last == b'c' && self.bytes.get(2) == Some(&b'?') {
+                        let sixel = lists_sixel(&self.bytes[3..self.bytes.len() - 1]);
+                        self.take();
+                        Fed::Reply(InternalEvent::PrimaryDeviceAttributes { sixel })
                     } else {
-                        None
-                    };
-                    self.release();
-                    match reply {
-                        Some(reply) => Fed::Reply(reply),
-                        None => Fed::Keys(Vec::new()),
+                        self.not_a_reply(pending)
                     }
                 } else if self.bytes.len() > LONGEST_REPLY {
-                    self.release();
-                    Fed::Keys(Vec::new())
+                    self.not_a_reply(pending)
                 } else {
                     Fed::Held
                 }
             }
             // ESC followed by anything else is no reply: keys as they came.
-            _ => Fed::Keys(self.release()),
+            _ => Fed::Keys(self.take()),
         }
     }
 }
@@ -187,12 +186,15 @@ impl<R> ReplyCollector<R> {
 mod tests {
     use super::*;
 
+    const PENDING: bool = true;
+    const AFTER: bool = false;
+
     /// Feeds the characters of `text` as reply candidates, each record its
     /// index, and returns what the last one gave.
-    fn feed_all(collector: &mut ReplyCollector<usize>, text: &str) -> Fed<usize> {
+    fn feed_all(collector: &mut ReplyCollector<usize>, text: &str, pending: bool) -> Fed<usize> {
         let mut last = Fed::Held;
         for (index, character) in text.chars().enumerate() {
-            last = collector.feed(index, Some(character));
+            last = collector.feed(index, Some(character), pending);
         }
         last
     }
@@ -201,12 +203,12 @@ mod tests {
     fn test_the_background_reply_is_collected_from_characters() {
         let mut collector = ReplyCollector::default();
         assert_eq!(
-            feed_all(&mut collector, "\x1b]11;rgb:ffff/ffff/ffff\x1b\\"),
+            feed_all(&mut collector, "\x1b]11;rgb:ffff/ffff/ffff\x1b\\", PENDING),
             Fed::Reply(InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF))
         );
         assert!(collector.is_empty());
         assert_eq!(
-            feed_all(&mut collector, "\x1b]11;rgb:80/00/ff\x07"),
+            feed_all(&mut collector, "\x1b]11;rgb:80/00/ff\x07", PENDING),
             Fed::Reply(InternalEvent::BackgroundColor(0x8080, 0, 0xFFFF))
         );
     }
@@ -215,11 +217,11 @@ mod tests {
     fn test_the_device_attributes_reply_ends_with_its_sixel_attribute() {
         let mut collector = ReplyCollector::default();
         assert_eq!(
-            feed_all(&mut collector, "\x1b[?62;22c"),
+            feed_all(&mut collector, "\x1b[?62;22c", PENDING),
             Fed::Reply(InternalEvent::PrimaryDeviceAttributes { sixel: false })
         );
         assert_eq!(
-            feed_all(&mut collector, "\x1b[?62;4;22c"),
+            feed_all(&mut collector, "\x1b[?62;4;22c", PENDING),
             Fed::Reply(InternalEvent::PrimaryDeviceAttributes { sixel: true })
         );
     }
@@ -227,64 +229,157 @@ mod tests {
     #[test]
     fn test_characters_before_the_end_are_held() {
         let mut collector = ReplyCollector::default();
-        assert_eq!(feed_all(&mut collector, "\x1b]11;rgb:ff"), Fed::Held);
+        assert_eq!(
+            feed_all(&mut collector, "\x1b]11;rgb:ff", PENDING),
+            Fed::Held
+        );
         assert!(!collector.is_empty());
         assert_eq!(
-            feed_all(&mut collector, "ff/ffff/ffff\x1b\\"),
+            feed_all(&mut collector, "ff/ffff/ffff\x1b\\", PENDING),
             Fed::Reply(InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF))
         );
     }
 
+    /// The adversary's finding 2: a typed key says nothing about the records
+    /// the terminal sent around it.
     #[test]
-    fn test_a_typed_key_is_never_held_and_releases_what_was() {
+    fn test_a_typed_key_passes_through_and_the_held_reply_completes() {
         let mut collector: ReplyCollector<&str> = ReplyCollector::default();
-        assert_eq!(collector.feed("x", None), Fed::Keys(vec!["x"]));
-        assert_eq!(collector.feed("a", Some('a')), Fed::Keys(vec!["a"]));
-        assert_eq!(collector.feed("esc", Some('\x1b')), Fed::Held);
-        assert_eq!(collector.feed("]", Some(']')), Fed::Held);
-        assert_eq!(collector.feed("y", None), Fed::Keys(vec!["esc", "]", "y"]));
+        assert_eq!(collector.feed("x", None, PENDING), Fed::Keys(vec!["x"]));
+        assert_eq!(
+            collector.feed("a", Some('a'), PENDING),
+            Fed::Keys(vec!["a"])
+        );
+        for (record, character) in [
+            ("esc", '\x1b'),
+            ("]", ']'),
+            ("1", '1'),
+            ("1", '1'),
+            (";", ';'),
+            ("r", 'r'),
+            ("g", 'g'),
+            ("b", 'b'),
+            (":", ':'),
+            ("f", 'f'),
+        ] {
+            assert_eq!(collector.feed(record, Some(character), PENDING), Fed::Held);
+        }
+        assert_eq!(collector.feed("y", None, PENDING), Fed::Keys(vec!["y"]));
+        assert!(!collector.is_empty(), "the typed key released the reply");
+        let mut last = Fed::Held;
+        for (record, character) in [
+            ("f", 'f'),
+            ("f", 'f'),
+            ("f", 'f'),
+            ("/", '/'),
+            ("f", 'f'),
+            ("f", 'f'),
+            ("f", 'f'),
+            ("f", 'f'),
+            ("/", '/'),
+            ("f", 'f'),
+            ("f", 'f'),
+            ("f", 'f'),
+            ("f", 'f'),
+            ("esc", '\x1b'),
+            ("\\", '\\'),
+        ] {
+            last = collector.feed(record, Some(character), PENDING);
+        }
+        assert_eq!(
+            last,
+            Fed::Reply(InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF))
+        );
         assert!(collector.is_empty());
     }
 
     #[test]
     fn test_an_escape_followed_by_another_character_is_given_back() {
-        let mut collector: ReplyCollector<&str> = ReplyCollector::default();
-        assert_eq!(collector.feed("esc", Some('\x1b')), Fed::Held);
-        assert_eq!(collector.feed("x", Some('x')), Fed::Keys(vec!["esc", "x"]));
+        for pending in [PENDING, AFTER] {
+            let mut collector: ReplyCollector<&str> = ReplyCollector::default();
+            assert_eq!(collector.feed("esc", Some('\x1b'), pending), Fed::Held);
+            assert_eq!(
+                collector.feed("x", Some('x'), pending),
+                Fed::Keys(vec!["esc", "x"])
+            );
+        }
     }
 
     #[test]
-    fn test_a_reply_to_a_question_not_asked_is_dropped() {
+    fn test_a_reply_to_a_question_not_asked_is_dropped_while_pending() {
         let mut collector = ReplyCollector::default();
-        assert_eq!(feed_all(&mut collector, "\x1b[?0u"), Fed::Keys(Vec::new()));
         assert_eq!(
-            feed_all(&mut collector, "\x1b]10;rgb:0/0/0\x07"),
+            feed_all(&mut collector, "\x1b[?0u", PENDING),
             Fed::Keys(Vec::new())
         );
-        assert_eq!(feed_all(&mut collector, "\x1b[1;1R"), Fed::Keys(Vec::new()));
+        assert_eq!(
+            feed_all(&mut collector, "\x1b]10;rgb:0/0/0\x07", PENDING),
+            Fed::Keys(Vec::new())
+        );
+        assert_eq!(
+            feed_all(&mut collector, "\x1b[1;1R", PENDING),
+            Fed::Keys(Vec::new())
+        );
         assert!(collector.is_empty());
     }
 
+    /// The adversary's finding 1: after the exchange a reply is still a reply
+    /// (the source consumes it), and any other sequence reads as it did
+    /// before the collector existed.
     #[test]
-    fn test_release_gives_back_an_incomplete_reply() {
+    fn test_after_the_exchange_a_late_reply_is_a_reply_and_other_sequences_are_keys() {
         let mut collector = ReplyCollector::default();
-        assert_eq!(feed_all(&mut collector, "\x1b]11;rg"), Fed::Held);
-        assert_eq!(collector.release(), vec![0, 1, 2, 3, 4, 5, 6]);
+        assert_eq!(
+            feed_all(&mut collector, "\x1b]11;rgb:ffff/ffff/ffff\x1b\\", AFTER),
+            Fed::Reply(InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF))
+        );
+        assert_eq!(
+            feed_all(&mut collector, "\x1b[?62;22c", AFTER),
+            Fed::Reply(InternalEvent::PrimaryDeviceAttributes { sixel: false })
+        );
+        assert_eq!(
+            feed_all(&mut collector, "\x1b[200~", AFTER),
+            Fed::Keys(vec![0, 1, 2, 3, 4, 5])
+        );
+        assert_eq!(
+            feed_all(&mut collector, "\x1b]10;rgb:0/0/0\x07", AFTER),
+            Fed::Keys((0..15).collect())
+        );
         assert!(collector.is_empty());
     }
 
     #[test]
-    fn test_a_sequence_too_long_to_be_a_reply_is_dropped() {
+    fn test_a_reply_that_spans_the_end_of_the_exchange_is_still_assembled() {
+        let mut collector = ReplyCollector::default();
+        assert_eq!(
+            feed_all(&mut collector, "\x1b]11;rgb:ff", PENDING),
+            Fed::Held
+        );
+        assert_eq!(
+            feed_all(&mut collector, "ff/ffff/ffff\x1b\\", AFTER),
+            Fed::Reply(InternalEvent::BackgroundColor(0xFFFF, 0xFFFF, 0xFFFF))
+        );
+    }
+
+    #[test]
+    fn test_a_sequence_too_long_to_be_a_reply_is_dropped_or_given_back() {
         // An OSC string is given up after 64 bytes of body, as the Unix
         // reader does; a CSI sequence after LONGEST_REPLY bytes in all.
         let mut collector = ReplyCollector::default();
         let long = format!("\x1b]{}", "1".repeat(64));
-        assert_eq!(feed_all(&mut collector, &long), Fed::Held);
-        assert_eq!(collector.feed(usize::MAX, Some('1')), Fed::Keys(Vec::new()));
+        assert_eq!(feed_all(&mut collector, &long, PENDING), Fed::Held);
+        assert_eq!(
+            collector.feed(usize::MAX, Some('1'), PENDING),
+            Fed::Keys(Vec::new())
+        );
         assert!(collector.is_empty());
         let long = format!("\x1b[{}", "1".repeat(LONGEST_REPLY - 2));
-        assert_eq!(feed_all(&mut collector, &long), Fed::Held);
-        assert_eq!(collector.feed(usize::MAX, Some('1')), Fed::Keys(Vec::new()));
+        assert_eq!(feed_all(&mut collector, &long, AFTER), Fed::Held);
+        let given_back = collector.feed(usize::MAX, Some('1'), AFTER);
+        assert!(
+            matches!(&given_back, Fed::Keys(keys) if keys.len() == LONGEST_REPLY + 1),
+            "after the exchange a too-long sequence is given back: {given_back:?}"
+        );
         assert!(collector.is_empty());
     }
 

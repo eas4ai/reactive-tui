@@ -29,7 +29,7 @@ pub(crate) struct WindowsEventSource {
     surrogate_buffer: Option<u16>,
     mouse_buttons_pressed: MouseButtonsPressed,
     /// Assembles a startup reply from the key records that carry no key
-    /// code while the replies are due (INP-013).
+    /// code, during the exchange and after it (INP-013).
     replies: ReplyCollector<KeyEventRecord>,
     /// Events parsed from records the collector gave back, delivered in
     /// their order before any new record is read.
@@ -63,22 +63,22 @@ impl WindowsEventSource {
         }
     }
 
-    /// One key record: a key, or, while the startup replies are due, part
-    /// of a reply the collector holds or completes.
+    /// One key record: a key, or part of a reply the collector holds or
+    /// completes. A reply completed after the startup exchange ended is
+    /// consumed: no one waits for it and it is no key (INP-013).
     fn key_record(&mut self, record: KeyEventRecord) -> Option<InternalEvent> {
-        if !STARTUP_REPLIES_PENDING.load(Ordering::Acquire) {
-            return handle_key_event(record, &mut self.surrogate_buffer).map(InternalEvent::Event);
-        }
+        let pending = STARTUP_REPLIES_PENDING.load(Ordering::Acquire);
         let character = reply_character(&record);
-        match self.replies.feed(record, character) {
+        match self.replies.feed(record, character, pending) {
             Fed::Held => None,
-            Fed::Reply(reply) => {
+            Fed::Reply(reply) if pending => {
                 // The device attributes reply ends the exchange.
                 if matches!(reply, InternalEvent::PrimaryDeviceAttributes { .. }) {
                     STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
                 }
                 Some(reply)
             }
+            Fed::Reply(_) => None,
             Fed::Keys(records) => {
                 self.queue_keys(records);
                 self.queued.pop_front()
@@ -94,13 +94,6 @@ impl EventSource for WindowsEventSource {
         loop {
             if let Some(event) = self.queued.pop_front() {
                 return Ok(Some(event));
-            }
-            // The exchange ended while a reply was incomplete: its records
-            // are keys after all.
-            if !self.replies.is_empty() && !STARTUP_REPLIES_PENDING.load(Ordering::Acquire) {
-                let records = self.replies.release();
-                self.queue_keys(records);
-                continue;
             }
 
             if let Some(event_ready) = self.poll.poll(poll_timeout.leftover())? {

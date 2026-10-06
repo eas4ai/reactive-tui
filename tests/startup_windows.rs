@@ -99,12 +99,17 @@ mod windows {
     // The test side: a pseudo console whose terminal answers as told.
 
     /// What the terminal answers: the background color unless `silent`, and
-    /// the device attributes with it; `typed_before` goes in when the query is
-    /// first seen and `typed_after` right after the replies.
+    /// the device attributes with it, `hold` after the query is first seen;
+    /// `typed_before` goes in when the query is first seen and `typed_after`
+    /// right after the replies. (A key typed inside a half-delivered reply
+    /// is not a scenario: the pseudo console takes it into the string, so
+    /// the collector's handling of that order is a unit test in the
+    /// crossterm copy.)
     #[derive(Clone, Copy)]
     struct Terminal {
         background: Option<&'static [u8]>,
         silent: bool,
+        hold: Duration,
         typed_before: &'static [u8],
         typed_after: &'static [u8],
     }
@@ -113,6 +118,7 @@ mod windows {
         const LIGHT: Terminal = Terminal {
             background: Some(WHITE),
             silent: false,
+            hold: Duration::ZERO,
             typed_before: b"",
             typed_after: b"",
         };
@@ -154,6 +160,7 @@ mod windows {
         let mut bytes = Vec::new();
         let mut queried_after = None;
         let mut painted_after = None;
+        let mut answered = false;
         let mut quit_sent = false;
         let mut ended = None;
         while start.elapsed() < DEADLINE {
@@ -169,6 +176,10 @@ mod windows {
                     pty.write_input(terminal.typed_before)
                         .expect("keys typed before the replies");
                 }
+            }
+            let due = |queried: Duration| start.elapsed() >= queried + terminal.hold;
+            if !answered && queried_after.is_some_and(due) {
+                answered = true;
                 if !terminal.silent {
                     if let Some(color) = terminal.background {
                         pty.write_input(color).expect("the background reply");
@@ -331,6 +342,34 @@ mod windows {
             run.theme.as_deref(),
             Some("THEME light"),
             "INP-013: the replies read with typed keys did not reach the backend as replies"
+        );
+    }
+
+    /// The adversary's finding 1: a reply that arrives after the 200 ms wait
+    /// is consumed, not typed, and not used.
+    #[test]
+    #[serial_test::serial]
+    fn inp_013_a_late_reply_is_consumed_not_typed() {
+        if !terminal_side() {
+            return;
+        }
+        let run = run(
+            "theme",
+            Terminal {
+                hold: Duration::from_millis(350),
+                typed_after: b"z",
+                ..Terminal::LIGHT
+            },
+        );
+        assert!(
+            run.keys == ["KEY Char('z')"],
+            "INP-013: a reply 350 ms after the questions reached the App as {:?}",
+            run.keys
+        );
+        assert_eq!(
+            run.theme.as_deref(),
+            Some("THEME dark"),
+            "INP-013: a reply after the wait changed the preset"
         );
     }
 

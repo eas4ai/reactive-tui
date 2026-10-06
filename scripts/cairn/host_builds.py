@@ -104,6 +104,36 @@ def run_on(name: str, host: dict, commit: str, bundle: Path, args: str, timeout:
     return output.rsplit("EXIT=", 1)[1].split()[0], output
 
 
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+SUMMARY = re.compile(r"test result: (\w+)\. (\d+) passed; (\d+) failed")
+
+
+def tablet_test_verdict(output: str, code: str, at_least: int = 1) -> tuple[bool, str]:
+    """The verdict of a `cargo test` run on a test host from cargo's exit
+    code and the run's own last summary: the last one, because a failing
+    test's message may quote another run's summary (a child process's); the
+    exit code too, because a run that did not finish prints no final summary
+    of its own. At least `at_least` tests must have passed. No summary at
+    all is no verdict (Unreachable)."""
+    plain = ANSI.sub("", output)
+    summaries = SUMMARY.findall(plain)
+    if not summaries:
+        lines = [line.strip() for line in plain.splitlines() if line.strip()]
+        raise Unreachable("the test did not run: " + "; ".join(lines[-3:])[:300])
+    status, passed, failed = summaries[-1]
+    passed, failed = int(passed), int(failed)
+    lines = plain.splitlines()
+    messages = [lines[i + 1].strip() for i, line in enumerate(lines) if "panicked at" in line and i + 1 < len(lines)]
+    why = "; ".join(message for message in messages if message)[:300]
+    if code != "0":
+        return False, f"cargo exited {code}: {why or status}"
+    if failed or status != "ok":
+        return False, why or f"{failed} failed"
+    if passed < at_least:
+        return False, f"only {passed} test ran on the Windows tablet; {at_least} or more must"
+    return True, f"{passed} passed on the Windows tablet"
+
+
 def build_on(name: str, host: dict, commit: str, bundle: Path, build: str = BUILD) -> tuple[bool, str]:
     code, output = run_on(name, host, commit, bundle, build)
     warnings = [line.strip() for line in output.splitlines() if WARNING.search(line)]
