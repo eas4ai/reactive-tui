@@ -66,11 +66,11 @@ component library as closely as a cell grid allows.
 | reactive.md | SIG | the thread-safe signal: the atomic update that reducers and the framework's own counters and states go through, and the copy-based update a callback may reenter; an animation's callbacks run with none of its locks held; a memo that computes again, context effects that rerun, hook animations that pause, spring and loop |
 | terminal.md | TRM | the terminal widget's and the embedded session's pseudo-terminal child: stopping it ends and reaps the child within a bound on Linux and macOS, also when its output went unread |
 | pixel-looks.md | PIX | a widget's or element's look as a pixel picture where the terminal takes pixels, around its text, kept and sent only when it changes, hidden under what covers it, back to cells by a switch; the looks of rounded containers, buttons, cards, text inputs, checkboxes, radios, sliders and progress bars; their speed and scale |
-| ffi.md | FFI | the C interface: an exported function that reads or writes through its caller's pointer is unsafe on the Rust side and says what its caller must guarantee |
+| ffi.md | FFI | the C interface: an exported function that reads or writes through its caller's pointer is unsafe on the Rust side and says what its caller must guarantee; the text-buffer painting by grapheme, the native controls behind the widget constructors, the hit grid and host statistics, surface-to-terminal rendering through the caller's terminal, effects that run on their signals, one reported version |
 | components.md | CMP | components and their hooks: a dropped render tree unmounts only its own instances, a component's change polling, a screen's mouse hooks, the mouse position's inside flag, the virtual DOM diff, the event handler cache, no empty component table |
 | styles.md | STY | class variants that apply only while their condition holds, `display: none` in `css!`, `aspect-auto`, what the `css!` documentation promises |
-| animation.md | ANI | the animation module an application drives or hands to its App: an animation reversed keeps playing, timelines complete when their animations do, loop callbacks and `auto_reverse` run, stale cleanup keeps what is advancing, unique generated ids, no alternate drivers, stagger delays that cannot overflow, a spring's velocity and a spring easing that reaches its target |
-| text.md | TXT | the syntax editor painting with the whole document's context, the highlighter's cached reuse and byte limits, a Markdown table's separator and alignment |
+| animation.md | ANI | the animation module an application drives or hands to its App: an animation reversed keeps playing, timelines complete when their animations do, loop callbacks and `auto_reverse` run, stale cleanup keeps what is advancing, unique generated ids, no alternate drivers, stagger delays that cannot overflow, a spring's velocity and a spring easing that reaches its target, the debug manager instrumenting what it runs |
+| text.md | TXT | the syntax editor painting with the whole document's context, the highlighter's cached reuse and byte limits, a Markdown table's separator and alignment, the gap buffer's true cost and byte limit |
 | platform.md | PLT | the direct TTY backend's Escape, paste and startup probe, the default backend's startup exchange ending, the public escape parser's UTF-8 and string endings, the legacy writer and surfaces, the WCAG contrast, the Tokio loop's stdin and restart, resize-dispatcher and terminal-mode ownership, frame-rate bounds, graphics startup's stderr |
 
 Vocabulary is in glossary.md; the commitment order is in roadmap.md.
@@ -111,7 +111,7 @@ is contract.
   ConPTY (src/embedded, src/terminal).
 - Accessibility (src/accessibility).
 - C ABI and TypeScript binding (src/ffi, include, bindings/typescript),
-  other than ffi.md's unsafe exports.
+  other than ffi.md's requirements.
 - Build, CI and release packaging (Cargo.toml, .github/workflows, scripts).
   The dependency checks on deny.toml are BAR-008.
 - Documentation (README, manual/).

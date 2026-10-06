@@ -95,3 +95,9 @@ Falsifier: `Animation::spring(Duration::from_secs(10), SpringConfig::new(1.0, 1.
 Mechanism: review-native
 Rationale: The spring easing read the normalized progress as seconds of spring time, so a critically damped spring completed its ten-second animation at 26% of the way to its target (N24).
 Status: Agreed 2026-10-05
+
+[ANI-010] `DebugAnimationManager` MUST instrument what it runs: each `update` MUST record the frame's time in its performance metrics and log an update event for every animation that advanced, taking a snapshot of each at `Verbose` verbosity, with performance collection independent of state logging; and its documentation MUST say what is logged automatically and what a caller logs by hand.
+Falsifier: A `Verbose` manager with performance monitoring on and console logging off, holding one playing animation, has after one `update` no `AnimationUpdated` event, a single snapshot, or a minimum frame time of `Duration::MAX`; `create_performance_debug_manager`'s manager records no timing after an `update`; or src/animation/debug.rs still promises callback wrapping.
+Mechanism: review-facade
+Rationale: `update` measured a frame time it never recorded, `wrap_animation_callbacks` installed nothing, the verbose snapshot branch was empty, and the performance preset disabled the state logging that timing collection depended on (the developer's code review of 2026-10-04, N16, what remains after ANI-006).
+Status: Agreed 2026-10-06

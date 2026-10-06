@@ -45,3 +45,9 @@ Falsifier: `MarkdownRenderer::new().render_to_styled_lines("| Name | Qty |\n| :-
 Mechanism: review-native
 Rationale: The walker never read the table's column count or alignment, so a header row was followed by a bare `├` (N21).
 Status: Agreed 2026-10-05
+
+[TXT-004] The gap buffer (`editor::GapBuffer`) MUST describe its cost as it is: an edit at the gap moves no text, moving the gap or growing the buffer copies the text between the old and the new gap in place, and an insert or delete updates the line-break offsets after it; and its size MUST be bounded in bytes by one limit that every constructor and every insert enforces, past which the operation fails with an error instead of panicking or growing.
+Falsifier: src/editor/gap_buffer.rs's documentation calls the buffer zero-copy or an edit O(1) without that qualification; a buffer built from text above the limit, or an insert that would take it past the limit, succeeds or panics instead of returning an error; or moving the gap allocates a temporary copy of the text it moves (an allocation count around a gap move in a test binary with a counting allocator).
+Mechanism: review-facade
+Rationale: The header claimed zero-copy O(1) edits while gap moves copied through temporary vectors, the 100,000,000-char guard was called 100 MB, applied only to growth, and an insert past it panicked (the developer's code review of 2026-10-04, N18).
+Status: Agreed 2026-10-06

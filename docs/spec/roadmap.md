@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: windows-startup-queries
+Current: review-facade-findings
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1611,3 +1611,62 @@ Done when every named requirement passes; startup-windows has recorded a
 fail on the tree as it was at the start, on the Windows test tablet; and
 the changelog names the startup exchange on Windows for an application
 started in Windows Terminal.
+
+## review-facade-findings
+
+Requirements: FFI-002, FFI-003, FFI-004, FFI-005, FFI-006, FFI-007, TXT-004, ANI-010, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The fifth commitment cut from the next-feature item
+review-2026-10-04-remediation (2e1476c7), the developer's production code
+review of 2026-10-04 over the tree at 65e618ec: the C facade findings N14,
+N15, N17, N19, N20 and N22, and the two findings beside them that the
+earlier commitments left, N16's remainder (the animation debugger, after
+ANI-006 removed the performance module) and N18 (the gap buffer). Each was
+checked against the code at 0aade996 on 2026-10-06: six hold as written and
+two in part, N16 as said and N22 for `renderSurfaceToTerminal` alone, since
+`renderWithStats` renders through its own renderer and only ignores the
+terminal it is given. The developer confirmed the eight requirements the
+same day with the choices they carry: one width policy for the C text
+buffers, the width-method argument kept for compatibility; the widget
+constructors connected to the native controls rather than documented as
+pictures; the hit grid, render offset, host statistics and buffer dump
+implemented rather than declared unsupported, the grid built by
+registrations and read after a completed render as the original design
+works, the dump written to `rtui-buffers-<timestamp>.txt` in the current
+directory; `rtui_effect_create` made a real effect on a thread-confined
+runtime the C signals join, with `rtui_effect_run` kept; one version
+everywhere from Cargo.toml, the TypeScript package included; the gap buffer
+bounded in bytes with fallible constructors and inserts, the editor refusing
+an edit past the limit instead of panicking; and the animation debugger
+instrumenting what it runs.
+
+Delivered here: the C text-buffer renderers paint whole grapheme clusters by
+their width as the editor does; `rtui_text_input_create`,
+`rtui_checkbox_create` and `rtui_progress_bar_create` return the native
+text input, checkbox and progress bar, so an App edits, toggles and shows
+them; the C renderer gains a hit grid, a render offset and kept host
+statistics that the debug overlay shows and `dumpBuffers` writes to its
+file; `renderSurfaceToTerminal` paints through the caller's terminal with a
+complete copy of the surface and opens no second session;
+`rtui_effect_create` runs its callback when made and again when a C signal
+it read changes, with cleanup before each rerun and at destroy, and the
+hooks are documented as the keyed signal storage they are; `rtui_version`,
+README.md, the umbrella header and the TypeScript package report Cargo.toml's
+version and README names Lumis; the gap buffer's documentation states its
+cost and its byte limit is enforced by every constructor and insert, which
+fail instead of panicking; `DebugAnimationManager::update` records frame
+times, logs updates and takes verbose snapshots. The review-facade mechanism
+(scripts/cairn/review_facade.py, tests/review_facade.rs and its modules, run
+with the `ffi` feature, three of them on a pseudo-terminal because the C
+renderer takes raw mode, and unit tests named by requirement where a
+module's private parts are needed) checks every new requirement on the
+Linux host. The review's widget findings (W03, W05 to W08) stay in the
+next-feature item for the next commitment.
+
+Done when every named requirement passes; review-facade has recorded a fail
+on the tree as it was at the start for each new requirement; and the
+changelog names what changes for a C or TypeScript program: text painted by
+grapheme, native controls from the widget constructors, a working hit grid
+and statistics, surface rendering through the caller's terminal, effects
+that run on their signals, one version, and for a Rust program the gap
+buffer's limit and the animation debugger's instrumentation.
