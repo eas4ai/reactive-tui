@@ -239,10 +239,12 @@ impl DirectTtyBackend {
                 timestamp: std::time::Instant::now(),
             })),
 
+            // PLT-002: a paste stays one application event.
             TerminalEvent::Paste(content) => {
                 Some(rt_event::Event::Paste(rt_event::PasteEvent::new(content)))
             }
 
+            TerminalEvent::PasteStart | TerminalEvent::PasteEnd => None,
             _ => None, // Ignore other events for now
         }
     }

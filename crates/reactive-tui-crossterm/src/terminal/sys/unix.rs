@@ -356,6 +356,15 @@ pub fn query_startup(timeout: std::time::Duration) -> io::Result<StartupReplies>
     use std::io::Write;
     use std::time::Instant;
 
+    // PLT-004: every exit ends the exchange, including timeout and I/O errors.
+    struct PendingReplies;
+    impl Drop for PendingReplies {
+        fn drop(&mut self) {
+            crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
+                .store(false, std::sync::atomic::Ordering::Release);
+        }
+    }
+
     // ESC [ ? u      the Kitty keyboard flags
     // ESC ] 11 ; ?   the background color, ended by ST
     // ESC _ G ...    Kitty graphics queries (a=q, so nothing is shown): one
@@ -377,18 +386,14 @@ pub fn query_startup(timeout: std::time::Duration) -> io::Result<StartupReplies>
 
     crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
         .store(true, std::sync::atomic::Ordering::Release);
+    let _pending = PendingReplies;
     let written = File::open("/dev/tty").and_then(|mut file| {
         file.write_all(query)?;
         file.flush()
     });
     if written.is_err() {
         let mut stdout = io::stdout();
-        if let Err(error) = stdout.write_all(query).and_then(|()| stdout.flush()) {
-            // Nothing was asked, so no reply is due.
-            crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
-                .store(false, std::sync::atomic::Ordering::Release);
-            return Err(error);
-        }
+        stdout.write_all(query).and_then(|()| stdout.flush())?;
     }
     let deadline = Instant::now() + timeout;
     let mut replies = StartupReplies::default();

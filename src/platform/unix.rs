@@ -13,12 +13,20 @@ use std::sync::{Arc, Weak};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-static SIGNAL_HANDLERS: Mutex<Vec<SignalHandler>> = Mutex::new(Vec::new());
+// PLT-014: independent sessions share the first owner's saved mode.
+static TERMINAL_MODES: Mutex<Vec<TerminalMode>> = Mutex::new(Vec::new());
+
+struct TerminalMode {
+    key: (libc::dev_t, libc::ino_t),
+    original: libc::termios,
+    owners: usize,
+}
 static SIGNAL_LIFECYCLE: Mutex<SignalLifecycle> = Mutex::new(SignalLifecycle {
     owners: 0,
     action: None,
     stop: None,
     worker: None,
+    handlers: None,
 });
 // FIX: Use OnceLock for thread-safe initialization instead of unsafe global
 static TERMINATION_LIFECYCLE: Mutex<TerminationLifecycle> = Mutex::new(TerminationLifecycle {
@@ -51,17 +59,25 @@ pub struct UnixTty {
 
 struct TtyState {
     fd: OwnedFd,
-    original_termios: libc::termios,
+    terminal_key: (libc::dev_t, libc::ino_t),
     restored: AtomicBool,
     workers: Mutex<Vec<Weak<InputWorker>>>,
     signal_owner: AtomicBool,
 }
 
 struct SignalLifecycle {
+    handlers: Option<Arc<Mutex<Vec<SignalHandler>>>>,
     owners: usize,
     action: Option<signal_hook::SigId>,
     stop: Option<UnixStream>,
     worker: Option<JoinHandle<()>>,
+}
+
+struct SignalResources {
+    action: Option<signal_hook::SigId>,
+    stop: Option<UnixStream>,
+    worker: Option<JoinHandle<()>>,
+    handlers: Option<Arc<Mutex<Vec<SignalHandler>>>>,
 }
 
 struct TerminationLifecycle {
@@ -84,18 +100,27 @@ impl Drop for TerminationSignalGuard {
 
 impl TtyState {
     fn restore(&self) -> Result<()> {
-        if self.restored.swap(true, Ordering::AcqRel) {
+        let mut modes = TERMINAL_MODES.lock().unwrap_or_else(|e| e.into_inner());
+        if self.restored.load(Ordering::Acquire) {
             return Ok(());
         }
-        let result = unsafe {
-            libc::tcsetattr(self.fd.as_raw_fd(), libc::TCSAFLUSH, &self.original_termios)
-        };
-        if result != 0 {
-            self.restored.store(false, Ordering::Release);
-            Err(std::io::Error::last_os_error().into())
+        let index = modes
+            .iter()
+            .position(|mode| mode.key == self.terminal_key)
+            .expect("active terminal mode owner");
+        if modes[index].owners == 1 {
+            if unsafe {
+                libc::tcsetattr(self.fd.as_raw_fd(), libc::TCSAFLUSH, &modes[index].original)
+            } != 0
+            {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            modes.remove(index);
         } else {
-            Ok(())
+            modes[index].owners -= 1;
         }
+        self.restored.store(true, Ordering::Release);
+        Ok(())
     }
 }
 
@@ -160,31 +185,37 @@ impl UnixTty {
             return Err(std::io::Error::last_os_error().into());
         }
 
-        // Get current terminal settings
-        let mut termios = std::mem::MaybeUninit::<libc::termios>::uninit();
-        let result = unsafe { libc::tcgetattr(fd, termios.as_mut_ptr()) };
-        if result != 0 {
-            unsafe { libc::close(fd) };
+        let descriptor = unsafe { OwnedFd::from_raw_fd(fd) };
+        let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+        if unsafe { libc::fstat(fd, stat.as_mut_ptr()) } != 0 {
             return Err(std::io::Error::last_os_error().into());
         }
-
-        let original_termios = unsafe { termios.assume_init() };
-
-        // Set raw mode
-        let mut raw_termios = original_termios;
-        unsafe { libc::cfmakeraw(&mut raw_termios) };
-
-        let result = unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &raw_termios) };
-        if result != 0 {
-            unsafe { libc::close(fd) };
-            return Err(std::io::Error::last_os_error().into());
+        let stat = unsafe { stat.assume_init() };
+        let terminal_key = (stat.st_dev, stat.st_ino);
+        let mut modes = TERMINAL_MODES.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(mode) = modes.iter_mut().find(|mode| mode.key == terminal_key) {
+            mode.owners += 1;
+        } else {
+            let mut termios = std::mem::MaybeUninit::<libc::termios>::uninit();
+            if unsafe { libc::tcgetattr(fd, termios.as_mut_ptr()) } != 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            let original = unsafe { termios.assume_init() };
+            let mut raw = original;
+            unsafe { libc::cfmakeraw(&mut raw) };
+            if unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &raw) } != 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            modes.push(TerminalMode {
+                key: terminal_key,
+                original,
+                owners: 1,
+            });
         }
-
-        // The shared owner restores raw mode and closes its descriptor once.
-        // Construct it before fallible setup so every error releases the session.
+        drop(modes);
         let state = Arc::new(TtyState {
-            fd: unsafe { OwnedFd::from_raw_fd(fd) },
-            original_termios,
+            fd: descriptor,
+            terminal_key,
             restored: AtomicBool::new(false),
             workers: Mutex::new(Vec::new()),
             signal_owner: AtomicBool::new(false),
@@ -266,15 +297,27 @@ impl UnixTty {
         }
     }
 
-    /// Register a signal handler for window resize events
+    /// Register a signal handler for window resize events with the running
+    /// resize dispatcher, which a live `UnixTty` session owns; without one
+    /// the call fails. The callback belongs to that dispatcher's generation
+    /// and survives the teardown of an earlier one (PLT-013).
     pub fn register_winch_handler(
         context: *mut std::ffi::c_void,
         callback: extern "C" fn(*mut std::ffi::c_void),
     ) -> Result<()> {
         let handler = SignalHandler { context, callback };
 
-        let mut handlers = SIGNAL_HANDLERS.lock().unwrap_or_else(|e| e.into_inner());
-        handlers.push(handler);
+        let lifecycle = SIGNAL_LIFECYCLE.lock().unwrap_or_else(|e| e.into_inner());
+        let handlers = lifecycle.handlers.as_ref().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotConnected,
+                "Resize dispatcher is not running",
+            )
+        })?;
+        handlers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(handler);
 
         Ok(())
     }
@@ -282,13 +325,13 @@ impl UnixTty {
     /// Start a bounded raw input stream with at most 64 chunks of 4096 bytes.
     /// Dropping the receiver or final cloned terminal owner joins the reader.
     pub fn spawn_input_thread(&self) -> Result<InputReceiver<Vec<u8>>> {
-        self.spawn_input(|bytes| vec![bytes.to_vec()])
+        self.spawn_input(|bytes| (vec![bytes.to_vec()], None))
     }
 
     pub(super) fn spawn_input<T, F>(&self, parse: F) -> Result<InputReceiver<T>>
     where
         T: Send + 'static,
-        F: FnMut(&[u8]) -> Vec<T> + Send + 'static,
+        F: FnMut(&[u8]) -> (Vec<T>, Option<Duration>) + Send + 'static,
     {
         // A separate open description keeps nonblocking flags private to the
         // worker. A duplicated fd would still share flags with synchronous IO.
@@ -320,7 +363,7 @@ impl UnixTty {
             )
             .into());
         }
-        let receiver = InputWorker::spawn(descriptor, parse)?;
+        let receiver = InputWorker::spawn_timed(descriptor, parse)?;
         let mut workers = self.state.workers.lock().unwrap_or_else(|e| e.into_inner());
         workers.retain(|worker| worker.strong_count() != 0);
         workers.push(InputWorker::registration(&receiver));
@@ -351,9 +394,7 @@ impl UnixTty {
         let raw = fd.as_raw_fd();
         let state = Arc::new(TtyState {
             fd,
-            // SAFETY: termios is plain data; it is never written back since
-            // `restored` starts true.
-            original_termios: unsafe { std::mem::zeroed() },
+            terminal_key: (0, 0),
             restored: AtomicBool::new(true),
             workers: Mutex::new(Vec::new()),
             signal_owner: AtomicBool::new(false),
@@ -375,6 +416,9 @@ fn install_signal_handlers() -> Result<()> {
     let (mut reader, writer) = UnixStream::pair()?;
     let stop = reader.try_clone()?;
     let action = signal_hook::low_level::pipe::register(libc::SIGWINCH, writer)?;
+    // PLT-013: the worker and teardown retain only their generation's callbacks.
+    let handlers = Arc::new(Mutex::new(Vec::<SignalHandler>::new()));
+    let worker_handlers = Arc::clone(&handlers);
     let worker = match std::thread::Builder::new()
         .name("reactive-tui-sigwinch".into())
         .spawn(move || {
@@ -383,7 +427,7 @@ fn install_signal_handlers() -> Result<()> {
                 match reader.read(&mut byte) {
                     Ok(0) => break,
                     Ok(_) => {
-                        let handlers = SIGNAL_HANDLERS
+                        let handlers = worker_handlers
                             .lock()
                             .unwrap_or_else(|e| e.into_inner())
                             .clone();
@@ -402,6 +446,7 @@ fn install_signal_handlers() -> Result<()> {
             return Err(error.into());
         }
     };
+    lifecycle.handlers = Some(handlers);
     lifecycle.owners = 1;
     lifecycle.action = Some(action);
     lifecycle.stop = Some(stop);
@@ -419,22 +464,23 @@ fn release_signal_handler() {
         if lifecycle.owners != 0 {
             return;
         }
-        (
-            lifecycle.action.take(),
-            lifecycle.stop.take(),
-            lifecycle.worker.take(),
-        )
+        SignalResources {
+            action: lifecycle.action.take(),
+            stop: lifecycle.stop.take(),
+            worker: lifecycle.worker.take(),
+            handlers: lifecycle.handlers.take(),
+        }
     };
     stop_signal_handler(resources);
 }
 
-fn stop_signal_handler(
-    (action, stop, worker): (
-        Option<signal_hook::SigId>,
-        Option<UnixStream>,
-        Option<JoinHandle<()>>,
-    ),
-) {
+fn stop_signal_handler(resources: SignalResources) {
+    let SignalResources {
+        action,
+        stop,
+        worker,
+        handlers,
+    } = resources;
     if let Some(action) = action {
         signal_hook::low_level::unregister(action);
     }
@@ -444,10 +490,9 @@ fn stop_signal_handler(
     if let Some(worker) = worker {
         let _ = worker.join();
     }
-    SIGNAL_HANDLERS
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clear();
+    if let Some(handlers) = handlers {
+        handlers.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    }
 }
 
 /// Stop the library's resize dispatcher and release registered callbacks.
@@ -455,11 +500,12 @@ pub fn reset_signal_handlers() {
     let resources = {
         let mut lifecycle = SIGNAL_LIFECYCLE.lock().unwrap_or_else(|e| e.into_inner());
         lifecycle.owners = 0;
-        (
-            lifecycle.action.take(),
-            lifecycle.stop.take(),
-            lifecycle.worker.take(),
-        )
+        SignalResources {
+            action: lifecycle.action.take(),
+            stop: lifecycle.stop.take(),
+            worker: lifecycle.worker.take(),
+            handlers: lifecycle.handlers.take(),
+        }
     };
     stop_signal_handler(resources);
 }
@@ -659,6 +705,10 @@ mod tests {
     #[test]
     #[serial]
     fn api019_sigwinch_dispatches_outside_signal_context_and_preserves_prior_handler() {
+        // PLT-013: this sigaction probe must not replace later generations' dispatcher.
+        on_terminal(
+            "platform::unix::tests::api019_sigwinch_dispatches_outside_signal_context_and_preserves_prior_handler",
+            || {
         reset_signal_handlers();
         CALLBACK_COUNT.store(0, Ordering::SeqCst);
         PRIOR_COUNT.store(0, Ordering::SeqCst);
@@ -693,6 +743,8 @@ mod tests {
 
         let original = unsafe { original.assume_init() };
         unsafe { libc::sigaction(libc::SIGWINCH, &original, std::ptr::null_mut()) };
+            },
+        );
     }
 
     static PLT013_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -738,6 +790,36 @@ mod tests {
         assert_eq!(
             count, 1,
             "PLT-013: the callback registered by the new owner during the old generation's teardown ran {count} times on SIGWINCH"
+        );
+    }
+
+    #[test]
+    fn explicit_restore_releases_shared_mode_only_once() {
+        on_terminal(
+            "platform::unix::tests::explicit_restore_releases_shared_mode_only_once",
+            || {
+                let settings = || {
+                    let mut termios = std::mem::MaybeUninit::<libc::termios>::uninit();
+                    assert_eq!(unsafe { libc::tcgetattr(0, termios.as_mut_ptr()) }, 0);
+                    unsafe { termios.assume_init() }
+                };
+                let original = settings();
+                let first = UnixTty::init().unwrap();
+                let second = UnixTty::init().unwrap();
+                first.restore().unwrap();
+                first.restore().unwrap();
+                drop(first);
+                assert_eq!(settings().c_lflag & libc::ICANON, 0);
+                second.restore().unwrap();
+                second.restore().unwrap();
+                drop(second);
+                let restored = settings();
+                assert_eq!(restored.c_iflag, original.c_iflag);
+                assert_eq!(restored.c_oflag, original.c_oflag);
+                assert_eq!(restored.c_cflag, original.c_cflag);
+                assert_eq!(restored.c_lflag, original.c_lflag);
+                assert_eq!(restored.c_cc, original.c_cc);
+            },
         );
     }
 

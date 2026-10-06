@@ -100,6 +100,10 @@ fn read_complete(fd: &FileDesc, buf: &mut [u8]) -> io::Result<usize> {
 
 impl EventSource for UnixInternalEventSource {
     fn try_read(&mut self, timeout: Option<Duration>) -> io::Result<Option<InternalEvent>> {
+        if let Some(event) = self.parser.next() {
+            return Ok(Some(event));
+        }
+
         let timeout = PollTimeout::new(timeout);
 
         fn make_pollfd<F: AsRawFd>(fd: &F) -> pollfd {
@@ -217,6 +221,7 @@ impl EventSource for UnixInternalEventSource {
 struct Parser {
     buffer: Vec<u8>,
     internal_events: VecDeque<InternalEvent>,
+    startup_pending: bool,
 }
 
 impl Default for Parser {
@@ -239,12 +244,15 @@ impl Default for Parser {
             // method implementation, all events are consumed before the next TTY_BUFFER
             // is processed -> events pushed.
             internal_events: VecDeque::with_capacity(128),
+            startup_pending: false,
         }
     }
 }
 
 impl Parser {
     fn advance(&mut self, buffer: &[u8], more: bool) {
+        self.startup_pending = crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
+            .load(std::sync::atomic::Ordering::Acquire);
         for (idx, byte) in buffer.iter().enumerate() {
             let more = idx + 1 < buffer.len() || more;
 
@@ -258,6 +266,46 @@ impl Iterator for Parser {
     type Item = InternalEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let pending = crate::event::sys::unix::parse::STARTUP_REPLIES_PENDING
+            .load(std::sync::atomic::Ordering::Acquire);
+        // PLT-004: release held keys after the exchange, without another read.
+        if self.startup_pending && !pending && !self.buffer.is_empty() {
+            parse_held(&mut self.buffer, &mut self.internal_events, false);
+        }
+        self.startup_pending = pending;
         self.internal_events.pop_front()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plt_004_held_startup_keys_reparse_without_more_input() {
+        use crate::event::sys::unix::parse::{STARTUP_REPLIES_PENDING, STARTUP_TEST_LOCK};
+        use crate::event::{KeyCode, KeyModifiers};
+        use std::sync::atomic::Ordering;
+        let _turn = STARTUP_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        for (bytes, key) in [(b"\x1b]", ']'), (b"\x1b_", '_')] {
+            let mut parser = Parser::default();
+            STARTUP_REPLIES_PENDING.store(true, Ordering::Release);
+            parser.advance(bytes, false);
+            assert!(parser.next().is_none());
+            STARTUP_REPLIES_PENDING.store(false, Ordering::Release);
+            assert!(
+                matches!(parser.next(), Some(InternalEvent::Event(Event::Key(event)))
+                if event.code == KeyCode::Char(key) && event.modifiers == KeyModifiers::ALT)
+            );
+            assert!(parser.next().is_none());
+            parser.advance(b"\x1b[?62;4c", false);
+            assert_eq!(
+                parser.next(),
+                Some(InternalEvent::PrimaryDeviceAttributes { sixel: true })
+            );
+            assert!(!STARTUP_REPLIES_PENDING.load(Ordering::Acquire));
+        }
     }
 }

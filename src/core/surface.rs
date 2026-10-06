@@ -452,10 +452,12 @@ impl Rgba {
         0.2126 * self.r + 0.7152 * self.g + 0.0722 * self.b
     }
 
-    /// Calculate contrast ratio between two colors (WCAG standard)
+    /// WCAG 2 contrast ratio for opaque sRGB colors; alpha is ignored.
+    /// Channels are linearized with the sRGB transfer function.
     pub fn contrast_ratio(self, other: Self) -> f32 {
-        let l1 = self.luminance();
-        let l2 = other.luminance();
+        // PLT-010: relative luminance uses linear, not encoded, channels.
+        let l1 = self.to_linear().luminance();
+        let l2 = other.to_linear().luminance();
         let lighter = l1.max(l2);
         let darker = l1.min(l2);
         (lighter + 0.05) / (darker + 0.05)

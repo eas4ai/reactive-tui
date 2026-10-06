@@ -185,7 +185,12 @@ impl Cancellation {
         }
     }
 
-    pub(super) fn read(&self, descriptor: &OwnedFd, buffer: &mut [u8]) -> io::Result<usize> {
+    pub(super) fn read(
+        &self,
+        descriptor: &OwnedFd,
+        buffer: &mut [u8],
+        timeout: Option<Duration>,
+    ) -> io::Result<Option<usize>> {
         let mut descriptors = [
             libc::pollfd {
                 fd: descriptor.as_raw_fd(),
@@ -198,11 +203,20 @@ impl Cancellation {
                 revents: 0,
             },
         ];
+        let deadline = timeout.map(|timeout| std::time::Instant::now() + timeout);
         loop {
-            // Both descriptors remain owned throughout poll and read. The input
-            // descriptor is independently opened with O_NONBLOCK, so another
-            // reader or a mode change cannot turn readiness into a blocking read.
-            let ready = unsafe { libc::poll(descriptors.as_mut_ptr(), 2, -1) };
+            let milliseconds = deadline.map_or(-1, |deadline| {
+                let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                remaining
+                    .as_nanos()
+                    .div_ceil(1_000_000)
+                    .min(i32::MAX as u128) as i32
+            });
+            // PLT-001/PLT-011: poll before reading, including blocking stdin.
+            let ready = unsafe { libc::poll(descriptors.as_mut_ptr(), 2, milliseconds) };
+            if ready == 0 {
+                return Ok(None);
+            }
             if ready < 0 {
                 let error = io::Error::last_os_error();
                 if error.kind() == io::ErrorKind::Interrupted {
@@ -211,7 +225,7 @@ impl Cancellation {
                 return Err(error);
             }
             if descriptors[1].revents != 0 {
-                return Ok(0);
+                return Ok(Some(0));
             }
             let count = unsafe {
                 libc::read(
@@ -221,7 +235,7 @@ impl Cancellation {
                 )
             };
             if count >= 0 {
-                return Ok(count as usize);
+                return Ok(Some(count as usize));
             }
             let error = io::Error::last_os_error();
             if !matches!(
@@ -241,10 +255,13 @@ pub(super) struct InputWorker {
 }
 
 impl InputWorker {
-    pub(super) fn spawn<T, F>(descriptor: OwnedFd, mut parse: F) -> io::Result<InputReceiver<T>>
+    pub(super) fn spawn_timed<T, F>(
+        descriptor: OwnedFd,
+        mut parse: F,
+    ) -> io::Result<InputReceiver<T>>
     where
         T: Send + 'static,
-        F: FnMut(&[u8]) -> Vec<T> + Send + 'static,
+        F: FnMut(&[u8]) -> (Vec<T>, Option<Duration>) + Send + 'static,
     {
         let cancellation = Arc::new(Cancellation::new()?);
         let task_cancellation = Arc::clone(&cancellation);
@@ -253,11 +270,14 @@ impl InputWorker {
             .name("rtui-input".into())
             .spawn(move || {
                 let mut buffer = [0; READ_SIZE];
-                while let Ok(count) = task_cancellation.read(&descriptor, &mut buffer) {
-                    if count == 0 {
+                let mut timeout = None;
+                while let Ok(count) = task_cancellation.read(&descriptor, &mut buffer, timeout) {
+                    if count == Some(0) {
                         break;
                     }
-                    for item in parse(&buffer[..count]) {
+                    let (items, next_timeout) = parse(&buffer[..count.unwrap_or(0)]);
+                    timeout = next_timeout;
+                    for item in items {
                         if !task_cancellation.send(&sender, item) {
                             return;
                         }
@@ -270,6 +290,15 @@ impl InputWorker {
             thread: Mutex::new(Some(thread)),
         });
         Ok(InputReceiver { receiver, worker })
+    }
+
+    #[cfg(test)]
+    pub(super) fn spawn<T, F>(descriptor: OwnedFd, mut parse: F) -> io::Result<InputReceiver<T>>
+    where
+        T: Send + 'static,
+        F: FnMut(&[u8]) -> Vec<T> + Send + 'static,
+    {
+        Self::spawn_timed(descriptor, move |bytes| (parse(bytes), None))
     }
 
     pub(super) fn registration<T>(receiver: &InputReceiver<T>) -> std::sync::Weak<Self> {
@@ -314,6 +343,36 @@ mod tests {
         let receiver = InputWorker::spawn(reader.into(), |bytes| bytes.to_vec()).unwrap();
         let worker = Arc::clone(&receiver.worker);
         (writer, receiver, worker)
+    }
+
+    #[test]
+    fn timed_worker_releases_escape_and_partial_paste_without_more_bytes() {
+        use crate::platform::{parser::EscapeSequenceParser, KeyCode, TerminalEvent};
+        let (reader, mut writer) = UnixStream::pair().unwrap();
+        let mut parser = EscapeSequenceParser::new();
+        let receiver = InputWorker::spawn_timed(reader.into(), move |bytes| {
+            let events = parser.parse(bytes);
+            (events, parser.pending_timeout())
+        })
+        .unwrap();
+        writer.write_all(b"\x1b").unwrap();
+        let event = receiver.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(matches!(
+            event,
+            TerminalEvent::Key {
+                code: KeyCode::Escape,
+                ..
+            }
+        ));
+        writer.write_all(b"a").unwrap();
+        let event = receiver.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(
+            matches!(event, TerminalEvent::Key { code: KeyCode::Char('a'), modifiers, .. } if !modifiers.alt)
+        );
+        writer.write_all(b"\x1b[200~a\r").unwrap();
+        let event = receiver.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(matches!(event, TerminalEvent::Paste(text) if text == "a\r"));
+        drop(receiver);
     }
 
     #[test]

@@ -9,6 +9,9 @@ const MAX_PARAMS_SIZE: usize = 32; // VT standard allows max 16 params
 
 /// VT parser state machine for ANSI escape sequences
 /// Based on Paul Williams' state machine design: <https://vt100.net/emu/dec_ansi_parser>
+///
+/// PLT-005: ground text is streaming UTF-8. Standalone C1 bytes keep their
+/// 8-bit control meaning; bytes completing a UTF-8 character never do.
 pub struct Parser {
     state: State,
     intermediate_bytes: Vec<u8>,
@@ -17,6 +20,10 @@ pub struct Parser {
     dcs_string: Vec<u8>,
     current_param: Option<u16>,
     actions: Vec<Action>,
+    utf8_buffer: [u8; 4],
+    utf8_len: usize,
+    string_parent: State,
+    string_kind: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -35,6 +42,7 @@ enum State {
     DCSIgnore,
     OSCString,
     SOSPMAPCString,
+    StringEscape,
 }
 
 impl Parser {
@@ -48,6 +56,10 @@ impl Parser {
             dcs_string: Vec::with_capacity(1024),
             current_param: None,
             actions: Vec::with_capacity(16),
+            utf8_buffer: [0; 4],
+            utf8_len: 0,
+            string_parent: State::Ground,
+            string_kind: 0,
         }
     }
 
@@ -64,6 +76,9 @@ impl Parser {
 
     /// Process a single byte through the state machine
     fn process_byte(&mut self, byte: u8) {
+        if self.collect_utf8(byte) || self.consume_string_escape(byte) {
+            return;
+        }
         // C0 control characters are handled specially in most states
         if byte < 0x20 {
             match byte {
@@ -88,15 +103,14 @@ impl Parser {
                     return;
                 }
                 0x1B => {
-                    // ESC - Start escape sequence
-                    self.transition_to(State::Escape);
+                    self.start_escape();
                     return;
                 }
                 _ => {} // Other C0 controls - ignore in most states
             }
         }
 
-        // C1 control characters (0x80-0x9F) in 8-bit mode
+        // PLT-005: standalone C1 bytes retain their 8-bit control meaning.
         if (0x80..=0x9F).contains(&byte) {
             match byte {
                 0x90 => {
@@ -116,6 +130,7 @@ impl Parser {
                 }
                 0x98 | 0x9E | 0x9F => {
                     // SOS, PM, APC
+                    self.string_kind = byte;
                     self.transition_to(State::SOSPMAPCString);
                     return;
                 }
@@ -139,6 +154,65 @@ impl Parser {
             State::DCSIgnore => self.dcs_ignore(byte),
             State::OSCString => self.osc_string(byte),
             State::SOSPMAPCString => self.sos_pm_apc_string(byte),
+            State::StringEscape => unreachable!("handled before global controls"),
+        }
+    }
+
+    fn collect_utf8(&mut self, byte: u8) -> bool {
+        // PLT-005: collect UTF-8 before C1 dispatch, even across feeds.
+        if self.utf8_len == 0 {
+            return false;
+        }
+        self.utf8_buffer[self.utf8_len] = byte;
+        self.utf8_len += 1;
+        match std::str::from_utf8(&self.utf8_buffer[..self.utf8_len]) {
+            Ok(text) => {
+                self.actions
+                    .push(Action::Print(text.chars().next().unwrap()));
+                self.utf8_len = 0;
+                return true;
+            }
+            Err(error) if error.error_len().is_none() => return true,
+            Err(_) => {
+                self.utf8_len = 0;
+                self.actions.push(Action::Print('\u{FFFD}'));
+                self.transition_to(State::Ground);
+                // Reprocess the byte that invalidated the character.
+            }
+        }
+        false
+    }
+
+    fn consume_string_escape(&mut self, byte: u8) -> bool {
+        // PLT-006: string ESC is pending independently of payload capacity.
+        if self.state != State::StringEscape {
+            return false;
+        }
+        if byte == b'\\' {
+            match self.string_parent {
+                State::OSCString => self.osc_end(),
+                State::DCSPassthrough => self.dcs_dispatch(),
+                State::SOSPMAPCString => self.sos_pm_apc_string(0x9C),
+                _ => {}
+            }
+            self.transition_to(State::Ground);
+            return true;
+        }
+        // VT500: ESC followed by anything but backslash aborts OSC.
+        // Other strings also resume the global escape transition.
+        self.osc_string.clear();
+        self.dcs_string.clear();
+        self.transition_to(State::Escape);
+        false
+    }
+
+    fn start_escape(&mut self) {
+        match self.state {
+            State::OSCString | State::DCSPassthrough | State::DCSIgnore | State::SOSPMAPCString => {
+                self.string_parent = self.state;
+                self.state = State::StringEscape;
+            }
+            _ => self.transition_to(State::Escape),
         }
     }
 
@@ -159,7 +233,7 @@ impl Parser {
                 self.dcs_string.clear();
                 self.current_param = None;
             }
-            State::OSCString => {
+            State::OSCString | State::SOSPMAPCString => {
                 self.osc_string.clear();
             }
             _ => {}
@@ -170,9 +244,11 @@ impl Parser {
     fn ground(&mut self, byte: u8) {
         if (0x20..0x7F).contains(&byte) {
             self.actions.push(Action::Print(byte as char));
+        } else if (0xC2..=0xF4).contains(&byte) {
+            self.utf8_buffer[0] = byte;
+            self.utf8_len = 1;
         } else if byte >= 0xA0 {
-            // UTF-8 or extended ASCII
-            self.actions.push(Action::Print(byte as char));
+            self.actions.push(Action::Print('\u{FFFD}'));
         }
     }
 
@@ -206,6 +282,11 @@ impl Parser {
             }
             0x58 | 0x5E | 0x5F => {
                 // SOS, PM, APC
+                self.string_kind = match byte {
+                    0x58 => 0x98,
+                    0x5E => 0x9E,
+                    _ => 0x9F,
+                };
                 self.transition_to(State::SOSPMAPCString);
             }
             0x5B => {
@@ -489,12 +570,8 @@ impl Parser {
     }
 
     fn dcs_passthrough(&mut self, byte: u8) {
-        // Collect DCS data until ST (String Terminator)
-        if byte == 0x9C || (self.dcs_string.last() == Some(&0x1B) && byte == b'\\') {
-            // End of DCS
-            if self.dcs_string.last() == Some(&0x1B) {
-                self.dcs_string.pop(); // Remove ESC
-            }
+        // Collect DCS data until ST (String Terminator).
+        if byte == 0x9C {
             self.dcs_dispatch();
             self.transition_to(State::Ground);
         } else {
@@ -511,27 +588,14 @@ impl Parser {
     }
 
     fn dcs_ignore(&mut self, byte: u8) {
-        // Ignore until ST
-        if byte == 0x9C || (byte == b'\\' && self.dcs_string.last() == Some(&0x1B)) {
-            self.transition_to(State::Ground);
-        } else if byte != 0x1B {
+        if byte == 0x9C {
             self.dcs_string.clear();
-        } else {
-            // Even in ignore state, prevent unbounded growth
-            if self.dcs_string.len() < MAX_DCS_STRING_SIZE {
-                self.dcs_string.push(byte);
-            }
+            self.transition_to(State::Ground);
         }
     }
 
     fn osc_string(&mut self, byte: u8) {
-        // Collect OSC data until ST or BEL
-        if byte == 0x07 || byte == 0x9C || (self.osc_string.last() == Some(&0x1B) && byte == b'\\')
-        {
-            // End of OSC
-            if self.osc_string.last() == Some(&0x1B) {
-                self.osc_string.pop(); // Remove ESC
-            }
+        if byte == 0x07 || byte == 0x9C {
             self.osc_end();
             self.transition_to(State::Ground);
         } else {
@@ -549,9 +613,17 @@ impl Parser {
     }
 
     fn sos_pm_apc_string(&mut self, byte: u8) {
-        // For now, just collect and ignore until ST
-        if byte == 0x9C || (byte == b'\\' && self.osc_string.last() == Some(&0x1B)) {
+        if byte == 0x9C {
+            let payload = mem::take(&mut self.osc_string);
+            let action = match self.string_kind {
+                0x98 => Action::SOS(payload),
+                0x9E => Action::PM(payload),
+                _ => Action::APC(payload),
+            };
+            self.actions.push(action);
             self.transition_to(State::Ground);
+        } else if self.osc_string.len() < MAX_OSC_STRING_SIZE {
+            self.osc_string.push(byte);
         }
     }
 
@@ -615,12 +687,16 @@ impl Parser {
         if let Some(action) = OSCAction::parse(&self.osc_string) {
             self.actions.push(Action::OSC(action));
         }
+        // PLT-006: BEL and ST both finish and clear the title payload.
+        self.osc_string.clear();
+        self.transition_to(State::Ground);
     }
 
     fn dcs_dispatch(&mut self) {
         // For now, just store raw DCS data
         if !self.dcs_string.is_empty() {
-            self.actions.push(Action::DCS(self.dcs_string.clone()));
+            self.actions
+                .push(Action::DCS(mem::take(&mut self.dcs_string)));
         }
     }
 }
@@ -634,6 +710,73 @@ impl Default for Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // PLT-005: malformed UTF-8 replaces the prefix and reprocesses its bad byte.
+    #[test]
+    fn plt_005_invalid_utf8_recovers() {
+        for bytes in [&b"\xc3X"[..], &b"\xc0X"[..], &b"\xffX"[..]] {
+            assert_eq!(
+                Parser::new().feed(bytes),
+                vec![Action::Print('\u{FFFD}'), Action::Print('X')]
+            );
+        }
+        for (bytes, replacements) in [
+            (&b"\xe0\x80X"[..], 1),
+            (&b"\xed\xa0X"[..], 2),
+            (&b"\xf4\xbfX"[..], 2),
+        ] {
+            let mut parser = Parser::new();
+            let actions = bytes
+                .iter()
+                .flat_map(|byte| parser.feed(&[*byte]))
+                .collect::<Vec<_>>();
+            // PLT-005: the bad continuation is processed again as a standalone byte.
+            let mut expected = vec![Action::Print('\u{FFFD}'); replacements];
+            expected.push(Action::Print('X'));
+            assert_eq!(actions, expected);
+        }
+        assert_eq!(
+            Parser::new().feed(b"\xc3\xc3\xa9"),
+            vec![Action::Print('\u{FFFD}'), Action::Print('é')]
+        );
+        assert_eq!(
+            Parser::new().feed(b"\x9b2A"),
+            vec![Action::CSI(CSIAction::CursorUp(2))]
+        );
+    }
+
+    // PLT-006: pending ESC survives a feed boundary for every string kind.
+    #[test]
+    fn plt_006_string_escape_and_abort() {
+        for (introducer, action) in [
+            (b'X', Action::SOS(vec![b'x'])),
+            (b'^', Action::PM(vec![b'x'])),
+            (b'_', Action::APC(vec![b'x'])),
+            (b'P', Action::DCS(vec![b'x'])),
+        ] {
+            let mut parser = Parser::new();
+            let mut input = vec![0x1b, introducer];
+            if introducer == b'P' {
+                input.push(b'q');
+            }
+            input.extend_from_slice(b"x\x1b");
+            assert!(parser.feed(&input).is_empty());
+            assert_eq!(parser.feed(b"\\X"), vec![action, Action::Print('X')]);
+        }
+        let mut parser = Parser::new();
+        assert!(parser.feed(b"\x1b]2;aborted\x1b").is_empty());
+        assert_eq!(
+            parser.feed(b"[2AX"),
+            vec![Action::CSI(CSIAction::CursorUp(2)), Action::Print('X')]
+        );
+        assert_eq!(
+            parser.feed(b"\x1b]2;new\x07X"),
+            vec![
+                Action::OSC(OSCAction::SetTitle("new".into())),
+                Action::Print('X')
+            ]
+        );
+    }
 
     #[test]
     fn test_basic_text() {

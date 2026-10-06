@@ -127,7 +127,7 @@ pub struct RenderOpsBuilder {
     pub(crate) ops: RenderOps,
     current_fg: Option<Rgba>,
     current_bg: Option<Rgba>,
-    current_attr: Attr,
+    current_attr: Option<Attr>,
 }
 
 impl RenderOpsBuilder {
@@ -137,7 +137,8 @@ impl RenderOpsBuilder {
             ops: RenderOps::with_capacity(1024),
             current_fg: None,
             current_bg: None,
-            current_attr: Attr::empty(),
+            // PLT-007: a new batch must explicitly set even empty attributes.
+            current_attr: None,
         }
     }
 
@@ -167,9 +168,9 @@ impl RenderOpsBuilder {
 
     /// Set text attributes if different from current
     pub fn set_attr(&mut self, attr: Attr) -> &mut Self {
-        if self.current_attr != attr {
+        if self.current_attr != Some(attr) {
             self.ops.push(RenderOp::SetAttributes(attr));
-            self.current_attr = attr;
+            self.current_attr = Some(attr);
         }
         self
     }
@@ -213,18 +214,16 @@ impl RenderOpsBuilder {
     /// Clear the screen
     pub fn clear_screen(&mut self) -> &mut Self {
         self.ops.push(RenderOp::ClearScreen);
-        self.current_fg = None;
-        self.current_bg = None;
-        self.current_attr = Attr::empty();
         self
     }
 
     /// Reset all styles
     pub fn reset_style(&mut self) -> &mut Self {
         self.ops.push(RenderOp::ResetStyle);
+        // PLT-007: a full reset also invalidates both cached colors.
         self.current_fg = None;
         self.current_bg = None;
-        self.current_attr = Attr::empty();
+        self.current_attr = Some(Attr::empty());
         self
     }
 

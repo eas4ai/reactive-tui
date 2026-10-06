@@ -147,11 +147,44 @@ impl GraphemeSurface {
         }
     }
 
-    /// Set a cell at position
+    /// Set a cell at position, replacing every glyph it overlaps.
     pub fn set_cell(&mut self, x: usize, y: usize, cell: CellType) {
-        if x < self.width && y < self.height {
-            let idx = self.idx(x, y);
-            self.cells[idx] = cell;
+        if x >= self.width || y >= self.height {
+            return;
+        }
+        let width = match cell {
+            CellType::Glyph { grapheme, .. } => grapheme.width().max(1),
+            _ => 1,
+        };
+        // PLT-009: a wide glyph that cannot fit leaves existing cells unchanged.
+        if width > self.width - x {
+            return;
+        }
+        for col in x..x + width {
+            self.clear_overlapped_glyph(col, y);
+        }
+        let idx = self.idx(x, y);
+        self.cells[idx] = cell;
+        if width == 2 {
+            self.cells[idx + 1] = CellType::Void;
+        }
+    }
+
+    fn clear_overlapped_glyph(&mut self, x: usize, y: usize) {
+        let idx = self.idx(x, y);
+        let lead = if self.cells[idx] == CellType::Void && x > 0 {
+            idx - 1
+        } else {
+            idx
+        };
+        if let CellType::Glyph { grapheme, bg, .. } = self.cells[lead] {
+            if grapheme.width() == 2 {
+                // PLT-009: erase both halves with the old glyph's background.
+                self.cells[lead] = CellType::Spacer { bg };
+                if lead + 1 < (y + 1) * self.width {
+                    self.cells[lead + 1] = CellType::Spacer { bg };
+                }
+            }
         }
     }
 
@@ -184,7 +217,11 @@ impl GraphemeSurface {
                 continue;
             }
 
-            // Set the main cell
+            if width > self.width - x {
+                break;
+            }
+
+            // Place the glyph and its continuation together.
             self.set_cell(
                 x,
                 y,
@@ -195,13 +232,7 @@ impl GraphemeSurface {
                     attr,
                 },
             );
-            x += 1;
-
-            // For wide characters, set continuation cell
-            if width == 2 && x < self.width {
-                self.set_cell(x, y, CellType::Void);
-                x += 1;
-            }
+            x += width;
         }
     }
 
@@ -213,61 +244,53 @@ impl GraphemeSurface {
 
         let mut spans = Vec::new();
         let mut current_span: Option<Span> = None;
-        let y = row;
-
         for x in 0..self.width {
-            let cell = self.get_cell(x, y);
-
-            match cell {
+            let (text, fg, bg, attr) = match self.get_cell(x, row) {
                 CellType::Glyph {
                     grapheme,
                     fg,
                     bg,
                     attr,
-                } => {
-                    // Check if we can extend current span
-                    if let Some(ref mut span) = current_span {
-                        if span.can_extend(&fg, &bg, &attr) {
-                            span.text.push_str(grapheme.as_str());
-                            span.end_col = x + 1;
-                        } else {
-                            // Style changed, start new span
-                            spans.push(current_span.take().unwrap());
-                            current_span =
-                                Some(Span::new(x, x + 1, grapheme.as_str(), fg, bg, attr));
-                        }
-                    } else {
-                        // Start first span
-                        current_span = Some(Span::new(x, x + 1, grapheme.as_str(), fg, bg, attr));
-                    }
-                }
+                } => (grapheme, fg, bg, attr),
                 CellType::Spacer { bg } => {
-                    // Check if we can extend with space
-                    let space_fg = Rgba {
-                        r: 1.0,
-                        g: 1.0,
-                        b: 1.0,
-                        a: 1.0,
-                    };
-                    let space_attr = Attr::empty();
-
-                    if let Some(ref mut span) = current_span {
-                        if span.can_extend(&space_fg, &bg, &space_attr) {
-                            span.text.push(' ');
-                            span.end_col = x + 1;
-                        } else {
-                            spans.push(current_span.take().unwrap());
-                            current_span = Some(Span::new(x, x + 1, " ", space_fg, bg, space_attr));
-                        }
-                    } else {
-                        current_span = Some(Span::new(x, x + 1, " ", space_fg, bg, space_attr));
-                    }
+                    (GraphemeCluster::new(" "), Rgba::white(), bg, Attr::empty())
                 }
                 CellType::Void => {
-                    // Skip void cells (they're part of the previous wide character)
+                    // PLT-009: only an actual wide glyph owns this column.
+                    let continuation = x > 0
+                        && matches!(self.get_cell(x - 1, row),
+                            CellType::Glyph { grapheme, .. } if grapheme.width() == 2)
+                        && current_span
+                            .as_ref()
+                            .is_some_and(|span| span.end_col == x + 1);
+                    if continuation {
+                        continue;
+                    }
+                    if let Some(span) = current_span.take() {
+                        spans.push(span);
+                    }
+                    (
+                        GraphemeCluster::new(" "),
+                        Rgba::white(),
+                        Rgba::black(),
+                        Attr::empty(),
+                    )
+                }
+            };
+            let text = text.as_str();
+            let end = x + UnicodeWidthStr::width(text);
+            if let Some(span) = current_span.as_mut() {
+                // PLT-009: matching style alone cannot bridge a missing column.
+                if span.end_col == x && span.can_extend(&fg, &bg, &attr) {
+                    span.text.push_str(text);
+                    span.end_col = end;
                     continue;
                 }
             }
+            if let Some(span) = current_span.take() {
+                spans.push(span);
+            }
+            current_span = Some(Span::new(x, end, text, fg, bg, attr));
         }
 
         // Push final span if any
@@ -316,6 +339,47 @@ impl Span {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plt_009_direct_cells_clear_overlaps_and_spans_cover_orphans() {
+        let bg = Rgba::new(0.0, 0.0, 1.0, 1.0);
+        let glyph = |text| CellType::Glyph {
+            grapheme: GraphemeCluster::new(text),
+            fg: Rgba::white(),
+            bg,
+            attr: Attr::empty(),
+        };
+        let mut surface = GraphemeSurface::new(5, 1);
+        surface.set_cell(0, 0, glyph("界"));
+        surface.set_cell(2, 0, glyph("界"));
+        surface.set_cell(1, 0, glyph("界"));
+        assert_eq!(surface.get_cell(0, 0), CellType::Spacer { bg });
+        assert_eq!(surface.get_cell(3, 0), CellType::Spacer { bg });
+        assert_eq!(surface.get_cell(2, 0), CellType::Void);
+        surface.set_cell(4, 0, glyph("X"));
+        surface.write_str(4, 0, "界", Rgba::white(), bg, Attr::empty());
+        assert_eq!(surface.get_cell(4, 0), glyph("X"));
+
+        surface.set_cell(1, 0, CellType::Void);
+        assert_eq!(surface.get_cell(2, 0), CellType::Spacer { bg });
+        let spans = surface.to_row_spans(0);
+        for span in &spans {
+            assert_eq!(
+                span.end_col,
+                span.start_col + UnicodeWidthStr::width(span.text.as_str())
+            );
+        }
+        assert!(spans
+            .iter()
+            .any(|span| span.start_col == 1 && span.text == " "));
+
+        surface.set_cell(3, 0, glyph("界"));
+        let spans = surface.to_row_spans(0);
+        assert!(spans.iter().any(|span| span.end_col == 5
+            && span.text.find("界").is_some_and(|at| {
+                span.start_col + UnicodeWidthStr::width(&span.text[..at]) == 3
+            })));
+    }
 
     #[test]
     fn test_grapheme_cluster_ascii() {

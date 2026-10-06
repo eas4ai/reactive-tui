@@ -237,7 +237,7 @@ of 255 per channel and no 8 by 16 pixel block that differs by more than 8 of
 255.
 
 The canvas never ends the App over a fault. When the adapter cannot be
-used, the device is lost or reading a picture back fails, the canvas
+used, the device fails or reading a picture back fails, the canvas
 switches to the software renderer for the rest of its life. When the
 software renderer fails too, the canvas shows a message in its own area.
 
@@ -261,11 +261,12 @@ every picture of the software renderer, so the canvas shows its message.
 ## The drawing thread
 
 While the thread makes its renderer and the process's stderr is the
-terminal, stderr goes nowhere: a Vulkan driver prints what it thinks of
-itself as its instance is created (Mesa's radv says it is not a
-conformant implementation), and on a running App those lines would land
-in the frame. A stderr that is a file or a pipe keeps them; anything
-another thread writes to a terminal stderr during that moment is lost.
+terminal, stderr passes through a pipe. Lines other than the driver's
+warning are forwarded to the saved terminal in order. The filter drops
+only the driver's `WARNING:` line containing Mesa's `radv` text and
+`not a conformant Vulkan implementation`. Before initialization,
+`MESA_VK_IGNORE_CONFORMANCE_WARNING=true` is set when unset, using Mesa's
+own switch. A stderr that is a file or a pipe keeps its output directly.
 A thread started before the App, as the catalog does, prints before the
 App holds the screen either way.
 
