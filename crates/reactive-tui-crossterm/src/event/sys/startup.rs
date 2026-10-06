@@ -111,7 +111,9 @@ const LONGEST_REPLY: usize = 128;
 
 #[cfg_attr(not(windows), allow(dead_code))]
 impl<R> ReplyCollector<R> {
-    /// Whether records are held.
+    /// Whether records are held; the tests read it, the source has no use
+    /// for it since a typed key no longer releases what is held.
+    #[cfg(test)]
     pub(crate) fn is_empty(&self) -> bool {
         self.held.is_empty()
     }
