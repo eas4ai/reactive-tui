@@ -266,9 +266,12 @@ warning are forwarded to the saved terminal in order. The filter drops
 only the line a Mesa Vulkan driver prints about itself, exactly
 `WARNING: <driver> is not a conformant Vulkan implementation, testing use
 only.` (radv, lavapipe and the others); a diagnostic of yours that quotes
-those words passes. Before initialization,
-`MESA_VK_IGNORE_CONFORMANCE_WARNING=true` is set when unset, using Mesa's
-own switch. A stderr that is a file or a pipe keeps its output directly.
+those words passes. The library does not set Mesa's own switch,
+`MESA_VK_IGNORE_CONFORMANCE_WARNING`: changing the environment from a
+thread can crash a program whose other threads read it. A host that wants
+the warning silenced at its source sets `MESA_VK_IGNORE_CONFORMANCE_WARNING=true`
+itself, before it starts threads. A stderr that is a file or a pipe keeps
+its output directly.
 A thread started before the App, as the catalog does, prints before the
 App holds the screen either way.
 

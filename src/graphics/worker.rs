@@ -523,10 +523,13 @@ fn run(shared: Arc<Shared>, options: GraphicsOptions) {
     let mut renderer = {
         #[cfg(unix)]
         let _quiet = QuietTerminalStderr::start();
-        // PLT-016: use Mesa's own warning switch unless the host already set it.
-        if std::env::var_os("MESA_VK_IGNORE_CONFORMANCE_WARNING").is_none() {
-            std::env::set_var("MESA_VK_IGNORE_CONFORMANCE_WARNING", "true");
-        }
+        // PLT-016: the filter above keeps the driver's warning off the
+        // terminal. The library does not set Mesa's own switch
+        // (MESA_VK_IGNORE_CONFORMANCE_WARNING): writing the process
+        // environment from a thread races any other thread reading it through
+        // C, which a library cannot rule out (the developer's ruling on the
+        // review's finding 6, 2026-10-05); a host may set it before it starts
+        // threads.
         HybridRenderer::new(options)
     };
     {

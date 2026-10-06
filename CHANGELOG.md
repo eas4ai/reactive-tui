@@ -87,9 +87,11 @@ This file records user-visible changes to Reactive TUI. The project follows
   renderer initializes and stderr is a terminal, stderr passes through a
   pipe: every line is forwarded to the terminal in order except the one a
   Mesa Vulkan driver prints about itself, exactly `WARNING: <driver> is not
-  a conformant Vulkan implementation, testing use only.`, and
-  `MESA_VK_IGNORE_CONFORMANCE_WARNING=true` is set when the host left it
-  unset. The manual's graphics chapter says so (PLT-016).
+  a conformant Vulkan implementation, testing use only.`. The library does
+  not set Mesa's own switch (`MESA_VK_IGNORE_CONFORMANCE_WARNING`), since
+  writing the process environment from a thread can crash a program whose
+  other threads read it; a host may set it before starting threads. The
+  manual's graphics chapter says so (PLT-016).
 - `Animation::reverse` keeps a playing animation playing: it turns around
   from where it is and its callbacks keep running; the `Reversed` state is no
   longer set (docs/spec/animation.md, ANI-001).
