@@ -2,6 +2,7 @@
 """The ci-workflow mechanism's own tests: which runs and jobs may satisfy
 BAR-012 (no scheduled run, every platform job successful), and what the
 static reading of the workflow accepts and refuses, without gh."""
+import copy
 import sys
 import unittest
 from pathlib import Path
@@ -20,7 +21,9 @@ def job(name, conclusion="success"):
     return {"name": name, "conclusion": conclusion, "status": "completed"}
 
 
-PLATFORM = [job("platform (ubuntu-24.04)"), job("platform (macos-14)"), job("platform (windows-2022)")]
+EXPECTED = ["platform (linux-x64)", "platform (macos-arm64)", "platform (windows-x64)"]
+PLATFORM = [job(name) for name in EXPECTED]
+HOSTED_SKIPPED = [job(f"platform-hosted ({os})", "skipped") for os in ("ubuntu-24.04", "macos-14", "windows-2022")]
 ADVISORIES_SKIPPED = job("scheduled security advisories", "skipped")
 
 
@@ -39,33 +42,36 @@ class RunSelection(unittest.TestCase):
 
 class JobVerdict(unittest.TestCase):
     def test_three_successful_platform_jobs_pass(self):
-        ok, why = ci.verdict(run(), PLATFORM + [ADVISORIES_SKIPPED])
+        ok, why = ci.verdict(run(), PLATFORM + HOSTED_SKIPPED + [ADVISORIES_SKIPPED], EXPECTED)
         self.assertTrue(ok, why)
         self.assertIn("green on every job", why)
 
     def test_a_skipped_platform_matrix_fails_even_when_the_run_succeeded(self):
         jobs = [job(j["name"], "skipped") for j in PLATFORM] + [job("scheduled security advisories")]
-        ok, why = ci.verdict(run(event="schedule"), jobs)
+        ok, why = ci.verdict(run(event="schedule"), jobs, EXPECTED)
         self.assertFalse(ok)
-        for prefix in ("platform (ubuntu-", "platform (macos-", "platform (windows-"):
-            self.assertIn(prefix, why)
+        for name in EXPECTED:
+            self.assertIn(name, why)
 
     def test_a_missing_platform_job_fails(self):
-        ok, why = ci.verdict(run(), PLATFORM[:2] + [ADVISORIES_SKIPPED])
+        ok, why = ci.verdict(run(), PLATFORM[:2] + [ADVISORIES_SKIPPED], EXPECTED)
         self.assertFalse(ok)
-        self.assertIn("platform (windows-", why)
-        self.assertNotIn("platform (ubuntu-", why)
+        self.assertIn("platform (windows-x64)", why)
+        self.assertNotIn("platform (linux-x64)", why)
 
     def test_a_failed_platform_job_fails_with_its_name(self):
-        jobs = PLATFORM[:2] + [job("platform (windows-2022)", "failure")]
-        ok, why = ci.verdict(run(conclusion="failure"), jobs)
+        jobs = PLATFORM[:2] + [job("platform (windows-x64)", "failure")]
+        ok, why = ci.verdict(run(conclusion="failure"), jobs, EXPECTED)
         self.assertFalse(ok)
-        self.assertIn("platform (windows-2022) failure", why)
+        self.assertIn("platform (windows-x64) failure", why)
 
     def test_an_unfinished_run_fails_on_the_ceiling(self):
-        ok, why = ci.verdict(run(status="in_progress", conclusion=""), [])
+        ok, why = ci.verdict(run(status="in_progress", conclusion=""), [], EXPECTED)
         self.assertFalse(ok)
         self.assertIn("did not finish", why)
+
+    def test_the_expected_names_come_from_the_push_jobs_name_template(self):
+        self.assertEqual(ci.platform_job_names(workflow()), EXPECTED)
 
 
 MATRIX_PIN = '"+$TOOLCHAIN"'
@@ -73,16 +79,17 @@ INSTALL = 'rustup toolchain install "$TOOLCHAIN" --profile minimal --component r
 FLOOR_STEP = {"if": "runner.os == 'Linux'",
               "run": "rustup toolchain install 1.95.0 --profile minimal\n"
                      "cargo +1.95.0 build --locked --all-targets\ncargo +1.95.0 test --locked --no-fail-fast"}
+PINS = ("1.95.0", "1.95.0", "1.95.0-x86_64-pc-windows-msvc")
 ABOVE = ("1.99.0", "1.99.0", "1.99.0-x86_64-pc-windows-msvc")
+MACHINES = (("linux-x64", ["self-hosted", "rust-ci", "Linux", "X64"]),
+            ("macos-arm64", ["self-hosted", "rust-ci", "macOS", "ARM64"]),
+            ("windows-x64", ["self-hosted", "rust-ci", "Windows", "X64"]))
+HOSTED = ("ubuntu-24.04", "macos-14", "windows-2022")
+LOCAL_CONDITION = "github.event_name == 'push' || github.event_name == 'workflow_dispatch'"
+HOSTED_CONDITION = "github.event_name == 'pull_request'"
 
 
-def workflow(toolchains=("1.95.0", "1.95.0", "1.95.0-x86_64-pc-windows-msvc"), extra_runs=(), extra_steps=(),
-             pin=MATRIX_PIN, env={"TOOLCHAIN": "${{ matrix.toolchain }}"}, install=INSTALL):
-    """A workflow in memory in the shape the static checks read: a platform
-    job whose matrix pins a toolchain per runner, whose environment takes
-    TOOLCHAIN from the entry, and whose steps install that toolchain and run
-    the five commands through the pin."""
-    include = [{"os": os, "toolchain": tc} for os, tc in zip(("ubuntu-24.04", "macos-14", "windows-2022"), toolchains)]
+def steps(pin=MATRIX_PIN, install=INSTALL, extra_runs=(), extra_steps=()):
     runs = [install,
             f"cargo {pin} install cargo-deny --version 0.20.2 --locked",
             f"cargo {pin} build --locked --all-targets",
@@ -90,20 +97,43 @@ def workflow(toolchains=("1.95.0", "1.95.0", "1.95.0-x86_64-pc-windows-msvc"), e
             f"cargo {pin} fmt --all -- --check",
             f"cargo {pin} clippy --locked --all-targets -- -D warnings",
             f"cargo {pin} deny --locked check advisories bans licenses sources", *extra_runs]
-    steps = [{"run": run} for run in runs]
-    steps.append({"if": "runner.os == 'Windows'", "run": "python -B scripts/install-conpty-runtime.py target/debug/deps --arch x64"})
-    steps.extend(extra_steps)
-    platform = {"strategy": {"matrix": {"include": include}}, "steps": steps}
-    if env is not None:
-        platform["env"] = dict(env)
-    return {"jobs": {"platform": platform}}
+    result = [{"run": run} for run in runs]
+    result.append({"if": "runner.os == 'Windows'", "run": "python -B scripts/install-conpty-runtime.py target/debug/deps --arch x64"})
+    result.extend(copy.deepcopy(s) for s in extra_steps)
+    return result
 
 
-def advisories(toolchain: str | None = "1.95.0", install='rustup toolchain install "$TOOLCHAIN" --profile minimal',
-               cargo='cargo "+$TOOLCHAIN" install cargo-audit --version 0.22.1 --locked'):
-    """The weekly job in the same shape: a Linux runner, TOOLCHAIN set on the
-    job, a step that installs it and cargo calls through the pin."""
-    job = {"runs-on": "ubuntu-24.04",
+def workflow(toolchains=PINS, extra_runs=(), extra_steps=(), pin=MATRIX_PIN,
+             env={"TOOLCHAIN": "${{ matrix.toolchain }}"}, install=INSTALL, hosted=True):
+    """A workflow in memory in the shape the static checks read: a platform
+    job on the three machines by their labels for push and dispatch, the same
+    steps on hosted runners for pull requests, each matrix entry pinning a
+    toolchain the job's environment takes up, each step installing it and
+    running the five commands through the pin."""
+    local = {"name": "platform (${{ matrix.name }})", "if": LOCAL_CONDITION, "runs-on": "${{ matrix.runner }}",
+             "strategy": {"matrix": {"include": [{"name": name, "runner": list(labels), "toolchain": tc}
+                                                 for (name, labels), tc in zip(MACHINES, toolchains)]}},
+             "steps": steps(pin, install, extra_runs, extra_steps)}
+    jobs = {"platform": local}
+    if hosted:
+        jobs["platform-hosted"] = {"name": "platform-hosted (${{ matrix.os }})", "if": HOSTED_CONDITION,
+                                   "runs-on": "${{ matrix.os }}",
+                                   "strategy": {"matrix": {"include": [{"os": os, "toolchain": tc}
+                                                                       for os, tc in zip(HOSTED, toolchains)]}},
+                                   "steps": steps(pin, install, extra_runs, extra_steps)}
+    for j in jobs.values():
+        if env is not None:
+            j["env"] = dict(env)
+    jobs["advisories"] = advisories()
+    return {"jobs": jobs}
+
+
+def advisories(toolchain: "str | None" = "1.95.0", install='rustup toolchain install "$TOOLCHAIN" --profile minimal',
+               cargo='cargo "+$TOOLCHAIN" install cargo-audit --version 0.22.1 --locked',
+               runs_on=("self-hosted", "rust-ci", "Linux", "X64"), condition="github.event_name == 'schedule'"):
+    """The weekly job in the same shape: the Linux machine, TOOLCHAIN set on
+    the job, a step that installs it and cargo calls through the pin."""
+    job = {"if": condition, "runs-on": list(runs_on) if isinstance(runs_on, tuple) else runs_on,
            "steps": [{"run": "\n".join(part for part in (install, cargo) if part)},
                      {"run": "python -B scripts/check-pre-release-dependency-code-quality.py DQC-001"}]}
     if toolchain is not None:
@@ -121,18 +151,83 @@ class StaticChecks(unittest.TestCase):
     def assertViolation(self, found, text):
         self.assertTrue(any(text in v for v in found), f"{text!r} not among {found}")
 
-    def test_a_workflow_pinned_per_job_at_the_floor_passes(self):
+    def test_a_workflow_on_the_three_machines_pinned_at_the_floor_passes(self):
         self.assertEqual(self.violations(workflow()), [])
 
+    # Where each event runs.
+
+    def test_a_push_job_on_hosted_runners_fails(self):
+        wf = workflow(hosted=False)
+        wf["jobs"]["platform"]["runs-on"] = "${{ matrix.os }}"
+        for entry, os in zip(wf["jobs"]["platform"]["strategy"]["matrix"]["include"], HOSTED):
+            entry["os"] = os
+        found = self.violations(wf)
+        self.assertViolation(found, "a push run sends the linux-x64 job to labels other than one of the three machines' (ubuntu-24.04)")
+        self.assertViolation(found, "no push job runs on the Linux machine")
+
+    def test_a_platform_job_without_an_event_condition_runs_everywhere_and_fails(self):
+        wf = workflow(hosted=False)
+        del wf["jobs"]["platform"]["if"]
+        found = self.violations(wf)
+        self.assertViolation(found, "a pull request's run sends the linux-x64 job to a self-hosted label")
+        self.assertViolation(found, "runs on the schedule, which the platform matrix must not")
+
+    def test_a_pull_request_on_a_self_hosted_label_fails(self):
+        wf = workflow()
+        wf["jobs"]["platform-hosted"]["runs-on"] = ["self-hosted", "rust-ci", "Linux", "X64"]
+        self.assertViolation(self.violations(wf), "a pull request's run sends the ubuntu-24.04 job to a self-hosted label")
+
+    def test_a_missing_machine_fails(self):
+        wf = workflow()
+        del wf["jobs"]["platform"]["strategy"]["matrix"]["include"][2]
+        found = self.violations(wf)
+        self.assertViolation(found, "no push job runs on the Windows machine")
+        self.assertViolation(found, "no workflow_dispatch job runs on the Windows machine")
+
+    def test_labels_short_of_a_machines_fail(self):
+        for labels in (["self-hosted", "Linux", "X64"], ["self-hosted", "rust-ci", "X64"], ["self-hosted", "rust-ci", "Linux"]):
+            wf = workflow()
+            wf["jobs"]["platform"]["strategy"]["matrix"]["include"][0]["runner"] = labels
+            self.assertViolation(self.violations(wf), "sends the linux-x64 job to labels other than one of the three machines'")
+
+    def test_a_condition_the_gate_cannot_read_fails(self):
+        wf = workflow()
+        wf["jobs"]["platform"]["if"] = "contains(github.ref, 'main')"
+        self.assertViolation(self.violations(wf), "the platform job's condition is one the gate cannot read")
+
+    def test_a_runs_on_expression_the_gate_cannot_read_fails(self):
+        wf = workflow()
+        wf["jobs"]["platform"]["runs-on"] = "${{ fromJSON(matrix.runner) }}"
+        self.assertViolation(self.violations(wf), "the linux-x64 job's runs-on is an expression the gate cannot read")
+
+    def test_a_name_the_gate_cannot_read_fails(self):
+        wf = workflow()
+        wf["jobs"]["platform"]["name"] = "platform (${{ matrix.name }} on ${{ runner.os }})"
+        self.assertViolation(self.violations(wf), "the platform job's name is an expression the gate cannot read")
+
+    def test_the_advisories_job_must_run_on_the_linux_machine(self):
+        for runs_on in ("ubuntu-24.04", ["self-hosted", "rust-ci", "macOS", "ARM64"], ["self-hosted", "Linux", "X64"]):
+            wf = workflow()
+            wf["jobs"]["advisories"] = advisories(runs_on=runs_on)
+            self.assertViolation(self.violations(wf), "the advisories job does not run on the Linux machine")
+
+    def test_no_scheduled_job_fails(self):
+        wf = workflow()
+        del wf["jobs"]["advisories"]
+        self.assertViolation(self.violations(wf), "no job runs on the schedule")
+
+    # The pins.
+
     def test_an_unpinned_matrix_fails_per_job(self):
-        wf = {"jobs": {"platform": {"strategy": {"matrix": {"os": ["ubuntu-24.04", "macos-14", "windows-2022"]}},
-                                    "steps": workflow()["jobs"]["platform"]["steps"]}}}
+        wf = workflow()
+        for entry in wf["jobs"]["platform"]["strategy"]["matrix"]["include"]:
+            del entry["toolchain"]
         found = self.violations(wf)
         self.assertEqual(sum("not pinned in full" in v for v in found), 3, found)
 
     def test_a_pin_without_a_patch_number_is_not_in_full(self):
         found = self.violations(workflow(toolchains=("1.95", "1.95.0", "1.95.0-x86_64-pc-windows-msvc")))
-        self.assertViolation(found, "ubuntu-24.04 job's toolchain is not pinned in full")
+        self.assertViolation(found, "linux-x64 job's toolchain is not pinned in full")
 
     def test_a_pin_below_the_floor_fails(self):
         found = self.violations(workflow(toolchains=("1.91.0", "1.95.0", "1.95.0-x86_64-pc-windows-msvc")))
@@ -145,7 +240,8 @@ class StaticChecks(unittest.TestCase):
 
     def test_a_windows_pin_without_the_triple_is_not_msvc_in_full(self):
         found = self.violations(workflow(toolchains=("1.95.0", "1.95.0", "1.95.0")))
-        self.assertViolation(found, "does not name the MSVC toolchain in full")
+        self.assertViolation(found, "the windows-x64 job's toolchain 1.95.0 does not name the MSVC toolchain in full")
+        self.assertViolation(found, "the windows-2022 job's toolchain 1.95.0 does not name the MSVC toolchain in full")
 
     def test_rustup_default_fails(self):
         found = self.violations(workflow(extra_runs=("rustup default 1.95.0",)))
@@ -157,7 +253,7 @@ class StaticChecks(unittest.TestCase):
 
     def test_a_default_change_in_another_job_fails_too(self):
         wf = workflow()
-        wf["jobs"]["advisories"] = {"steps": [{"run": "rustup toolchain install 1.95.0\nrustup default 1.95.0"}]}
+        wf["jobs"]["advisories"]["steps"].append({"run": "rustup default 1.95.0"})
         self.assertViolation(self.violations(wf), "`rustup default`")
 
     def test_a_bare_cargo_call_fails(self):
@@ -176,10 +272,7 @@ class StaticChecks(unittest.TestCase):
     def test_a_missing_command_fails(self):
         wf = workflow()
         wf["jobs"]["platform"]["steps"] = [s for s in wf["jobs"]["platform"]["steps"] if "fmt" not in str(s.get("run"))]
-        self.assertViolation(self.violations(wf), "does not run `cargo fmt --all -- --check`")
-
-    # Finding 1 of the ci-rust-version-bump review: the pin a call names must
-    # resolve, through the environment the step sees, to the job's pin.
+        self.assertViolation(self.violations(wf), "the linux-x64 job does not run `cargo fmt --all -- --check`")
 
     def test_a_pin_variable_the_job_does_not_set_fails(self):
         found = self.violations(workflow(env=None))
@@ -198,7 +291,7 @@ class StaticChecks(unittest.TestCase):
             found = self.violations(wf)
             self.assertViolation(found, f"overrides {variable}")
             if variable == "TOOLCHAIN":
-                self.assertViolation(found, "runs `cargo build --locked --all-targets` at 1.96.0, not its pin 1.95.0")
+                self.assertViolation(found, "the linux-x64 job runs `cargo build --locked --all-targets` at 1.96.0, not its pin 1.95.0")
 
     def test_rustup_toolchain_on_the_job_must_name_the_pin(self):
         env = {"TOOLCHAIN": "${{ matrix.toolchain }}", "RUSTUP_TOOLCHAIN": "stable"}
@@ -210,8 +303,8 @@ class StaticChecks(unittest.TestCase):
 
     def test_a_literal_release_on_windows_is_not_its_msvc_pin(self):
         found = self.violations(workflow(pin="+1.95.0"))
-        self.assertViolation(found, "not its pin 1.95.0-x86_64-pc-windows-msvc")
-        self.assertFalse(any("ubuntu-24.04" in v or "macos-14" in v for v in found), found)
+        self.assertViolation(found, "the windows-x64 job runs `cargo build --locked --all-targets` at 1.95.0, not its pin 1.95.0-x86_64-pc-windows-msvc")
+        self.assertFalse(any("linux-x64" in v or "macos-arm64" in v for v in found), found)
 
     def test_an_install_of_another_release_fails(self):
         found = self.violations(workflow(install="rustup toolchain install 1.96.0 --profile minimal"))
@@ -232,14 +325,14 @@ class StaticChecks(unittest.TestCase):
         self.assertViolation(found, "does not build and test at rust-version 1.95")
         elsewhere = {**FLOOR_STEP, "run": FLOOR_STEP["run"].replace("+1.95.0", "+1.96.0")}
         found = self.violations(workflow(toolchains=ABOVE, extra_steps=(elsewhere,)))
-        self.assertViolation(found, "runs `cargo build --locked --all-targets` at 1.96.0, not its pin 1.99.0")
+        self.assertViolation(found, "the linux-x64 job runs `cargo build --locked --all-targets` at 1.96.0, not its pin 1.99.0")
 
     def test_the_floor_step_must_run_on_linux_only_and_install_the_floor(self):
         no_condition = {"run": FLOOR_STEP["run"]}
         found = self.violations(workflow(toolchains=ABOVE, extra_steps=(no_condition,)))
-        self.assertViolation(found, "the macos-14 job runs `cargo build --locked --all-targets` at 1.95.0, not its pin 1.99.0")
-        self.assertViolation(found, "the windows-2022 job runs `cargo test --locked --no-fail-fast` at 1.95.0, not its pin")
-        self.assertFalse(any("ubuntu-24.04" in v or "Linux" in v for v in found), found)
+        self.assertViolation(found, "the macos-arm64 job runs `cargo build --locked --all-targets` at 1.95.0, not its pin 1.99.0")
+        self.assertViolation(found, "the windows-x64 job runs `cargo test --locked --no-fail-fast` at 1.95.0, not its pin")
+        self.assertFalse(any("linux-x64" in v or "Linux" in v for v in found), found)
         other_os = {**FLOOR_STEP, "if": "runner.os == 'macOS'"}
         found = self.violations(workflow(toolchains=ABOVE, extra_steps=(other_os,)))
         self.assertViolation(found, "does not build and test at rust-version 1.95")
@@ -247,12 +340,7 @@ class StaticChecks(unittest.TestCase):
         found = self.violations(workflow(toolchains=ABOVE, extra_steps=(no_install,)))
         self.assertViolation(found, "runs at 1.95.0 but installs it nowhere")
 
-    # Finding 2: the weekly advisories job is held to the same rules.
-
-    def test_the_advisories_job_pinned_in_full_passes(self):
-        wf = workflow()
-        wf["jobs"]["advisories"] = advisories()
-        self.assertEqual(self.violations(wf), [])
+    # The weekly advisories job under the same pin rules.
 
     def test_an_advisories_job_on_stable_fails(self):
         wf = workflow()
@@ -282,8 +370,14 @@ class StaticChecks(unittest.TestCase):
 
     def test_a_job_without_cargo_needs_no_pin(self):
         wf = workflow()
-        wf["jobs"]["docs"] = {"runs-on": "ubuntu-24.04", "steps": [{"run": "echo documentation only"}]}
+        wf["jobs"]["docs"] = {"if": "github.event_name == 'pull_request'", "runs-on": "ubuntu-24.04",
+                              "steps": [{"run": "echo documentation only"}]}
         self.assertEqual(self.violations(wf), [])
+
+    def test_the_conpty_step_is_required_on_each_platform_job(self):
+        wf = workflow()
+        wf["jobs"]["platform-hosted"]["steps"] = [s for s in wf["jobs"]["platform-hosted"]["steps"] if "conpty" not in str(s.get("run"))]
+        self.assertViolation(self.violations(wf), "no Windows step of the platform-hosted job installs the ConPTY runtime")
 
 
 if __name__ == "__main__":
