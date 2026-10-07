@@ -93,6 +93,121 @@ fn ffi_006_an_effect_runs_when_made_and_when_its_signal_changes() {
     }
 }
 
+/// A callback that normalizes the signal it reads: a 1 becomes a 2.
+extern "C" fn normalizing_body(user_data: *mut c_void) {
+    let counter = unsafe { &*(user_data as *const Counter) };
+    let mut value = 0i64;
+    unsafe { rtui_signal_int_get(counter.signal, &mut value) };
+    counter.seen.set(value);
+    counter.runs.set(counter.runs.get() + 1);
+    if value == 1 {
+        unsafe { rtui_signal_int_set(counter.signal, 2) };
+    }
+}
+
+/// FFI-006: a change the callback itself makes to a signal it read is a
+/// change of that signal, so the effect runs again when the callback
+/// returns, with its cleanup before that run, and its last run sees the
+/// final value.
+#[test]
+fn ffi_006_a_change_made_by_the_callback_runs_it_again() {
+    unsafe {
+        let mut signal = ptr::null_mut();
+        assert_eq!(
+            rtui_signal_int_create(0, &mut signal),
+            ReactiveError::Success,
+            "rtui_signal_int_create failed"
+        );
+        let counter = Box::new(Counter {
+            signal,
+            runs: Cell::new(0),
+            cleanups: Cell::new(0),
+            seen: Cell::new(0),
+        });
+        let user_data = &*counter as *const Counter as *mut c_void;
+        let mut effect = ptr::null_mut();
+        assert_eq!(
+            rtui_effect_create(
+                normalizing_body,
+                Some(effect_cleanup),
+                user_data,
+                &mut effect
+            ),
+            ReactiveError::Success,
+            "rtui_effect_create failed"
+        );
+        assert_eq!(
+            rtui_signal_int_set(signal, 1),
+            ReactiveError::Success,
+            "rtui_signal_int_set failed"
+        );
+        let mut value = 0i64;
+        rtui_signal_int_get(signal, &mut value);
+        let observed = (
+            counter.runs.get(),
+            counter.seen.get(),
+            counter.cleanups.get(),
+            value,
+        );
+        rtui_effect_destroy(effect);
+        rtui_signal_destroy(signal);
+        assert_eq!(
+            observed,
+            (3, 2, 2, 2),
+            "FFI-006: after the callback set the signal it read from 1 to 2, the effect had run {} times, last saw {}, with {} cleanups, and the signal holds {} (expected 3 runs, 2 seen, 2 cleanups, 2 held)",
+            observed.0,
+            observed.1,
+            observed.2,
+            observed.3
+        );
+    }
+}
+
+/// One life of a signal and an effect that reads it, destroyed in order.
+unsafe fn one_signal_and_effect_life(value: i64) {
+    let mut signal = ptr::null_mut();
+    assert_eq!(
+        rtui_signal_int_create(value, &mut signal),
+        ReactiveError::Success
+    );
+    let counter = Box::new(Counter {
+        signal,
+        runs: Cell::new(0),
+        cleanups: Cell::new(0),
+        seen: Cell::new(0),
+    });
+    let user_data = &*counter as *const Counter as *mut c_void;
+    let mut effect = ptr::null_mut();
+    assert_eq!(
+        rtui_effect_create(effect_body, Some(effect_cleanup), user_data, &mut effect),
+        ReactiveError::Success
+    );
+    assert_eq!(counter.seen.get(), value);
+    rtui_effect_destroy(effect);
+    rtui_signal_destroy(signal);
+}
+
+/// FFI-006: destroying an effect and the signal it read leaves nothing of
+/// them in the thread's runtime: ten thousand such lives hold no more memory
+/// at the end than a handful did.
+#[test]
+fn ffi_006_destroyed_effects_and_signals_leave_nothing_behind() {
+    unsafe {
+        for value in 0..16 {
+            one_signal_and_effect_life(value);
+        }
+        let before = crate::bytes_held();
+        for value in 0..10_000 {
+            one_signal_and_effect_life(value);
+        }
+        let grown = crate::bytes_held().saturating_sub(before);
+        assert!(
+            grown < 64 * 1024,
+            "FFI-006: ten thousand destroyed signal-and-effect pairs left {grown} bytes behind on this thread"
+        );
+    }
+}
+
 /// FFI-006: the hooks hand out the same signal for the same key.
 #[test]
 fn ffi_006_hooks_hand_out_one_signal_per_key() {

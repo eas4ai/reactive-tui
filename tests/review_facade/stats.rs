@@ -107,6 +107,51 @@ fn ffi_004_the_render_offset_shifts_the_rows_written() {
     }
 }
 
+/// FFI-004: `dumpBuffers` replaces whatever holds the dump's name instead
+/// of writing through it: a link left at `rtui-buffers-7.txt` pointing at
+/// another file is replaced by the dump, and that other file keeps its
+/// content.
+#[test]
+fn ffi_004_dump_buffers_replaces_a_link_without_following_it() {
+    on_terminal(
+        "stats::ffi_004_dump_buffers_replaces_a_link_without_following_it",
+        || unsafe {
+            let dir = std::env::temp_dir().join(format!("rtui-facade-link-{}", std::process::id()));
+            std::fs::create_dir_all(&dir).expect("a directory for the dump");
+            std::env::set_current_dir(&dir).expect("the dump directory is current");
+            let elsewhere = dir.join("elsewhere.txt");
+            std::fs::write(&elsewhere, "keep me").expect("the other file is written");
+            let path = dir.join("rtui-buffers-7.txt");
+            std::os::unix::fs::symlink("elsewhere.txt", &path).expect("the link is made");
+            let renderer = createRenderer(8, 2);
+            assert!(!renderer.is_null(), "createRenderer gave null");
+            write_row(renderer, "ROW0");
+            render(renderer, true);
+            dumpBuffers(renderer, 7);
+            destroyRenderer(renderer, true, 0);
+            let kept = std::fs::read_to_string(&elsewhere).unwrap_or_default();
+            let is_link = std::fs::symlink_metadata(&path)
+                .map(|meta| meta.file_type().is_symlink())
+                .unwrap_or(false);
+            let dump = std::fs::read_to_string(&path).unwrap_or_default();
+            let _ = std::fs::remove_dir_all(&dir);
+            assert_eq!(
+                kept, "keep me",
+                "FFI-004: dumpBuffers(7) wrote through the link at rtui-buffers-7.txt into the other file, which now holds {kept:?}"
+            );
+            assert!(
+                !is_link && dump.contains("ROW0"),
+                "FFI-004: after dumpBuffers(7) the name rtui-buffers-7.txt is {} (read {dump:?})",
+                if is_link {
+                    "still the link"
+                } else {
+                    "not the dump"
+                }
+            );
+        },
+    );
+}
+
 /// FFI-004: `dumpBuffers` writes the surfaces to a file named with the
 /// timestamp in the current directory.
 #[test]

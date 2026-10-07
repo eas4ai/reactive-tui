@@ -1143,7 +1143,10 @@ void dumpHitGrid(RTuiRenderer *renderer);
  * Write `rtui-buffers-<timestamp>.txt` in the current directory.
  * The text contains dimensions, front and back surfaces row by row (each cell's
  * grapheme, or a space for an empty cell), last frame statistics and kept host statistics.
- * Log the path on success or the write error on failure, without panicking.
+ * The dump is written to a sibling file created fresh and then moved over the
+ * name, so whatever held that name, a file or a link, is replaced and never
+ * written through. Log the path on success or the write error on failure,
+ * without panicking.
  *
  * # Safety
  *
@@ -2988,8 +2991,11 @@ enum RTuiError rtui_thread_safe_signal_string_set(RTuiThreadSafeSignal *signal, 
 /**
  * Create an effect and run its callback now, then after a signal it read through
  * a C getter changes. Cleanup runs before each later run and at destroy.
- * Signals and effects must stay on their creating C thread; a setter runs
- * effects synchronously on that thread. `rtui_effect_run` also runs it by hand.
+ * A change the callback itself makes to a signal it read runs it again when
+ * the callback returns, at most 100 times in a row, so a callback that
+ * normalizes a value sees its result. Signals and effects must stay on their
+ * creating C thread; a setter runs effects synchronously on that thread.
+ * `rtui_effect_run` also runs it by hand.
  *
  * # Safety
  *
@@ -3005,8 +3011,9 @@ enum RTuiError rtui_effect_create(RTuiEffectCallback callback,
                                   RTuiEffect **out_effect);
 
 /**
- * Unregister an effect and run the cleanup returned by its last run once.
- * Call this on its creating C thread.
+ * Unregister an effect: run the cleanup returned by its last run once and
+ * take it off the signals it read, so nothing of it stays in the thread's
+ * runtime. Call this on its creating C thread.
  *
  * # Safety
  *

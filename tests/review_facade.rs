@@ -13,22 +13,33 @@ use std::alloc::{GlobalAlloc, Layout, System};
 #[path = "common/allocation_count.rs"]
 mod per_thread;
 
-/// Counts the heap allocations of the thread that asked for it (TXT-004).
+/// Counts the heap allocations of the thread that asked for it (TXT-004) and
+/// the bytes it holds (FFI-006).
 struct Counting;
 
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         per_thread::add_one();
-        unsafe { System.alloc(layout) }
+        let pointer = unsafe { System.alloc(layout) };
+        if !pointer.is_null() {
+            per_thread::hold(layout.size());
+        }
+        pointer
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        unsafe { System.dealloc(ptr, layout) }
+        unsafe { System.dealloc(ptr, layout) };
+        per_thread::release(layout.size());
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         per_thread::add_one();
-        unsafe { System.realloc(ptr, layout, new_size) }
+        let moved = unsafe { System.realloc(ptr, layout, new_size) };
+        if !moved.is_null() {
+            per_thread::release(layout.size());
+            per_thread::hold(new_size);
+        }
+        moved
     }
 }
 
@@ -41,6 +52,12 @@ pub fn allocations_during(body: impl FnOnce()) -> usize {
     let before = per_thread::count();
     body();
     per_thread::count() - before
+}
+
+/// The heap bytes this thread has taken and not freed.
+#[allow(dead_code)]
+pub fn bytes_held() -> usize {
+    per_thread::held()
 }
 
 #[cfg(feature = "ffi")]

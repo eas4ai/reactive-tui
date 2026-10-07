@@ -30,6 +30,10 @@ This file records user-visible changes to Reactive TUI. The project follows
   the statistics to `rtui-buffers-<timestamp>.txt` in the current directory
   (FFI-004). The legacy writer no longer pads a wide glyph twice or sends NUL
   bytes for empty cells.
+- `dumpBuffers` writes its text to a sibling file it creates fresh and moves
+  it over `rtui-buffers-<timestamp>.txt`, so a link left at that name is
+  replaced instead of written through; the renderer's `dump_buffers` does the
+  same for any path (FFI-004, the review's finding 3).
 - `renderSurfaceToTerminal` paints the surface, graphemes and pictures whole,
   through the terminal handle it is given and opens no second session, so the
   caller's terminal stays as the caller set it; the header says that
@@ -42,6 +46,17 @@ This file records user-visible changes to Reactive TUI. The project follows
   effects share one reactive runtime per thread and stay on the thread that
   made them; the hooks are documented as the keyed signal storage they are
   (FFI-006).
+- A C effect whose own callback changes a signal it read runs again when the
+  callback returns, with its cleanup first, so its last run sees the final
+  value; the runtime used to drop that change as a cycle. The same holds for
+  Rust effects of a `RuntimeContext`. An effect that changes such a signal on
+  every run stops after 100 reruns in a row until the next change from outside
+  (FFI-006, the review's finding 1).
+- `rtui_effect_destroy` takes the effect off the signals it read, and an
+  effect's run drops it from the signals it no longer reads, so a C program
+  that makes and destroys signals and effects over and over no longer grows
+  the thread's runtime by a record per pair; Rust effects of a
+  `RuntimeContext` behave the same (FFI-006, the review's finding 2).
 - The gap buffer behind the editors states its cost and is bounded in bytes:
   `GapBuffer::DEFAULT_LIMIT_BYTES` (256 MiB of character storage), set
   otherwise with `with_limit_bytes`, is checked by every constructor and
