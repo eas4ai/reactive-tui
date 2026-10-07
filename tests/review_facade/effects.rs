@@ -163,6 +163,51 @@ fn ffi_006_a_change_made_by_the_callback_runs_it_again() {
     }
 }
 
+/// One life of a signal and an effect that reads it, destroyed in order.
+unsafe fn one_signal_and_effect_life(value: i64) {
+    let mut signal = ptr::null_mut();
+    assert_eq!(
+        rtui_signal_int_create(value, &mut signal),
+        ReactiveError::Success
+    );
+    let counter = Box::new(Counter {
+        signal,
+        runs: Cell::new(0),
+        cleanups: Cell::new(0),
+        seen: Cell::new(0),
+    });
+    let user_data = &*counter as *const Counter as *mut c_void;
+    let mut effect = ptr::null_mut();
+    assert_eq!(
+        rtui_effect_create(effect_body, Some(effect_cleanup), user_data, &mut effect),
+        ReactiveError::Success
+    );
+    assert_eq!(counter.seen.get(), value);
+    rtui_effect_destroy(effect);
+    rtui_signal_destroy(signal);
+}
+
+/// FFI-006: destroying an effect and the signal it read leaves nothing of
+/// them in the thread's runtime: ten thousand such lives hold no more memory
+/// at the end than a handful did.
+#[test]
+fn ffi_006_destroyed_effects_and_signals_leave_nothing_behind() {
+    unsafe {
+        for value in 0..16 {
+            one_signal_and_effect_life(value);
+        }
+        let before = crate::bytes_held();
+        for value in 0..10_000 {
+            one_signal_and_effect_life(value);
+        }
+        let grown = crate::bytes_held().saturating_sub(before);
+        assert!(
+            grown < 64 * 1024,
+            "FFI-006: ten thousand destroyed signal-and-effect pairs left {grown} bytes behind on this thread"
+        );
+    }
+}
+
 /// FFI-006: the hooks hand out the same signal for the same key.
 #[test]
 fn ffi_006_hooks_hand_out_one_signal_per_key() {

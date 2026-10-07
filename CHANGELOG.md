@@ -48,6 +48,11 @@ This file records user-visible changes to Reactive TUI. The project follows
   Rust effects of a `RuntimeContext`. An effect that changes such a signal on
   every run stops after 100 reruns in a row until the next change from outside
   (FFI-006, the review's finding 1).
+- `rtui_effect_destroy` takes the effect off the signals it read, and an
+  effect's run drops it from the signals it no longer reads, so a C program
+  that makes and destroys signals and effects over and over no longer grows
+  the thread's runtime by a record per pair; Rust effects of a
+  `RuntimeContext` behave the same (FFI-006, the review's finding 2).
 - The gap buffer behind the editors states its cost and is bounded in bytes:
   `GapBuffer::DEFAULT_LIMIT_BYTES` (256 MiB of character storage), set
   otherwise with `with_limit_bytes`, is checked by every constructor and

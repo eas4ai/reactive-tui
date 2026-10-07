@@ -102,22 +102,35 @@ impl ReactiveRuntime {
         if !effects.is_empty() {
             let batch_depth = *self.batch_depth.borrow();
             let mut queued = Vec::new();
+            let mut dead = false;
             for weak_effect in &effects {
-                if let Some(effect) = weak_effect.upgrade() {
-                    let effect_id = effect.id();
-                    // An effect whose last run did not read the signal is no
-                    // longer one of its dependents
-                    if !effect.depends_on(signal_id) || queued.contains(&effect_id) {
-                        continue;
-                    }
-                    queued.push(effect_id);
+                let Some(effect) = weak_effect.upgrade() else {
+                    dead = true;
+                    continue;
+                };
+                let effect_id = effect.id();
+                // An effect whose last run did not read the signal is no
+                // longer one of its dependents
+                if !effect.depends_on(signal_id) || queued.contains(&effect_id) {
+                    continue;
+                }
+                queued.push(effect_id);
 
-                    if batch_depth > 0 {
-                        // We're in a batch, queue the effect
-                        self.pending_effects.borrow_mut().insert(effect_id);
-                    } else {
-                        // Run immediately
-                        self.effect_queue.borrow_mut().push_back(effect_id);
+                if batch_depth > 0 {
+                    // We're in a batch, queue the effect
+                    self.pending_effects.borrow_mut().insert(effect_id);
+                } else {
+                    // Run immediately
+                    self.effect_queue.borrow_mut().push_back(effect_id);
+                }
+            }
+            if dead {
+                // A dependent that no longer exists leaves the record now
+                let mut signal_effects = self.signal_effects.borrow_mut();
+                if let Some(dependents) = signal_effects.get_mut(&signal_id) {
+                    dependents.retain(|known| known.strong_count() > 0);
+                    if dependents.is_empty() {
+                        signal_effects.remove(&signal_id);
                     }
                 }
             }
@@ -184,6 +197,7 @@ impl ReactiveRuntime {
                 effect_id,
                 previous,
             };
+            let before = effect.dependencies();
             let mut reruns = 0;
             loop {
                 effect.run();
@@ -192,6 +206,15 @@ impl ReactiveRuntime {
                     break;
                 }
                 reruns += 1;
+            }
+            // The records follow the last run: a signal it no longer reads
+            // forgets the effect, and every signal does once it is disposed.
+            let after = effect.dependencies();
+            let stale = before.into_iter().filter(|signal| !after.contains(signal));
+            if effect.is_disposed() {
+                self.forget_dependents(&effect, stale.chain(after.iter().copied()));
+            } else {
+                self.forget_dependents(&effect, stale);
             }
         }
     }
@@ -216,12 +239,31 @@ impl ReactiveRuntime {
         self.flush_effects();
     }
 
-    /// Unregister an effect
+    /// Unregister an effect: it runs no more, and no signal lists it as a
+    /// dependent any longer (SIG-004).
     pub fn unregister_effect(&self, effect_id: EffectId) {
         self.rerun.borrow_mut().remove(&effect_id);
         let effect = self.effects.borrow_mut().remove(&effect_id);
         if let Some(effect) = effect {
             effect.dispose();
+            self.forget_dependents(&effect, effect.dependencies());
+        }
+    }
+
+    /// Take `effect` off the dependents of `signals`, together with any
+    /// dependent that no longer exists, and drop a signal's record once it
+    /// lists nobody, so the records are bounded by the live effects and the
+    /// signals their last runs read.
+    fn forget_dependents(&self, effect: &Rc<Effect>, signals: impl IntoIterator<Item = SignalId>) {
+        let gone = Rc::downgrade(effect);
+        let mut signal_effects = self.signal_effects.borrow_mut();
+        for signal_id in signals {
+            if let Some(dependents) = signal_effects.get_mut(&signal_id) {
+                dependents.retain(|known| !Weak::ptr_eq(known, &gone) && known.strong_count() > 0);
+                if dependents.is_empty() {
+                    signal_effects.remove(&signal_id);
+                }
+            }
         }
     }
 
@@ -669,5 +711,61 @@ mod tests {
         signal.set(1_000);
         assert_eq!(runs.get(), 2 * (RERUN_LIMIT + 1));
         assert_eq!(signal.get(), 1_000 + RERUN_LIMIT as u64 + 1);
+    }
+
+    /// FFI-006: an unregistered effect leaves no dependency record behind,
+    /// so a signal and an effect made and removed over and over do not
+    /// grow the runtime.
+    #[test]
+    fn ffi_006_unregistered_effects_leave_no_dependency_records() {
+        let ctx = RuntimeContext::new();
+        for round in 0..50 {
+            let signal = ctx.create_signal(round);
+            let read = signal.clone();
+            let effect = ctx.create_effect(move || {
+                let _ = read.get();
+                None
+            });
+            ctx.runtime().unregister_effect(effect);
+            drop(signal);
+            let records = ctx.runtime().signal_effects.borrow().len();
+            assert_eq!(
+                records, 0,
+                "round {round}: {records} signals still list a dependent after the effect was unregistered"
+            );
+        }
+    }
+
+    /// FFI-006: a run that no longer reads a signal takes the effect off
+    /// that signal's dependents, so the records follow the last run.
+    #[test]
+    fn ffi_006_a_run_forgets_the_signals_it_no_longer_reads() {
+        let ctx = RuntimeContext::new();
+        let first = ctx.create_signal(1);
+        let second = ctx.create_signal(2);
+        let which = ctx.create_signal(true);
+        let (read_first, read_second, read_which) = (first.clone(), second.clone(), which.clone());
+        ctx.create_effect(move || {
+            if read_which.get() {
+                let _ = read_first.get();
+            } else {
+                let _ = read_second.get();
+            }
+            None
+        });
+        let listed = |signal: SignalId| {
+            ctx.runtime()
+                .signal_effects
+                .borrow()
+                .get(&signal)
+                .map_or(0, |dependents| dependents.len())
+        };
+        assert_eq!((listed(first.id()), listed(second.id())), (1, 0));
+        which.set(false);
+        assert_eq!(
+            (listed(first.id()), listed(second.id())),
+            (0, 1),
+            "after the run that read only the second signal, the first still lists the effect"
+        );
     }
 }

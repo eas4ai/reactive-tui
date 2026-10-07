@@ -6,7 +6,9 @@
 //! at most 100 times in a row). Cleanup runs before each later run and at
 //! destruction. Manual runs use the same body and dependency tracking.
 //! Handles must stay on their creating C thread; setters run effects synchronously
-//! on that thread. Hooks store shared signals by key; they are not component hooks.
+//! on that thread. A destroyed effect leaves the signals it read, and a signal's
+//! record goes with the last effect that read it, so made-and-destroyed pairs do
+//! not grow the runtime. Hooks store shared signals by key; they are not component hooks.
 //! The separate thread-safe signals do not participate in this runtime.
 
 #![allow(unused_imports)]
@@ -812,8 +814,9 @@ pub unsafe extern "C" fn rtui_effect_create(
     }))
 }
 
-/// Unregister an effect and run the cleanup returned by its last run once.
-/// Call this on its creating C thread.
+/// Unregister an effect: run the cleanup returned by its last run once and
+/// take it off the signals it read, so nothing of it stays in the thread's
+/// runtime. Call this on its creating C thread.
 ///
 /// # Safety
 ///

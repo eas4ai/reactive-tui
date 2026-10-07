@@ -3008,8 +3008,9 @@ enum RTuiError rtui_effect_create(RTuiEffectCallback callback,
                                   RTuiEffect **out_effect);
 
 /**
- * Unregister an effect and run the cleanup returned by its last run once.
- * Call this on its creating C thread.
+ * Unregister an effect: run the cleanup returned by its last run once and
+ * take it off the signals it read, so nothing of it stays in the thread's
+ * runtime. Call this on its creating C thread.
  *
  * # Safety
  *
