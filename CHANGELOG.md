@@ -5,6 +5,57 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- The C text buffers paint whole grapheme clusters: `renderTextBufferToSurface`,
+  `renderTextBufferToRenderer` and `renderTextBufferDirect` place each cluster
+  in its own cells by its display width, so the letter after a wide glyph
+  lands in the next free cell and a combining mark stays with its base; the
+  selection stays addressed by scalar index, and `width_method` is accepted for
+  compatibility under one width policy (docs/spec/ffi.md, FFI-002).
+- `rtui_text_input_create`, `rtui_checkbox_create` and
+  `rtui_progress_bar_create` return the native text input, checkbox and
+  progress bar, so an App edits, toggles and shows them as it does the
+  Rust-built ones; the header documents the four widget constructors and that
+  they take no callbacks (FFI-003).
+- `rtui_version` reports the crate's version from Cargo.toml (1.0.0) with the
+  ABI version a separate constant; README.md, the umbrella header
+  include/reactive_tui.h and the TypeScript package say the same version, and
+  README names Lumis as the highlighter (FFI-007).
+- The C renderer's hit testing and host statistics do what their names say:
+  `addToHitGrid` records its id over its region in the grid being built, a
+  completed `render` or `renderWithStats` makes that grid the one `checkHit`
+  reads and starts an empty one, `checkHit` returns the recorded id or 0,
+  `dumpHitGrid` logs the regions, `setRenderOffset` shifts the rows the
+  renderer writes, `updateStats` and `updateMemoryStats` keep their values for
+  the debug overlay and the dump, and `dumpBuffers` writes both surfaces and
+  the statistics to `rtui-buffers-<timestamp>.txt` in the current directory
+  (FFI-004). The legacy writer no longer pads a wide glyph twice or sends NUL
+  bytes for empty cells.
+- `renderSurfaceToTerminal` paints the surface, graphemes and pictures whole,
+  through the terminal handle it is given and opens no second session, so the
+  caller's terminal stays as the caller set it; the header says that
+  `renderWithStats` validates its terminal argument and renders through the
+  renderer's own terminal (FFI-005).
+- A C effect is an effect: `rtui_effect_create` runs its callback when made
+  and again after a C setter changes a signal the callback read through a C
+  getter, with its cleanup before each later run and at `rtui_effect_destroy`;
+  `rtui_effect_run` runs it by hand with the same tracking. C signals and
+  effects share one reactive runtime per thread and stay on the thread that
+  made them; the hooks are documented as the keyed signal storage they are
+  (FFI-006).
+- The gap buffer behind the editors states its cost and is bounded in bytes:
+  `GapBuffer::DEFAULT_LIMIT_BYTES` (256 MiB of character storage), set
+  otherwise with `with_limit_bytes`, is checked by every constructor and
+  insert, which now return `Result` and refuse an edit past the limit with
+  `GapBufferError::LimitExceeded` instead of panicking; gap moves and growth
+  copy in place. `TextEditor::with_content`, `set_content`, `insert_text` and
+  `insert_char`, and `SyntaxEditor::with_language`, `set_content_from_file`,
+  `insert_text` and `insert_char`, return that error too; the C editor
+  functions report it as `InvalidParameter` (docs/spec/text.md, TXT-004).
+- `DebugAnimationManager::update` records each frame's time in its
+  performance metrics, logs an update event for every animation that advanced
+  and a completion event for one that finished, takes a snapshot of each at
+  `Verbose`, and collects timing whether or not state logging is on; the
+  empty callback wrapping is gone (docs/spec/animation.md, ANI-010).
 - On Windows the default backend asks the terminal for its background color
   before its first frame and ends the exchange with a device-attributes
   query, as it does on Unix: an application that sets no theme starts with
