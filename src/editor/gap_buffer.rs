@@ -1,12 +1,41 @@
-//! Zero-copy gap buffer for efficient text editing
+//! A scalar gap buffer with bounded character storage.
 //!
-//! A gap buffer is a dynamic array with a gap (empty space) that moves to the
-//! location of edits, making insertions and deletions at the cursor O(1).
-//!
-//! Inspired by r3bl's implementation but adapted for reactive-tui's needs.
+//! An edit at the gap moves no text. Moving the gap or growing the buffer
+//! copies the text between the old and new gap in place; growth may allocate
+//! storage. Inserts and deletes update later line-break offsets. `get_range`
+//! returns an owned `String`. The byte limit includes the gap, at four bytes
+//! per character slot, and every constructor and insert checks it before editing.
 
 use std::fmt;
 use std::ops::Range;
+
+/// An edit or allocation would exceed the character-storage byte limit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GapBufferError {
+    /// Requested character storage, including any existing gap.
+    LimitExceeded {
+        /// Minimum required character-storage bytes.
+        requested_bytes: usize,
+        /// Configured maximum character-storage bytes.
+        limit_bytes: usize,
+    },
+}
+
+impl fmt::Display for GapBufferError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::LimitExceeded {
+                requested_bytes,
+                limit_bytes,
+            } => write!(
+                f,
+                "gap buffer needs {requested_bytes} bytes; limit is {limit_bytes} bytes"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for GapBufferError {}
 
 /// Text position as line and column
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -35,50 +64,47 @@ pub struct GapBuffer {
     gap_end: usize,
     /// Line break indices for efficient line operations
     line_breaks: Vec<usize>,
+    limit_bytes: usize,
 }
 
 impl GapBuffer {
-    /// Create a new empty gap buffer
+    /// Default bound on character storage (256 MiB, four bytes per slot).
+    pub const DEFAULT_LIMIT_BYTES: usize = 256 * 1024 * 1024;
+
+    /// Create an empty buffer with the default byte limit.
     pub fn new() -> Self {
-        Self::with_capacity(1024)
+        // 1024 slots are 4 KiB, far inside the default limit; an empty
+        // buffer is the fallback a smaller limit would leave anyway.
+        Self::with_capacity(1024).unwrap_or_default()
     }
 
-    /// Create a new gap buffer with specified initial capacity
-    pub fn with_capacity(capacity: usize) -> Self {
-        let mut buffer = Vec::with_capacity(capacity);
-        buffer.resize(capacity, '\0');
-
-        Self {
-            buffer,
-            gap_start: 0,
-            gap_end: capacity,
-            line_breaks: Vec::new(),
-        }
+    /// Create an empty buffer with this initial capacity in character slots.
+    pub fn with_capacity(capacity: usize) -> Result<Self, GapBufferError> {
+        let mut buffer = Self::default();
+        buffer.ensure_gap_capacity(capacity)?;
+        Ok(buffer)
     }
 
-    /// Create a gap buffer from a string
-    pub fn from_string(s: &str) -> Self {
-        let chars: Vec<char> = s.chars().collect();
-        let len = chars.len();
-        let capacity = len.max(1024);
+    /// Create empty storage with a caller-selected byte limit, including zero.
+    pub fn with_limit_bytes(limit_bytes: usize) -> Result<Self, GapBufferError> {
+        let mut buffer = Self {
+            limit_bytes,
+            ..Self::default()
+        };
+        buffer.ensure_gap_capacity(0)?;
+        Ok(buffer)
+    }
 
-        let mut buffer = Vec::with_capacity(capacity);
-        buffer.extend_from_slice(&chars);
-        buffer.resize(capacity, '\0');
+    /// Create a buffer from text under the default byte limit.
+    pub fn from_string(s: &str) -> Result<Self, GapBufferError> {
+        Self::from_string_with_limit(s, Self::DEFAULT_LIMIT_BYTES)
+    }
 
-        let mut line_breaks = Vec::new();
-        for (i, &ch) in chars.iter().enumerate() {
-            if ch == '\n' {
-                line_breaks.push(i);
-            }
-        }
-
-        Self {
-            buffer,
-            gap_start: len,
-            gap_end: capacity,
-            line_breaks,
-        }
+    /// Create a buffer from text under a caller-selected byte limit.
+    pub fn from_string_with_limit(s: &str, limit_bytes: usize) -> Result<Self, GapBufferError> {
+        let mut buffer = Self::with_limit_bytes(limit_bytes)?;
+        buffer.insert_str(0, s)?;
+        Ok(buffer)
     }
 
     /// Get the number of Unicode scalars (excluding the gap).
@@ -105,132 +131,90 @@ impl GapBuffer {
         }
     }
 
-    /// Move the gap to a specific position
+    /// Move the gap in place without allocating a temporary text copy.
     fn move_gap_to(&mut self, pos: usize) {
         let pos = pos.min(self.len());
-
-        if pos == self.gap_start {
-            return; // Already at the right position
-        }
-
         if pos < self.gap_start {
-            // Move gap left
             let distance = self.gap_start - pos;
-
-            // Safe bounds checking before copy
-            debug_assert!(pos < self.buffer.len());
-            debug_assert!(self.gap_end >= distance);
-            debug_assert!(self.gap_end - distance + distance <= self.buffer.len());
-
-            // Use safe slice operations instead of unsafe pointer arithmetic
-            let src_range = pos..pos + distance;
-            let dst_start = self.gap_end - distance;
-
-            if src_range.end <= self.buffer.len() && dst_start + distance <= self.buffer.len() {
-                // Create temporary copy to avoid aliasing issues
-                let temp: Vec<char> = self.buffer[src_range].to_vec();
-                self.buffer[dst_start..dst_start + distance].copy_from_slice(&temp);
-            } else {
-                // Invalid bounds - return early to prevent corruption
-                log::warn!("Gap buffer move_gap_to: invalid bounds for left move");
-                return;
-            }
-
-            self.gap_start = pos;
+            self.buffer
+                .copy_within(pos..self.gap_start, self.gap_end - distance);
             self.gap_end -= distance;
         } else {
-            // Move gap right
             let distance = pos - self.gap_start;
-
-            // Safe bounds checking before copy
-            debug_assert!(self.gap_end + distance <= self.buffer.len());
-            debug_assert!(self.gap_start + distance <= self.buffer.len());
-
-            // Use safe slice operations instead of unsafe pointer arithmetic
-            let src_range = self.gap_end..self.gap_end + distance;
-            let dst_start = self.gap_start;
-
-            if src_range.end <= self.buffer.len() && dst_start + distance <= self.buffer.len() {
-                // Create temporary copy to avoid aliasing issues
-                let temp: Vec<char> = self.buffer[src_range].to_vec();
-                self.buffer[dst_start..dst_start + distance].copy_from_slice(&temp);
-            } else {
-                // Invalid bounds - return early to prevent corruption
-                log::warn!("Gap buffer move_gap_to: invalid bounds for right move");
-                return;
-            }
-
-            self.gap_start = pos;
+            self.buffer
+                .copy_within(self.gap_end..self.gap_end + distance, self.gap_start);
             self.gap_end += distance;
         }
+        self.gap_start = pos;
     }
 
-    /// Ensure the gap has at least the specified capacity
-    fn ensure_gap_capacity(&mut self, needed: usize) {
-        if self.gap_size() < needed {
-            let additional = needed - self.gap_size() + 1024; // Add some extra
-            let old_len = self.buffer.len();
-            let new_len = old_len.saturating_add(additional); // Prevent overflow
-
-            // Check for reasonable buffer size to prevent DoS
-            const MAX_BUFFER_SIZE: usize = 100_000_000; // 100MB limit for chars
-            if new_len > MAX_BUFFER_SIZE {
-                log::warn!("Gap buffer size exceeds maximum allowed size; ignoring resize");
-                return;
-            }
-
-            // Resize buffer
-            self.buffer.resize(new_len, '\0');
-
-            // Move everything after gap_end to the new end using safe operations
-            let count = old_len - self.gap_end;
-            if count > 0 {
-                // Validate bounds before operation
-                debug_assert!(self.gap_end + count == old_len);
-                debug_assert!(self.gap_end + additional + count == new_len);
-
-                if self.gap_end < old_len && self.gap_end + additional < new_len {
-                    // Create temporary copy to avoid aliasing issues
-                    let temp: Vec<char> = self.buffer[self.gap_end..old_len].to_vec();
-                    let dst_start = self.gap_end + additional;
-                    self.buffer[dst_start..dst_start + count].copy_from_slice(&temp);
-                } else {
-                    log::warn!("Gap buffer ensure_gap_capacity: invalid bounds for resize");
-                    return;
-                }
-            }
-
-            self.gap_end += additional;
+    /// Check the minimum storage before changing anything; clamp spare capacity
+    /// to the same byte limit. All allocation and insertion paths use this check.
+    fn ensure_gap_capacity(&mut self, needed: usize) -> Result<(), GapBufferError> {
+        let minimum = self.len().saturating_add(needed).max(self.buffer.len());
+        let requested_bytes = minimum.saturating_mul(std::mem::size_of::<char>());
+        if minimum > self.limit_bytes / std::mem::size_of::<char>() {
+            return Err(GapBufferError::LimitExceeded {
+                requested_bytes,
+                limit_bytes: self.limit_bytes,
+            });
         }
+        if self.gap_size() >= needed {
+            return Ok(());
+        }
+        let old_len = self.buffer.len();
+        let new_len = minimum
+            .saturating_add(1024)
+            .min(self.limit_bytes / std::mem::size_of::<char>());
+        self.buffer.reserve_exact(new_len - old_len);
+        self.buffer.resize(new_len, '\0');
+        let additional = new_len - old_len;
+        self.buffer
+            .copy_within(self.gap_end..old_len, self.gap_end + additional);
+        self.gap_end += additional;
+        Ok(())
     }
 
-    /// Insert a Unicode scalar at a scalar offset, clamped to the buffer end.
-    pub fn insert_char(&mut self, pos: usize, ch: char) {
-        self.insert_str(pos, ch.encode_utf8(&mut [0; 4]));
+    /// Insert one scalar without collecting temporary character storage.
+    pub fn insert_char(&mut self, pos: usize, ch: char) -> Result<(), GapBufferError> {
+        self.insert_str(pos, ch.encode_utf8(&mut [0; 4]))
     }
 
-    /// Insert text at a scalar offset, clamped to the buffer end.
-    pub fn insert_str(&mut self, pos: usize, s: &str) {
+    /// Insert text at a scalar offset, clamped to the end. A limit error leaves
+    /// text, gap and line offsets unchanged.
+    pub fn insert_str(&mut self, pos: usize, s: &str) -> Result<(), GapBufferError> {
         let pos = pos.min(self.len());
-        let chars: Vec<char> = s.chars().collect();
-        let len = chars.len();
-        self.ensure_gap_capacity(len);
-        assert!(self.gap_size() >= len, "gap buffer capacity limit exceeded");
+        let len = s.chars().count();
+        self.ensure_gap_capacity(len)?;
         self.move_gap_to(pos);
-        self.buffer[self.gap_start..self.gap_start + len].copy_from_slice(&chars);
-        self.gap_start += len;
-
+        for ch in s.chars() {
+            self.buffer[self.gap_start] = ch;
+            self.gap_start += 1;
+        }
         let first = self.line_breaks.partition_point(|&lb| lb < pos);
         for lb in &mut self.line_breaks[first..] {
             *lb += len;
         }
         self.line_breaks.splice(
             first..first,
-            chars
-                .iter()
+            s.chars()
                 .enumerate()
-                .filter_map(|(i, &ch)| (ch == '\n').then_some(pos + i)),
+                .filter_map(|(i, ch)| (ch == '\n').then_some(pos + i)),
         );
+        Ok(())
+    }
+
+    /// Preflight a replacement so a refused edit cannot delete the selection.
+    pub(super) fn replace_range(
+        &mut self,
+        range: Range<usize>,
+        text: &str,
+    ) -> Result<(), GapBufferError> {
+        let start = range.start.min(self.len());
+        let end = range.end.min(self.len()).max(start);
+        self.ensure_gap_capacity(text.chars().count().saturating_sub(end - start))?;
+        self.delete_range(start..end);
+        self.insert_str(start, text)
     }
 
     /// Delete one Unicode scalar at the specified scalar offset.
@@ -275,7 +259,7 @@ impl GapBuffer {
         Some(self.buffer[physical_pos])
     }
 
-    /// Get a string slice for a range
+    /// Return an owned String for a scalar range
     pub fn get_range(&self, range: Range<usize>) -> String {
         let start = range.start.min(self.len());
         let end = range.end.min(self.len());
@@ -353,7 +337,13 @@ impl fmt::Display for GapBuffer {
 
 impl Default for GapBuffer {
     fn default() -> Self {
-        Self::new()
+        Self {
+            buffer: Vec::new(),
+            gap_start: 0,
+            gap_end: 0,
+            line_breaks: Vec::new(),
+            limit_bytes: Self::DEFAULT_LIMIT_BYTES,
+        }
     }
 }
 
@@ -399,6 +389,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn txt_004_growth_in_the_middle_preserves_suffix_and_line_offsets() {
+        let original = format!("left\n{}\nright", "a".repeat(2048));
+        let mut buffer = GapBuffer::from_string(&original).unwrap();
+        let inserted = format!("{}\n", "b".repeat(2048));
+        buffer.insert_str(5, &inserted).unwrap();
+        assert_eq!(
+            buffer.to_string(),
+            format!("left\n{inserted}{}\nright", "a".repeat(2048))
+        );
+        assert_eq!(buffer.line_count(), 4);
+        assert_eq!(buffer.get_line(1), "b".repeat(2048));
+        assert_eq!(buffer.get_line(2), "a".repeat(2048));
+        assert_eq!(buffer.get_line(3), "right");
+    }
+
+    #[test]
     fn test_new_buffer() {
         let buffer = GapBuffer::new();
         assert_eq!(buffer.len(), 0);
@@ -407,28 +413,28 @@ mod tests {
 
     #[test]
     fn test_from_string() {
-        let buffer = GapBuffer::from_string("Hello, World!");
+        let buffer = GapBuffer::from_string("Hello, World!").unwrap();
         assert_eq!(buffer.len(), 13);
         assert_eq!(buffer.to_string(), "Hello, World!");
     }
 
     #[test]
     fn test_insert_char() {
-        let mut buffer = GapBuffer::from_string("Hello World");
-        buffer.insert_char(5, ',');
+        let mut buffer = GapBuffer::from_string("Hello World").unwrap();
+        buffer.insert_char(5, ',').unwrap();
         assert_eq!(buffer.to_string(), "Hello, World");
     }
 
     #[test]
     fn test_insert_string() {
-        let mut buffer = GapBuffer::from_string("Hello!");
-        buffer.insert_str(5, " World");
+        let mut buffer = GapBuffer::from_string("Hello!").unwrap();
+        buffer.insert_str(5, " World").unwrap();
         assert_eq!(buffer.to_string(), "Hello World!");
     }
 
     #[test]
     fn test_delete_char() {
-        let mut buffer = GapBuffer::from_string("Hello, World!");
+        let mut buffer = GapBuffer::from_string("Hello, World!").unwrap();
         let ch = buffer.delete_char(5);
         assert_eq!(ch, Some(','));
         assert_eq!(buffer.to_string(), "Hello World!");
@@ -436,14 +442,14 @@ mod tests {
 
     #[test]
     fn test_delete_range() {
-        let mut buffer = GapBuffer::from_string("Hello, World!");
+        let mut buffer = GapBuffer::from_string("Hello, World!").unwrap();
         buffer.delete_range(5..7);
         assert_eq!(buffer.to_string(), "HelloWorld!");
     }
 
     #[test]
     fn test_line_operations() {
-        let buffer = GapBuffer::from_string("Line 1\nLine 2\nLine 3");
+        let buffer = GapBuffer::from_string("Line 1\nLine 2\nLine 3").unwrap();
         assert_eq!(buffer.line_count(), 3);
         assert_eq!(buffer.get_line(0), "Line 1");
         assert_eq!(buffer.get_line(1), "Line 2");
@@ -452,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_line_col_conversion() {
-        let buffer = GapBuffer::from_string("Hello\nWorld\n!");
+        let buffer = GapBuffer::from_string("Hello\nWorld\n!").unwrap();
 
         assert_eq!(buffer.pos_to_line_col(0), (0, 0));
         assert_eq!(buffer.pos_to_line_col(5), (0, 5));
@@ -468,19 +474,19 @@ mod tests {
     fn test_large_insertions() {
         let mut buffer = GapBuffer::new();
         let large_text = "a".repeat(10000);
-        buffer.insert_str(0, &large_text);
+        buffer.insert_str(0, &large_text).unwrap();
         assert_eq!(buffer.len(), 10000);
         assert_eq!(buffer.to_string(), large_text);
     }
 
     #[test]
     fn test_cursor_movement_efficiency() {
-        let mut buffer = GapBuffer::from_string("Hello World");
+        let mut buffer = GapBuffer::from_string("Hello World").unwrap();
 
         // Simulate typical editing pattern
-        buffer.insert_char(5, ','); // O(1) after gap move
-        buffer.insert_char(6, ' '); // O(1) at gap
-        buffer.delete_char(13); // O(1) after gap move
+        buffer.insert_char(5, ',').unwrap(); // Copies text to move the gap
+        buffer.insert_char(6, ' ').unwrap(); // Moves no text at the gap
+        buffer.delete_char(13); // Copies text to move the gap
 
         assert_eq!(buffer.to_string(), "Hello,  World");
     }

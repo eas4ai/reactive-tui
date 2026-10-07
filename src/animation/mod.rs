@@ -1058,6 +1058,16 @@ impl AnimationManager {
         }
     }
 
+    /// Inspect standalone animations and timeline children for frame debugging.
+    /// Shared state can be retained to observe completion after update removes it.
+    pub(crate) fn animations(&self) -> impl Iterator<Item = &Animation> {
+        self.animations.values().chain(
+            self.timelines
+                .values()
+                .flat_map(|timeline| timeline.animations.iter()),
+        )
+    }
+
     /// Get animation by ID
     pub fn get_animation(&self, id: &str) -> Option<&Animation> {
         self.animations.get(id)

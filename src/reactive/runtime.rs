@@ -187,6 +187,12 @@ impl ReactiveRuntime {
         effect_id
     }
 
+    /// Run a registered effect by hand with cleanup and dependency tracking.
+    pub fn run_effect(&self, effect_id: EffectId) {
+        self.effect_queue.borrow_mut().push_back(effect_id);
+        self.flush_effects();
+    }
+
     /// Unregister an effect
     pub fn unregister_effect(&self, effect_id: EffectId) {
         let effect = self.effects.borrow_mut().remove(&effect_id);

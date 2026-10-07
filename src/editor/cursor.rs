@@ -2,7 +2,7 @@
 //!
 //! Handles cursor position, movement, and selection within a gap buffer.
 
-use super::gap_buffer::GapBuffer;
+use super::gap_buffer::{GapBuffer, GapBufferError};
 use super::positions;
 
 /// Cursor position and movement controller
@@ -122,12 +122,25 @@ impl Cursor {
     }
 
     /// Replace the selection or insert at a complete grapheme boundary.
-    pub(super) fn insert(&mut self, buffer: &mut GapBuffer, text: &str) {
-        self.delete_selection(buffer);
-        self.position = positions::floor(buffer, self.position);
-        buffer.insert_str(self.position, text);
-        self.position = positions::ceil(buffer, self.position + text.chars().count());
+    pub(super) fn insert(
+        &mut self,
+        buffer: &mut GapBuffer,
+        text: &str,
+    ) -> Result<(), GapBufferError> {
+        let (start, end) = if let Some((start, end)) = self.selection_range() {
+            (
+                positions::floor(buffer, start),
+                positions::ceil(buffer, end),
+            )
+        } else {
+            let position = positions::floor(buffer, self.position);
+            (position, position)
+        };
+        buffer.replace_range(start..end, text)?;
+        self.clear_selection();
+        self.position = positions::ceil(buffer, start + text.chars().count());
         self.preferred_column = None;
+        Ok(())
     }
 
     pub(super) fn delete(&mut self, buffer: &mut GapBuffer, backward: bool) {
@@ -262,8 +275,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn txt_004_refused_replacement_preserves_selection_and_content() {
+        let mut buffer = GapBuffer::from_string_with_limit("a\nbc", 16).unwrap();
+        let mut cursor = Cursor::new();
+        cursor.position = 4;
+        cursor.selection_anchor = Some(2);
+        assert!(cursor.insert(&mut buffer, "xyz").is_err());
+        assert_eq!(buffer.to_string(), "a\nbc");
+        assert_eq!(buffer.line_count(), 2);
+        assert_eq!(cursor.position, 4);
+        assert_eq!(cursor.selection_anchor, Some(2));
+        cursor.insert(&mut buffer, "XY").unwrap();
+        assert_eq!(buffer.to_string(), "a\nXY");
+        assert_eq!(cursor.selection_anchor, None);
+    }
+
+    #[test]
     fn test_cursor_basic_movement() {
-        let buffer = GapBuffer::from_string("Hello\nWorld");
+        let buffer = GapBuffer::from_string("Hello\nWorld").unwrap();
         let mut cursor = Cursor::new();
 
         assert_eq!(cursor.position, 0);
@@ -285,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_cursor_vertical_movement() {
-        let buffer = GapBuffer::from_string("12345\n123\n12345");
+        let buffer = GapBuffer::from_string("12345\n123\n12345").unwrap();
         let mut cursor = Cursor::new();
 
         cursor.move_to(3, &buffer); // Position at '4' in first line
@@ -298,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_cursor_word_movement() {
-        let buffer = GapBuffer::from_string("hello world foo_bar");
+        let buffer = GapBuffer::from_string("hello world foo_bar").unwrap();
         let mut cursor = Cursor::new();
 
         cursor.move_word_forward(&buffer);
@@ -313,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_cursor_selection() {
-        let buffer = GapBuffer::from_string("Hello World");
+        let buffer = GapBuffer::from_string("Hello World").unwrap();
         let mut cursor = Cursor::new();
 
         cursor.move_to(6, &buffer);

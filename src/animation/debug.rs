@@ -1,8 +1,11 @@
-//! Animation Debugging Tools
+//! Debugging for managed animations.
 //!
-//! Comprehensive debugging utilities for the animation system including
-//! performance monitoring, state inspection, timeline visualization, and
-//! debugging overlays for development.
+//! With state logging enabled, adding an animation logs its start and initial
+//! snapshot; updates log every animation that advances and its completion,
+//! including timeline children. Verbose updates also take snapshots. Performance
+//! monitoring records one measured time per manager update, independently of
+//! state logging. Callers log pause, stop, loop, custom errors and timeline events
+//! by hand when they perform those actions outside the debug manager.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -400,32 +403,22 @@ impl AnimationDebugger {
             return;
         }
 
-        if matches!(
-            self.config.verbosity_level,
-            DebugVerbosity::High | DebugVerbosity::Verbose
-        ) {
-            let state = match animation.state.read() {
-                Ok(guard) => guard.clone(),
-                Err(_) => {
-                    log::warn!("Animation state lock poisoned during debug update");
-                    return;
-                }
-            };
-            let event = DebugEvent::AnimationUpdated {
-                id: animation.id.clone(),
-                timestamp: self.start_time.elapsed(),
-                progress: state.progress,
-                current_values: state.current_values.clone(),
-                frame_time,
-            };
+        let state = match animation.state.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => {
+                log::warn!("Animation state lock poisoned during debug update");
+                return;
+            }
+        };
+        let event = DebugEvent::AnimationUpdated {
+            id: animation.id.clone(),
+            timestamp: self.start_time.elapsed(),
+            progress: state.progress,
+            current_values: state.current_values.clone(),
+            frame_time,
+        };
 
-            self.log_event(event);
-        }
-
-        // Update performance metrics
-        if self.config.enable_performance_monitoring {
-            self.update_performance_metrics(frame_time);
-        }
+        self.log_event(event);
     }
 
     /// Log animation completion
@@ -574,16 +567,14 @@ impl AnimationDebugger {
             },
         };
 
-        self.snapshots
-            .entry(animation.id.clone())
-            .or_default()
-            .push(snapshot);
+        self.store_animation_snapshot(snapshot);
+    }
 
-        // Limit snapshot history
-        if let Some(snapshots) = self.snapshots.get_mut(&animation.id) {
-            if snapshots.len() > self.config.max_debug_entries / 10 {
-                snapshots.remove(0);
-            }
+    fn store_animation_snapshot(&mut self, snapshot: AnimationSnapshot) {
+        let snapshots = self.snapshots.entry(snapshot.id.clone()).or_default();
+        snapshots.push(snapshot);
+        if snapshots.len() > self.config.max_debug_entries / 10 {
+            snapshots.remove(0);
         }
     }
 
@@ -857,18 +848,19 @@ impl DebugAnimationManager {
     }
 
     /// Add an animation with debugging
-    pub fn add_animation(&mut self, mut animation: Animation) {
+    pub fn add_animation(&mut self, animation: Animation) {
         self.debugger.log_animation_start(&animation);
         self.debugger.take_animation_snapshot(&animation);
-
-        // Wrap callbacks to include debugging
-        self.wrap_animation_callbacks(&mut animation);
 
         self.manager.add_animation(animation);
     }
 
     /// Add a timeline with debugging
     pub fn add_timeline(&mut self, timeline: AnimationTimeline) {
+        for animation in &timeline.animations {
+            self.debugger.log_animation_start(animation);
+            self.debugger.take_animation_snapshot(animation);
+        }
         self.debugger
             .log_timeline_event(&timeline, TimelineEventType::Started);
         self.debugger.take_timeline_snapshot(&timeline);
@@ -877,31 +869,75 @@ impl DebugAnimationManager {
 
     /// Update with debugging
     pub fn update(&mut self) {
+        // Keep shared state before update: completed standalone animations are
+        // removed by the manager, but their final frame still needs logging.
+        let observed: Vec<_> = if self.debugger.config.enable_state_logging {
+            self.manager
+                .animations()
+                .filter_map(|animation| {
+                    let before = animation.state.read().ok()?.clone();
+                    Some((
+                        animation.id.clone(),
+                        animation.config.clone(),
+                        std::sync::Arc::clone(&animation.state),
+                        before,
+                    ))
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         let start_time = Instant::now();
-
         self.manager.update();
-
-        let _frame_time = start_time.elapsed();
-
-        // Update debugger with performance data
+        let frame_time = start_time.elapsed();
+        if self.debugger.config.enable_performance_monitoring {
+            self.debugger.update_performance_metrics(frame_time);
+        }
         self.debugger
             .update_active_count(self.manager.active_count());
 
-        // Take snapshots of all animations if verbose debugging
-        if matches!(
-            self.debugger.config.verbosity_level,
-            DebugVerbosity::Verbose
-        ) {
-            // Note: We would need public access to animations to take snapshots
-            // For now, snapshots are taken when animations are added/updated
+        for (id, config, shared_state, before) in observed {
+            let Ok(state) = shared_state.read().map(|state| state.clone()) else {
+                continue;
+            };
+            if before.state != AnimationState::Playing || state == before {
+                continue;
+            }
+            self.debugger.log_event(DebugEvent::AnimationUpdated {
+                id: id.clone(),
+                timestamp: self.debugger.start_time.elapsed(),
+                progress: state.progress,
+                current_values: state.current_values.clone(),
+                frame_time,
+            });
+            if state.state == AnimationState::Completed && before.state != AnimationState::Completed
+            {
+                self.debugger.log_event(DebugEvent::AnimationCompleted {
+                    id: id.clone(),
+                    timestamp: self.debugger.start_time.elapsed(),
+                    total_duration: state.current_time,
+                    loops_completed: state.loops_completed,
+                });
+            }
+            if self.debugger.config.verbosity_level == DebugVerbosity::Verbose {
+                self.debugger.store_animation_snapshot(AnimationSnapshot {
+                    id,
+                    state: state.state,
+                    progress: state.progress,
+                    current_time: state.current_time,
+                    loops_completed: state.loops_completed,
+                    is_reversed: state.is_reversed,
+                    current_values: state.current_values,
+                    config: AnimationDebugInfo {
+                        duration: config.duration,
+                        easing: config.easing,
+                        delay: config.delay,
+                        auto_play: config.auto_play,
+                        speed: config.speed,
+                    },
+                });
+            }
         }
-    }
-
-    /// Wrap animation callbacks to include debugging
-    fn wrap_animation_callbacks(&mut self, _animation: &mut Animation) {
-        // Note: This would require modifying the Animation struct to allow
-        // callback wrapping, which is complex due to the Arc<dyn Fn> types.
-        // For now, we rely on explicit logging calls in the application code.
     }
 
     /// Get debugger reference
@@ -1064,4 +1100,117 @@ pub fn create_performance_debug_manager() -> DebugAnimationManager {
         ..Default::default()
     };
     DebugAnimationManager::new(config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::animation::AnimatedProperty;
+
+    fn animation(id: &str, duration: Duration) -> Animation {
+        let mut animation = Animation::builder(id)
+            .animate_property(AnimatedProperty::Opacity(0.0, 1.0))
+            .duration(duration)
+            .build();
+        animation.play();
+        animation
+    }
+
+    fn manager() -> DebugAnimationManager {
+        DebugAnimationManager::new(DebugConfig {
+            verbosity_level: DebugVerbosity::Verbose,
+            log_to_console: false,
+            ..Default::default()
+        })
+    }
+
+    #[test]
+    fn ani_010_completion_keeps_the_final_update_and_snapshot() {
+        let mut manager = manager();
+        manager.add_animation(animation("done", Duration::ZERO));
+        manager.update();
+        assert!(manager.manager().get_animation("done").is_none());
+        let events: Vec<_> = manager
+            .debugger()
+            .get_events()
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    DebugEvent::AnimationStarted { .. }
+                        | DebugEvent::AnimationUpdated { .. }
+                        | DebugEvent::AnimationCompleted { .. }
+                )
+            })
+            .collect();
+        assert_eq!(events.len(), 3);
+        assert!(matches!(events[0], DebugEvent::AnimationStarted { .. }));
+        assert!(matches!(events[1], DebugEvent::AnimationUpdated { .. }));
+        assert!(matches!(events[2], DebugEvent::AnimationCompleted { .. }));
+        let snapshots = manager
+            .debugger()
+            .get_animation_snapshots(&"done".into())
+            .unwrap();
+        assert_eq!(snapshots.last().unwrap().state, AnimationState::Completed);
+        manager.update();
+        assert_eq!(
+            manager
+                .debugger()
+                .get_events()
+                .iter()
+                .filter(|event| matches!(
+                    event,
+                    DebugEvent::AnimationUpdated { .. } | DebugEvent::AnimationCompleted { .. }
+                ))
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn ani_010_paused_animations_do_not_log_updates() {
+        let mut manager = manager();
+        let mut paused = animation("paused", Duration::from_secs(10));
+        paused.pause();
+        manager.add_animation(paused);
+        manager.update();
+        assert!(!manager
+            .debugger()
+            .get_events()
+            .iter()
+            .any(|event| matches!(event, DebugEvent::AnimationUpdated { .. })));
+        assert_ne!(
+            manager.debugger().get_performance_metrics().min_frame_time,
+            Duration::MAX
+        );
+    }
+
+    #[test]
+    fn ani_010_timeline_children_log_updates_and_completion() {
+        let mut manager = manager();
+        let mut timeline = AnimationTimeline::new("timeline", true);
+        timeline.add_animation(animation("first", Duration::ZERO));
+        timeline.add_animation(animation("second", Duration::from_secs(10)));
+        // Only the first child starts in this sequential timeline.
+        timeline.animations[1].stop();
+        timeline.play();
+        manager.add_timeline(timeline);
+        manager.update();
+        let updated: Vec<_> = manager
+            .debugger()
+            .get_events()
+            .iter()
+            .filter_map(|event| {
+                if let DebugEvent::AnimationUpdated { id, .. } = event {
+                    Some(id.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(updated, ["first"]);
+        assert!(manager.debugger().get_events().iter().any(
+            |event| matches!(event, DebugEvent::AnimationCompleted { id, .. } if id == "first")
+        ));
+    }
 }

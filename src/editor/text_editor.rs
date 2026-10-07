@@ -3,7 +3,7 @@
 //! A complete text editor component with cursor, selection, and efficient editing.
 
 use super::cursor::{Cursor, Movement};
-use super::gap_buffer::GapBuffer;
+use super::gap_buffer::{GapBuffer, GapBufferError};
 use super::painting::{self, LinePainter};
 use crate::core::geometry::{Point, Size};
 use crate::core::styled_text::{StyledLine, StyledRun};
@@ -35,7 +35,7 @@ impl TextEditor {
     /// Create a new text editor
     pub fn new() -> Self {
         Self {
-            buffer: GapBuffer::new(),
+            buffer: GapBuffer::default(),
             cursor: Cursor::new(),
             scroll_offset: 0,
             width: 80,
@@ -47,9 +47,9 @@ impl TextEditor {
     }
 
     /// Create a text editor with initial content
-    pub fn with_content(content: &str) -> Self {
-        Self {
-            buffer: GapBuffer::from_string(content),
+    pub fn with_content(content: &str) -> Result<Self, GapBufferError> {
+        Ok(Self {
+            buffer: GapBuffer::from_string(content)?,
             cursor: Cursor::new(),
             scroll_offset: 0,
             width: 80,
@@ -57,7 +57,7 @@ impl TextEditor {
             show_line_numbers: true,
             line_number_width: 4,
             syntax_highlighting: false,
-        }
+        })
     }
 
     /// Set the editor dimensions
@@ -90,21 +90,23 @@ impl TextEditor {
     }
 
     /// Set the content
-    pub fn set_content(&mut self, content: &str) {
-        self.buffer = GapBuffer::from_string(content);
+    pub fn set_content(&mut self, content: &str) -> Result<(), GapBufferError> {
+        self.buffer = GapBuffer::from_string(content)?;
         self.cursor = Cursor::new();
         self.scroll_offset = 0;
+        Ok(())
     }
 
     /// Insert text, replacing the selected complete graphemes.
-    pub fn insert_text(&mut self, text: &str) {
-        self.cursor.insert(&mut self.buffer, text);
+    pub fn insert_text(&mut self, text: &str) -> Result<(), GapBufferError> {
+        self.cursor.insert(&mut self.buffer, text)?;
         self.ensure_cursor_visible();
+        Ok(())
     }
 
     /// Insert one Unicode scalar; adjacent combining text remains one grapheme.
-    pub fn insert_char(&mut self, ch: char) {
-        self.insert_text(ch.encode_utf8(&mut [0; 4]));
+    pub fn insert_char(&mut self, ch: char) -> Result<(), GapBufferError> {
+        self.insert_text(ch.encode_utf8(&mut [0; 4]))
     }
 
     /// Delete the selection or the preceding complete grapheme.
@@ -230,7 +232,7 @@ mod tests {
         let editor = TextEditor::new();
         assert_eq!(editor.content(), "");
 
-        let editor = TextEditor::with_content("Hello World");
+        let editor = TextEditor::with_content("Hello World").unwrap();
         assert_eq!(editor.content(), "Hello World");
     }
 
@@ -238,19 +240,19 @@ mod tests {
     fn test_editor_insert() {
         let mut editor = TextEditor::new();
 
-        editor.insert_text("Hello");
+        editor.insert_text("Hello").unwrap();
         assert_eq!(editor.content(), "Hello");
 
-        editor.insert_char(' ');
+        editor.insert_char(' ').unwrap();
         assert_eq!(editor.content(), "Hello ");
 
-        editor.insert_text("World");
+        editor.insert_text("World").unwrap();
         assert_eq!(editor.content(), "Hello World");
     }
 
     #[test]
     fn test_editor_delete() {
-        let mut editor = TextEditor::with_content("Hello World");
+        let mut editor = TextEditor::with_content("Hello World").unwrap();
 
         editor.move_cursor(Movement::DocumentEnd, false);
         editor.delete_backward();
@@ -263,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_editor_selection() {
-        let mut editor = TextEditor::with_content("Hello World");
+        let mut editor = TextEditor::with_content("Hello World").unwrap();
 
         editor.move_cursor(Movement::WordForward, false);
         editor.move_cursor(Movement::Right, false);
@@ -275,7 +277,7 @@ mod tests {
             Some("World".to_string())
         );
 
-        editor.insert_text("Rust");
+        editor.insert_text("Rust").unwrap();
         assert_eq!(editor.content(), "Hello Rust");
     }
 }

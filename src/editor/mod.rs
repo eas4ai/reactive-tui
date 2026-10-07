@@ -12,6 +12,6 @@ pub mod syntax_editor;
 pub mod text_editor;
 
 pub use cursor::Cursor;
-pub use gap_buffer::GapBuffer;
+pub use gap_buffer::{GapBuffer, GapBufferError};
 pub use syntax_editor::SyntaxEditor;
 pub use text_editor::TextEditor;
