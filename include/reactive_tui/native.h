@@ -2988,8 +2988,11 @@ enum RTuiError rtui_thread_safe_signal_string_set(RTuiThreadSafeSignal *signal, 
 /**
  * Create an effect and run its callback now, then after a signal it read through
  * a C getter changes. Cleanup runs before each later run and at destroy.
- * Signals and effects must stay on their creating C thread; a setter runs
- * effects synchronously on that thread. `rtui_effect_run` also runs it by hand.
+ * A change the callback itself makes to a signal it read runs it again when
+ * the callback returns, at most 100 times in a row, so a callback that
+ * normalizes a value sees its result. Signals and effects must stay on their
+ * creating C thread; a setter runs effects synchronously on that thread.
+ * `rtui_effect_run` also runs it by hand.
  *
  * # Safety
  *

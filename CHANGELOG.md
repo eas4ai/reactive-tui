@@ -42,6 +42,12 @@ This file records user-visible changes to Reactive TUI. The project follows
   effects share one reactive runtime per thread and stay on the thread that
   made them; the hooks are documented as the keyed signal storage they are
   (FFI-006).
+- A C effect whose own callback changes a signal it read runs again when the
+  callback returns, with its cleanup first, so its last run sees the final
+  value; the runtime used to drop that change as a cycle. The same holds for
+  Rust effects of a `RuntimeContext`. An effect that changes such a signal on
+  every run stops after 100 reruns in a row until the next change from outside
+  (FFI-006, the review's finding 1).
 - The gap buffer behind the editors states its cost and is bounded in bytes:
   `GapBuffer::DEFAULT_LIMIT_BYTES` (256 MiB of character storage), set
   otherwise with `with_limit_bytes`, is checked by every constructor and

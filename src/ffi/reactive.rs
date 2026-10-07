@@ -1,8 +1,10 @@
 //! C signals and effects share one thread-confined reactive runtime per thread.
 //!
 //! Effects run when created and again after a C setter changes a signal read
-//! through a C getter during their last run. Cleanup runs before each later run
-//! and at destruction. Manual runs use the same body and dependency tracking.
+//! through a C getter during their last run, also when the setter was called
+//! by the effect's own callback (then the rerun follows the callback's return,
+//! at most 100 times in a row). Cleanup runs before each later run and at
+//! destruction. Manual runs use the same body and dependency tracking.
 //! Handles must stay on their creating C thread; setters run effects synchronously
 //! on that thread. Hooks store shared signals by key; they are not component hooks.
 //! The separate thread-safe signals do not participate in this runtime.
@@ -771,8 +773,11 @@ pub unsafe extern "C" fn rtui_thread_safe_signal_string_set(
 
 /// Create an effect and run its callback now, then after a signal it read through
 /// a C getter changes. Cleanup runs before each later run and at destroy.
-/// Signals and effects must stay on their creating C thread; a setter runs
-/// effects synchronously on that thread. `rtui_effect_run` also runs it by hand.
+/// A change the callback itself makes to a signal it read runs it again when
+/// the callback returns, at most 100 times in a row, so a callback that
+/// normalizes a value sees its result. Signals and effects must stay on their
+/// creating C thread; a setter runs effects synchronously on that thread.
+/// `rtui_effect_run` also runs it by hand.
 ///
 /// # Safety
 ///

@@ -28,7 +28,17 @@ pub struct ReactiveRuntime {
 
     /// Cycle detection: effects currently being processed
     processing: RefCell<HashSet<EffectId>>,
+
+    /// Effects whose run on the stack changed a signal that run read: each
+    /// runs again when its run returns (SIG-004)
+    rerun: RefCell<HashSet<EffectId>>,
 }
+
+/// How many times in a row an effect runs again because its own run changed
+/// a signal it read. A run that changes such a signal every time would never
+/// settle; after this many reruns the runtime stops and the last run stands
+/// until the next change from outside.
+pub const RERUN_LIMIT: usize = 100;
 
 struct RuntimeEffectGuard<'a> {
     runtime: &'a ReactiveRuntime,
@@ -54,6 +64,7 @@ impl ReactiveRuntime {
             batch_depth: RefCell::new(0),
             pending_effects: RefCell::new(HashSet::new()),
             processing: RefCell::new(HashSet::new()),
+            rerun: RefCell::new(HashSet::new()),
         }
     }
 
@@ -147,28 +158,40 @@ impl ReactiveRuntime {
         self.flush_effects();
     }
 
-    /// Process the effect queue
+    /// Process the effect queue. An effect queued while its own run is on
+    /// the stack, because that run changed a signal it read, runs again when
+    /// the run returns, up to [`RERUN_LIMIT`] times in a row, so the change
+    /// is not dropped and its last run sees the final value (SIG-004).
     fn flush_effects(&self) {
         loop {
             let Some(effect_id) = self.effect_queue.borrow_mut().pop_front() else {
                 break;
             };
-            // Cycle detection
             if !self.processing.borrow_mut().insert(effect_id) {
-                // Already processing this effect - cycle detected!
+                // Its run is on the stack and changed a signal it read: the
+                // effect runs again when that run returns.
+                self.rerun.borrow_mut().insert(effect_id);
                 continue;
             }
             let effect = self.effects.borrow().get(&effect_id).cloned();
-            if let Some(effect) = effect {
-                let previous = self.current_effect.replace(Some(effect_id));
-                let _running = RuntimeEffectGuard {
-                    runtime: self,
-                    effect_id,
-                    previous,
-                };
-                effect.run();
-            } else {
+            let Some(effect) = effect else {
                 self.processing.borrow_mut().remove(&effect_id);
+                continue;
+            };
+            let previous = self.current_effect.replace(Some(effect_id));
+            let _running = RuntimeEffectGuard {
+                runtime: self,
+                effect_id,
+                previous,
+            };
+            let mut reruns = 0;
+            loop {
+                effect.run();
+                let again = self.rerun.borrow_mut().remove(&effect_id);
+                if !again || effect.is_disposed() || reruns == RERUN_LIMIT {
+                    break;
+                }
+                reruns += 1;
             }
         }
     }
@@ -195,6 +218,7 @@ impl ReactiveRuntime {
 
     /// Unregister an effect
     pub fn unregister_effect(&self, effect_id: EffectId) {
+        self.rerun.borrow_mut().remove(&effect_id);
         let effect = self.effects.borrow_mut().remove(&effect_id);
         if let Some(effect) = effect {
             effect.dispose();
@@ -268,6 +292,13 @@ impl ReactiveRuntime {
             let mut processing = self.processing.borrow_mut();
             let effects = self.effects.borrow();
             processing.retain(|effect_id| effects.contains_key(effect_id));
+        }
+
+        // Clean up rerun requests
+        {
+            let mut rerun = self.rerun.borrow_mut();
+            let effects = self.effects.borrow();
+            rerun.retain(|effect_id| effects.contains_key(effect_id));
         }
 
         let final_effects_count = self.effects.borrow().len();
@@ -584,5 +615,59 @@ mod tests {
 
         let result = with_runtime(|_ctx| 42);
         assert_eq!(result, None);
+    }
+
+    /// FFI-006, SIG-004: a run that changes a signal it read makes the
+    /// effect run again when it returns, and that run sees the result.
+    #[test]
+    fn ffi_006_a_run_that_changes_its_own_signal_runs_again() {
+        let ctx = RuntimeContext::new();
+        let signal = ctx.create_signal(0);
+        let seen = Rc::new(RefCell::new(Vec::new()));
+        let log = Rc::clone(&seen);
+        let read = signal.clone();
+        ctx.create_effect(move || {
+            let value = read.get();
+            log.borrow_mut().push(value);
+            if value == 1 {
+                read.set(2);
+            }
+            None
+        });
+        signal.set(1);
+        assert_eq!(
+            *seen.borrow(),
+            vec![0, 1, 2],
+            "the effect's runs saw {:?}, not the final value 2 last",
+            seen.borrow()
+        );
+        assert_eq!(signal.get(), 2);
+    }
+
+    /// FFI-006: an effect whose every run changes the signal it read stops
+    /// after RERUN_LIMIT reruns instead of running forever, and runs again
+    /// on the next change from outside.
+    #[test]
+    fn ffi_006_an_effect_that_never_settles_stops_at_the_limit() {
+        let ctx = RuntimeContext::new();
+        let signal = ctx.create_signal(0u64);
+        let runs = Rc::new(Cell::new(0usize));
+        let counted = Rc::clone(&runs);
+        let read = signal.clone();
+        ctx.create_effect(move || {
+            counted.set(counted.get() + 1);
+            let value = read.get();
+            read.set(value + 1);
+            None
+        });
+        assert_eq!(
+            runs.get(),
+            RERUN_LIMIT + 1,
+            "creation ran the effect {} times (expected the first run and {RERUN_LIMIT} reruns)",
+            runs.get()
+        );
+        signal.set(1_000);
+        assert_eq!(runs.get(), 2 * (RERUN_LIMIT + 1));
+        assert_eq!(signal.get(), 1_000 + RERUN_LIMIT as u64 + 1);
     }
 }
