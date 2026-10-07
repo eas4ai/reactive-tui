@@ -5,6 +5,11 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- The minimum supported Rust is 1.95 (it was 1.91). The push workflow pins
+  1.95.0 on every job by full name, the MSVC toolchain on Windows, installs it
+  beside the runner's own toolchains and names it on every cargo call, so no
+  runner's default toolchain or default host changes and the Windows job no
+  longer builds the GNU flavor (docs/spec/quality-bar.md, BAR-012).
 - The C text buffers paint whole grapheme clusters: `renderTextBufferToSurface`,
   `renderTextBufferToRenderer` and `renderTextBufferDirect` place each cluster
   in its own cells by its display width, so the letter after a wide glyph

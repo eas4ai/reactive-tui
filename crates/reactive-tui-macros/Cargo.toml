@@ -2,7 +2,7 @@
 name = "reactive-tui-macros"
 version = "1.0.0"
 edition = "2021"
-rust-version = "1.91"
+rust-version = "1.95"
 description = "Procedural macros for reactive-tui"
 repository = "https://github.com/eas4ai/reactive-tui"
 license = "LicenseRef-ReactiveTUI-1.0"

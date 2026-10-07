@@ -2,7 +2,7 @@
 name = "reactive-tui"
 version = "1.0.0"
 edition = "2021"
-rust-version = "1.91"
+rust-version = "1.95"
 description = "Reactive terminal UI framework with retained components, CSS-like layout, widgets, native rendering, and an optional C ABI"
 documentation = "https://docs.rs/reactive-tui"
 repository = "https://github.com/eas4ai/reactive-tui"

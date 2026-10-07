@@ -10,7 +10,7 @@ It draws on a hardware GPU when the host has one and on a software renderer
 otherwise. It shows the picture as Kitty graphics, as Sixel, or as block
 glyphs, whichever the terminal takes.
 
-The default build does not compile wgpu. Rust 1.91 remains the minimum. The
+The default build does not compile wgpu. Rust 1.95 remains the minimum. The
 canvas opens no window and replaces no backend: it is a widget in the
 Element tree.
 

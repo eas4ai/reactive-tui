@@ -50,7 +50,7 @@ Main capabilities:
 
 ## Installation
 
-The workspace requires **Rust 1.91 or newer**. Clone the current source and build
+The workspace requires **Rust 1.95 or newer**. Clone the current source and build
 with locked dependencies:
 
 ```sh
