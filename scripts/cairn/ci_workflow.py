@@ -2,38 +2,43 @@
 """BAR-012 (ci-workflow): the push workflow is green at the commit under check.
 
 Static part, read from .github/workflows/ci.yml, .gitattributes and
-Cargo.toml: the platform job runs on an Ubuntu, a macOS and a Windows runner;
-its matrix pins a toolchain per job, a stable release named in full
-(1.95.0, or 1.95.0-x86_64-pc-windows-msvc) at or above Cargo.toml's
-rust-version, the MSVC toolchain on Windows and never a GNU one. What a step
-runs at is read the way rustup decides it: the `+<toolchain>` argument of
-the call, resolved through the environment the step sees (workflow, job and
+Cargo.toml. Where each job runs and when: a push or dispatch run goes to the
+project's three machines, addressed by their labels (`self-hosted`,
+`rust-ci`, an OS label and an architecture label), one Linux, one macOS and
+one Windows; a pull request's run goes to GitHub's hosted runners and never
+to a self-hosted label; the weekly advisories job runs on the Linux machine;
+a job's `if` must be one the reader can evaluate for each event. What each
+job runs at: its matrix pins a toolchain per entry, a stable release named
+in full (1.95.0, or 1.95.0-x86_64-pc-windows-msvc) at or above Cargo.toml's
+rust-version, the MSVC toolchain on Windows and never a GNU one; what a step
+runs at is read the way rustup decides it, the `+<toolchain>` argument of
+the call resolved through the environment the step sees (workflow, job and
 step `env`, the matrix entry substituted), so every cargo call must name a
 toolchain and that toolchain must be the job's pin; no step may override
 TOOLCHAIN or RUSTUP_TOOLCHAIN; an expression the reader cannot resolve is a
 violation. Each job that runs cargo installs its pin with `rustup toolchain
-install`; no step runs `rustup default` or `rustup set default-host`; the
+install`; no step runs `rustup default` or `rustup set default-host`; every
 platform job's steps run the five commands (build, test, fmt, clippy, cargo
-deny) at the pin on every runner; the Linux job builds and tests at
-rust-version (its own pin when that is the floor, otherwise a Linux step
-whose calls select the floor release, installed too); a job other than the
-platform matrix that runs cargo, the weekly advisories job, is held to the
-same pin rules through its job-level TOOLCHAIN; a step installs the ConPTY
-runtime on Windows; and tracked text files get LF line endings. A static
-violation is the verdict, and no run is consulted.
+deny) at the pin; the Linux job builds and tests at rust-version (its own
+pin when that is the floor, otherwise a Linux step whose calls select the
+floor release, installed too); the advisories job is held to the same pin
+rules through its job-level TOOLCHAIN; a step installs the ConPTY runtime on
+Windows; and tracked text files get LF line endings. A static violation is
+the verdict, and no run is consulted.
 
 Run part: the workflow's run for HEAD, read through gh. A run tests a
 commit, so the working tree must match HEAD for this mechanism's inputs;
 otherwise no verdict (unverified). Only a run that could have run the
 platform matrix counts: the workflow skips that matrix on schedule, so a
 scheduled run is no run here. A completed run decides: it passes when each
-of the three platform jobs succeeded and no job failed; otherwise it fails
-with its jobs. A run still going is waited for. With no run, the commit is
-pushed as the temporary branch ci/check-<sha>, the workflow is started on it
-(workflow_dispatch), waited for up to 55 minutes, and the branch is deleted.
-A gh or git call that fails for want of the network prints no result line,
-so Sudus records the run as unverified. The mechanism's own tests
-(test_ci_workflow.py) run first; when they fail there is no verdict.
+of the three platform jobs, named as the workflow names them, succeeded and
+no job failed; otherwise it fails with its jobs. A run still going is waited
+for. With no run, the commit is pushed as the temporary branch
+ci/check-<sha>, the workflow is started on it (workflow_dispatch), waited
+for up to 55 minutes, and the branch is deleted. A gh or git call that fails
+for want of the network prints no result line, so Sudus records the run as
+unverified. The mechanism's own tests (test_ci_workflow.py) run first; when
+they fail there is no verdict.
 """
 
 from __future__ import annotations
@@ -63,9 +68,7 @@ COMMANDS = (
 )
 # The two the Linux job also runs at the floor when its pin is above it.
 FLOOR_COMMANDS = COMMANDS[:2]
-RUNNERS = ("ubuntu-", "macos-", "windows-")
-# The job of each runner, as the workflow names it: `platform (<runner>)`.
-PLATFORM_JOBS = tuple(f"platform ({prefix}" for prefix in RUNNERS)
+MACHINES = ("Linux", "macOS", "Windows")
 TESTS = ROOT / "scripts/cairn/test_ci_workflow.py"
 INPUTS = [".gitattributes", ".github", "Cargo.lock", "Cargo.toml", "benches", "bindings", "build.rs", "crates",
           "deny.toml", "examples", "include", "scripts", "src", "tests"]
@@ -92,10 +95,10 @@ def rust_version() -> str:
     return match.group(1) if match else ""
 
 
-def matrix_entries(platform: dict) -> list[dict]:
-    """The platform job's matrix as one dict per job: `include` entries, or
-    the `os` list without toolchains when the matrix has no include."""
-    matrix = (platform.get("strategy") or {}).get("matrix") or {}
+def matrix_entries(job: dict) -> list[dict]:
+    """A job's matrix as one dict per entry: `include` entries, or the `os`
+    list without toolchains when the matrix has no include."""
+    matrix = (job.get("strategy") or {}).get("matrix") or {}
     include = matrix.get("include")
     if isinstance(include, list):
         return [dict(entry) for entry in include if isinstance(entry, dict)]
@@ -105,6 +108,21 @@ def matrix_entries(platform: dict) -> list[dict]:
 def runs_of(job: dict) -> list[tuple[str, str]]:
     """Each step's `if` condition and `run` text."""
     return [(str(step.get("if", "")), str(step.get("run", ""))) for step in (job.get("steps") or [])]
+
+
+def entry_label(name: str, entry: dict) -> str:
+    """How a violation names a matrix entry's job: its `name` or `os` value."""
+    return f"{entry.get('name') or entry.get('os') or name} job"
+
+
+def job_name_for(name: str, job: dict, entry: dict) -> str | None:
+    """The job's name on GitHub for the entry: its `name` template with the
+    matrix substituted, or None when an expression remains."""
+    template = job.get("name")
+    if template is None:
+        return f"{name} ({', '.join(str(v) for v in entry.values())})"
+    text = wt.substitute(str(template), entry)
+    return None if wt.EXPRESSION.search(text) else text
 
 
 def pin_violations(label: str, pin: str, floor: tuple[int, int] | None, version: str, windows: bool) -> list[str]:
@@ -119,7 +137,7 @@ def pin_violations(label: str, pin: str, floor: tuple[int, int] | None, version:
     if "gnu" in pin:
         found.append(f"the {label} names a GNU toolchain ({pin})")
     if windows and not pin.endswith("-pc-windows-msvc"):
-        found.append(f"the Windows job's toolchain {pin} does not name the MSVC toolchain in full")
+        found.append(f"the {label}'s toolchain {pin} does not name the MSVC toolchain in full")
     return found
 
 
@@ -193,23 +211,25 @@ def step_violations(label: str, job: dict, entry: dict | None, workflow_env: dic
     return found
 
 
-def entry_violations(platform: dict, entry: dict, workflow_env: dict, floor: tuple[int, int] | None,
+def entry_violations(name: str, job: dict, entry: dict, workflow_env: dict, floor: tuple[int, int] | None,
                      version: str) -> list[str]:
-    """One platform job: its matrix pin, then its steps against that pin."""
-    os_name = str(entry.get("os", ""))
-    label = f"{os_name} job"
+    """One platform job of a matrix: its pin, then its steps against that
+    pin, with the runner OS read from its labels."""
+    label = entry_label(name, entry)
+    labels = wt.labels_of(job, entry)
+    os_label = wt.os_of_labels(labels)
     pin = str(entry.get("toolchain", "") or "")
-    found = pin_violations(label, pin, floor, version, windows=os_name.startswith("windows-"))
+    found = pin_violations(label, pin, floor, version, windows=os_label == "Windows")
     if found:
         return found
-    return step_violations(label, platform, entry, workflow_env, pin, wt.runner_os(os_name), floor, version,
-                           required=COMMANDS, linux=os_name.startswith("ubuntu-"))
+    return step_violations(label, job, entry, workflow_env, pin, os_label, floor, version,
+                           required=COMMANDS, linux=os_label == "Linux")
 
 
 def job_violations(name: str, job: dict, workflow_env: dict, floor: tuple[int, int] | None,
                    version: str) -> list[str]:
-    """A job outside the platform matrix (the weekly advisories job): when it
-    runs cargo, its job-level TOOLCHAIN is its pin and the same rules hold."""
+    """A job without a matrix (the weekly advisories job): when it runs
+    cargo, its job-level TOOLCHAIN is its pin and the same rules hold."""
     label = f"{name} job"
     job_env = wt.effective_env(workflow_env, job.get("env"))
     runs_cargo = any(wt.cargo_calls(run, {}) for _, run in runs_of(job))
@@ -221,8 +241,75 @@ def job_violations(name: str, job: dict, workflow_env: dict, floor: tuple[int, i
     found = pin_violations(label, pin, floor, version, windows=False)
     if found:
         return found
-    return step_violations(label, job, None, workflow_env, pin, wt.runner_os(str(job.get("runs-on", "") or "")),
+    return step_violations(label, job, None, workflow_env, pin, wt.os_of_labels(wt.labels_of(job, None)),
                            floor, version, required=(), linux=False)
+
+
+def routing_violations(jobs: dict) -> list[str]:
+    """Where each event's jobs run: push and dispatch on the three machines
+    and nowhere else, a pull request never on a self-hosted label, the
+    schedule on the advisories job on the Linux machine; every condition
+    and every `runs-on` readable."""
+    found = []
+    runs: dict[str, list[tuple[str, dict, dict | None]]] = {event: [] for event in wt.EVENTS}
+    for name, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        condition = str(job.get("if", "") or "")
+        entries = matrix_entries(job) or [None]
+        for event in wt.EVENTS:
+            decision = wt.runs_for_event(condition, event)
+            if decision is None:
+                found.append(f"the {name} job's condition is one the gate cannot read ({condition!r})")
+                break
+            if decision:
+                runs[event].extend((name, job, entry) for entry in entries)
+    for event in ("push", "workflow_dispatch"):
+        machines_seen = set()
+        for name, job, entry in runs[event]:
+            labels = wt.labels_of(job, entry)
+            label = entry_label(name, entry) if entry else f"{name} job"
+            if labels is None:
+                found.append(f"the {label}'s runs-on is an expression the gate cannot read")
+            elif not wt.is_machine(labels):
+                found.append(f"a {event} run sends the {label} to labels other than one of the three machines' ({', '.join(labels)})")
+            else:
+                machines_seen.add(wt.os_of_labels(labels))
+        for machine in MACHINES:
+            if machine not in machines_seen:
+                found.append(f"no {event} job runs on the {machine} machine")
+    for name, job, entry in runs["pull_request"]:
+        labels = wt.labels_of(job, entry)
+        label = entry_label(name, entry) if entry else f"{name} job"
+        if labels is None:
+            found.append(f"the {label}'s runs-on is an expression the gate cannot read")
+        elif "self-hosted" in labels:
+            found.append(f"a pull request's run sends the {label} to a self-hosted label")
+    scheduled = runs["schedule"]
+    if not scheduled:
+        found.append("no job runs on the schedule")
+    for name, job, entry in scheduled:
+        labels = wt.labels_of(job, entry) or []
+        label = entry_label(name, entry) if entry else f"{name} job"
+        if entry is not None:
+            found.append(f"the {label} runs on the schedule, which the platform matrix must not")
+        elif not (wt.is_machine(labels) and wt.os_of_labels(labels) == "Linux"):
+            found.append(f"the {label} does not run on the Linux machine ({', '.join(labels) or 'no labels'})")
+    return found
+
+
+def platform_job_names(workflow: dict) -> list[str]:
+    """The names the push run's platform jobs carry on GitHub, one per
+    matrix entry that runs on push."""
+    names = []
+    for name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict) or wt.runs_for_event(str(job.get("if", "") or ""), "push") is not True:
+            continue
+        for entry in matrix_entries(job):
+            resolved = job_name_for(name, job, entry)
+            if resolved:
+                names.append(resolved)
+    return names
 
 
 def static_violations(workflow: dict | None = None, attributes: str | None = None,
@@ -241,11 +328,7 @@ def static_violations(workflow: dict | None = None, attributes: str | None = Non
         found.append("Cargo.toml declares no rust-version")
     jobs = workflow.get("jobs") or {}
     workflow_env = workflow.get("env") or {}
-    platform = jobs.get("platform") or {}
-    entries = matrix_entries(platform)
-    for prefix in RUNNERS:
-        if not any(str(entry.get("os", "")).startswith(prefix) for entry in entries):
-            found.append(f"the platform job has no {prefix[:-1]} runner")
+    found.extend(routing_violations(jobs))
     all_runs = [run for job in jobs.values() if isinstance(job, dict) for _, run in runs_of(job)]
     joined_all = "\n".join(all_runs)
     if re.search(r"rustup\s+default\b", joined_all):
@@ -254,13 +337,24 @@ def static_violations(workflow: dict | None = None, attributes: str | None = Non
         found.append("a step runs `rustup set default-host`, which changes the runner's default host")
     if re.search(r"windows-gnu", joined_all):
         found.append("a step names a GNU Windows toolchain")
-    for entry in entries:
-        found.extend(entry_violations(platform, entry, workflow_env, floor, version))
+    conpty_seen = False
     for name, job in jobs.items():
-        if name != "platform" and isinstance(job, dict):
+        if not isinstance(job, dict):
+            continue
+        entries = matrix_entries(job)
+        if entries:
+            for entry in entries:
+                found.extend(entry_violations(name, job, entry, workflow_env, floor, version))
+                if job_name_for(name, job, entry) is None:
+                    found.append(f"the {name} job's name is an expression the gate cannot read")
+            conpty = [step for step in (job.get("steps") or []) if "install-conpty-runtime.py" in str(step.get("run", ""))]
+            if any("Windows" in str(step.get("if", "")) for step in conpty):
+                conpty_seen = True
+            else:
+                found.append(f"no Windows step of the {name} job installs the ConPTY runtime")
+        else:
             found.extend(job_violations(name, job, workflow_env, floor, version))
-    conpty = [step for step in (platform.get("steps") or []) if "install-conpty-runtime.py" in str(step.get("run", ""))]
-    if not any("Windows" in str(step.get("if", "")) for step in conpty):
+    if not conpty_seen and not any("ConPTY" in v for v in found):
         found.append("no Windows step installs the ConPTY runtime")
     if attributes is None:
         if not ATTRIBUTES.exists():
@@ -300,10 +394,10 @@ def platform_runs(runs: list[dict]) -> list[dict]:
     return [r for r in runs if r["conclusion"] != "cancelled" and r["event"] != "schedule"]
 
 
-def missing_platform_jobs(jobs: list[dict]) -> list[str]:
-    """The platform jobs without a successful instance among `jobs`."""
-    return [prefix for prefix in PLATFORM_JOBS
-            if not any(str(j["name"]).startswith(prefix) and j["conclusion"] == "success" for j in jobs)]
+def missing_platform_jobs(jobs: list[dict], expected: list[str]) -> list[str]:
+    """The expected platform jobs without a successful instance among `jobs`."""
+    return [name for name in expected
+            if not any(str(j["name"]) == name and j["conclusion"] == "success" for j in jobs)]
 
 
 def jobs_of(run_id: int) -> list[dict]:
@@ -347,8 +441,8 @@ def dispatch(sha: str, deadline: float) -> dict:
         subprocess.run(["git", "push", "-q", "origin", "--delete", branch], cwd=ROOT, capture_output=True, text=True, timeout=300)
 
 
-def verdict(run: dict, jobs: list[dict]) -> tuple[bool, str]:
-    """Pass when the run completed, each of the three platform jobs succeeded
+def verdict(run: dict, jobs: list[dict], expected: list[str]) -> tuple[bool, str]:
+    """Pass when the run completed, each expected platform job succeeded
     and no job failed. A skipped platform job is a job that never started,
     which the falsifier names."""
     run_id = run["databaseId"]
@@ -357,7 +451,7 @@ def verdict(run: dict, jobs: list[dict]) -> tuple[bool, str]:
     for job in jobs:
         print(f"  {job['name']}: {job['conclusion'] or job['status']}", flush=True)
     bad = [f"{j['name']} {j['conclusion'] or j['status']}" for j in jobs if j["conclusion"] not in ("success", "skipped")]
-    bad += [f"no successful {prefix}...) job" for prefix in missing_platform_jobs(jobs)]
+    bad += [f"no successful {name} job" for name in missing_platform_jobs(jobs, expected)]
     if run["conclusion"] == "success" and not bad:
         return True, f"run {run_id} green on every job ({run['url']})"
     return False, f"run {run_id} {run['conclusion']}: {'; '.join(bad) or 'no job ran'} ({run['url']})"
@@ -373,10 +467,14 @@ def gate() -> int:
         print(f"static: {v}", flush=True)
     if violations:
         return finish({REQUIREMENT: (False, "; ".join(violations))})
-    print("static: the workflow runs the five commands on the three runners, every cargo call resolving to the "
-          "toolchain pinned per job at or above Cargo.toml's rust-version, MSVC on Windows, each job installing its "
-          "pin and changing no default, the Linux job at the floor, the advisories job pinned the same way, "
-          "the ConPTY runtime installed on Windows, and .gitattributes pinning LF", flush=True)
+    workflow = yaml.safe_load(WORKFLOW.read_text())
+    expected = platform_job_names(workflow)
+    print("static: push and dispatch runs go to the three machines by their labels, pull requests to hosted "
+          "runners, the advisories job to the Linux machine; the five commands run on each platform job with "
+          "every cargo call resolving to the toolchain pinned per job at or above Cargo.toml's rust-version, "
+          "MSVC on Windows, each job installing its pin and changing no default, the Linux job at the floor; "
+          "the ConPTY runtime is installed on Windows and .gitattributes pins LF; "
+          f"platform jobs {', '.join(expected)}", flush=True)
     try:
         sha = head()
         dirty = dirty_inputs()
@@ -397,7 +495,7 @@ def gate() -> int:
         else:
             print(f"no run for {sha[:12]}: starting one", flush=True)
             run = dispatch(sha, deadline)
-        ok, why = verdict(run, jobs_of(run["databaseId"]))
+        ok, why = verdict(run, jobs_of(run["databaseId"]), expected)
     except (NoVerdict, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as error:
         print(f"{REQUIREMENT} unverified: {error}")
         return 1

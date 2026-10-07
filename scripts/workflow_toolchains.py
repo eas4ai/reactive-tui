@@ -124,3 +124,137 @@ def installs(run: str, env: dict[str, str]) -> list[str | None]:
     """The toolchains `rustup toolchain install` installs in a step's text,
     None for one the reader cannot resolve."""
     return [resolve(match.group(1), env) for match in INSTALL.finditer(run)]
+
+
+# Where a job runs and when: labels and event conditions.
+
+EVENTS = ("push", "pull_request", "workflow_dispatch", "schedule")
+OS_LABELS = {"linux": "Linux", "macos": "macOS", "windows": "Windows"}
+ARCH_LABELS = {"X64", "ARM64"}
+# A self-hosted machine of the project, as the runners project labels it.
+MACHINE_LABELS = {"self-hosted", "rust-ci"}
+MATRIX_ONLY = re.compile(r"^\s*\$\{\{\s*matrix\.([A-Za-z_][A-Za-z0-9_-]*)\s*\}\}\s*$")
+
+
+def labels_of(job: dict, entry: dict | None) -> list[str] | None:
+    """The labels a job's `runs-on` names for a matrix entry: a hosted
+    runner's name is one label, a self-hosted runner a list of them; None
+    when the value is an expression the reader cannot resolve."""
+    value = job.get("runs-on")
+    if isinstance(value, str):
+        only = MATRIX_ONLY.match(value)
+        if only and entry is not None and only.group(1) in entry:
+            value = entry[only.group(1)]
+        else:
+            text = substitute(value, entry)
+            return None if EXPRESSION.search(text) else [text.strip()]
+    if isinstance(value, str):
+        return None if EXPRESSION.search(value) else [value.strip()]
+    if isinstance(value, list):
+        labels = [substitute(str(item), entry).strip() for item in value]
+        return None if any(EXPRESSION.search(label) for label in labels) else labels
+    return None
+
+
+def os_of_labels(labels: list[str] | None) -> str | None:
+    """`runner.os` of a label set: the OS label of a self-hosted runner, or
+    the OS a hosted runner's name starts with."""
+    for label in labels or []:
+        if label.lower() in OS_LABELS:
+            return OS_LABELS[label.lower()]
+    for label in labels or []:
+        known = runner_os(label)
+        if known:
+            return known
+    return None
+
+
+def is_machine(labels: list[str] | None) -> bool:
+    """Whether the labels address one of the project's machines: self-hosted,
+    rust-ci, an OS label and an architecture label."""
+    if not labels:
+        return False
+    present = set(labels)
+    return (MACHINE_LABELS <= present and any(label.lower() in OS_LABELS for label in present)
+            and bool(ARCH_LABELS & present))
+
+
+TOKEN = re.compile(r"\s*(\(|\)|&&|\|\||!=|==|!|github\.event_name|'[^']*'|\"[^\"]*\")")
+
+
+def runs_for_event(condition: str | None, event: str) -> bool | None:
+    """Whether a job's `if` lets it run for the event. The reader knows
+    `github.event_name == '...'`, `!=`, `&&`, `||`, `!` and parentheses; an
+    empty condition is True; anything else is None."""
+    text = (condition or "").strip()
+    if text.startswith("${{") and text.endswith("}}"):
+        text = text[3:-2].strip()
+    if not text:
+        return True
+    tokens: list[str] = []
+    position = 0
+    while position < len(text):
+        match = TOKEN.match(text, position)
+        if not match:
+            return None
+        tokens.append(match.group(1))
+        position = match.end()
+    index = 0
+
+    def peek() -> str | None:
+        return tokens[index] if index < len(tokens) else None
+
+    def take() -> str:
+        nonlocal index
+        token = tokens[index]
+        index += 1
+        return token
+
+    def parse_or():
+        value = parse_and()
+        while peek() == "||":
+            take()
+            right = parse_and()
+            value = None if value is None or right is None else (value or right)
+        return value
+
+    def parse_and():
+        value = parse_unary()
+        while peek() == "&&":
+            take()
+            right = parse_unary()
+            value = None if value is None or right is None else (value and right)
+        return value
+
+    def parse_unary():
+        token = peek()
+        if token == "!":
+            take()
+            value = parse_unary()
+            return None if value is None else not value
+        if token == "(":
+            take()
+            value = parse_or()
+            if peek() != ")":
+                raise ValueError("unbalanced")
+            take()
+            return value
+        return parse_comparison()
+
+    def parse_comparison():
+        left = take()
+        operator = take()
+        right = take()
+        if operator not in ("==", "!="):
+            raise ValueError("operator")
+        sides = {left, right}
+        if "github.event_name" not in sides or len(sides) != 2:
+            raise ValueError("operands")
+        literal = next(side for side in sides if side != "github.event_name").strip("'\"")
+        return (literal == event) if operator == "==" else (literal != event)
+
+    try:
+        value = parse_or()
+    except (ValueError, IndexError):
+        return None
+    return None if index != len(tokens) else value
