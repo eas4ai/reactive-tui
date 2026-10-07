@@ -127,11 +127,15 @@ impl Cursor {
         buffer: &mut GapBuffer,
         text: &str,
     ) -> Result<(), GapBufferError> {
-        let (start, end) = self
-            .selection_range()
-            .unwrap_or((self.position, self.position));
-        let start = positions::floor(buffer, start);
-        let end = positions::ceil(buffer, end);
+        let (start, end) = if let Some((start, end)) = self.selection_range() {
+            (
+                positions::floor(buffer, start),
+                positions::ceil(buffer, end),
+            )
+        } else {
+            let position = positions::floor(buffer, self.position);
+            (position, position)
+        };
         buffer.replace_range(start..end, text)?;
         self.clear_selection();
         self.position = positions::ceil(buffer, start + text.chars().count());
@@ -269,6 +273,22 @@ use unicode_segmentation::UnicodeSegmentation;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn txt_004_refused_replacement_preserves_selection_and_content() {
+        let mut buffer = GapBuffer::from_string_with_limit("a\nbc", 16).unwrap();
+        let mut cursor = Cursor::new();
+        cursor.position = 4;
+        cursor.selection_anchor = Some(2);
+        assert!(cursor.insert(&mut buffer, "xyz").is_err());
+        assert_eq!(buffer.to_string(), "a\nbc");
+        assert_eq!(buffer.line_count(), 2);
+        assert_eq!(cursor.position, 4);
+        assert_eq!(cursor.selection_anchor, Some(2));
+        cursor.insert(&mut buffer, "XY").unwrap();
+        assert_eq!(buffer.to_string(), "a\nXY");
+        assert_eq!(cursor.selection_anchor, None);
+    }
 
     #[test]
     fn test_cursor_basic_movement() {

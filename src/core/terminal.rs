@@ -484,6 +484,66 @@ mod tests {
     use super::*;
 
     #[test]
+    fn ffi_005_full_paint_preserves_images_graphemes_and_session() {
+        crate::terminal::test_terminal::on_terminal(
+            "core::terminal::tests::ffi_005_full_paint_preserves_images_graphemes_and_session",
+            || {
+                let mut terminal = Terminal::new().unwrap();
+                terminal.enter_modern_mode().unwrap();
+                terminal.enable_buffered_mode().unwrap();
+                terminal.capabilities.synchronized_output = true;
+                terminal.capabilities.kitty_graphics = false;
+                terminal.capabilities.sixel = false;
+                terminal.capabilities.iterm2_graphics = false;
+                let mut surface = Surface::new(6, 2);
+                assert!(surface.set_grapheme(
+                    0,
+                    0,
+                    "e\u{301}",
+                    crate::core::surface::Cell::default()
+                ));
+                surface.write_str(
+                    1,
+                    0,
+                    "界A",
+                    crate::core::surface::Rgba::white(),
+                    crate::core::surface::Rgba::black(),
+                    crate::core::surface::Attr::empty(),
+                );
+                let image = surface.create_test_image(2, 2, 255, 0, 0);
+                surface.place_image_foreground(5, 0, image);
+                terminal.paint_surface(&surface).unwrap();
+                let output =
+                    String::from_utf8_lossy(terminal.surface_diff.as_ref().unwrap().output());
+                assert!(output.contains("e\u{301}") && output.contains("界A"));
+                assert!(
+                    output.contains("255;0;0"),
+                    "image fallback was not painted: {output:?}"
+                );
+                assert!(!output.contains('\0'), "empty cells must paint as spaces");
+                assert!(terminal.raw_mode && terminal.alternate_screen && terminal.buffered_mode);
+                assert!(crossterm::terminal::is_raw_mode_enabled().unwrap());
+                assert!(terminal.write_buffer.is_empty());
+                terminal.capabilities.kitty_graphics = true;
+                terminal.paint_surface(&surface).unwrap();
+                let output =
+                    String::from_utf8_lossy(terminal.surface_diff.as_ref().unwrap().output());
+                assert!(
+                    output.contains("\x1b_G"),
+                    "Kitty image was not painted: {output:?}"
+                );
+                surface.clear_all_image_placements();
+                terminal.paint_surface(&surface).unwrap();
+                assert!(terminal.raw_mode && terminal.alternate_screen);
+                let mut broken = Surface::new(1, 1);
+                broken.place_image_foreground(0, 0, u32::MAX);
+                assert!(terminal.paint_surface(&broken).is_err());
+                assert!(terminal.raw_mode && terminal.alternate_screen);
+            },
+        );
+    }
+
+    #[test]
     fn test_terminal_creation() {
         // This test just verifies we can create a terminal instance
         // without actually initializing it (which would mess up the test terminal)

@@ -2,7 +2,7 @@ language = "C"
 include_guard = "REACTIVE_TUI_NATIVE_H"
 cpp_compat = true
 usize_is_size_t = true
-documentation = false
+documentation = true
 autogen_warning = "/* Generated from Rust by cbindgen 0.29.4. Run scripts/generate-native-header.py. */"
 after_includes = """
 typedef struct RTuiRenderer RTuiRenderer;

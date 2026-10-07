@@ -72,8 +72,10 @@ impl GapBuffer {
     pub const DEFAULT_LIMIT_BYTES: usize = 256 * 1024 * 1024;
 
     /// Create an empty buffer with the default byte limit.
-    pub fn new() -> Result<Self, GapBufferError> {
-        Self::with_capacity(1024)
+    pub fn new() -> Self {
+        // 1024 slots are 4 KiB, far inside the default limit; an empty
+        // buffer is the fallback a smaller limit would leave anyway.
+        Self::with_capacity(1024).unwrap_or_default()
     }
 
     /// Create an empty buffer with this initial capacity in character slots.
@@ -387,8 +389,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn txt_004_growth_in_the_middle_preserves_suffix_and_line_offsets() {
+        let original = format!("left\n{}\nright", "a".repeat(2048));
+        let mut buffer = GapBuffer::from_string(&original).unwrap();
+        let inserted = format!("{}\n", "b".repeat(2048));
+        buffer.insert_str(5, &inserted).unwrap();
+        assert_eq!(
+            buffer.to_string(),
+            format!("left\n{inserted}{}\nright", "a".repeat(2048))
+        );
+        assert_eq!(buffer.line_count(), 4);
+        assert_eq!(buffer.get_line(1), "b".repeat(2048));
+        assert_eq!(buffer.get_line(2), "a".repeat(2048));
+        assert_eq!(buffer.get_line(3), "right");
+    }
+
+    #[test]
     fn test_new_buffer() {
-        let buffer = GapBuffer::new().unwrap();
+        let buffer = GapBuffer::new();
         assert_eq!(buffer.len(), 0);
         assert!(buffer.is_empty());
     }
@@ -454,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_large_insertions() {
-        let mut buffer = GapBuffer::new().unwrap();
+        let mut buffer = GapBuffer::new();
         let large_text = "a".repeat(10000);
         buffer.insert_str(0, &large_text).unwrap();
         assert_eq!(buffer.len(), 10000);

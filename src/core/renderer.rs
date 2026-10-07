@@ -21,7 +21,7 @@ pub struct FrameStats {
 /// Last statistics supplied by the embedding host, independent of measured frame statistics.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct HostStats {
-    /// Host-reported frame time.
+    /// Host-reported time value.
     pub time: Option<f64>,
     /// Host-reported frames per second.
     pub fps: Option<u32>,
@@ -33,6 +33,22 @@ pub struct HostStats {
     pub heap_total: Option<u32>,
     /// Host-reported array-buffer bytes.
     pub array_buffers: Option<u32>,
+}
+
+impl HostStats {
+    fn overlay_text(&self) -> String {
+        [
+            ("FPS", self.fps.map(|v| v.to_string())),
+            ("Time", self.time.map(|v| v.to_string())),
+            ("Callback", self.frame_callback_time.map(|v| v.to_string())),
+            ("Heap used", self.heap_used.map(|v| v.to_string())),
+            ("Heap total", self.heap_total.map(|v| v.to_string())),
+            ("Array buffers", self.array_buffers.map(|v| v.to_string())),
+        ]
+        .into_iter()
+        .filter_map(|(name, value)| value.map(|value| format!(" | Host {name} {value}")))
+        .collect()
+    }
 }
 
 /// Double-buffered terminal renderer with diff-based updates
@@ -346,29 +362,11 @@ impl Renderer {
                 )
             };
 
-            let host = self.host_stats;
             let mut overlay = overlay;
-            if host.fps.is_some() || host.time.is_some() || host.heap_used.is_some() {
-                // Keep host values on the same overlay row, beside measured values.
-                overlay.truncate(overlay.len() - "\x1b[0m".len());
-                if let Some(fps) = host.fps {
-                    overlay.push_str(&format!(" | Host FPS {fps}"));
-                }
-                if let Some(time) = host.time {
-                    overlay.push_str(&format!(" | Time {time}ms"));
-                }
-                if let Some(callback) = host.frame_callback_time {
-                    overlay.push_str(&format!(" | Callback {callback}ms"));
-                }
-                if let Some(used) = host.heap_used {
-                    overlay.push_str(&format!(
-                        " | Heap {used}/{} | Array buffers {}",
-                        host.heap_total.unwrap_or_default(),
-                        host.array_buffers.unwrap_or_default()
-                    ));
-                }
-                overlay.push_str("\x1b[0m");
-            }
+            // Append host values beside measured values before resetting the style.
+            overlay.truncate(overlay.len() - "\x1b[0m".len());
+            overlay.push_str(&self.host_stats.overlay_text());
+            overlay.push_str("\x1b[0m");
             self.term.write_all_buffered(overlay.as_bytes())?;
         }
         Ok(())
@@ -515,6 +513,98 @@ mod tests {
     use super::*;
     use crate::core::surface::{Attr, Rgba};
     use crate::terminal::test_terminal::on_terminal;
+
+    #[test]
+    fn ffi_004_hit_grid_clips_publishes_clears_and_resizes() {
+        on_terminal(
+            "core::renderer::tests::ffi_004_hit_grid_clips_publishes_clears_and_resizes",
+            || {
+                let mut renderer = Renderer::new(4, 3).unwrap();
+                renderer.add_hit_region(-1, -1, 3, 3, 7);
+                renderer.add_hit_region(1, 1, u32::MAX, u32::MAX, 9);
+                renderer.add_hit_region(-5, -5, 1, 1, 99);
+                renderer.add_hit_region(100, 100, u32::MAX, u32::MAX, 99);
+                assert_eq!(renderer.check_hit(0, 0), 0);
+                renderer.begin_frame().unwrap();
+                renderer.end_frame().unwrap();
+                assert_eq!(renderer.check_hit(0, 0), 7);
+                assert_eq!(renderer.check_hit(1, 1), 9);
+                assert_eq!(renderer.check_hit(3, 2), 9);
+                assert_eq!(renderer.check_hit(4, 2), 0);
+                assert_eq!(renderer.hit_regions().get(&7), Some(&(0, 0, 1, 1)));
+                assert_eq!(renderer.hit_regions().get(&9), Some(&(1, 1, 3, 2)));
+                renderer.begin_frame().unwrap();
+                renderer.end_frame().unwrap();
+                assert_eq!(renderer.check_hit(0, 0), 0);
+                renderer.add_hit_region(0, 0, 4, 3, 8);
+                renderer.resize(2, 1);
+                renderer.begin_frame().unwrap();
+                renderer.end_frame().unwrap();
+                assert_eq!(renderer.check_hit(0, 0), 0);
+            },
+        );
+    }
+
+    #[test]
+    fn ffi_004_dump_keeps_both_surfaces_graphemes_and_host_values() {
+        on_terminal(
+            "core::renderer::tests::ffi_004_dump_keeps_both_surfaces_graphemes_and_host_values",
+            || {
+                let mut renderer = Renderer::new(4, 1).unwrap();
+                assert!(renderer.surface_mut().set_grapheme(
+                    0,
+                    0,
+                    "e\u{301}",
+                    crate::core::surface::Cell::default()
+                ));
+                renderer.surface_mut().write_str(
+                    1,
+                    0,
+                    "界",
+                    Rgba::white(),
+                    Rgba::black(),
+                    Attr::empty(),
+                );
+                renderer.host_stats = HostStats {
+                    time: Some(16.0),
+                    fps: Some(4242),
+                    frame_callback_time: Some(1.0),
+                    heap_used: Some(123456),
+                    heap_total: Some(999999),
+                    array_buffers: Some(7),
+                };
+                renderer.begin_frame().unwrap();
+                renderer.end_frame().unwrap();
+                renderer.surface_mut().write_str(
+                    0,
+                    0,
+                    "BACK",
+                    Rgba::white(),
+                    Rgba::black(),
+                    Attr::empty(),
+                );
+                let dir = tempfile::tempdir().unwrap();
+                let path = dir.path().join("buffers.txt");
+                renderer.dump_buffers(&path).unwrap();
+                let dump = std::fs::read_to_string(&path).unwrap();
+                for text in [
+                    "Dimensions: 4x1",
+                    "Front:\ne\u{301}界  ",
+                    "Back:\nBACK",
+                    "Frame statistics:",
+                    "4242",
+                    "123456",
+                    "999999",
+                    "array_buffers: Some(7)",
+                ] {
+                    assert!(dump.contains(text), "missing {text:?} from {dump:?}");
+                }
+                assert!(renderer
+                    .dump_buffers(&dir.path().join("missing/file"))
+                    .is_err());
+            },
+        );
+    }
 
     #[test]
     fn test_renderer_creation() {

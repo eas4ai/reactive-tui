@@ -1035,9 +1035,6 @@ impl Surface {
         } else {
             let ch = self.buf[index].ch;
             output.push(ch);
-            if unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1) == 2 {
-                output.push(' ');
-            }
         }
     }
 
@@ -2245,6 +2242,40 @@ impl DiffWriter {
         self.out.extend_from_slice(s.as_bytes());
     }
 
+    // Graphics encoders also emit absolute cursor moves. Shift those rows without
+    // changing protocol payloads or other CSI sequences (such as colors).
+    fn push_graphics(&mut self, mut bytes: &[u8]) {
+        if self.row_offset == 0 {
+            self.out.extend_from_slice(bytes);
+            return;
+        }
+        while let Some(start) = bytes.windows(2).position(|part| part == b"\x1b[") {
+            self.out.extend_from_slice(&bytes[..start + 2]);
+            bytes = &bytes[start + 2..];
+            let row_end = bytes.iter().take_while(|b| b.is_ascii_digit()).count();
+            let column_end = row_end
+                + 1
+                + bytes
+                    .get(row_end + 1..)
+                    .unwrap_or_default()
+                    .iter()
+                    .take_while(|b| b.is_ascii_digit())
+                    .count();
+            if bytes.get(row_end) == Some(&b';') && bytes.get(column_end) == Some(&b'H') {
+                if let Ok(row) = std::str::from_utf8(&bytes[..row_end])
+                    .unwrap_or_default()
+                    .parse::<u64>()
+                {
+                    self.out.extend_from_slice(
+                        (row + u64::from(self.row_offset)).to_string().as_bytes(),
+                    );
+                    bytes = &bytes[row_end..];
+                }
+            }
+        }
+        self.out.extend_from_slice(bytes);
+    }
+
     fn sgr_color(&mut self, r: u8, g: u8, b: u8, is_fg: bool) {
         if is_fg {
             self.push(&format!("\x1b[38;2;{r};{g};{b}m"));
@@ -2344,7 +2375,7 @@ impl DiffWriter {
             .prepare(&planes, self.image_options.cell_pixels, force)?;
         let force = force || graphics.is_some();
         if let Some((before, _)) = &graphics {
-            self.out.extend_from_slice(before);
+            self.push_graphics(before);
         }
         self.push("\x1b[?25l");
         let (w, h) = cur.dims();
@@ -2365,7 +2396,12 @@ impl DiffWriter {
             for x in 0..w {
                 let index = next.idx(x, y);
                 let replace_text = fallback && image_output::replaces_grapheme(next, index);
-                if next.grapheme_continuation(index) && !replace_text {
+                // Legacy write_str stores a wide scalar followed by a blank cell.
+                // The terminal already advances two columns for that scalar.
+                let legacy_continuation = x > 0
+                    && next.buf[index].ch == ' '
+                    && unicode_width::UnicodeWidthChar::width(next.buf[index - 1].ch) == Some(2);
+                if (next.grapheme_continuation(index) || legacy_continuation) && !replace_text {
                     continue;
                 }
                 let a = current_cells
@@ -2512,7 +2548,7 @@ impl DiffWriter {
         self.push("\x1b[?25h");
 
         if let Some((_, after)) = graphics {
-            self.out.extend_from_slice(&after);
+            self.push_graphics(&after);
         }
         self.pending_images = Some(planes);
 
@@ -2578,6 +2614,29 @@ impl DiffWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ffi_004_offset_shifts_text_and_native_image_cursor_rows() {
+        let old = Surface::new(2, 1);
+        let mut next = Surface::new(2, 1);
+        let image = next.create_test_image(1, 1, 255, 0, 0);
+        next.place_image_foreground(0, 0, image);
+        let mut diff = DiffWriter::new();
+        diff.set_image_options(crate::backend::ImageOutputOptions {
+            kitty_graphics: true,
+            cell_pixels: (1, 1),
+            ..Default::default()
+        });
+        diff.set_row_offset(u32::MAX);
+        diff.try_diff(&old, &next, true).unwrap();
+        let output = String::from_utf8_lossy(diff.output());
+        assert!(output.contains("\x1b_G"));
+        assert!(!output.contains("\x1b[1;1H"));
+        assert!(
+            output.matches("\x1b[4294967296;1H").count() >= 2,
+            "{output:?}"
+        );
+    }
 
     #[test]
     fn diffwriter_counts_increase_on_changes() {

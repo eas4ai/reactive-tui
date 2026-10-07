@@ -22,9 +22,11 @@ fn ffi_005_render_surface_to_terminal_keeps_the_callers_session() {
             let surface = &mut *(buffer as *mut Surface);
             let white = Rgba::white();
             let black = Rgba::black();
-            let mut cell = Cell::default();
-            cell.fg = white;
-            cell.bg = black;
+            let cell = Cell {
+                fg: white,
+                bg: black,
+                ..Cell::default()
+            };
             surface.set_grapheme(0, 0, "e\u{301}", cell);
             surface.write_str(1, 0, "界A", white, black, Attr::empty());
             let mut stdout = std::io::stdout();
