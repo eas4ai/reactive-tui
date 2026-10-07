@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: ci-rust-version-bump
+Current: ci-local-runners
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1703,3 +1703,45 @@ mechanism rebound on today's workflow as the failing example.
 Done when the workflow's run for the final commit is green on the three
 hosted runners, the three test machines still build the crate with their
 default toolchains, and the quality bar passes.
+
+## ci-local-runners
+
+Requirements: BAR-012, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011
+
+The developer asked on 2026-10-07 for CI on the project's own machines ("I
+would like to setup runners so that we can run ci on my local machines")
+and ruled the runner installation a separate project; that project
+registered three runners to this repository the same day, one Linux, one
+macOS and one Windows machine, each with the labels `self-hosted`,
+`rust-ci`, its OS and its architecture, each keeping its work directory
+between jobs, the Linux one under the memory limits the quality bar's
+checks run under. The ci-rust-version-bump commitment left the workflow
+pinned at 1.95.0 on GitHub's hosted runners; this commitment, from the
+next-feature item ci-moves-to-local-runners (cc8cdf18), moves it to those
+machines. BAR-012 was revised accordingly and Agreed on 2026-10-07.
+
+Delivery: `.github/workflows/ci.yml` runs its platform matrix on the three
+machines by their labels for push and dispatch events, and the same steps on
+GitHub's hosted runners for pull requests only, so no pull request reaches
+a self-hosted label; the weekly advisories job runs on the Linux machine;
+every pin rule stays as it is (1.95.0 by full name, MSVC on Windows,
+installed beside each machine's own toolchains, named on every cargo call,
+no default or default-host change); the workflow stops setting the cargo
+job count, which each machine's runner service sets. The ci-workflow
+mechanism's static part checks the new clauses of BAR-012's falsifier (the
+labels of each job, the routing of each event, the advisories job on the
+Linux machine) with its own tests, and is rebound on the hosted-runner
+workflow as the failing example; its run part reads the runner status API
+while a run is queued: a job waiting on an offline machine is named at once
+in the check's output and on the workstation's desktop, waited for up to a
+day, and reported again when the machine is back, while the ceiling on run
+time counts only a job that is executing; a run whose only obstacle is an
+offline machine is never recorded as failed or unverified within that day.
+The pre-release inspection (scripts/check-pre-release-ci.py, the last step of every CI job)
+learns the two platform jobs and their routing. CHANGELOG.md records the
+change; the runner installation stays documented in the runners project
+and nothing in this tree names a machine, an address or a token.
+
+Done when the workflow's run for the final commit, dispatched by the gate,
+is green on the three machines; every gate BAR-001 to BAR-012 passes on the
+final tree; and the adversary's findings are resolved or declined.
