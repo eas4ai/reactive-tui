@@ -2,7 +2,7 @@
 name = "reactive-tui-suprtui"
 version = "1.0.0"
 edition = "2024"
-rust-version = "1.91"
+rust-version = "1.95"
 description = "Reactive TUI's maintained terminal rendering engine, adapted from SuprTUI"
 repository = "https://github.com/eas4ai/reactive-tui"
 license = "LicenseRef-ReactiveTUI-1.0 AND MIT"

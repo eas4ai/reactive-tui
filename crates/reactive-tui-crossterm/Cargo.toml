@@ -2,7 +2,7 @@
 name = "reactive-tui-crossterm"
 version = "1.0.0"
 edition = "2021"
-rust-version = "1.91"
+rust-version = "1.95"
 description = "Reactive TUI's maintained Crossterm fork with Unix input readiness fixes"
 documentation = "https://docs.rs/reactive-tui-crossterm"
 repository = "https://github.com/eas4ai/reactive-tui"

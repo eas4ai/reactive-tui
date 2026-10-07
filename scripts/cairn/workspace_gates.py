@@ -37,8 +37,11 @@ exits zero actually ran:
   gate pass on any code below it.
 
 When a gate fails only because rustc, rustdoc, clippy-driver or the linker
-was killed by a signal, the run prints no result line, so Sudus records it
-as unverified: it shows nothing about the code, and a rerun decides. A
+was killed by a signal, or rustc stopped on an internal compiler error (a
+compiler bug or a bad core, never the code's doing), the run prints no
+result line, so Sudus records it as unverified: it shows nothing about the
+code, and a rerun decides. The mechanism's own tests
+(test_workspace_gates.py) run first; when they fail there is no verdict. A
 compiler that overflows its stack is the code's doing and still fails. A
 doc-test counts as failed by the crash when rustdoc could not compile it
 because the compiler was killed, as its captured output shows; any other
@@ -75,10 +78,13 @@ TOOLCHAIN_CRASH = [
 ]
 # cargo: process didn't exit successfully: `<command>` (signal: 11, SIGSEGV: invalid memory reference)
 SIGNALLED = re.compile(r"process didn't exit successfully: `([^`]*)` \(signal: \d+, (SIG[A-Z]+)")
+# rustc: error: internal compiler error: compiler/rustc_codegen_ssa/src/mir/operand.rs:163:21: from_const: ...
+ICE = re.compile(r"^error: internal compiler error: (.*)$", re.M)
 # An error line that a toolchain crash does not explain: a compile error, a
 # lint, a failed test, a formatting diff.
 OWN_ERROR = re.compile(r"^error(?:\[E\d+\])?: (?!could not compile|could not document|linking with|build failed|"
-                       rf"aborting due to|{TOOLCHAIN} interrupted by|(?:doc)?test failed, to rerun|\d+ targets? failed)")
+                       rf"aborting due to|{TOOLCHAIN} interrupted by|(?:doc)?test failed, to rerun|\d+ targets? failed|"
+                       r"internal compiler error|the compiler unexpectedly panicked)")
 # The header of a failed test's captured output, libtest's closing list of
 # failed tests, and cargo's lines naming the targets that failed.
 CAPTURED = re.compile(r"^---- (.+?) stdout ----$", re.M)
@@ -101,6 +107,7 @@ def toolchain_crashes(output: str) -> list[str]:
     """What killed the toolchain in this output, when that is all that went
     wrong; empty when the code has a failure of its own or none crashed."""
     crashes = {f"{m.group(1)} killed by {m.group(2)}" for pattern in TOOLCHAIN_CRASH for m in pattern.finditer(output)}
+    crashes.update(f"rustc internal compiler error: {m.group(1)[:120]}" for m in ICE.finditer(output))
     for m in SIGNALLED.finditer(output):
         # The program's own name, not its path: a test binary under a
         # directory named rustc-out is still a test binary. A compiler
@@ -378,7 +385,14 @@ def programs(configs: list[Path]) -> list[str]:
     return lines
 
 
+TESTS = Path(__file__).resolve().with_name("test_workspace_gates.py")
+
+
 def main() -> int:
+    own = subprocess.run([sys.executable, "-B", str(TESTS)], cwd=ROOT, capture_output=True, text=True, timeout=120)
+    if own.returncode != 0:
+        print(f"BAR-001 unverified: the mechanism's own tests fail:\n{own.stderr.strip()[-1500:]}")
+        return 1
     configs = cargo_config_files()
     for line in programs(configs):
         print(line)

@@ -2,7 +2,7 @@
 name = "reactive-tui-libghostty-vt-sys"
 version = "1.0.0"
 edition = "2024"
-rust-version = "1.91"
+rust-version = "1.95"
 description = "Reactive TUI's pinned raw FFI bindings for the Ghostty terminal emulation library"
 repository = "https://github.com/eas4ai/reactive-tui"
 license = "MIT"
