@@ -181,10 +181,23 @@ impl FfiPanicDefault for ReactiveError {
 /// Get the library version
 #[reactive_tui_macros::ffi_export]
 pub extern "C" fn rtui_version() -> RTuiVersion {
+    let mut parts = env!("CARGO_PKG_VERSION").split(['.', '-', '+']);
     RTuiVersion {
-        major: 0,
-        minor: 1,
-        patch: 0,
+        major: parts
+            .next()
+            .expect("Cargo version part")
+            .parse()
+            .expect("numeric Cargo version"),
+        minor: parts
+            .next()
+            .expect("Cargo version part")
+            .parse()
+            .expect("numeric Cargo version"),
+        patch: parts
+            .next()
+            .expect("Cargo version part")
+            .parse()
+            .expect("numeric Cargo version"),
         abi_version: 1,
     }
 }

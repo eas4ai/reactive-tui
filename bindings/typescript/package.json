@@ -1,6 +1,6 @@
 {
   "name": "@reactive-tui/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "TypeScript bindings for reactive-tui - A modern terminal UI framework",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
