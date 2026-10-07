@@ -198,7 +198,8 @@ pub unsafe extern "C" fn resizeRenderer(renderer: *mut RTuiRenderer, width: u32,
 // BUFFER MANAGEMENT
 //
 
-/// Create an optimized buffer
+/// Create an optimized buffer.
+/// `width_method` is accepted for compatibility; one width policy applies to all buffers.
 #[reactive_tui_macros::ffi_export]
 pub extern "C" fn createOptimizedBuffer(
     width: u32,
@@ -707,9 +708,8 @@ pub unsafe extern "C" fn bufferResize(buffer: *mut RTuiBuffer, width: u32, heigh
 // SYSTEM INTEGRATION FUNCTIONS
 //
 
-/// Render surface to terminal through renderer
-///
-/// This integrates Surface → Renderer → Terminal in a single operation
+/// Paint the complete surface through the caller's terminal, preserving graphemes and pictures.
+/// No renderer or terminal session is created, and no terminal mode is changed or restored.
 ///
 /// # Safety
 ///
@@ -734,30 +734,8 @@ pub unsafe extern "C" fn renderSurfaceToTerminal(
     }
 
     let surface_ref = unsafe { &*(surface as *const Surface) };
-    let _terminal_ref = unsafe { &mut *(terminal as *mut crate::core::terminal::Terminal) };
-
-    // Get surface dimensions
-    let (width, height) = surface_ref.dims();
-
-    // Create a temporary renderer for this operation
-    match Renderer::new(width, height) {
-        Ok(mut renderer) => {
-            // Copy surface data to renderer by copying cells
-            let renderer_surface = renderer.surface_mut();
-            let cells = surface_ref.cells();
-            for (i, cell) in cells.iter().enumerate() {
-                let x = i % width;
-                let y = i / width;
-                if y < height {
-                    renderer_surface.set(x, y, *cell);
-                }
-            }
-
-            // Render to terminal using begin/end frame
-            renderer.begin_frame().is_ok() && renderer.end_frame().is_ok()
-        }
-        Err(_) => false,
-    }
+    let terminal_ref = unsafe { &mut *(terminal as *mut crate::core::terminal::Terminal) };
+    terminal_ref.paint_surface(surface_ref).is_ok()
 }
 
 /// Complete rendering pipeline: TextBuffer → Surface → Renderer → Terminal
@@ -814,7 +792,8 @@ pub unsafe extern "C" fn renderTextToTerminal(
 
 /// Integrated renderer with stats collection
 ///
-/// This combines Renderer → Terminal with automatic stats collection
+/// Render the frame through the renderer's own terminal, with optional statistics collection.
+/// The terminal argument is validated but is not written to.
 ///
 /// # Safety
 ///

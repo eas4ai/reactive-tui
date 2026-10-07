@@ -10,7 +10,8 @@ use std::sync::RwLock;
 // PERFORMANCE MONITORING
 //
 
-/// Update performance statistics
+/// Keep the host time, FPS and frame callback time for the debug overlay and buffer dump.
+/// Also enable detailed measured frame statistics.
 ///
 /// # Safety
 ///
@@ -18,9 +19,9 @@ use std::sync::RwLock;
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn updateStats(
     renderer: *mut RTuiRenderer,
-    _time: f64,
-    _fps: u32,
-    _frame_callback_time: f64,
+    time: f64,
+    fps: u32,
+    frame_callback_time: f64,
 ) {
     if renderer.is_null() {
         return;
@@ -33,11 +34,16 @@ pub unsafe extern "C" fn updateStats(
 
     let renderer_ref = unsafe { &mut *(renderer as *mut Renderer) };
 
+    let host = renderer_ref.host_stats_mut();
+    host.time = Some(time);
+    host.fps = Some(fps);
+    host.frame_callback_time = Some(frame_callback_time);
+
     // Enable detailed stats collection for better performance monitoring
     renderer_ref.enable_detailed_stats();
 }
 
-/// Update memory statistics
+/// Keep the host heap-used, heap-total and array-buffer values for the overlay and buffer dump.
 ///
 /// # Safety
 ///
@@ -45,9 +51,9 @@ pub unsafe extern "C" fn updateStats(
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn updateMemoryStats(
     renderer: *mut RTuiRenderer,
-    _heap_used: u32,
-    _heap_total: u32,
-    _array_buffers: u32,
+    heap_used: u32,
+    heap_total: u32,
+    array_buffers: u32,
 ) {
     if renderer.is_null() {
         return;
@@ -58,11 +64,15 @@ pub unsafe extern "C" fn updateMemoryStats(
         return;
     }
 
-    // Memory stats are automatically tracked by the renderer
-    // The renderer estimates its own memory usage internally
+    let renderer_ref = unsafe { &mut *(renderer as *mut Renderer) };
+    let host = renderer_ref.host_stats_mut();
+    host.heap_used = Some(heap_used);
+    host.heap_total = Some(heap_total);
+    host.array_buffers = Some(array_buffers);
 }
 
-/// Set render offset for debugging
+/// Add `offset` to every emitted cursor row, including the debug overlay.
+/// Rows beyond the terminal are still written; changing the offset forces a repaint.
 ///
 /// # Safety
 ///
@@ -78,17 +88,8 @@ pub unsafe extern "C" fn setRenderOffset(renderer: *mut RTuiRenderer, offset: u3
         return;
     }
 
-    // Log the render offset setting for debugging purposes
-    log_message(LogLevel::Debug, &format!(
-        "Render offset set to: {} (Note: Offset rendering requires terminal coordinate modification - not currently implemented in core renderer)",
-        offset
-    ));
-
-    // Render offset implementation requires:
-    // - DiffWriter coordinate transformation for all escape sequences
-    // - Renderer state tracking for offset values
-    // - Bounds checking integration with offset calculations
-    // The current architecture prioritizes performance over coordinate transformation
+    let renderer_ref = unsafe { &mut *(renderer as *mut Renderer) };
+    renderer_ref.set_render_offset(offset);
 }
 
 /// Debug overlay corner enumeration (matching OpenTUI)
@@ -131,7 +132,9 @@ pub unsafe extern "C" fn setDebugOverlay(renderer: *mut RTuiRenderer, enabled: b
 // HIT TESTING AND DEBUGGING
 //
 
-/// Add element to hit grid for mouse interaction debugging
+/// Write `id` over a region clipped to the renderer in the grid being built.
+/// Negative origins clip; outside regions are ignored; later registrations overwrite earlier ones.
+/// A successful completed render publishes this grid and starts an empty one.
 ///
 /// # Safety
 ///
@@ -139,11 +142,11 @@ pub unsafe extern "C" fn setDebugOverlay(renderer: *mut RTuiRenderer, enabled: b
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn addToHitGrid(
     renderer: *mut RTuiRenderer,
-    _x: i32,
-    _y: i32,
-    _width: u32,
-    _height: u32,
-    _id: u32,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    id: u32,
 ) {
     if renderer.is_null() {
         return;
@@ -154,12 +157,11 @@ pub unsafe extern "C" fn addToHitGrid(
         return;
     }
 
-    // Hit region tracking requires extending the renderer with a spatial data structure
-    // The current renderer focuses on efficient terminal output rather than input handling
-    // This function is safe to call but performs no operation
+    let renderer_ref = unsafe { &mut *(renderer as *mut Renderer) };
+    renderer_ref.add_hit_region(x, y, width, height, id);
 }
 
-/// Check hit at coordinates
+/// Return the registered id at (x, y) in the last completed frame, or 0 for an empty or outside cell.
 ///
 /// # Safety
 ///
@@ -176,17 +178,10 @@ pub unsafe extern "C" fn checkHit(renderer: *mut RTuiRenderer, x: u32, y: u32) -
     }
 
     let renderer_ref = unsafe { &*(renderer as *const Renderer) };
-    let (width, height) = renderer_ref.dims();
-
-    // Basic bounds checking - return 1 if within bounds, 0 if outside
-    if (x as usize) < width && (y as usize) < height {
-        1 // Hit within renderer bounds
-    } else {
-        0 // Outside bounds
-    }
+    renderer_ref.check_hit(x as usize, y as usize)
 }
 
-/// Dump hit grid for debugging
+/// Log each distinct nonzero id in the shown hit grid with its cells' bounding box.
 ///
 /// # Safety
 ///
@@ -203,23 +198,26 @@ pub unsafe extern "C" fn dumpHitGrid(renderer: *mut RTuiRenderer) {
     }
 
     let renderer_ref = unsafe { &*(renderer as *const Renderer) };
-    let (width, height) = renderer_ref.dims();
-
-    // Log hit grid information
-    log_message(
-        LogLevel::Debug,
-        &format!(
-            "Hit Grid Debug: Renderer dimensions {}x{}, hit testing available for bounds checking",
-            width, height
-        ),
-    );
+    for (id, (left, top, right, bottom)) in renderer_ref.hit_regions() {
+        log_message(
+            LogLevel::Debug,
+            &format!(
+                "Hit Grid: id {id}, x={left}, y={top}, width={}, height={}",
+                right - left + 1,
+                bottom - top + 1
+            ),
+        );
+    }
 }
 
 //
 // BUFFER DEBUGGING
 //
 
-/// Dump buffers to file for debugging
+/// Write `rtui-buffers-<timestamp>.txt` in the current directory.
+/// The text contains dimensions, front and back surfaces row by row (each cell's
+/// grapheme, or a space for an empty cell), last frame statistics and kept host statistics.
+/// Log the path on success or the write error on failure, without panicking.
 ///
 /// # Safety
 ///
@@ -236,17 +234,11 @@ pub unsafe extern "C" fn dumpBuffers(renderer: *mut RTuiRenderer, timestamp: i64
     }
 
     let renderer_ref = unsafe { &*(renderer as *const Renderer) };
-    let (width, height) = renderer_ref.dims();
-    let stats = renderer_ref.frame_stats();
-
-    // Log buffer state information
-    log_message(
-        LogLevel::Debug,
-        &format!(
-            "Buffer Dump [{}]: {}x{} surface, last frame: {:.2}ms, {} bytes written, {} spans",
-            timestamp, width, height, stats.frame_ms, stats.bytes_written, stats.spans_written
-        ),
-    );
+    let path = format!("rtui-buffers-{timestamp}.txt");
+    match renderer_ref.dump_buffers(std::path::Path::new(&path)) {
+        Ok(()) => log_message(LogLevel::Debug, &format!("Buffer dump written to {path}")),
+        Err(error) => log_message(LogLevel::Error, &format!("Failed to write {path}: {error}")),
+    }
 }
 
 /// Dump stdout buffer for debugging

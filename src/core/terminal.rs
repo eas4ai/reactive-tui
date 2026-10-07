@@ -17,6 +17,7 @@ use crossterm::{
 };
 
 use crate::core::capabilities::{TerminalCapabilities, TerminalQuery};
+use crate::core::surface::{DiffWriter, Surface};
 use crate::error::{ReactiveError, Result};
 use crate::widgets::display::image::ImageCapabilities;
 
@@ -48,6 +49,7 @@ pub struct Terminal {
     buffered_mode: bool,
     /// Write statistics
     write_stats: TerminalWriteStats,
+    surface_diff: Option<DiffWriter>,
 }
 
 impl Terminal {
@@ -67,6 +69,7 @@ impl Terminal {
             write_buffer: Vec::with_capacity(65536), // 64KB default buffer
             buffered_mode: false,
             write_stats: TerminalWriteStats::default(),
+            surface_diff: None,
         })
     }
 
@@ -140,6 +143,47 @@ impl Terminal {
     pub fn end_sync(&mut self) -> Result<()> {
         execute!(self.stdout, EndSynchronizedUpdate)
             .map_err(|e| ReactiveError::terminal(format!("Failed to end sync: {}", e)))
+    }
+
+    /// Fully paint a surface through this terminal, preserving its graphemes and images.
+    /// Synchronize output when supported, without entering or restoring terminal modes.
+    pub fn paint_surface(&mut self, surface: &Surface) -> Result<()> {
+        let mut images = crate::backend::ImageOutputOptions {
+            kitty_graphics: self.capabilities.kitty_graphics,
+            sixel: self.capabilities.sixel,
+            iterm2_inline: self.capabilities.iterm2_graphics,
+            ..Default::default()
+        };
+        images.refresh_cell_pixels();
+        let mut diff = self.surface_diff.take().unwrap_or_default();
+        diff.set_image_options(images);
+        let (w, h) = surface.dims();
+        let result = diff
+            .try_diff(&Surface::new(w, h), surface, true)
+            .and_then(|()| {
+                let synchronized = self.capabilities.synchronized_output;
+                if synchronized {
+                    self.begin_sync()?;
+                }
+                let output = self
+                    .write_all_buffered(diff.output())
+                    .and_then(|()| self.flush_buffered())
+                    .and_then(|()| self.flush());
+                // Always close a synchronized update after a write or flush failure.
+                let ended = if synchronized {
+                    self.end_sync()
+                } else {
+                    Ok(())
+                };
+                output.and(ended)
+            });
+        if result.is_ok() {
+            diff.acknowledge_output();
+        } else {
+            self.discard_buffered();
+        }
+        self.surface_diff = Some(diff);
+        result
     }
 
     /// Enable high-performance buffered write mode
@@ -277,6 +321,12 @@ impl Terminal {
 
     /// Restore the terminal to its original state
     pub fn restore(&mut self) -> Result<()> {
+        let cleaned = if let Some(diff) = self.surface_diff.take() {
+            self.write_raw(&diff.image_cleanup())
+                .and_then(|()| self.flush())
+        } else {
+            Ok(())
+        };
         // Show cursor
         let _ = execute!(self.stdout, cursor::Show);
 
@@ -295,7 +345,7 @@ impl Terminal {
             self.raw_mode = false;
         }
 
-        Ok(())
+        cleaned
     }
 
     /// Flush the stdout buffer
@@ -432,6 +482,66 @@ impl Drop for Terminal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ffi_005_full_paint_preserves_images_graphemes_and_session() {
+        crate::terminal::test_terminal::on_terminal(
+            "core::terminal::tests::ffi_005_full_paint_preserves_images_graphemes_and_session",
+            || {
+                let mut terminal = Terminal::new().unwrap();
+                terminal.enter_modern_mode().unwrap();
+                terminal.enable_buffered_mode().unwrap();
+                terminal.capabilities.synchronized_output = true;
+                terminal.capabilities.kitty_graphics = false;
+                terminal.capabilities.sixel = false;
+                terminal.capabilities.iterm2_graphics = false;
+                let mut surface = Surface::new(6, 2);
+                assert!(surface.set_grapheme(
+                    0,
+                    0,
+                    "e\u{301}",
+                    crate::core::surface::Cell::default()
+                ));
+                surface.write_str(
+                    1,
+                    0,
+                    "界A",
+                    crate::core::surface::Rgba::white(),
+                    crate::core::surface::Rgba::black(),
+                    crate::core::surface::Attr::empty(),
+                );
+                let image = surface.create_test_image(2, 2, 255, 0, 0);
+                surface.place_image_foreground(5, 0, image);
+                terminal.paint_surface(&surface).unwrap();
+                let output =
+                    String::from_utf8_lossy(terminal.surface_diff.as_ref().unwrap().output());
+                assert!(output.contains("e\u{301}") && output.contains("界A"));
+                assert!(
+                    output.contains("255;0;0"),
+                    "image fallback was not painted: {output:?}"
+                );
+                assert!(!output.contains('\0'), "empty cells must paint as spaces");
+                assert!(terminal.raw_mode && terminal.alternate_screen && terminal.buffered_mode);
+                assert!(crossterm::terminal::is_raw_mode_enabled().unwrap());
+                assert!(terminal.write_buffer.is_empty());
+                terminal.capabilities.kitty_graphics = true;
+                terminal.paint_surface(&surface).unwrap();
+                let output =
+                    String::from_utf8_lossy(terminal.surface_diff.as_ref().unwrap().output());
+                assert!(
+                    output.contains("\x1b_G"),
+                    "Kitty image was not painted: {output:?}"
+                );
+                surface.clear_all_image_placements();
+                terminal.paint_surface(&surface).unwrap();
+                assert!(terminal.raw_mode && terminal.alternate_screen);
+                let mut broken = Surface::new(1, 1);
+                broken.place_image_foreground(0, 0, u32::MAX);
+                assert!(terminal.paint_surface(&broken).is_err());
+                assert!(terminal.raw_mode && terminal.alternate_screen);
+            },
+        );
+    }
 
     #[test]
     fn test_terminal_creation() {
