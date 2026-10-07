@@ -30,6 +30,10 @@ This file records user-visible changes to Reactive TUI. The project follows
   the statistics to `rtui-buffers-<timestamp>.txt` in the current directory
   (FFI-004). The legacy writer no longer pads a wide glyph twice or sends NUL
   bytes for empty cells.
+- `dumpBuffers` writes its text to a sibling file it creates fresh and moves
+  it over `rtui-buffers-<timestamp>.txt`, so a link left at that name is
+  replaced instead of written through; the renderer's `dump_buffers` does the
+  same for any path (FFI-004, the review's finding 3).
 - `renderSurfaceToTerminal` paints the surface, graphemes and pictures whole,
   through the terminal handle it is given and opens no second session, so the
   caller's terminal stays as the caller set it; the header says that

@@ -1143,7 +1143,10 @@ void dumpHitGrid(RTuiRenderer *renderer);
  * Write `rtui-buffers-<timestamp>.txt` in the current directory.
  * The text contains dimensions, front and back surfaces row by row (each cell's
  * grapheme, or a space for an empty cell), last frame statistics and kept host statistics.
- * Log the path on success or the write error on failure, without panicking.
+ * The dump is written to a sibling file created fresh and then moved over the
+ * name, so whatever held that name, a file or a link, is replaced and never
+ * written through. Log the path on success or the write error on failure,
+ * without panicking.
  *
  * # Safety
  *

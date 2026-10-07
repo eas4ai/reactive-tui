@@ -462,10 +462,36 @@ impl Renderer {
         &mut self.host_stats
     }
 
-    /// Write dimensions, both surfaces' cell text, frame statistics and host statistics.
+    /// Write dimensions, both surfaces' cell text, frame statistics and host
+    /// statistics to `path`, replacing whatever holds that name without
+    /// writing through it: the text goes to a sibling file this call creates
+    /// (never one that exists), which then takes the name, so a link left at
+    /// `path` is replaced and its target untouched.
     pub fn dump_buffers(&self, path: &std::path::Path) -> std::io::Result<()> {
-        use std::io::Write;
-        let mut file = std::io::BufWriter::new(std::fs::File::create(path)?);
+        let Some(name) = path.file_name() else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "the dump path names no file",
+            ));
+        };
+        let mut partial = name.to_os_string();
+        partial.push(format!(".{}.partial", std::process::id()));
+        let partial = path.with_file_name(partial);
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&partial)?;
+        let written = self
+            .write_dump(std::io::BufWriter::new(file))
+            .and_then(|()| std::fs::rename(&partial, path));
+        if written.is_err() {
+            let _ = std::fs::remove_file(&partial);
+        }
+        written
+    }
+
+    /// The dump's text, written to `file` and flushed.
+    fn write_dump(&self, mut file: impl std::io::Write) -> std::io::Result<()> {
         let (w, h) = self.dims();
         writeln!(file, "Dimensions: {w}x{h}")?;
         for (name, surface) in [("Front", &self.front), ("Back", &self.back)] {
