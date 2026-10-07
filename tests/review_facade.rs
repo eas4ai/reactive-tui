@@ -7,22 +7,18 @@
 //! tests run with any features.
 
 use std::alloc::{GlobalAlloc, Layout, System};
-use std::cell::Cell;
+
+/// The calling thread's allocation count, kept where the allocator can
+/// touch it without allocating; shared with tests/suprtui_renderer.rs.
+#[path = "common/allocation_count.rs"]
+mod per_thread;
 
 /// Counts the heap allocations of the thread that asked for it (TXT-004).
 struct Counting;
 
-thread_local! {
-    static TRACKED: Cell<Option<usize>> = const { Cell::new(None) };
-}
-
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let _ = TRACKED.try_with(|tracked| {
-            if let Some(count) = tracked.get() {
-                tracked.set(Some(count + 1));
-            }
-        });
+        per_thread::add_one();
         unsafe { System.alloc(layout) }
     }
 
@@ -31,11 +27,7 @@ unsafe impl GlobalAlloc for Counting {
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let _ = TRACKED.try_with(|tracked| {
-            if let Some(count) = tracked.get() {
-                tracked.set(Some(count + 1));
-            }
-        });
+        per_thread::add_one();
         unsafe { System.realloc(ptr, layout, new_size) }
     }
 }
@@ -46,9 +38,9 @@ static GLOBAL: Counting = Counting;
 /// The heap allocations `body` makes on this thread.
 #[allow(dead_code)]
 pub fn allocations_during(body: impl FnOnce()) -> usize {
-    TRACKED.with(|tracked| tracked.set(Some(0)));
+    let before = per_thread::count();
     body();
-    TRACKED.with(|tracked| tracked.replace(None)).unwrap_or(0)
+    per_thread::count() - before
 }
 
 #[cfg(feature = "ffi")]

@@ -26,6 +26,27 @@ fn txt_004_the_documentation_states_the_cost() {
     );
 }
 
+/// The allocation count behind TXT-004 is the calling thread's own: what
+/// another thread allocates does not move it, and it moves by at least
+/// what the thread allocates itself. On Windows this exercises the raw TLS
+/// slot from two threads.
+#[test]
+fn txt_004_the_allocation_count_is_per_thread() {
+    let other = std::thread::spawn(|| crate::allocations_during(|| drop(vec![Box::new(1u8); 64])));
+    let here = crate::allocations_during(|| {
+        assert!(
+            other.join().unwrap() >= 64,
+            "the other thread's count missed its boxes"
+        );
+    });
+    let own = crate::allocations_during(|| drop(vec![Box::new(1u8); 64]));
+    assert!(own >= 64, "this thread's count missed its boxes: {own}");
+    assert!(
+        here < 64,
+        "joining the other thread moved this thread's count by {here}"
+    );
+}
+
 /// TXT-004: an insert of one character that only moves the gap allocates
 /// nothing: the text between the old and the new gap moves in place.
 #[test]
