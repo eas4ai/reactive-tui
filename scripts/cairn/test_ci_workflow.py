@@ -282,7 +282,7 @@ class StaticChecks(unittest.TestCase):
 
     def test_a_job_without_cargo_needs_no_pin(self):
         wf = workflow()
-        wf["jobs"]["docs"] = {"runs-on": "ubuntu-24.04", "steps": [{"run": "python -B scripts/build-docs.py"}]}
+        wf["jobs"]["docs"] = {"runs-on": "ubuntu-24.04", "steps": [{"run": "echo no cargo in this job"}]}
         self.assertEqual(self.violations(wf), [])
 
 
