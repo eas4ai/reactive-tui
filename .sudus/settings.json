@@ -36,5 +36,7 @@
     "min_calibration_agent_predictions": 60,
     "request_cap_bytes": 48000
   },
-  "adversary_rules": []
+  "adversary_rules": [
+    "Stay on the model you were started with. Never use Daybreak, OpenAI's cyber model program: do not call the codex-security plugin, its deep-security-scan skill or the get_codex_security_daybreak_access tool, and do not switch models."
+  ]
 }
