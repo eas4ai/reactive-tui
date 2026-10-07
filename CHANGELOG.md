@@ -9,7 +9,15 @@ This file records user-visible changes to Reactive TUI. The project follows
   1.95.0 on every job by full name, the MSVC toolchain on Windows, installs it
   beside the runner's own toolchains and names it on every cargo call, so no
   runner's default toolchain or default host changes and the Windows job no
-  longer builds the GNU flavor (docs/spec/quality-bar.md, BAR-012).
+  longer builds the GNU flavor (docs/spec/quality-bar.md, BAR-012). The two
+  readers of the workflow, the BAR-012 mechanism and the pre-release
+  inspection (`scripts/check-pre-release-ci.py RID-001`), judge what each
+  step runs at the way rustup decides it: the `+` argument of every cargo
+  call resolved through the environment the step sees, so a step-level
+  override of `TOOLCHAIN` or `RUSTUP_TOOLCHAIN`, a call at another release,
+  an install of another release, or a Linux floor step that does not select
+  rust-version is refused, and the weekly advisories job is held to the same
+  pin rules (`scripts/workflow_toolchains.py`).
 - The C text buffers paint whole grapheme clusters: `renderTextBufferToSurface`,
   `renderTextBufferToRenderer` and `renderTextBufferDirect` place each cluster
   in its own cells by its display width, so the letter after a wide glyph

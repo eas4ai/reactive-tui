@@ -7,9 +7,12 @@ import sys
 
 import yaml
 
+import workflow_toolchains as wt
+
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
+MANIFEST = ROOT / "Cargo.toml"
 PLATFORMS = ["ubuntu-24.04", "macos-14", "windows-2022"]
 # Each job pins the toolchain its matrix entry names (BAR-012); the steps
 # spell the pin as the TOOLCHAIN variable the job sets from that entry.
@@ -21,8 +24,10 @@ COMMANDS = (
     f"cargo {PIN} clippy --locked --all-targets -- -D warnings",
     f"cargo {PIN} deny --locked check advisories bans licenses sources",
 )
+# The two the Linux job also runs at rust-version when its pin is above it.
+FLOOR_COMMANDS = ("cargo build --locked --all-targets", "cargo test --locked --no-fail-fast")
 # A stable release named in full, with the target triple on Windows.
-PINNED_TOOLCHAIN = re.compile(r"^\d+\.\d+\.\d+(-[A-Za-z0-9_.-]+)?$")
+PINNED_TOOLCHAIN = wt.RELEASE
 DEFAULT_CHANGES = re.compile(r"rustup\s+(default\b|set\s+default-host\b)")
 ADVISORY = "python -B scripts/check-pre-release-dependency-code-quality.py DQC-001"
 CONDITIONS = {"platform": "github.event_name != 'schedule'",
@@ -77,6 +82,91 @@ def validate_matrix(job: dict) -> list[str]:
     return errors
 
 
+def validate_job_toolchain(label: str, job: dict, entry: dict | None, pin: str, workflow_env: dict,
+                           floor: str | None, floor_steps: bool) -> list[str]:
+    """What the job does at a toolchain other than its pin, read the way
+    rustup decides it: the pin at or above rust-version; RUSTUP_TOOLCHAIN,
+    when set, naming the pin; no step overriding a toolchain variable; every
+    cargo call selecting the pin through the environment the step sees; a
+    step installing the pin. With `floor_steps`, a Linux-only step whose
+    build and test calls select the rust-version release is the floor
+    coverage BAR-012 asks of a pin above the floor, and it must install that
+    release too."""
+    errors = []
+    floor_pair = wt.release_pair(floor)
+    pin_pair = wt.release_pair(pin)
+    if floor_pair is not None and pin_pair is not None and pin_pair < floor_pair:
+        errors.append(f"{label}: toolchain {pin} is below rust-version {floor}")
+    job_env = wt.effective_env(workflow_env, job.get("env", {}), entry=entry)
+    if "RUSTUP_TOOLCHAIN" in job_env and wt.resolve(job_env["RUSTUP_TOOLCHAIN"], job_env) != pin:
+        errors.append(f"{label}: RUSTUP_TOOLCHAIN does not name the pin {pin}")
+    os_label = wt.runner_os(str(entry.get("os", "")) if entry else str(job.get("runs-on", "")))
+    installed: list[str | None] = []
+    floor_release = None
+    floor_seen = {command: False for command in FLOOR_COMMANDS}
+    for step in job.get("steps", []):
+        applies = wt.step_runs_on(step, os_label)
+        if applies is False:
+            continue
+        step_env = step.get("env", {})
+        for variable in wt.TOOLCHAIN_VARIABLES:
+            if variable in step_env:
+                errors.append(f"{label}: a step overrides {variable}")
+        env = wt.effective_env(workflow_env, job.get("env", {}), step_env, entry=entry)
+        run = wt.substitute(str(step.get("run", "")), entry)
+        installed.extend(wt.installs(run, env))
+        for call in wt.cargo_calls(run, env):
+            if not call["explicit"]:
+                errors.append(f"{label}: `{call['command']}` names no toolchain")
+                continue
+            selected = call["selected"]
+            if selected == pin:
+                continue
+            at_floor = (floor_steps and floor_pair is not None and applies is True and selected is not None
+                        and PINNED_TOOLCHAIN.match(selected) and wt.release_pair(selected) == floor_pair
+                        and any(command in call["command"] for command in FLOOR_COMMANDS))
+            if at_floor:
+                floor_release = selected
+                for command in FLOOR_COMMANDS:
+                    if command in call["command"]:
+                        floor_seen[command] = True
+                continue
+            errors.append(f"{label}: `{call['command']}` runs at {selected or 'the runner default'}, not the pin {pin}")
+    if pin not in installed:
+        errors.append(f"{label}: no step installs the pinned toolchain {pin}")
+    if floor_steps and floor_pair is not None and pin_pair != floor_pair:
+        if not all(floor_seen.values()):
+            errors.append(f"{label}: the pin is above rust-version {floor} and no Linux step builds and tests at it")
+        elif floor_release not in installed:
+            errors.append(f"{label}: no step installs the rust-version toolchain {floor_release}")
+    return errors
+
+
+def validate_toolchains(workflow: dict, floor: str | None) -> list[str]:
+    """The platform matrix per entry, and the advisories job through its
+    job-level TOOLCHAIN, under the same pin rules."""
+    errors = []
+    jobs = workflow.get("jobs", {})
+    workflow_env = workflow.get("env", {})
+    platform = jobs.get("platform", {})
+    for entry in matrix_entries(platform):
+        pin = str(entry.get("toolchain", ""))
+        if PINNED_TOOLCHAIN.match(pin):
+            linux = str(entry.get("os", "")).startswith("ubuntu")
+            errors.extend(validate_job_toolchain(f"platform ({entry.get('os')})", platform, entry, pin,
+                                                 workflow_env, floor, floor_steps=linux))
+    advisories = jobs.get("advisories")
+    if isinstance(advisories, dict):
+        env = wt.effective_env(workflow_env, advisories.get("env", {}))
+        pin = wt.resolve(env.get("TOOLCHAIN"), env) if "TOOLCHAIN" in env else None
+        if pin is None or not PINNED_TOOLCHAIN.match(pin):
+            errors.append(f"advisories: toolchain is not pinned in full ({env.get('TOOLCHAIN')!r})")
+        else:
+            errors.extend(validate_job_toolchain("advisories", advisories, None, pin, workflow_env, floor,
+                                                 floor_steps=False))
+    return errors
+
+
 def validate_steps(name: str, job: dict, required: tuple[str, ...]) -> list[str]:
     errors = []
     commands = []
@@ -113,7 +203,9 @@ def validate_steps(name: str, job: dict, required: tuple[str, ...]) -> list[str]
     return errors
 
 
-def validate_workflow(workflow: dict) -> list[str]:
+def validate_workflow(workflow: dict, floor: str | None = None) -> list[str]:
+    """Every defect of the workflow; `floor` is Cargo.toml's rust-version,
+    which the pins must not fall below (None skips that comparison)."""
     errors = []
     if not isinstance(workflow, dict):
         return ["workflow must be a mapping"]
@@ -158,6 +250,7 @@ def validate_workflow(workflow: dict) -> list[str]:
                 errors.append(f"{name}: workflow or job overrides {flag}")
     platform = jobs.get("platform", {})
     errors.extend(validate_matrix(platform))
+    errors.extend(validate_toolchains(workflow, floor))
     if jobs.get("advisories", {}).get("runs-on") != "ubuntu-24.04":
         errors.append("advisory job must use its maintained Linux runner")
     expected = [f"platform ({os_name})" for os_name in PLATFORMS]
@@ -169,6 +262,12 @@ def validate_workflow(workflow: dict) -> list[str]:
     return errors
 
 
+def rust_version() -> str | None:
+    """Cargo.toml's rust-version, the floor the pins must not fall below."""
+    match = re.search(r'^rust-version\s*=\s*"([^"]+)"', MANIFEST.read_text(), re.M)
+    return match.group(1) if match else None
+
+
 def main() -> int:
     if sys.argv[1:] != ["RID-001"]:
         print("usage: check-pre-release-ci.py RID-001", file=sys.stderr)
@@ -177,11 +276,15 @@ def main() -> int:
                           cwd=ROOT, timeout=60, check=False)
     if unit.returncode:
         return unit.returncode
+    workflow, floor = {}, None
     try:
         # BaseLoader keeps GitHub's `on` key and boolean scalars as strings.
         # No YAML object constructors run on repository content.
         workflow = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
-        errors = validate_workflow(workflow)
+        floor = rust_version()
+        errors = validate_workflow(workflow, floor)
+        if floor is None:
+            errors.append("Cargo.toml declares no rust-version")
     except (OSError, yaml.YAMLError, TypeError, AttributeError) as error:
         errors = [f"cannot inspect {WORKFLOW.relative_to(ROOT)}: {error}"]
     if errors:
@@ -191,7 +294,8 @@ def main() -> int:
         return 1
     for event in ("push", "pull_request", "schedule", "workflow_dispatch"):
         print(f"{event}: {', '.join(selected_jobs(workflow, event, 'main'))}")
-    print("RID-001 workflow inspection passed; this is not evidence of native CI execution.")
+    print(f"RID-001 workflow inspection passed (pins at or above rust-version {floor}); "
+          "this is not evidence of native CI execution.")
     return 0
 
 
