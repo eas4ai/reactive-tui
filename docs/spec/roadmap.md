@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: review-facade-findings
+Current: ci-rust-version-bump
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1670,3 +1670,36 @@ grapheme, native controls from the widget constructors, a working hit grid
 and statistics, surface rendering through the caller's terminal, effects
 that run on their signals, one version, and for a Rust program the gap
 buffer's limit and the animation debugger's instrumentation.
+
+## ci-rust-version-bump
+
+Requirements: BAR-012, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011
+
+The backlog item ci-rust-version-bump (3516be48), from the developer's
+"1.91 is old" of 2026-10-06 when the first push-workflow run of
+windows-startup-queries failed its Windows clippy step at 1.91.0, and the
+day after, the review-facade commitment's first run failed only on the GNU
+Windows toolchain the hosted job built, a flavor no user runs and the
+Windows test host never verified. On 2026-10-07 the developer ruled that
+runners must be free to hold different toolchains, that the workflow pins
+1.95 ("Yes 1.95 pin"), the same as the floor and the Linux gates'
+toolchain, and that running CI on the developer's own machines is a
+separate project outside this repository; BAR-012 was revised accordingly
+and keeps GitHub's hosted runners.
+
+Delivery: Cargo.toml's `rust-version` rises to 1.95; `.github/workflows/ci.yml`
+pins `1.95.0` by full name on every job, `1.95.0-x86_64-pc-windows-msvc` on
+Windows, installed by rustup beside whatever the runner holds and named on
+every cargo call, with no `rustup default`, no `rustup set default-host`
+and no MSYS2 step, the weekly advisories job under the same rules; README.md,
+manual/wgpu-graphics.md and CHANGELOG.md say the new minimum; whatever
+clippy 1.95 raises on the macOS and Windows runners under `-D warnings` is
+fixed; and scripts/cairn/ci_workflow.py's static part checks the new
+clauses of BAR-012's falsifier (a pin per job, in full, at or above the
+floor; the floor's build and test on Linux; no default or default-host
+change; no GNU Windows toolchain), with its own tests extended and the
+mechanism rebound on today's workflow as the failing example.
+
+Done when the workflow's run for the final commit is green on the three
+hosted runners, the three test machines still build the crate with their
+default toolchains, and the quality bar passes.
