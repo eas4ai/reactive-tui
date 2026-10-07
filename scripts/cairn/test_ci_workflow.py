@@ -67,5 +67,94 @@ class JobVerdict(unittest.TestCase):
         self.assertIn("did not finish", why)
 
 
+def workflow(toolchains=("1.95.0", "1.95.0", "1.95.0-x86_64-pc-windows-msvc"), extra_runs=(), extra_steps=(),
+             pin='"+$TOOLCHAIN"'):
+    """A workflow in memory in the shape the static checks read: a platform
+    job whose matrix pins a toolchain per runner and whose steps run the five
+    commands through that pin."""
+    include = [{"os": os, "toolchain": tc} for os, tc in zip(("ubuntu-24.04", "macos-14", "windows-2022"), toolchains)]
+    runs = ["rustup toolchain install \"$TOOLCHAIN\" --profile minimal --component rustfmt --component clippy",
+            f"cargo {pin} install cargo-deny --version 0.20.2 --locked",
+            f"cargo {pin} build --locked --all-targets",
+            f"cargo {pin} test --locked --no-fail-fast",
+            f"cargo {pin} fmt --all -- --check",
+            f"cargo {pin} clippy --locked --all-targets -- -D warnings",
+            f"cargo {pin} deny --locked check advisories bans licenses sources", *extra_runs]
+    steps = [{"run": run} for run in runs]
+    steps.append({"if": "runner.os == 'Windows'", "run": "python -B scripts/install-conpty-runtime.py target/debug/deps --arch x64"})
+    steps.extend(extra_steps)
+    return {"jobs": {"platform": {"strategy": {"matrix": {"include": include}}, "steps": steps}}}
+
+
+ATTRIBUTES = "* text=auto eol=lf\n"
+
+
+class StaticChecks(unittest.TestCase):
+    def violations(self, wf, version="1.95"):
+        return ci.static_violations(wf, ATTRIBUTES, version)
+
+    def test_a_workflow_pinned_per_job_at_the_floor_passes(self):
+        self.assertEqual(self.violations(workflow()), [])
+
+    def test_an_unpinned_matrix_fails_per_job(self):
+        wf = {"jobs": {"platform": {"strategy": {"matrix": {"os": ["ubuntu-24.04", "macos-14", "windows-2022"]}},
+                                    "steps": workflow()["jobs"]["platform"]["steps"]}}}
+        found = self.violations(wf)
+        self.assertEqual(sum("not pinned in full" in v for v in found), 3, found)
+
+    def test_a_pin_without_a_patch_number_is_not_in_full(self):
+        found = self.violations(workflow(toolchains=("1.95", "1.95.0", "1.95.0-x86_64-pc-windows-msvc")))
+        self.assertTrue(any("ubuntu-24.04 job's toolchain is not pinned in full" in v for v in found), found)
+
+    def test_a_pin_below_the_floor_fails(self):
+        found = self.violations(workflow(toolchains=("1.91.0", "1.95.0", "1.95.0-x86_64-pc-windows-msvc")))
+        self.assertTrue(any("below Cargo.toml's rust-version 1.95" in v for v in found), found)
+
+    def test_a_gnu_windows_toolchain_fails(self):
+        found = self.violations(workflow(toolchains=("1.95.0", "1.95.0", "1.95.0-x86_64-pc-windows-gnu")))
+        self.assertTrue(any("names a GNU toolchain" in v for v in found), found)
+        self.assertTrue(any("does not name the MSVC toolchain" in v for v in found), found)
+
+    def test_a_windows_pin_without_the_triple_is_not_msvc_in_full(self):
+        found = self.violations(workflow(toolchains=("1.95.0", "1.95.0", "1.95.0")))
+        self.assertTrue(any("does not name the MSVC toolchain in full" in v for v in found), found)
+
+    def test_rustup_default_fails(self):
+        found = self.violations(workflow(extra_runs=("rustup default 1.95.0",)))
+        self.assertTrue(any("`rustup default`" in v for v in found), found)
+
+    def test_rustup_set_default_host_fails(self):
+        found = self.violations(workflow(extra_runs=("rustup set default-host x86_64-pc-windows-msvc",)))
+        self.assertTrue(any("`rustup set default-host`" in v for v in found), found)
+
+    def test_a_default_change_in_another_job_fails_too(self):
+        wf = workflow()
+        wf["jobs"]["advisories"] = {"steps": [{"run": "rustup toolchain install 1.95.0\nrustup default 1.95.0"}]}
+        found = self.violations(wf)
+        self.assertTrue(any("`rustup default`" in v for v in found), found)
+
+    def test_a_bare_cargo_call_fails(self):
+        found = self.violations(workflow(extra_runs=("cargo doc --no-deps",)))
+        self.assertTrue(any("names no toolchain: `cargo doc`" in v for v in found), found)
+
+    def test_a_literal_pin_counts(self):
+        self.assertEqual(self.violations(workflow(pin="+1.95.0")), [])
+
+    def test_a_linux_pin_above_the_floor_needs_a_floor_step(self):
+        above = ("1.99.0", "1.99.0", "1.99.0-x86_64-pc-windows-msvc")
+        found = self.violations(workflow(toolchains=above))
+        self.assertTrue(any("does not build and test at rust-version 1.95" in v for v in found), found)
+        floor = {"if": "runner.os == 'Linux'",
+                 "run": "rustup toolchain install 1.95.0 --profile minimal\n"
+                        "cargo +1.95.0 build --locked --all-targets\ncargo +1.95.0 test --locked --no-fail-fast"}
+        self.assertEqual(self.violations(workflow(toolchains=above, extra_steps=(floor,))), [])
+
+    def test_a_missing_command_fails(self):
+        wf = workflow()
+        wf["jobs"]["platform"]["steps"] = [s for s in wf["jobs"]["platform"]["steps"] if "fmt" not in str(s.get("run"))]
+        found = self.violations(wf)
+        self.assertTrue(any("does not run `cargo fmt --all -- --check`" in v for v in found), found)
+
+
 if __name__ == "__main__":
     unittest.main()

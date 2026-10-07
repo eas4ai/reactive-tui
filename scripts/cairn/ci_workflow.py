@@ -3,8 +3,13 @@
 
 Static part, read from .github/workflows/ci.yml, .gitattributes and
 Cargo.toml: the platform job runs on an Ubuntu, a macOS and a Windows runner;
-its steps run the five commands (build, test, fmt, clippy, cargo deny) at the
-toolchain Cargo.toml's rust-version names; a step installs the ConPTY runtime
+its matrix pins a toolchain per job, a stable release named in full
+(1.95.0, or 1.95.0-x86_64-pc-windows-msvc) at or above Cargo.toml's
+rust-version, the MSVC toolchain on Windows and never a GNU one; every cargo
+call names a toolchain and no step runs `rustup default` or `rustup set
+default-host`; its steps run the five commands (build, test, fmt, clippy,
+cargo deny); the Linux job builds and tests at rust-version (its own pin
+when that is the floor, or a floor step); a step installs the ConPTY runtime
 on Windows; and tracked text files get LF line endings. A static violation
 is the verdict, and no run is consulted.
 
@@ -71,38 +76,101 @@ def rust_version() -> str:
     return match.group(1) if match else ""
 
 
-def static_violations() -> list[str]:
-    """What the workflow file and the attributes lack, as the falsifier lists it."""
+PINNED = re.compile(r"^(\d+)\.(\d+)\.(\d+)(-[A-Za-z0-9_.-]+)?$")
+# Steps spell a pinned call as `cargo +1.95.0 ...` or `cargo "+$TOOLCHAIN" ...`.
+CARGO_CALL = re.compile(r"(?<![\w/.-])cargo\s+(\S+)")
+PIN_ARG = re.compile(r'^"?\+')
+
+
+def matrix_entries(platform: dict) -> list[dict]:
+    """The platform job's matrix as one dict per job: `include` entries, or
+    the `os` list without toolchains when the matrix has no include."""
+    matrix = (platform.get("strategy") or {}).get("matrix") or {}
+    include = matrix.get("include")
+    if isinstance(include, list):
+        return [dict(entry) for entry in include if isinstance(entry, dict)]
+    return [{"os": os} for os in (matrix.get("os") or [])]
+
+
+def version_pair(text: str) -> tuple[int, int] | None:
+    match = re.match(r"^(\d+)\.(\d+)", text or "")
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+def runs_of(job: dict) -> list[tuple[str, str]]:
+    """Each step's `if` condition and `run` text."""
+    return [(str(step.get("if", "")), str(step.get("run", ""))) for step in (job.get("steps") or [])]
+
+
+def static_violations(workflow: dict | None = None, attributes: str | None = None,
+                      version: str | None = None) -> list[str]:
+    """What the workflow file and the attributes lack, as the falsifier lists it.
+    The arguments let the mechanism's own tests pass a workflow in memory."""
     found = []
-    if not WORKFLOW.exists():
-        return [f"{WORKFLOW.relative_to(ROOT)} is missing"]
-    workflow = yaml.safe_load(WORKFLOW.read_text())
-    platform = (workflow.get("jobs") or {}).get("platform") or {}
-    runners = ((platform.get("strategy") or {}).get("matrix") or {}).get("os") or []
-    for prefix in RUNNERS:
-        if not any(str(runner).startswith(prefix) for runner in runners):
-            found.append(f"the platform job has no {prefix[:-1]} runner")
-    steps = platform.get("steps") or []
-    runs = [str(step.get("run", "")) for step in steps]
-    # The steps spell the toolchain as `cargo +1.91.0 ...`; the command list does not.
-    joined = re.sub(r"cargo \+\S+ ", "cargo ", "\n".join(runs))
-    for command in COMMANDS:
-        if command not in joined:
-            found.append(f"the workflow does not run `{command}`")
-    pinned = re.findall(r"rustup toolchain install (\d+\.\d+(?:\.\d+)?)", joined)
-    version = rust_version()
-    if not version:
+    if workflow is None:
+        if not WORKFLOW.exists():
+            return [f"{WORKFLOW.relative_to(ROOT)} is missing"]
+        workflow = yaml.safe_load(WORKFLOW.read_text())
+    if version is None:
+        version = rust_version()
+    floor = version_pair(version)
+    if not version or floor is None:
         found.append("Cargo.toml declares no rust-version")
-    elif not pinned:
-        found.append("the workflow installs no pinned toolchain")
-    elif not all(p == version or p.startswith(version + ".") for p in pinned):
-        found.append(f"the workflow installs toolchain {', '.join(sorted(set(pinned)))} but Cargo.toml's rust-version is {version}")
-    conpty = [step for step in steps if "install-conpty-runtime.py" in str(step.get("run", ""))]
+    jobs = workflow.get("jobs") or {}
+    platform = jobs.get("platform") or {}
+    entries = matrix_entries(platform)
+    for prefix in RUNNERS:
+        if not any(str(entry.get("os", "")).startswith(prefix) for entry in entries):
+            found.append(f"the platform job has no {prefix[:-1]} runner")
+    linux_pin = None
+    for entry in entries:
+        os_name = str(entry.get("os", ""))
+        toolchain = str(entry.get("toolchain", "") or "")
+        if not PINNED.match(toolchain):
+            found.append(f"the {os_name} job's toolchain is not pinned in full (found {toolchain!r})")
+            continue
+        pair = version_pair(toolchain)
+        if floor is not None and pair is not None and pair < floor:
+            found.append(f"the {os_name} job pins {toolchain}, below Cargo.toml's rust-version {version}")
+        if "gnu" in toolchain:
+            found.append(f"the {os_name} job names a GNU toolchain ({toolchain})")
+        if os_name.startswith("windows-") and not toolchain.endswith("-pc-windows-msvc"):
+            found.append(f"the Windows job's toolchain {toolchain} does not name the MSVC toolchain in full")
+        if os_name.startswith("ubuntu-"):
+            linux_pin = pair
+    all_runs = [run for job in jobs.values() if isinstance(job, dict) for _, run in runs_of(job)]
+    joined_all = "\n".join(all_runs)
+    if re.search(r"rustup\s+default\b", joined_all):
+        found.append("a step runs `rustup default`, which changes the runner's default toolchain")
+    if re.search(r"rustup\s+set\s+default-host\b", joined_all):
+        found.append("a step runs `rustup set default-host`, which changes the runner's default host")
+    if re.search(r"windows-gnu", joined_all):
+        found.append("a step names a GNU Windows toolchain")
+    for match in CARGO_CALL.finditer(joined_all):
+        if not PIN_ARG.match(match.group(1)):
+            found.append(f"a cargo call names no toolchain: `cargo {match.group(1)}`")
+            break
+    platform_runs_text = "\n".join(run for _, run in runs_of(platform))
+    normalized = re.sub(r'cargo\s+"?\+\S+"?\s+', "cargo ", platform_runs_text)
+    for command in COMMANDS:
+        if command not in normalized:
+            found.append(f"the workflow does not run `{command}`")
+    if not re.search(r"rustup\s+toolchain\s+install\b", platform_runs_text):
+        found.append("the platform job installs no toolchain")
+    if floor is not None and linux_pin is not None and linux_pin != floor:
+        floor_steps = "\n".join(run for cond, run in runs_of(platform) if "Linux" in cond)
+        floor_text = re.sub(r"cargo\s+\+" + re.escape(version) + r"(\.\d+)?\s+", "cargo ", floor_steps)
+        if "cargo build --locked --all-targets" not in floor_text or "cargo test --locked --no-fail-fast" not in floor_text:
+            found.append(f"the Linux job does not build and test at rust-version {version}")
+    conpty = [step for step in (platform.get("steps") or []) if "install-conpty-runtime.py" in str(step.get("run", ""))]
     if not any("Windows" in str(step.get("if", "")) for step in conpty):
         found.append("no Windows step installs the ConPTY runtime")
-    if not ATTRIBUTES.exists():
-        found.append(".gitattributes is missing")
-    elif not re.search(r"^\*\s+text=auto\s+eol=lf\b", ATTRIBUTES.read_text(), re.M):
+    if attributes is None:
+        if not ATTRIBUTES.exists():
+            found.append(".gitattributes is missing")
+            return found
+        attributes = ATTRIBUTES.read_text()
+    if not re.search(r"^\*\s+text=auto\s+eol=lf\b", attributes, re.M):
         found.append(".gitattributes does not give tracked text files LF line endings (`* text=auto eol=lf`)")
     return found
 
@@ -208,7 +276,8 @@ def gate() -> int:
         print(f"static: {v}", flush=True)
     if violations:
         return finish({REQUIREMENT: (False, "; ".join(violations))})
-    print("static: the workflow runs the five commands on the three runners at Cargo.toml's rust-version, "
+    print("static: the workflow runs the five commands on the three runners at a toolchain pinned per job "
+          "at or above Cargo.toml's rust-version, MSVC on Windows, changing no default, the Linux job at the floor, "
           "installs the ConPTY runtime on Windows, and .gitattributes pins LF", flush=True)
     try:
         sha = head()
