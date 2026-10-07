@@ -9,13 +9,17 @@ from dependency_check_test_support import load_checker
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKER = ROOT / "scripts/check-pre-release-ci.py"
+PIN = '"+$TOOLCHAIN"'
 COMMANDS = (
-    "cargo +1.91.0 build --locked --all-targets",
-    "cargo +1.91.0 test --locked --no-fail-fast",
-    "cargo +1.91.0 fmt --all -- --check",
-    "cargo +1.91.0 clippy --locked --all-targets -- -D warnings",
-    "cargo +1.91.0 deny --locked check advisories bans licenses sources",
+    f"cargo {PIN} build --locked --all-targets",
+    f"cargo {PIN} test --locked --no-fail-fast",
+    f"cargo {PIN} fmt --all -- --check",
+    f"cargo {PIN} clippy --locked --all-targets -- -D warnings",
+    f"cargo {PIN} deny --locked check advisories bans licenses sources",
 )
+MATRIX = [{"os": "ubuntu-24.04", "toolchain": "1.95.0"},
+          {"os": "macos-14", "toolchain": "1.95.0"},
+          {"os": "windows-2022", "toolchain": "1.95.0-x86_64-pc-windows-msvc"}]
 
 
 def fixture():
@@ -28,9 +32,9 @@ def fixture():
             "platform": {
                 "if": "github.event_name != 'schedule'",
                 "runs-on": "${{ matrix.os }}", "timeout-minutes": "45",
-                "strategy": {"fail-fast": "false", "matrix": {
-                    "os": ["ubuntu-24.04", "macos-14", "windows-2022"]}},
+                "strategy": {"fail-fast": "false", "matrix": {"include": copy.deepcopy(MATRIX)}},
                 "defaults": {"run": {"shell": "bash"}},
+                "env": {"TOOLCHAIN": "${{ matrix.toolchain }}"},
                 "steps": [{"uses": "actions/checkout@" + "1" * 40,
                            "with": {"persist-credentials": "false"}},
                           *({"run": command} for command in COMMANDS)],
@@ -65,10 +69,31 @@ class WorkflowTests(unittest.TestCase):
                          ["advisories"])
 
     def test_each_missing_platform_is_rejected(self):
-        for os_name in fixture()["jobs"]["platform"]["strategy"]["matrix"]["os"]:
+        for index, entry in enumerate(MATRIX):
             changed = copy.deepcopy(self.workflow)
-            changed["jobs"]["platform"]["strategy"]["matrix"]["os"].remove(os_name)
-            self.assertTrue(self.checker.validate_workflow(changed), os_name)
+            del changed["jobs"]["platform"]["strategy"]["matrix"]["include"][index]
+            self.assertTrue(self.checker.validate_workflow(changed), entry["os"])
+
+    def test_an_os_list_without_toolchains_is_rejected(self):
+        changed = copy.deepcopy(self.workflow)
+        changed["jobs"]["platform"]["strategy"]["matrix"] = {"os": [e["os"] for e in MATRIX]}
+        self.assertTrue(self.checker.validate_workflow(changed))
+
+    def test_unpinned_gnu_and_detached_toolchains_are_rejected(self):
+        for index, toolchain in ((0, "1.95"), (0, "stable"), (2, "1.95.0-x86_64-pc-windows-gnu"), (2, "1.95.0")):
+            changed = copy.deepcopy(self.workflow)
+            changed["jobs"]["platform"]["strategy"]["matrix"]["include"][index]["toolchain"] = toolchain
+            self.assertTrue(self.checker.validate_workflow(changed), toolchain)
+        changed = copy.deepcopy(self.workflow)
+        changed["jobs"]["platform"]["env"]["TOOLCHAIN"] = "1.95.0"
+        self.assertTrue(self.checker.validate_workflow(changed), "TOOLCHAIN not from the matrix")
+
+    def test_a_default_toolchain_or_host_change_is_rejected(self):
+        for command in ("rustup default 1.95.0", "rustup set default-host x86_64-pc-windows-msvc"):
+            for job in ("platform", "advisories"):
+                changed = copy.deepcopy(self.workflow)
+                changed["jobs"][job]["steps"].insert(1, {"run": command})
+                self.assertTrue(self.checker.validate_workflow(changed), f"{job}: {command}")
 
     def test_each_missing_command_is_rejected(self):
         for command in COMMANDS:

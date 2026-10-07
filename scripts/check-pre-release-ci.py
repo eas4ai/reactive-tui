@@ -11,13 +11,19 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 PLATFORMS = ["ubuntu-24.04", "macos-14", "windows-2022"]
+# Each job pins the toolchain its matrix entry names (BAR-012); the steps
+# spell the pin as the TOOLCHAIN variable the job sets from that entry.
+PIN = '"+$TOOLCHAIN"'
 COMMANDS = (
-    "cargo +1.91.0 build --locked --all-targets",
-    "cargo +1.91.0 test --locked --no-fail-fast",
-    "cargo +1.91.0 fmt --all -- --check",
-    "cargo +1.91.0 clippy --locked --all-targets -- -D warnings",
-    "cargo +1.91.0 deny --locked check advisories bans licenses sources",
+    f"cargo {PIN} build --locked --all-targets",
+    f"cargo {PIN} test --locked --no-fail-fast",
+    f"cargo {PIN} fmt --all -- --check",
+    f"cargo {PIN} clippy --locked --all-targets -- -D warnings",
+    f"cargo {PIN} deny --locked check advisories bans licenses sources",
 )
+# A stable release named in full, with the target triple on Windows.
+PINNED_TOOLCHAIN = re.compile(r"^\d+\.\d+\.\d+(-[A-Za-z0-9_.-]+)?$")
+DEFAULT_CHANGES = re.compile(r"rustup\s+(default\b|set\s+default-host\b)")
 ADVISORY = "python -B scripts/check-pre-release-dependency-code-quality.py DQC-001"
 CONDITIONS = {"platform": "github.event_name != 'schedule'",
               "advisories": "github.event_name == 'schedule'"}
@@ -33,11 +39,42 @@ def selected_jobs(workflow: dict, event: str, branch: str) -> list[str]:
     for name, job in workflow.get("jobs", {}).items():
         condition = job.get("if")
         if condition == CONDITIONS["platform"] and event != "schedule":
-            matrix = job.get("strategy", {}).get("matrix", {}).get("os", [])
-            result.extend(f"{name} ({os_name})" for os_name in matrix)
+            result.extend(f"{name} ({os_name})" for os_name in matrix_platforms(job))
         elif condition == CONDITIONS["advisories"] and event == "schedule":
             result.append(name)
     return result
+
+
+def matrix_entries(job: dict) -> list[dict]:
+    """The platform job's matrix entries: `include` items, each an os and
+    its pinned toolchain."""
+    include = job.get("strategy", {}).get("matrix", {}).get("include", [])
+    return [entry for entry in include if isinstance(entry, dict)] if isinstance(include, list) else []
+
+
+def matrix_platforms(job: dict) -> list[str]:
+    return [str(entry.get("os", "")) for entry in matrix_entries(job)]
+
+
+def validate_matrix(job: dict) -> list[str]:
+    """Three entries, one per supported operating system in order, each with
+    a toolchain named in full, MSVC on Windows; the job takes TOOLCHAIN from
+    the entry and no step changes a runner's default toolchain or host."""
+    errors = []
+    strategy = job.get("strategy", {})
+    entries = matrix_entries(job)
+    if (job.get("runs-on") != "${{ matrix.os }}" or strategy.get("fail-fast") != "false"
+            or set(strategy.get("matrix", {})) != {"include"} or matrix_platforms(job) != PLATFORMS):
+        errors.append("platform job must run all three supported operating systems")
+    for entry in entries:
+        toolchain = str(entry.get("toolchain", ""))
+        if not PINNED_TOOLCHAIN.match(toolchain):
+            errors.append(f"platform ({entry.get('os')}): toolchain is not pinned in full ({toolchain!r})")
+        elif str(entry.get("os", "")).startswith("windows") and not toolchain.endswith("-pc-windows-msvc"):
+            errors.append(f"platform ({entry.get('os')}): toolchain {toolchain} is not the MSVC toolchain named in full")
+    if job.get("env", {}).get("TOOLCHAIN") != "${{ matrix.toolchain }}":
+        errors.append("platform: TOOLCHAIN must come from the matrix entry")
+    return errors
 
 
 def validate_steps(name: str, job: dict, required: tuple[str, ...]) -> list[str]:
@@ -57,6 +94,8 @@ def validate_steps(name: str, job: dict, required: tuple[str, ...]) -> list[str]
                             step.get("with", {}).get("persist-credentials") == "false" and
                             not set(step.get("with", {})) - {"persist-credentials"})
         command = step.get("run", "")
+        if DEFAULT_CHANGES.search(command):
+            errors.append(f"{name}: a step changes the runner's default toolchain or host")
         if command in required:
             if "if" in step:
                 errors.append(f"{name}: conditional required command {command}")
@@ -118,9 +157,7 @@ def validate_workflow(workflow: dict) -> list[str]:
             if flag in job.get("env", {}) or flag in workflow.get("env", {}):
                 errors.append(f"{name}: workflow or job overrides {flag}")
     platform = jobs.get("platform", {})
-    if platform.get("runs-on") != "${{ matrix.os }}" or platform.get("strategy") != {
-            "fail-fast": "false", "matrix": {"os": PLATFORMS}}:
-        errors.append("platform job must run all three supported operating systems")
+    errors.extend(validate_matrix(platform))
     if jobs.get("advisories", {}).get("runs-on") != "ubuntu-24.04":
         errors.append("advisory job must use its maintained Linux runner")
     expected = [f"platform ({os_name})" for os_name in PLATFORMS]
