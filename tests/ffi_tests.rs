@@ -55,9 +55,8 @@ macro_rules! on_terminal {
 #[test]
 fn test_version() {
     let version = rtui_version();
-    assert_eq!(version.major, 0);
-    assert_eq!(version.minor, 1);
-    assert_eq!(version.patch, 0);
+    let reported = format!("{}.{}.{}", version.major, version.minor, version.patch);
+    assert_eq!(reported, env!("CARGO_PKG_VERSION"));
     assert_eq!(version.abi_version, 1);
 }
 

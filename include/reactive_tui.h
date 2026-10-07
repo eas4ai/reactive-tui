@@ -5,7 +5,7 @@
  * This is the main header file that includes all Reactive-TUI modules.
  * Include this file to access the complete Reactive-TUI C API.
  *
- * @version 0.1.0
+ * @version 1.0.0
  * @date 2025-09-01
  *
  * @example

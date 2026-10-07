@@ -4,7 +4,7 @@
 //! code editing experience.
 
 use super::cursor::{Cursor, Movement};
-use super::gap_buffer::GapBuffer;
+use super::gap_buffer::{GapBuffer, GapBufferError};
 use super::painting::{self, LinePainter};
 use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Rgba, Surface};
@@ -39,7 +39,7 @@ impl SyntaxEditor {
     /// Create a new syntax-highlighted editor
     pub fn new() -> Self {
         Self {
-            buffer: GapBuffer::new(),
+            buffer: GapBuffer::default(),
             cursor: Cursor::new(),
             highlighter: None,
             highlighted_lines: Vec::new(),
@@ -53,11 +53,11 @@ impl SyntaxEditor {
     }
 
     /// Create an editor with initial content and language
-    pub fn with_language(content: &str, language: &str) -> Self {
+    pub fn with_language(content: &str, language: &str) -> Result<Self, GapBufferError> {
         let highlighter = SyntaxHighlighter::new(language);
 
         let mut editor = Self {
-            buffer: GapBuffer::from_string(content),
+            buffer: GapBuffer::from_string(content)?,
             cursor: Cursor::new(),
             highlighter,
             highlighted_lines: Vec::new(),
@@ -71,7 +71,7 @@ impl SyntaxEditor {
 
         // Pre-highlight visible content
         editor.rehighlight_visible();
-        editor
+        Ok(editor)
     }
 
     /// Set the language for syntax highlighting
@@ -82,8 +82,12 @@ impl SyntaxEditor {
     }
 
     /// Set content from file extension (auto-detect language)
-    pub fn set_content_from_file(&mut self, content: &str, filename: &str) {
-        self.buffer = GapBuffer::from_string(content);
+    pub fn set_content_from_file(
+        &mut self,
+        content: &str,
+        filename: &str,
+    ) -> Result<(), GapBufferError> {
+        self.buffer = GapBuffer::from_string(content)?;
         self.cursor = Cursor::new();
         self.scroll_offset = 0;
 
@@ -99,6 +103,7 @@ impl SyntaxEditor {
         }
 
         self.rehighlight_visible();
+        Ok(())
     }
 
     /// Set the editor dimensions
@@ -115,15 +120,16 @@ impl SyntaxEditor {
     }
 
     /// Insert text, replacing the selected complete graphemes.
-    pub fn insert_text(&mut self, text: &str) {
-        self.cursor.insert(&mut self.buffer, text);
+    pub fn insert_text(&mut self, text: &str) -> Result<(), GapBufferError> {
+        self.cursor.insert(&mut self.buffer, text)?;
         self.ensure_cursor_visible();
         self.rehighlight_visible();
+        Ok(())
     }
 
     /// Insert one Unicode scalar; adjacent combining text remains one grapheme.
-    pub fn insert_char(&mut self, ch: char) {
-        self.insert_text(ch.encode_utf8(&mut [0; 4]));
+    pub fn insert_char(&mut self, ch: char) -> Result<(), GapBufferError> {
+        self.insert_text(ch.encode_utf8(&mut [0; 4]))
     }
 
     /// Delete the selection or the preceding complete grapheme.
@@ -272,7 +278,7 @@ mod tests {
         let editor = SyntaxEditor::new();
         assert_eq!(editor.content(), "");
 
-        let editor = SyntaxEditor::with_language("fn main() {}", "Rust");
+        let editor = SyntaxEditor::with_language("fn main() {}", "Rust").unwrap();
         assert_eq!(editor.content(), "fn main() {}");
         assert_eq!(editor.language, Some("Rust".to_string()));
     }
@@ -285,17 +291,17 @@ mod tests {
     println!("Hello, world!");
 }"#;
 
-        editor.set_content_from_file(rust_code, "main.rs");
+        editor.set_content_from_file(rust_code, "main.rs").unwrap();
         assert_eq!(editor.content(), rust_code);
         assert!(editor.language.is_some());
     }
 
     #[test]
     fn test_syntax_editor_editing() {
-        let mut editor = SyntaxEditor::with_language("", "Python");
+        let mut editor = SyntaxEditor::with_language("", "Python").unwrap();
 
-        editor.insert_text("def hello():\n    ");
-        editor.insert_text("print('Hello')\n");
+        editor.insert_text("def hello():\n    ").unwrap();
+        editor.insert_text("print('Hello')\n").unwrap();
 
         let content = editor.content();
         assert!(content.contains("def hello():"));
@@ -305,7 +311,7 @@ mod tests {
     #[test]
     fn txt_001_scrolling_and_resizing_keep_multiline_string_context() {
         let document = "let s = r#\"\nfn main() {}\n\"#;";
-        let mut editor = SyntaxEditor::with_language(document, "Rust");
+        let mut editor = SyntaxEditor::with_language(document, "Rust").unwrap();
         editor.set_size(80, 1);
         editor.move_cursor(Movement::Down, false);
         editor.move_cursor(Movement::LineEnd, false);
@@ -333,7 +339,7 @@ mod tests {
 
     #[test]
     fn test_cache_invalidation_on_edit() {
-        let mut editor = SyntaxEditor::with_language("line1\nline2\nline3", "Rust");
+        let mut editor = SyntaxEditor::with_language("line1\nline2\nline3", "Rust").unwrap();
 
         // Get initial styled lines to populate cache
         let _ = editor.get_styled_lines();
@@ -341,7 +347,7 @@ mod tests {
         // Edit middle line
         editor.move_cursor(Movement::Down, false);
         editor.move_cursor(Movement::LineEnd, false);
-        editor.insert_text(" // comment");
+        editor.insert_text(" // comment").unwrap();
 
         // Should have invalidated the edited line
         let content = editor.content();

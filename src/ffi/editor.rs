@@ -71,7 +71,10 @@ pub unsafe extern "C" fn rtui_text_editor_set_content(
 ) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
         let text = controller::string(content)?;
-        Handle::<Editor>::get_mut(editor)?.inner.set_content(text);
+        Handle::<Editor>::get_mut(editor)?
+            .inner
+            .set_content(text)
+            .map_err(|_| ReactiveError::InvalidParameter)?;
         Ok(())
     }))
 }
@@ -112,7 +115,10 @@ pub unsafe extern "C" fn rtui_text_editor_insert_text(
 ) -> ReactiveError {
     catch_panic(AssertUnwindSafe(|| unsafe {
         let text = controller::string(text)?;
-        Handle::<Editor>::get_mut(editor)?.inner.insert_text(text);
+        Handle::<Editor>::get_mut(editor)?
+            .inner
+            .insert_text(text)
+            .map_err(|_| ReactiveError::InvalidParameter)?;
         Ok(())
     }))
 }

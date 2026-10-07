@@ -39,7 +39,7 @@ fn painted(editor: &mut SyntaxEditor, index: usize, width: usize) -> Vec<(char, 
 #[test]
 fn txt_001_a_line_inside_a_block_comment_is_painted_as_the_comment() {
     let document = "/*\nfn main() {}\n*/";
-    let mut editor = SyntaxEditor::with_language(document, "Rust");
+    let mut editor = SyntaxEditor::with_language(document, "Rust").unwrap();
     let expected = highlighted(document, 1);
     let actual = painted(&mut editor, 1, expected.len());
     assert_eq!(
@@ -50,9 +50,9 @@ fn txt_001_a_line_inside_a_block_comment_is_painted_as_the_comment() {
 
 #[test]
 fn txt_001_an_edit_above_a_visible_line_rehighlights_it() {
-    let mut editor = SyntaxEditor::with_language("let a = 1;\nlet x = 5;\n*/", "Rust");
+    let mut editor = SyntaxEditor::with_language("let a = 1;\nlet x = 5;\n*/", "Rust").unwrap();
     editor.move_cursor(Movement::DocumentStart, false);
-    editor.insert_text("/* ");
+    editor.insert_text("/* ").unwrap();
     let document = editor.content();
     assert_eq!(document, "/* let a = 1;\nlet x = 5;\n*/");
     let expected = highlighted(&document, 1);

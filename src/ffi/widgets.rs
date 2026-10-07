@@ -1,4 +1,4 @@
-//! Widget library FFI functions - PROPER IMPLEMENTATION
+//! Widget library FFI constructors.
 
 use super::*;
 use crate::builder::core::ElementBuilder;
@@ -7,10 +7,8 @@ use std::boxed::Box;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-// Simple widget creation functions without callbacks. Callback support
-// requires a registry system for function pointer management.
-
-/// Create a simple text input element (without callbacks)
+/// Return a native TextInput with its placeholder and initial value.
+/// This constructor takes no callbacks.
 ///
 /// # Safety
 ///
@@ -29,8 +27,7 @@ pub unsafe extern "C" fn rtui_text_input_create(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        builder = builder.class("input border px-8 py-4 bg-white");
+        let mut builder = crate::builder::text_input();
 
         if !placeholder.is_null() {
             let placeholder_str = CStr::from_ptr(placeholder)
@@ -43,7 +40,7 @@ pub unsafe extern "C" fn rtui_text_input_create(
             let value_str = CStr::from_ptr(initial_value)
                 .to_str()
                 .map_err(|_| ReactiveError::InvalidUtf8)?;
-            builder = builder.text(value_str);
+            builder = builder.value(value_str);
         }
 
         let element = builder.build();
@@ -53,7 +50,8 @@ pub unsafe extern "C" fn rtui_text_input_create(
     }))
 }
 
-/// Create a simple checkbox element (without callbacks)
+/// Return a native Checkbox with its label and initial checked state.
+/// This constructor takes no callbacks.
 ///
 /// # Safety
 ///
@@ -71,24 +69,13 @@ pub unsafe extern "C" fn rtui_checkbox_create(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        builder = builder.class("checkbox flex items-center");
-
-        let checkbox_text = if !label.is_null() {
+        let mut builder = crate::builder::checkbox().checked(initial_checked);
+        if !label.is_null() {
             let label_str = CStr::from_ptr(label)
                 .to_str()
                 .map_err(|_| ReactiveError::InvalidUtf8)?;
-            format!(
-                "[{}] {}",
-                if initial_checked { "x" } else { " " },
-                label_str
-            )
-        } else {
-            format!("[{}]", if initial_checked { "x" } else { " " })
-        };
-
-        builder = builder.text(&checkbox_text);
-
+            builder = builder.label(label_str);
+        }
         let element = builder.build();
         let ffi_element = super::builder::FFIElement { inner: element };
         *out_element = Box::into_raw(Box::new(ffi_element)) as *mut super::builder::RTuiElement;
@@ -96,7 +83,8 @@ pub unsafe extern "C" fn rtui_checkbox_create(
     }))
 }
 
-/// Create a simple progress bar element
+/// Return a native ProgressBar with its range, current value and label.
+/// This constructor takes no callbacks.
 ///
 /// # Safety
 ///
@@ -116,34 +104,24 @@ pub unsafe extern "C" fn rtui_progress_bar_create(
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let mut builder = ElementBuilder::new(ElementType::Layout(LayoutType::Flex));
-        builder = builder.class("progress-bar border rounded");
-
-        let percentage = if max_value > min_value {
-            ((current_value - min_value) / (max_value - min_value) * 100.0).clamp(0.0, 100.0)
-        } else {
-            0.0
-        };
-
-        let progress_text = if !label.is_null() {
+        let mut builder = crate::widgets::display::progress_bar::ProgressBarBuilder::new()
+            .range(min_value, max_value)
+            .value(current_value);
+        if !label.is_null() {
             let label_str = CStr::from_ptr(label)
                 .to_str()
                 .map_err(|_| ReactiveError::InvalidUtf8)?;
-            format!("{}: {:.1}%", label_str, percentage)
-        } else {
-            format!("{:.1}%", percentage)
-        };
-
-        builder = builder.text(&progress_text);
-
-        let element = builder.build();
+            builder = builder.label(label_str);
+        }
+        let element = builder.render();
         let ffi_element = super::builder::FFIElement { inner: element };
         *out_element = Box::into_raw(Box::new(ffi_element)) as *mut super::builder::RTuiElement;
         Ok(())
     }))
 }
 
-/// Create a simple button element (without callbacks)
+/// Return a styled text element for a button.
+/// This constructor takes no callbacks.
 ///
 /// # Safety
 ///

@@ -32,9 +32,9 @@ Applications render complete, grapheme-aware cell frames. The primary SuprTUI
 backend owns terminal setup, input, presentation, and restoration. A debug backend
 renders into memory for deterministic tests.
 
-The current checkout is a **pre-release 0.1.0 candidate**. It has not been tagged as
-a public release. The remaining release work is tracked in the
-[recovery roadmap](docs/spec/roadmap.md).
+The current checkout is **version 1.0.0**, as Cargo.toml declares, and is not yet
+published to crates.io. The last published release was 0.1.0 on 2026-09-14.
+The remaining release work is tracked in the [recovery roadmap](docs/spec/roadmap.md).
 
 Main capabilities:
 
@@ -319,5 +319,5 @@ questions about the license, go to
 [shawn@eas4ai.com](mailto:shawn@eas4ai.com); see also <https://eas4ai.com>.
 
 The project builds on Taffy for layout, Crossterm for terminal control, Comrak for
-Markdown, Syntect for syntax highlighting, AccessKit for accessibility semantics,
+Markdown, Lumis for syntax highlighting, AccessKit for accessibility semantics,
 and libghostty for embedded terminal interpretation.

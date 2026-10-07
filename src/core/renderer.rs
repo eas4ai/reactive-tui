@@ -18,6 +18,23 @@ pub struct FrameStats {
     pub frame_ms: f32,
 }
 
+/// Last statistics supplied by the embedding host, independent of measured frame statistics.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct HostStats {
+    /// Host-reported frame time.
+    pub time: Option<f64>,
+    /// Host-reported frames per second.
+    pub fps: Option<u32>,
+    /// Host-reported frame callback time.
+    pub frame_callback_time: Option<f64>,
+    /// Host-reported used heap bytes.
+    pub heap_used: Option<u32>,
+    /// Host-reported total heap bytes.
+    pub heap_total: Option<u32>,
+    /// Host-reported array-buffer bytes.
+    pub array_buffers: Option<u32>,
+}
+
 /// Double-buffered terminal renderer with diff-based updates
 pub struct Renderer {
     term: Terminal,
@@ -36,6 +53,10 @@ pub struct Renderer {
     surface_start: Option<Instant>,
     output_failed: bool,
     terminal_active: bool,
+    built_hits: Vec<u32>,
+    shown_hits: Vec<u32>,
+    row_offset: u32,
+    host_stats: HostStats,
 }
 
 impl Drop for Renderer {
@@ -93,6 +114,10 @@ impl Renderer {
             surface_start: None,
             output_failed: true,
             terminal_active: true,
+            built_hits: vec![0; width * height],
+            shown_hits: vec![0; width * height],
+            row_offset: 0,
+            host_stats: HostStats::default(),
         })
     }
 
@@ -105,6 +130,8 @@ impl Renderer {
     pub fn resize(&mut self, width: usize, height: usize) {
         self.front.reinit(width, height);
         self.back.reinit(width, height);
+        self.built_hits = vec![0; width * height];
+        self.shown_hits = vec![0; width * height];
         self.diff.refresh_image_cell_pixels();
         self.output_failed = true;
     }
@@ -208,6 +235,8 @@ impl Renderer {
         }
         result?;
         self.diff.acknowledge_output();
+        std::mem::swap(&mut self.built_hits, &mut self.shown_hits);
+        self.built_hits.fill(0);
         if self.front.dims() == self.back.dims() {
             self.front.copy_from(&self.back);
         } else {
@@ -296,7 +325,7 @@ impl Renderer {
                 let metrics = self.stats_collector.get_metrics();
                 format!(
                     "\x1b[{row};1H\x1b[7mFPS: {fps:.1} | Frame: {ms:.1}ms | Diff: {diff:.1}ms | Write: {write:.1}ms | Eff: {eff:.1}% | Grade: {grade} | Buf: {buf:.1}%\x1b[0m",
-                    row = h,
+                    row = h as u64 + u64::from(self.row_offset),
                     fps = metrics.fps,
                     ms = self.last_stats.frame_ms,
                     diff = diff_time.as_secs_f32() * 1000.0,
@@ -308,7 +337,7 @@ impl Renderer {
             } else {
                 format!(
                     "\x1b[{row};1H\x1b[7mframe: {ms:.2}ms | bytes: {b} | spans: {s} | rows: {r} | buf: {buf:.1}%\x1b[0m",
-                    row = h,
+                    row = h as u64 + u64::from(self.row_offset),
                     ms = self.last_stats.frame_ms,
                     b = self.last_stats.bytes_written,
                     s = self.last_stats.spans_written,
@@ -317,6 +346,29 @@ impl Renderer {
                 )
             };
 
+            let host = self.host_stats;
+            let mut overlay = overlay;
+            if host.fps.is_some() || host.time.is_some() || host.heap_used.is_some() {
+                // Keep host values on the same overlay row, beside measured values.
+                overlay.truncate(overlay.len() - "\x1b[0m".len());
+                if let Some(fps) = host.fps {
+                    overlay.push_str(&format!(" | Host FPS {fps}"));
+                }
+                if let Some(time) = host.time {
+                    overlay.push_str(&format!(" | Time {time}ms"));
+                }
+                if let Some(callback) = host.frame_callback_time {
+                    overlay.push_str(&format!(" | Callback {callback}ms"));
+                }
+                if let Some(used) = host.heap_used {
+                    overlay.push_str(&format!(
+                        " | Heap {used}/{} | Array buffers {}",
+                        host.heap_total.unwrap_or_default(),
+                        host.array_buffers.unwrap_or_default()
+                    ));
+                }
+                overlay.push_str("\x1b[0m");
+            }
             self.term.write_all_buffered(overlay.as_bytes())?;
         }
         Ok(())
@@ -354,6 +406,91 @@ impl Renderer {
     /// Get a reference to the back buffer surface
     pub fn surface(&self) -> &Surface {
         &self.back
+    }
+
+    /// Register a clipped region in the next frame's hit grid. Later registrations win.
+    pub fn add_hit_region(&mut self, x: i32, y: i32, width: u32, height: u32, id: u32) {
+        let (w, h) = self.dims();
+        let left = i64::from(x).clamp(0, w as i64) as usize;
+        let top = i64::from(y).clamp(0, h as i64) as usize;
+        let right = (i64::from(x) + i64::from(width)).clamp(0, w as i64) as usize;
+        let bottom = (i64::from(y) + i64::from(height)).clamp(0, h as i64) as usize;
+        for row in top..bottom {
+            self.built_hits[row * w + left..row * w + right].fill(id);
+        }
+    }
+
+    /// Read an id from the last successfully completed frame, or zero outside it.
+    pub fn check_hit(&self, x: usize, y: usize) -> u32 {
+        let (w, h) = self.dims();
+        if x < w && y < h {
+            self.shown_hits[y * w + x]
+        } else {
+            0
+        }
+    }
+
+    /// Bounding boxes of nonzero ids in the shown grid, in id order.
+    pub fn hit_regions(&self) -> std::collections::BTreeMap<u32, (usize, usize, usize, usize)> {
+        let mut regions = std::collections::BTreeMap::new();
+        let (w, _) = self.dims();
+        for (index, &id) in self
+            .shown_hits
+            .iter()
+            .enumerate()
+            .filter(|(_, id)| **id != 0)
+        {
+            let (x, y) = (index % w, index / w);
+            let bounds = regions.entry(id).or_insert((x, y, x, y));
+            bounds.0 = bounds.0.min(x);
+            bounds.1 = bounds.1.min(y);
+            bounds.2 = bounds.2.max(x);
+            bounds.3 = bounds.3.max(y);
+        }
+        regions
+    }
+
+    /// Shift every emitted text cursor row; changing the offset forces a repaint.
+    pub fn set_render_offset(&mut self, offset: u32) {
+        if self.row_offset != offset {
+            self.row_offset = offset;
+            self.diff.set_row_offset(offset);
+            self.output_failed = true;
+        }
+    }
+
+    /// Last host values, editable independently of the renderer's measured statistics.
+    pub fn host_stats_mut(&mut self) -> &mut HostStats {
+        &mut self.host_stats
+    }
+
+    /// Write dimensions, both surfaces' cell text, frame statistics and host statistics.
+    pub fn dump_buffers(&self, path: &std::path::Path) -> std::io::Result<()> {
+        use std::io::Write;
+        let mut file = std::io::BufWriter::new(std::fs::File::create(path)?);
+        let (w, h) = self.dims();
+        writeln!(file, "Dimensions: {w}x{h}")?;
+        for (name, surface) in [("Front", &self.front), ("Back", &self.back)] {
+            writeln!(file, "{name}:")?;
+            for y in 0..h {
+                for x in 0..w {
+                    let grapheme = surface.grapheme(x, y);
+                    write!(
+                        file,
+                        "{}",
+                        if grapheme.is_empty() || grapheme == "\0" {
+                            " "
+                        } else {
+                            &grapheme
+                        }
+                    )?;
+                }
+                writeln!(file)?;
+            }
+        }
+        writeln!(file, "Frame statistics: {:?}", self.last_stats)?;
+        writeln!(file, "Host statistics: {:?}", self.host_stats)?;
+        file.flush()
     }
 
     /// Estimate memory usage of the renderer

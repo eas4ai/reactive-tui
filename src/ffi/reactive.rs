@@ -1,14 +1,21 @@
-//! Reactive system FFI functions - seamless reactive bindings for C
+//! C signals and effects share one thread-confined reactive runtime per thread.
 //!
-//! This module provides a complete reactive system for C integration,
-//! including signals, effects, hooks, and component support.
+//! Effects run when created and again after a C setter changes a signal read
+//! through a C getter during their last run. Cleanup runs before each later run
+//! and at destruction. Manual runs use the same body and dependency tracking.
+//! Handles must stay on their creating C thread; setters run effects synchronously
+//! on that thread. Hooks store shared signals by key; they are not component hooks.
+//! The separate thread-safe signals do not participate in this runtime.
 
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
 use super::*;
 use crate::component::Element;
+use crate::reactive::effect::EffectId;
+use crate::reactive::runtime::RuntimeContext;
 use crate::reactive::signal::Signal;
+
 use crate::reactive::ThreadSafeSignal;
 use crate::reactive::{use_effect, use_signal, Hooks};
 use std::any::{Any, TypeId};
@@ -19,6 +26,10 @@ use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
 use std::rc::Rc;
 use std::sync::Arc;
+
+thread_local! {
+    static FFI_RUNTIME: RuntimeContext = RuntimeContext::new();
+}
 
 /// Owning, thread-confined handle to a typed reactive signal.
 ///
@@ -186,14 +197,14 @@ struct FFIProps {
 impl FFISignal {
     fn new_int(value: c_int) -> Self {
         Self {
-            signal: Rc::new(Signal::new(value)),
+            signal: Rc::new(FFI_RUNTIME.with(|runtime| runtime.create_signal(value))),
             signal_type: RTuiSignalType::Int,
         }
     }
 
     fn new_int64(value: i64) -> Self {
         Self {
-            signal: Rc::new(Signal::new(value)),
+            signal: Rc::new(FFI_RUNTIME.with(|runtime| runtime.create_signal(value))),
             signal_type: RTuiSignalType::Int64,
         }
     }
@@ -216,21 +227,21 @@ impl FFISignal {
 
     fn new_string(value: String) -> Self {
         Self {
-            signal: Rc::new(Signal::new(value)),
+            signal: Rc::new(FFI_RUNTIME.with(|runtime| runtime.create_signal(value))),
             signal_type: RTuiSignalType::String,
         }
     }
 
     fn new_bool(value: bool) -> Self {
         Self {
-            signal: Rc::new(Signal::new(value)),
+            signal: Rc::new(FFI_RUNTIME.with(|runtime| runtime.create_signal(value))),
             signal_type: RTuiSignalType::Bool,
         }
     }
 
     fn new_float(value: f64) -> Self {
         Self {
-            signal: Rc::new(Signal::new(value)),
+            signal: Rc::new(FFI_RUNTIME.with(|runtime| runtime.create_signal(value))),
             signal_type: RTuiSignalType::Float,
         }
     }
@@ -758,13 +769,17 @@ pub unsafe extern "C" fn rtui_thread_safe_signal_string_set(
     }))
 }
 
-/// Create an effect
+/// Create an effect and run its callback now, then after a signal it read through
+/// a C getter changes. Cleanup runs before each later run and at destroy.
+/// Signals and effects must stay on their creating C thread; a setter runs
+/// effects synchronously on that thread. `rtui_effect_run` also runs it by hand.
 ///
 /// # Safety
 ///
 /// `user_data` is kept and handed back to the callbacks unchanged, never
 /// dereferenced here; the caller keeps what it points to alive for as long as
-/// they can run. `out_effect` must be null or a pointer slot the caller owns,
+/// they can run. Call only on the thread owning any signals the callback reads.
+/// `out_effect` must be null or a pointer slot the caller owns,
 /// which this call may write.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_effect_create(
@@ -778,9 +793,13 @@ pub unsafe extern "C" fn rtui_effect_create(
     }
 
     catch_panic(AssertUnwindSafe(|| {
-        // Create a simplified effect wrapper
-        // In practice, this would integrate with the actual hook system
-        let effect_data = Box::new((callback, cleanup, user_data));
+        let id = FFI_RUNTIME.with(|runtime| {
+            runtime.create_effect(move || {
+                callback(user_data);
+                cleanup.map(|cleanup| Box::new(move || cleanup(user_data)) as Box<dyn FnOnce()>)
+            })
+        });
+        let effect_data = Box::new(id);
         unsafe {
             *out_effect = Box::into_raw(effect_data) as *mut RTuiEffect;
         }
@@ -788,35 +807,28 @@ pub unsafe extern "C" fn rtui_effect_create(
     }))
 }
 
-/// Destroy an effect
+/// Unregister an effect and run the cleanup returned by its last run once.
+/// Call this on its creating C thread.
 ///
 /// # Safety
 ///
-/// `effect` must be null or a live `RTuiEffect` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
+/// Call only on the creating thread. `effect` must be null or a live `RTuiEffect` handle that this library returned and has not destroyed, no other call may use it until this one returns, and it is not used again after this call.
 #[reactive_tui_macros::ffi_export]
 pub unsafe extern "C" fn rtui_effect_destroy(effect: *mut RTuiEffect) {
     if !effect.is_null() {
         unsafe {
-            let effect_data = Box::from_raw(
-                effect
-                    as *mut (
-                        RTuiEffectCallback,
-                        RTuiEffectCleanupCallback,
-                        *mut std::ffi::c_void,
-                    ),
-            );
-            if let Some(cleanup) = effect_data.1 {
-                cleanup(effect_data.2);
-            }
+            let id = Box::from_raw(effect as *mut EffectId);
+            FFI_RUNTIME.with(|runtime| runtime.runtime().unregister_effect(*id));
         }
     }
 }
 
-/// Run an effect
+/// Run an effect by hand on its creating C thread, after its previous cleanup.
+/// This run replaces the signal dependencies with those read through C getters.
 ///
 /// # Safety
 ///
-/// `effect` must be null or a live `RTuiEffect` handle that this library returned and has not destroyed, and no call may destroy it until this one returns.
+/// Call only on the creating thread. `effect` must be null or a live `RTuiEffect` handle that this library returned and has not destroyed, and no call may destroy it until this one returns.
 #[no_mangle]
 pub unsafe extern "C" fn rtui_effect_run(effect: *const RTuiEffect) -> ReactiveError {
     if effect.is_null() {
@@ -824,13 +836,8 @@ pub unsafe extern "C" fn rtui_effect_run(effect: *const RTuiEffect) -> ReactiveE
     }
 
     catch_panic(AssertUnwindSafe(|| unsafe {
-        let effect_data = &*(effect
-            as *const (
-                RTuiEffectCallback,
-                RTuiEffectCleanupCallback,
-                *mut std::ffi::c_void,
-            ));
-        (effect_data.0)(effect_data.2);
+        let id = *(effect as *const EffectId);
+        FFI_RUNTIME.with(|runtime| runtime.runtime().run_effect(id));
         Ok(())
     }))
 }
@@ -1154,7 +1161,10 @@ impl FFIHooks {
     }
 }
 
-/// Create a new hooks context
+/// Create keyed signal storage on the calling C thread. Repeated calls with a
+/// key share its signal. Effects run when created and after signals they read
+/// through C getters change, with cleanup before each later run and at destroy.
+/// Keep these handles on this thread, where C setters synchronously run effects.
 #[no_mangle]
 pub extern "C" fn rtui_hooks_new() -> *mut RTuiHooks {
     catch_panic_with_default(
@@ -1181,7 +1191,10 @@ pub unsafe extern "C" fn rtui_hooks_destroy(hooks: *mut RTuiHooks) {
     }
 }
 
-/// Use an integer signal in a component (React-like hook)
+/// Get the shared integer signal for this key, creating it only on the first call.
+/// Effects run when created. C getters track their reads; C setters run them again
+/// on this creating C thread when a read signal changes.
+/// Cleanup runs before each later effect run and when that effect is destroyed.
 ///
 /// # Safety
 ///
@@ -1214,7 +1227,10 @@ pub unsafe extern "C" fn rtui_use_signal_int(
     )
 }
 
-/// Use a string signal in a component (React-like hook)
+/// Get the shared string signal for this key, creating it only on the first call.
+/// Effects run when created. C getters track their reads; C setters run them again
+/// on this creating C thread when a read signal changes.
+/// Cleanup runs before each later effect run and when that effect is destroyed.
 ///
 /// # Safety
 ///
@@ -1255,7 +1271,10 @@ pub unsafe extern "C" fn rtui_use_signal_string(
     )
 }
 
-/// Use a boolean signal in a component (React-like hook)
+/// Get the shared boolean signal for this key, creating it only on the first call.
+/// Effects run when created. C getters track their reads; C setters run them again
+/// on this creating C thread when a read signal changes.
+/// Cleanup runs before each later effect run and when that effect is destroyed.
 ///
 /// # Safety
 ///

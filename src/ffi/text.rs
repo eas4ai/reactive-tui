@@ -3,9 +3,11 @@
 //! Provides text buffer operations following OpenTUI's patterns for text handling
 
 use super::*;
-use crate::core::surface::{Attr, Rgba, Surface};
+use crate::core::surface::{Attr, Cell, Rgba, Surface};
 use crate::ffi::lib::RTuiBuffer;
 use std::sync::OnceLock;
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 fn text_buffer_tracker() -> &'static super::pointer::PointerTracker<TextBuffer> {
     static TRACKER: OnceLock<super::pointer::PointerTracker<TextBuffer>> = OnceLock::new();
@@ -79,7 +81,10 @@ impl TextBuffer {
 // TEXT BUFFER MANAGEMENT
 //
 
-/// Create a new text buffer
+/// Create a new text buffer.
+///
+/// `width_method` is accepted for compatibility and does not change the width
+/// policy: text is painted using the crate's grapheme display width.
 #[reactive_tui_macros::ffi_export]
 pub extern "C" fn createTextBuffer(length: u32, _width_method: u8) -> *mut RTuiTextBuffer {
     if length == 0 {
@@ -333,6 +338,65 @@ pub unsafe extern "C" fn textBufferSetSelection(
 // RENDERING OPERATIONS
 //
 
+/// Paint complete clusters using their first scalar's style and selection.
+/// The return value counts painted scalars, not clusters or occupied cells.
+fn paint_text_buffer(
+    text_buffer: &TextBuffer,
+    surface: &mut Surface,
+    x: u32,
+    y: u32,
+    max_width: u32,
+) -> u32 {
+    let (surface_width, surface_height) = surface.dims();
+    let mut column = x as usize;
+    let row = y as usize;
+    if column >= surface_width || row >= surface_height {
+        return 0;
+    }
+    let end = column.saturating_add(max_width as usize).min(surface_width);
+    // Invalid scalar values from the writable character pointer become control
+    // text, which set_grapheme rejects, while retaining scalar indices.
+    let text: String = text_buffer.chars[..text_buffer.length as usize]
+        .iter()
+        .map(|code| char::from_u32(*code).unwrap_or('\0'))
+        .collect();
+    let mut scalar_index = 0;
+    let mut scalars_painted = 0;
+    for grapheme in text.graphemes(true) {
+        let scalar_count = grapheme.chars().count();
+        let index = scalar_index;
+        scalar_index += scalar_count;
+        let width = grapheme.width();
+        if width > end.saturating_sub(column) {
+            break;
+        }
+        let mut fg = text_buffer.fg_colors[index];
+        let mut bg = text_buffer.bg_colors[index];
+        if text_buffer
+            .selection
+            .is_some_and(|(start, end)| index >= start as usize && index < end as usize)
+        {
+            fg = text_buffer.selection_fg.unwrap_or(fg);
+            bg = text_buffer.selection_bg.unwrap_or(bg);
+        }
+        if surface.set_grapheme(
+            column,
+            row,
+            grapheme,
+            Cell {
+                fg,
+                bg,
+                attr: Attr::from_bits_truncate(text_buffer.attributes[index]),
+                ..Cell::default()
+            },
+        ) {
+            column += width;
+            scalars_painted += scalar_count as u32;
+        }
+    }
+    scalars_painted
+}
+
 /// Render text buffer to surface
 ///
 /// # Safety
@@ -363,61 +427,7 @@ pub unsafe extern "C" fn renderTextBufferToSurface(
     let text_buffer = unsafe { &*(tb as *const TextBuffer) };
     let surface = unsafe { &mut *(buffer as *mut Surface) };
 
-    let (surface_width, surface_height) = surface.dims();
-
-    // Bounds checking
-    if x as usize >= surface_width || y as usize >= surface_height {
-        return 0;
-    }
-
-    let mut chars_rendered = 0;
-    let mut current_x = x as usize;
-    let current_y = y as usize;
-
-    // Render each character in the text buffer
-    for i in 0..text_buffer.length {
-        if current_x >= surface_width || current_x >= (x + max_width) as usize {
-            break;
-        }
-
-        let char_code = text_buffer.chars[i as usize];
-        let fg_color = text_buffer.fg_colors[i as usize];
-        let bg_color = text_buffer.bg_colors[i as usize];
-        let attr = text_buffer.attributes[i as usize];
-
-        // Convert char code to character
-        if let Some(ch) = char::from_u32(char_code) {
-            // Check if this character is in selection
-            let (final_fg, final_bg) = if let Some((sel_start, sel_end)) = text_buffer.selection {
-                if i >= sel_start && i < sel_end {
-                    (
-                        text_buffer.selection_fg.unwrap_or(fg_color),
-                        text_buffer.selection_bg.unwrap_or(bg_color),
-                    )
-                } else {
-                    (fg_color, bg_color)
-                }
-            } else {
-                (fg_color, bg_color)
-            };
-
-            // Write character to surface
-            let char_str = ch.to_string();
-            surface.write_str(
-                current_x,
-                current_y,
-                &char_str,
-                final_fg,
-                final_bg,
-                Attr::from_bits_truncate(attr),
-            );
-
-            current_x += 1;
-            chars_rendered += 1;
-        }
-    }
-
-    chars_rendered
+    paint_text_buffer(text_buffer, surface, x, y, max_width)
 }
 
 /// Render text buffer to renderer surface
@@ -453,61 +463,7 @@ pub unsafe extern "C" fn renderTextBufferToRenderer(
     // Get the renderer's surface
     let surface = renderer_ref.surface_mut();
 
-    let (surface_width, surface_height) = surface.dims();
-
-    // Bounds checking
-    if x as usize >= surface_width || y as usize >= surface_height {
-        return 0;
-    }
-
-    let mut chars_rendered = 0;
-    let mut current_x = x as usize;
-    let current_y = y as usize;
-
-    // Render each character in the text buffer
-    for i in 0..text_buffer.length {
-        if current_x >= surface_width || current_x >= (x + max_width) as usize {
-            break;
-        }
-
-        let char_code = text_buffer.chars[i as usize];
-        let fg_color = text_buffer.fg_colors[i as usize];
-        let bg_color = text_buffer.bg_colors[i as usize];
-        let attr = text_buffer.attributes[i as usize];
-
-        // Convert char code to character
-        if let Some(ch) = char::from_u32(char_code) {
-            // Check if this character is in selection
-            let (final_fg, final_bg) = if let Some((sel_start, sel_end)) = text_buffer.selection {
-                if i >= sel_start && i < sel_end {
-                    (
-                        text_buffer.selection_fg.unwrap_or(fg_color),
-                        text_buffer.selection_bg.unwrap_or(bg_color),
-                    )
-                } else {
-                    (fg_color, bg_color)
-                }
-            } else {
-                (fg_color, bg_color)
-            };
-
-            // Write character to surface
-            let char_str = ch.to_string();
-            surface.write_str(
-                current_x,
-                current_y,
-                &char_str,
-                final_fg,
-                final_bg,
-                Attr::from_bits_truncate(attr),
-            );
-
-            current_x += 1;
-            chars_rendered += 1;
-        }
-    }
-
-    chars_rendered
+    paint_text_buffer(text_buffer, surface, x, y, max_width)
 }
 
 /// Integrated text rendering with automatic surface management
@@ -533,7 +489,7 @@ pub unsafe extern "C" fn renderTextBufferDirect(
         return false;
     }
 
-    // Use the integrated function from lib.rs
+    // The integrated path calls renderTextBufferToSurface and its grapheme painter.
     super::lib::renderTextToTerminal(tb, terminal, x, y, width, height)
 }
 
@@ -659,4 +615,54 @@ pub unsafe extern "C" fn textBufferResetDefaults(tb: *mut RTuiTextBuffer) {
     text_buffer.default_fg = None;
     text_buffer.default_bg = None;
     text_buffer.default_attr = None;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn buffer(text: &str) -> TextBuffer {
+        let mut buffer = TextBuffer::new(text.chars().count() as u32);
+        for ch in text.chars() {
+            buffer.chars.push(ch as u32);
+            buffer.fg_colors.push(Rgba::new(1.0, 1.0, 1.0, 1.0));
+            buffer.bg_colors.push(Rgba::new(0.0, 0.0, 0.0, 1.0));
+            buffer.attributes.push(0);
+            buffer.length += 1;
+        }
+        buffer
+    }
+
+    #[test]
+    fn grapheme_painter_keeps_scalar_selection_and_counts() {
+        let mut text = buffer("界e\u{301}A");
+        let selected = Rgba::new(1.0, 0.0, 0.0, 1.0);
+        let first_style = Rgba::new(0.0, 1.0, 0.0, 1.0);
+        text.fg_colors[1] = first_style;
+        text.fg_colors[2] = selected;
+        text.selection = Some((3, 4));
+        text.selection_fg = Some(selected);
+        let mut surface = Surface::new(6, 1);
+        assert_eq!(paint_text_buffer(&text, &mut surface, 1, 0, 4), 4);
+        assert_eq!(surface.grapheme(1, 0), "界");
+        assert_eq!(surface.grapheme(2, 0), "");
+        assert_eq!(surface.grapheme(3, 0), "e\u{301}");
+        assert_eq!(surface.get(3, 0).fg, first_style);
+        assert_eq!(surface.get(4, 0).fg, selected);
+    }
+
+    #[test]
+    fn grapheme_painter_keeps_joined_emoji_and_clips_whole_clusters() {
+        let text = buffer("👩\u{200d}💻A");
+        let mut surface = Surface::new(4, 1);
+        assert_eq!(paint_text_buffer(&text, &mut surface, 0, 0, 3), 4);
+        assert_eq!(surface.grapheme(0, 0), "👩\u{200d}💻");
+        assert_eq!(surface.grapheme(1, 0), "");
+        assert_eq!(surface.get(2, 0).ch, 'A');
+        let mut clipped = Surface::new(4, 1);
+        assert_eq!(paint_text_buffer(&text, &mut clipped, 0, 0, 1), 0);
+        assert!(clipped.get(0, 0) == Cell::default());
+        assert_eq!(paint_text_buffer(&text, &mut clipped, 3, 0, u32::MAX), 0);
+        assert_eq!(paint_text_buffer(&text, &mut clipped, 0, 1, 4), 0);
+    }
 }

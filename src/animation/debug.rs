@@ -1,8 +1,11 @@
-//! Animation Debugging Tools
+//! Debugging for managed animations.
 //!
-//! Comprehensive debugging utilities for the animation system including
-//! performance monitoring, state inspection, timeline visualization, and
-//! debugging overlays for development.
+//! With state logging enabled, adding an animation logs its start and initial
+//! snapshot; updates log every animation that advances and its completion,
+//! including timeline children. Verbose updates also take snapshots. Performance
+//! monitoring records one measured time per manager update, independently of
+//! state logging. Callers log pause, stop, loop, custom errors and timeline events
+//! by hand when they perform those actions outside the debug manager.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -400,10 +403,7 @@ impl AnimationDebugger {
             return;
         }
 
-        if matches!(
-            self.config.verbosity_level,
-            DebugVerbosity::High | DebugVerbosity::Verbose
-        ) {
+        {
             let state = match animation.state.read() {
                 Ok(guard) => guard.clone(),
                 Err(_) => {
@@ -420,11 +420,6 @@ impl AnimationDebugger {
             };
 
             self.log_event(event);
-        }
-
-        // Update performance metrics
-        if self.config.enable_performance_monitoring {
-            self.update_performance_metrics(frame_time);
         }
     }
 
@@ -574,16 +569,14 @@ impl AnimationDebugger {
             },
         };
 
-        self.snapshots
-            .entry(animation.id.clone())
-            .or_default()
-            .push(snapshot);
+        self.store_animation_snapshot(snapshot);
+    }
 
-        // Limit snapshot history
-        if let Some(snapshots) = self.snapshots.get_mut(&animation.id) {
-            if snapshots.len() > self.config.max_debug_entries / 10 {
-                snapshots.remove(0);
-            }
+    fn store_animation_snapshot(&mut self, snapshot: AnimationSnapshot) {
+        let snapshots = self.snapshots.entry(snapshot.id.clone()).or_default();
+        snapshots.push(snapshot);
+        if snapshots.len() > self.config.max_debug_entries / 10 {
+            snapshots.remove(0);
         }
     }
 
@@ -857,12 +850,9 @@ impl DebugAnimationManager {
     }
 
     /// Add an animation with debugging
-    pub fn add_animation(&mut self, mut animation: Animation) {
+    pub fn add_animation(&mut self, animation: Animation) {
         self.debugger.log_animation_start(&animation);
         self.debugger.take_animation_snapshot(&animation);
-
-        // Wrap callbacks to include debugging
-        self.wrap_animation_callbacks(&mut animation);
 
         self.manager.add_animation(animation);
     }
@@ -877,31 +867,75 @@ impl DebugAnimationManager {
 
     /// Update with debugging
     pub fn update(&mut self) {
+        // Keep shared state before update: completed standalone animations are
+        // removed by the manager, but their final frame still needs logging.
+        let observed: Vec<_> = if self.debugger.config.enable_state_logging {
+            self.manager
+                .animations()
+                .filter_map(|animation| {
+                    let before = animation.state.read().ok()?.clone();
+                    Some((
+                        animation.id.clone(),
+                        animation.config.clone(),
+                        std::sync::Arc::clone(&animation.state),
+                        before,
+                    ))
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         let start_time = Instant::now();
-
         self.manager.update();
-
-        let _frame_time = start_time.elapsed();
-
-        // Update debugger with performance data
+        let frame_time = start_time.elapsed();
+        if self.debugger.config.enable_performance_monitoring {
+            self.debugger.update_performance_metrics(frame_time);
+        }
         self.debugger
             .update_active_count(self.manager.active_count());
 
-        // Take snapshots of all animations if verbose debugging
-        if matches!(
-            self.debugger.config.verbosity_level,
-            DebugVerbosity::Verbose
-        ) {
-            // Note: We would need public access to animations to take snapshots
-            // For now, snapshots are taken when animations are added/updated
+        for (id, config, shared_state, before) in observed {
+            let Ok(state) = shared_state.read().map(|state| state.clone()) else {
+                continue;
+            };
+            if before.state != AnimationState::Playing || state == before {
+                continue;
+            }
+            self.debugger.log_event(DebugEvent::AnimationUpdated {
+                id: id.clone(),
+                timestamp: self.debugger.start_time.elapsed(),
+                progress: state.progress,
+                current_values: state.current_values.clone(),
+                frame_time,
+            });
+            if state.state == AnimationState::Completed && before.state != AnimationState::Completed
+            {
+                self.debugger.log_event(DebugEvent::AnimationCompleted {
+                    id: id.clone(),
+                    timestamp: self.debugger.start_time.elapsed(),
+                    total_duration: state.current_time,
+                    loops_completed: state.loops_completed,
+                });
+            }
+            if self.debugger.config.verbosity_level == DebugVerbosity::Verbose {
+                self.debugger.store_animation_snapshot(AnimationSnapshot {
+                    id,
+                    state: state.state,
+                    progress: state.progress,
+                    current_time: state.current_time,
+                    loops_completed: state.loops_completed,
+                    is_reversed: state.is_reversed,
+                    current_values: state.current_values,
+                    config: AnimationDebugInfo {
+                        duration: config.duration,
+                        easing: config.easing,
+                        delay: config.delay,
+                        auto_play: config.auto_play,
+                        speed: config.speed,
+                    },
+                });
+            }
         }
-    }
-
-    /// Wrap animation callbacks to include debugging
-    fn wrap_animation_callbacks(&mut self, _animation: &mut Animation) {
-        // Note: This would require modifying the Animation struct to allow
-        // callback wrapping, which is complex due to the Arc<dyn Fn> types.
-        // For now, we rely on explicit logging calls in the application code.
     }
 
     /// Get debugger reference

@@ -2158,6 +2158,7 @@ pub struct DiffWriter {
     image_ids: [u32; 2],
     image_error: Option<String>,
     pending_images: Option<Vec<image_output::Raster>>,
+    row_offset: u32,
 }
 
 impl Default for DiffWriter {
@@ -2191,6 +2192,7 @@ impl DiffWriter {
             }),
             image_error: None,
             pending_images: None,
+            row_offset: 0,
         }
     }
 
@@ -2198,6 +2200,11 @@ impl DiffWriter {
     /// half-block cells. Call `try_diff` to report malformed placements.
     pub fn set_image_options(&mut self, options: crate::backend::ImageOutputOptions) {
         self.image_options = options;
+    }
+
+    /// Add this offset to every text cursor row emitted by the writer.
+    pub fn set_row_offset(&mut self, offset: u32) {
+        self.row_offset = offset;
     }
 
     pub(crate) fn refresh_image_cell_pixels(&mut self) {
@@ -2387,7 +2394,11 @@ impl DiffWriter {
                 let cells_equal = cells_equal && cur.cell_text_matches(next, index);
                 if cells_equal {
                     if let Some(start) = run_start_col {
-                        self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
+                        self.push(&format!(
+                            "\x1b[{y1};{x1}H",
+                            y1 = y as u64 + 1 + u64::from(self.row_offset),
+                            x1 = start + 1
+                        ));
                         self.push(&run_buf);
                         self.last_spans_written += 1;
                         self.stats.cursor_moves += 1;
@@ -2423,7 +2434,11 @@ impl DiffWriter {
                     // Flush current run if it has content
                     if !run_buf.is_empty() {
                         if let Some(start) = run_start_col {
-                            self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
+                            self.push(&format!(
+                                "\x1b[{y1};{x1}H",
+                                y1 = y as u64 + 1 + u64::from(self.row_offset),
+                                x1 = start + 1
+                            ));
                             self.push(&run_buf);
                             self.last_spans_written += 1;
                             self.stats.cursor_moves += 1;
@@ -2467,7 +2482,9 @@ impl DiffWriter {
                 }
 
                 // Add character to current run
-                if replace_text || b.ch != next.buf[index].ch {
+                if b.ch == '\0' {
+                    run_buf.push(' ');
+                } else if replace_text || b.ch != next.buf[index].ch {
                     run_buf.push(b.ch);
                 } else {
                     next.append_cell_text(index, &mut run_buf);
@@ -2477,7 +2494,11 @@ impl DiffWriter {
             // Flush any remaining run at end of line
             if !run_buf.is_empty() {
                 if let Some(start) = run_start_col {
-                    self.push(&format!("\x1b[{y1};{x1}H", y1 = y + 1, x1 = start + 1));
+                    self.push(&format!(
+                        "\x1b[{y1};{x1}H",
+                        y1 = y as u64 + 1 + u64::from(self.row_offset),
+                        x1 = start + 1
+                    ));
                     self.push(&run_buf);
                     self.last_spans_written += 1;
                     self.stats.cursor_moves += 1;

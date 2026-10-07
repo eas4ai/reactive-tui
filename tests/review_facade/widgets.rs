@@ -99,6 +99,7 @@ fn ffi_003_a_c_text_input_takes_typing() {
     let handle = text_input(c"Type", c"seed");
     let element = element_of(handle).auto_focus();
     unsafe { rtui_element_destroy(handle) };
+    // The native input starts its cursor at column zero.
     let frames = app_input::run_until_on_debug(
         Root(element),
         (60, 12),
@@ -109,7 +110,7 @@ fn ffi_003_a_c_text_input_takes_typing() {
                 event: app_input::key(KeyCode::Char('x')),
             },
             Until {
-                text: "seedx",
+                text: "xseed",
                 cell: None,
                 event: None,
             },
@@ -121,7 +122,7 @@ fn ffi_003_a_c_text_input_takes_typing() {
         .map(|frame| frame.text.clone())
         .unwrap_or_default();
     assert!(
-        last.contains("seedx"),
+        last.contains("xseed"),
         "FFI-003: typing x into the focused C text input left the frame:\n{last}"
     );
 }
@@ -160,7 +161,7 @@ fn ffi_003_a_c_checkbox_toggles() {
 }
 
 /// FFI-003: a C progress bar paints a bar for its value: the filled part and
-/// the track differ in color.
+/// the track differ in foreground color.
 #[test]
 fn ffi_003_a_c_progress_bar_paints_its_value_as_a_bar() {
     let handle = progress_bar(50.0, c"half");
@@ -168,16 +169,16 @@ fn ffi_003_a_c_progress_bar_paints_its_value_as_a_bar() {
     unsafe { rtui_element_destroy(handle) };
     let frames = app_input::run_when_painted_on_debug(Root(element), (60, 12), 1);
     let frame = frames.last().expect("a painted frame");
-    // The native bar paints its filled part in `primary` on the track's
-    // `border`, each half the row at 50%. A percentage in a bordered box
-    // gives one background most of the row.
+    // The native bar paints its glyphs in `primary` for the filled part and
+    // `border` for the track, each half the row at 50%. A percentage in a
+    // bordered box does not fill half a row with a second foreground color.
     let balanced = (0..12)
         .map(|row| {
             let mut counts = std::collections::BTreeMap::new();
             for column in 0..60 {
                 if let Some(cell) = frame.screen.cell(row, column) {
                     *counts
-                        .entry(format!("{:?}", cell.bgcolor()))
+                        .entry(format!("{:?}", cell.fgcolor()))
                         .or_insert(0usize) += 1;
                 }
             }
@@ -189,7 +190,7 @@ fn ffi_003_a_c_progress_bar_paints_its_value_as_a_bar() {
         .unwrap_or(0);
     assert!(
         balanced >= 20,
-        "FFI-003: the C progress bar at 50% painted no filled part against a track (the second background of a row covers at most {balanced} of 60 cells), no bar:\n{}",
+        "FFI-003: the C progress bar at 50% painted no filled part against a track (the second foreground color of a row covers at most {balanced} of 60 cells), no bar:\n{}",
         frame.text
     );
 }

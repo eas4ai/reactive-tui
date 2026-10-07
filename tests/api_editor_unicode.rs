@@ -10,11 +10,11 @@ macro_rules! editor_cases {
             #[test]
             fn mixed_insertion_and_grapheme_deletion() {
                 let mut editor = $constructor;
-                editor.insert_char('A');
-                editor.insert_text("界");
-                editor.insert_char('e');
-                editor.insert_char('\u{301}');
-                editor.insert_text("👩🏽‍💻");
+                editor.insert_char('A').unwrap();
+                editor.insert_text("界").unwrap();
+                editor.insert_char('e').unwrap();
+                editor.insert_char('\u{301}').unwrap();
+                editor.insert_text("👩🏽‍💻").unwrap();
                 assert_eq!(editor.content(), "A界e\u{301}👩🏽‍💻");
                 for expected in ["A界e\u{301}", "A界", "A", ""] {
                     editor.delete_backward();
@@ -25,16 +25,16 @@ macro_rules! editor_cases {
             #[test]
             fn selection_replaces_whole_graphemes_across_lines() {
                 let mut editor = $constructor;
-                editor.insert_text("A界e\u{301}\n👩🏽‍💻Z");
+                editor.insert_text("A界e\u{301}\n👩🏽‍💻Z").unwrap();
                 editor.move_cursor(Movement::Left, false);
                 for _ in 0..3 {
                     editor.move_cursor(Movement::Left, true);
                 }
-                editor.insert_char('!');
+                editor.insert_char('!').unwrap();
                 assert_eq!(editor.content(), "A界!Z");
                 editor.move_cursor(Movement::Left, false);
                 editor.move_cursor(Movement::Left, true);
-                editor.insert_text("好\nQ");
+                editor.insert_text("好\nQ").unwrap();
                 assert_eq!(editor.content(), "A好\nQ!Z");
             }
 
@@ -42,7 +42,7 @@ macro_rules! editor_cases {
             fn painted_columns_and_selection_match_text() {
                 let mut editor = $constructor;
                 editor.set_size(16, 3);
-                editor.insert_text("A界e\u{301}Z");
+                editor.insert_text("A界e\u{301}Z").unwrap();
                 editor.move_cursor(Movement::Left, false);
                 editor.move_cursor(Movement::Left, true);
                 let lines = editor.get_styled_lines();
@@ -74,13 +74,13 @@ macro_rules! editor_cases {
             #[test]
             fn forward_delete_and_crlf_are_atomic() {
                 let mut editor = $constructor;
-                editor.insert_text("e\u{301}👩🏽‍💻\r\n界");
+                editor.insert_text("e\u{301}👩🏽‍💻\r\n界").unwrap();
                 editor.move_cursor(Movement::DocumentStart, false);
                 for expected in ["👩🏽‍💻\r\n界", "\r\n界", "界", ""] {
                     editor.delete_forward();
                     assert_eq!(editor.content(), expected);
                 }
-                editor.insert_text("A\r\nB");
+                editor.insert_text("A\r\nB").unwrap();
                 editor.move_cursor(Movement::Left, false);
                 editor.delete_backward();
                 assert_eq!(editor.content(), "AB");
@@ -90,7 +90,7 @@ macro_rules! editor_cases {
             fn clipping_keeps_wide_graphemes_whole_and_clears_old_text() {
                 let mut editor = $constructor;
                 editor.set_size(7, 1); // Five-column gutter, then A; 界 cannot fit.
-                editor.insert_text("A界Z");
+                editor.insert_text("A界Z").unwrap();
                 assert_eq!(editor.get_styled_lines()[0].text(), "   1 A");
                 let mut surface = Surface::new(12, 3);
                 surface.write_str(
@@ -114,7 +114,7 @@ macro_rules! editor_cases {
             #[test]
             fn selection_after_syntax_runs_and_tabs_uses_text_offsets() {
                 let mut editor = $constructor;
-                editor.insert_text("let 界 = \"e\u{301}\";\n\tZ");
+                editor.insert_text("let 界 = \"e\u{301}\";\n\tZ").unwrap();
                 editor.move_cursor(Movement::DocumentStart, false);
                 for _ in 0..4 {
                     editor.move_cursor(Movement::Right, false);
@@ -143,7 +143,7 @@ macro_rules! editor_cases {
             fn rendered_terminal_cells_retain_unicode_after_updates() {
                 let mut editor = $constructor;
                 editor.set_size(20, 2);
-                editor.insert_text("A界e\u{301}🙂Z");
+                editor.insert_text("A界e\u{301}🙂Z").unwrap();
                 let empty = Surface::new(20, 2);
                 let mut first = Surface::new(20, 2);
                 editor.render(&mut first, 0, 0);
@@ -158,7 +158,7 @@ macro_rules! editor_cases {
                 assert_eq!(parser.screen().cell(0, 11).unwrap().contents(), "Z");
                 editor.delete_backward();
                 editor.delete_backward();
-                editor.insert_char('Q');
+                editor.insert_char('Q').unwrap();
                 let mut second = first.clone_into_new();
                 editor.render(&mut second, 0, 0);
                 writer.diff(&first, &second, false);
@@ -170,7 +170,7 @@ macro_rules! editor_cases {
             #[test]
             fn control_text_is_visible_without_becoming_terminal_commands() {
                 let mut editor = $constructor;
-                editor.insert_text("\u{301}\u{1b}[2J\r");
+                editor.insert_text("\u{301}\u{1b}[2J\r").unwrap();
                 assert_eq!(editor.content(), "\u{301}\u{1b}[2J\r");
                 assert_eq!(editor.get_styled_lines()[0].text(), "   1 ◌\u{301}�[2J� ");
             }
@@ -178,14 +178,14 @@ macro_rules! editor_cases {
             #[test]
             fn edits_that_join_graphemes_leave_cursor_at_a_boundary() {
                 let mut editor = $constructor;
-                editor.insert_text("e\u{301}Z");
+                editor.insert_text("e\u{301}Z").unwrap();
                 editor.move_cursor(Movement::DocumentStart, false);
-                editor.insert_text("界");
+                editor.insert_text("界").unwrap();
                 editor.delete_forward();
                 assert_eq!(editor.content(), "界Z");
-                editor.insert_text("👩");
-                editor.insert_char('\u{200d}');
-                editor.insert_text("💻");
+                editor.insert_text("👩").unwrap();
+                editor.insert_char('\u{200d}').unwrap();
+                editor.insert_text("💻").unwrap();
                 editor.delete_backward();
                 assert_eq!(editor.content(), "界Z");
             }
@@ -194,14 +194,14 @@ macro_rules! editor_cases {
 }
 
 editor_cases!(plain, TextEditor::new());
-editor_cases!(syntax, SyntaxEditor::with_language("", "rust"));
+editor_cases!(syntax, SyntaxEditor::with_language("", "rust").unwrap());
 
 #[test]
 fn line_index_tracks_edits_before_and_at_newlines() {
-    let mut buffer = GapBuffer::from_string("a\nb\nc");
-    buffer.insert_char(0, '界');
+    let mut buffer = GapBuffer::from_string("a\nb\nc").unwrap();
+    buffer.insert_char(0, '界').unwrap();
     assert_eq!(buffer.get_line(0), "界a");
-    buffer.insert_str(2, "X\nY");
+    buffer.insert_str(2, "X\nY").unwrap();
     assert_eq!(buffer.to_string(), "界aX\nY\nb\nc");
     assert_eq!(
         (0..buffer.line_count())
@@ -218,7 +218,7 @@ fn line_index_tracks_edits_before_and_at_newlines() {
 
 #[test]
 fn cursor_uses_scalar_offsets_and_display_columns() {
-    let buffer = GapBuffer::from_string("a界e\u{301}Z\n12345\na界e\u{301}Z");
+    let buffer = GapBuffer::from_string("a界e\u{301}Z\n12345\na界e\u{301}Z").unwrap();
     let mut cursor = Cursor::new();
     let positions = [1, 2, 4, 5, 6];
     for position in positions {
@@ -267,7 +267,7 @@ fn surface_grapheme_ownership_survives_copy_and_expires_on_overwrite() {
 
 #[test]
 fn vertical_motion_preserves_columns_across_short_and_wide_lines() {
-    let buffer = GapBuffer::from_string("abcd\n界X\nx\nabcd");
+    let buffer = GapBuffer::from_string("abcd\n界X\nx\nabcd").unwrap();
     let mut cursor = Cursor::new();
     cursor.move_to(1, &buffer);
     cursor.move_down(&buffer); // Column 1 falls inside 界, so choose its start.
@@ -287,7 +287,7 @@ fn vertical_motion_preserves_columns_across_short_and_wide_lines() {
 
 #[test]
 fn word_movement_retains_unicode_grapheme_boundaries() {
-    let buffer = GapBuffer::from_string("e\u{301}界 foo_bar 🙂");
+    let buffer = GapBuffer::from_string("e\u{301}界 foo_bar 🙂").unwrap();
     let mut cursor = Cursor::new();
     cursor.move_word_forward(&buffer);
     assert_eq!(cursor.position, 3);
