@@ -971,7 +971,7 @@ impl Tree {
                     if props.checkable {
                         self.toggle_check(props, state, &selected_id);
                     } else if props.multi_select {
-                        self.toggle_node_selection(props, state, &selected_id);
+                        self.toggle_node_selection(state, &selected_id);
                     }
                 }
                 EventResult::Consumed
@@ -1004,7 +1004,7 @@ impl Tree {
             KeyCode::Char('a') if modifiers.ctrl => {
                 if props.multi_select {
                     state.selected_nodes = state.flat_nodes.iter().map(|n| n.id.clone()).collect();
-                    if let Some(callback) = &props.on_multi_select {
+                    if let Some(callback) = state.callbacks.get().on_multi_select {
                         callback(state.selected_nodes.clone());
                     }
                 }
@@ -1026,10 +1026,10 @@ impl Tree {
 
         // Trigger callbacks
         if props.multi_select {
-            if let Some(callback) = &props.on_multi_select {
+            if let Some(callback) = state.callbacks.get().on_multi_select {
                 callback(state.selected_nodes.clone());
             }
-        } else if let Some(callback) = &props.on_select {
+        } else if let Some(callback) = state.callbacks.get().on_select {
             callback(Some(node_id.to_string()));
         }
 
@@ -1037,14 +1037,14 @@ impl Tree {
         self.scroll_to_node(state, node_id);
     }
 
-    fn toggle_node_selection(&self, props: &TreeProps, state: &mut TreeState, node_id: &str) {
+    fn toggle_node_selection(&self, state: &mut TreeState, node_id: &str) {
         if let Some(pos) = state.selected_nodes.iter().position(|id| id == node_id) {
             state.selected_nodes.remove(pos);
         } else {
             state.selected_nodes.push(node_id.to_string());
         }
 
-        if let Some(callback) = &props.on_multi_select {
+        if let Some(callback) = state.callbacks.get().on_multi_select {
             callback(state.selected_nodes.clone());
         }
     }
