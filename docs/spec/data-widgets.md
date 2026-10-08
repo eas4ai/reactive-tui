@@ -76,3 +76,9 @@ Status: Agreed 2026-09-30
 Falsifier: A widget's accessibility node has a label although its props set no `aria_label` (or, for a progress bar, no label), or has none although they set one; a table's node lacks its row or column count, a row's node its index, a cell's node its column index, or the sorted header its direction; a tree row's node lacks its level, position, count, expanded or selected state; a file explorer row's node lacks its position or count; a progress bar's node lacks its value, minimum or maximum; a disabled row's node is not marked disabled; or an action of a data widget can be taken by the pointer and by no key.
 Mechanism: data-widgets
 Status: Agreed 2026-09-30
+
+[DAT-005] A table's and a data table's numeric sort MUST compare an integer cell with a decimal cell by their exact values, never by rounding the integer to a float, and the comparison MUST be a total order: two cells compare equal only when their values are equal.
+Falsifier: A column holding 9007199254740993 and 9007199254740992.0 sorted ascending reads the integer first; or 9007199254740992.0 compares equal to both 9007199254740992 and 9007199254740993 while those two compare unequal.
+Mechanism: review-widgets
+Rationale: The developer's code review of 2026-10-04, W07: a mixed pair went through f64, which rounds an integer past 2^53, while the table promised exact integers past it.
+Status: Agreed 2026-10-08

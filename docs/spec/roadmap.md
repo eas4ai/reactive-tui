@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: ci-local-runners
+Current: widget-defects
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1745,3 +1745,53 @@ and nothing in this tree names a machine, an address or a token.
 Done when the workflow's run for the final commit, dispatched by the gate,
 is green on the three machines; every gate BAR-001 to BAR-012 passes on the
 final tree; and the adversary's findings are resolved or declined.
+
+## widget-defects
+
+Requirements: TXT-005, TXT-006, CHT-041, THM-005, NAV-005, DAT-005, CMP-008, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The widget defects two next-feature items held, retired on 2026-10-08 by
+the developer's "confirmeed / all of the above": the last cut of the
+developer's production code review of 2026-10-04
+(review-2026-10-04-remediation, 2e1476c7), its widget findings W03, W05,
+W06, W07 and W08, and the seven defects docs/widget-study.md recorded on
+2026-09-26 (widget-study-defects, 6ddc057b). Each was checked against the
+code at a342b121 on 2026-10-08. The five review findings hold: the scatter
+x domain comes from the data alone and the index filter clips numeric
+points; the cube levels are multiples of 51; each scroll bar is decided
+against the full box; a mixed integer and decimal pair compares through
+f64; the props' equality omits callbacks and a mounted instance keeps its
+props when they compare equal. Of the study's seven, two hold, the
+lowercase fence and the black fallback text, and five were fixed by the
+commitments since: the table sorting as text and the selection hidden
+under a collapsed parent by data-widgets (DAT-003), the column minimums
+that read as pixel values by the same (`min_width` 0, the virtual scroll
+documented in cells), the area fill replacing its stroke and the dots that
+could not be turned off by the chart commitments (CHT-012: `fill` and
+`dots(bool)` on the typed builders), and the toasts drawing over each
+other by overlays (toasts stack by position). The developer confirmed the
+seven requirements on 2026-10-08 with the choice CMP-008 carries: a
+mounted instance adopts a rerender's callbacks when its props compare
+equal, without repainting, rather than comparing callbacks by identity,
+which would repaint every rerender that builds its closures afresh.
+
+Delivered here: a failing test first for each of the seven, then the fix:
+the language lookup matching display names case-insensitively with the
+extension lookup as its fallback; plain fallback lines carrying no
+foreground of their own; the scatter x domain and clipping taken from the
+configured limits; xterm's cube levels in both directions; the scroll
+view's two bars decided together with the viewport, limits, painting and
+pointer areas following; exact mixed integer and decimal ordering as a
+total order; and the mounted component adopting a rerender's callbacks.
+The mechanism review-widgets (scripts/cairn/review_widgets.py; tests named
+by requirement in tests/review_widgets.rs and its modules under
+tests/review_widgets, or among the library's unit tests where a module's
+private parts are needed) checks every new requirement on the Linux host.
+The study's adoption changes (widget-study-adoption, e4c3ba73) follow as
+their own commitments, as the developer asked with "all of the above".
+CHANGELOG.md records what changes for an application.
+
+Done when every named requirement passes; review-widgets has recorded a
+fail on the tree as it was at the start for each new requirement; the
+workflow's run for the final commit is green on the three machines; and
+the adversary's findings are resolved or declined.

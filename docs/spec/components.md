@@ -75,3 +75,9 @@ Falsifier: The crate's source still defines `CommonComponents` or `common_compon
 Mechanism: review-core
 Rationale: The advertised compile-time perfect component lookup was an empty map that nothing filled or read (the developer's code review of 2026-10-04, C14).
 Status: Agreed 2026-10-05
+
+[CMP-008] A mounted component whose rerender supplies props equal in every compared field but carrying a different callback MUST act on the new callback from the next event on, and on none when the callback was removed, without repainting for that change alone; a table's and a data table's `on_select` and `on_sort`, a data table's `on_export` and a tree's `on_select` MUST follow this.
+Falsifier: A table mounted with `on_select` A and rerendered with equal rows and `on_select` B calls A on the next selection; a rerender that only removes the callback still calls it on the next selection; or a rerender that changes only a callback presents a new frame.
+Mechanism: review-widgets
+Rationale: The developer's code review of 2026-10-04, W08: the props' equality omits callbacks and a mounted instance stores new props only when they compare unequal, so a selection kept calling the old callback.
+Status: Agreed 2026-10-08

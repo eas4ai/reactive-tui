@@ -222,3 +222,9 @@ Falsifier: An 80 by 24 bar chart with one value and `band_count(10_000_000)`, a 
 Mechanism: review-high
 Rationale: One integer asked a chart for ten million empty slots and it built a label string and two values for each (the developer's code review of 2026-10-04, W04).
 Status: Agreed 2026-10-04
+
+[CHT-041] A scatter chart's numeric x axis MUST take `ChartAxis` `min` and `max` as x values: when set they MUST bound the x domain, and a point MUST be drawn only when its x value lies within them; clipping by index MUST apply only to a category axis.
+Falsifier: Points at x 10 and x 20 with an x axis min of 10 and max of 20 are not both drawn; or with a min of 0 and max of 1 either of them is drawn.
+Mechanism: review-widgets
+Rationale: The developer's code review of 2026-10-04, W03: the numeric x domain was computed from the data alone and the shared index filter compared the limits with each point's index.
+Status: Agreed 2026-10-08

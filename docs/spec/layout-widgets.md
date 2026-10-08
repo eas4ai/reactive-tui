@@ -67,3 +67,9 @@ Status: Agreed 2026-09-30
 Falsifier: A widget's accessibility node has a label although its props set no `aria_label`, or has none although they set one; a tab's node lacks its label, its selected state, its position or its set size, or its panel's node has no label; an accordion header's node lacks its label, its expanded state, its position or its set size; a segment's node lacks its label, its position or its set size, or the current segment is not marked current; a scroll view's node lacks its offsets or their ranges; a disabled item's node is not marked disabled; or an action of a layout widget can be taken by the pointer and by no key.
 Mechanism: layout-widgets
 Status: Agreed 2026-09-30
+
+[NAV-005] A scroll view MUST decide its two bars together against the viewport each bar leaves: a bar whose row or column makes the content overflow in the other direction MUST bring that direction's bar; and the viewport size, the scroll limits, the painted bars and the pointer's track and thumb MUST all follow that one decision.
+Falsifier: Fixed content of 10 columns by 20 rows in a scroll view of 10 by 5 cells with both directions enabled and bars shown paints a vertical bar and no horizontal bar, exposes a horizontal scroll limit while painting no horizontal bar, or paints a bar whose track takes no pointer.
+Mechanism: review-widgets
+Rationale: The developer's code review of 2026-10-04, W06: each bar was decided against the full box, so the column a vertical bar took could clip the content sideways with no horizontal bar to scroll it.
+Status: Agreed 2026-10-08

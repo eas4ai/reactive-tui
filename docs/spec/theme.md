@@ -47,3 +47,9 @@ Falsifier: With a theme whose variables say `--color-a: b` and `--color-b: a`, o
 Mechanism: review-high
 Rationale: Two variables naming each other made resolution recurse until the process ran out of stack (the developer's code review of 2026-10-04, W02).
 Status: Agreed 2026-10-04
+
+[THM-005] `ansi256_to_rgb` MUST decode the 216-color cube (indices 16 to 231) with xterm's six levels per component, 0, 95, 135, 175, 215 and 255, and `rgb_to_ansi256` MUST encode each component to the nearest of those levels; the sixteen base colors and the grey ramp are unaffected.
+Falsifier: Index 17 decodes to other than (0, 0, 95) or index 231 to other than (255, 255, 255); (60, 0, 0) encodes to an index whose decoded red is not 95; or a decoded cube color encodes to a different index than it came from.
+Mechanism: review-widgets
+Rationale: The developer's code review of 2026-10-04, W05: the cube was decoded with multiples of 51 and encoded with a 48 threshold, so a child terminal's or a captured image's indexed colors lost their shades.
+Status: Agreed 2026-10-08

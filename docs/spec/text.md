@@ -51,3 +51,15 @@ Falsifier: src/editor/gap_buffer.rs's documentation calls the buffer zero-copy o
 Mechanism: review-facade
 Rationale: The header claimed zero-copy O(1) edits while gap moves copied through temporary vectors, the 100,000,000-char guard was called 100 MB, applied only to growth, and an insert past it panicked (the developer's code review of 2026-10-04, N18).
 Status: Agreed 2026-10-06
+
+[TXT-005] A Markdown code fence MUST be highlighted for the language its info string names whatever the name's case, and for a file extension the language takes: ```rust, ```Rust and ```rs MUST all highlight as Rust; the lookup behind `SyntaxHighlighter::new` MUST match a language's display name case-insensitively and fall back to `from_extension`.
+Falsifier: A fence ```rust renders with no highlighted run while ```Rust renders with one; or a fence naming a language by a different case than its display name, or by an extension `from_extension` accepts, gets the plain fallback.
+Mechanism: review-widgets
+Rationale: docs/widget-study.md, Defects found: the lookup matched the display name exactly and case-sensitively, so only ```Rust highlighted, and the lowercase test checked only for a background.
+Status: Agreed 2026-10-08
+
+[TXT-006] A line the highlighter leaves plain, because the line is oversized (TXT-002), the parse failed or the language is unknown, MUST carry no foreground of its own, so that `SyntaxEditor` and the Markdown renderer paint it in their foreground; a plain fallback MUST never be painted black on the editor's background.
+Falsifier: `SyntaxEditor` showing a fallback line paints that line's text in black, or in a foreground other than the editor's, on the editor's background.
+Mechanism: review-widgets
+Rationale: docs/widget-study.md, Defects found: `plain_line` and `fallback_range` set the foreground to black and the editor's background is near-black, so fallback text could not be read.
+Status: Agreed 2026-10-08
