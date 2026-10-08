@@ -298,27 +298,28 @@ pub(super) fn cartesian(
             high = high.max(x);
         }
         // A configured limit is an x value and bounds the domain (CHT-041).
+        let pinned = (category_axis.min.is_some(), category_axis.max.is_some());
         if let Some(min) = category_axis.min {
             low = min;
         }
         if let Some(max) = category_axis.max {
             high = max;
         }
-        let domain = if low > high {
-            (0.0, 1.0)
-        } else if low == high {
-            (low - 1.0, high + 1.0)
-        } else {
-            (low, high)
+        // An empty or a flat domain opens at its free end only: a limit set
+        // on one end alone stays where it was set, and a unit of width
+        // comes from the other side.
+        let domain = match pinned {
+            _ if low < high => (low, high),
+            (true, false) => (low, low + 1.0),
+            (false, true) => (high - 1.0, high),
+            (true, true) => (low, low + 1.0),
+            (false, false) if low > high => (0.0, 1.0),
+            (false, false) => (low - 1.0, high + 1.0),
         };
         // Exactly the x tick count of round ticks, as on the value axis
         // (CHT-034): the free ends widen to a round step grid, a configured
         // limit stays where it was set.
-        plot::nice_domain(
-            domain,
-            (category_axis.min.is_some(), category_axis.max.is_some()),
-            category_axis.tick_count,
-        )
+        plot::nice_domain(domain, pinned, category_axis.tick_count)
     });
     let axes = class.has_axes();
     if let Some(title) = &props.y_axis.title {

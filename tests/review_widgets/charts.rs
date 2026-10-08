@@ -16,14 +16,25 @@ impl RootComponent for Root {
 
 /// How many cells of the last painted frame hold `mark`.
 fn painted(props: ChartProps, size: (u16, u16), mark: char) -> usize {
+    columns_of(props, size, mark).len()
+}
+
+/// The columns of the cells of the last painted frame that hold `mark`.
+fn columns_of(props: ChartProps, size: (u16, u16), mark: char) -> Vec<usize> {
     let frames = app_input::run(Root(Element::typed::<Chart>(props)), size, vec![(2, None)]);
     frames
         .last()
         .unwrap()
         .text
-        .chars()
-        .filter(|c| *c == mark)
-        .count()
+        .lines()
+        .flat_map(|line| {
+            line.chars()
+                .enumerate()
+                .filter(|(_, c)| *c == mark)
+                .map(|(column, _)| column)
+                .collect::<Vec<_>>()
+        })
+        .collect()
 }
 
 /// A scatter chart with two points at x 10 and x 20.
@@ -80,5 +91,33 @@ fn cht_041_scatter_x_limits_bound_by_x_value_not_index() {
             0,
             "limits below both x values draw no point at {size:?}"
         );
+    }
+}
+
+/// CHT-041, finding 2 of the review: a limit set on one end alone pins that
+/// end, so the point at the limit sits at the plot's edge and the other
+/// point is clipped; a minimum above every x leaves no point and no
+/// invented domain. The plot's edges are where both limits pinned at the
+/// points put them.
+#[test]
+fn cht_041_a_limit_on_one_end_alone_pins_that_end() {
+    for size in [(24, 12), (40, 18)] {
+        let edges = columns_of(scatter(size, Some(10.0), Some(20.0)), size, '•');
+        assert_eq!(edges.len(), 2, "{edges:?}");
+        let (left_edge, right_edge) = (edges[0].min(edges[1]), edges[0].max(edges[1]));
+        assert!(left_edge < right_edge, "{edges:?}");
+        let from_twenty = columns_of(scatter(size, Some(20.0), None), size, '•');
+        assert_eq!(
+            from_twenty,
+            vec![left_edge],
+            "a minimum of 20 alone puts the point at 20 on the plot's left edge at {size:?}"
+        );
+        let to_ten = columns_of(scatter(size, None, Some(10.0)), size, '•');
+        assert_eq!(
+            to_ten,
+            vec![right_edge],
+            "a maximum of 10 alone puts the point at 10 on the plot's right edge at {size:?}"
+        );
+        assert_eq!(painted(scatter(size, Some(30.0), None), size, '•'), 0);
     }
 }
