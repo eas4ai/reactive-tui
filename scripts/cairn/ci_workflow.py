@@ -35,10 +35,16 @@ of the three platform jobs, named as the workflow names them, succeeded and
 no job failed; otherwise it fails with its jobs. A run still going is waited
 for. With no run, the commit is pushed as the temporary branch
 ci/check-<sha>, the workflow is started on it (workflow_dispatch), waited
-for up to 55 minutes, and the branch is deleted. A gh or git call that fails
-for want of the network prints no result line, so Sudus records the run as
-unverified. The mechanism's own tests (test_ci_workflow.py) run first; when
-they fail there is no verdict.
+for, and the branch is deleted. The wait reads the run's jobs and the
+repository's runners: a job queued because every runner that could take it
+is offline (a machine asleep or off) is announced once per machine, on the
+check's output and as a desktop notification, and its waiting time does not
+count against the 55-minute ceiling, which counts only while the run is
+executing; such a wait ends after a day with no verdict, and the machine's
+return is announced too. A gh or git call that fails for want of the network
+prints no result line, so Sudus records the run as unverified. The
+mechanism's own tests (test_ci_workflow.py) run first; when they fail there
+is no verdict.
 """
 
 from __future__ import annotations
@@ -73,6 +79,7 @@ TESTS = ROOT / "scripts/cairn/test_ci_workflow.py"
 INPUTS = [".gitattributes", ".github", "Cargo.lock", "Cargo.toml", "benches", "bindings", "build.rs", "crates",
           "deny.toml", "examples", "include", "scripts", "src", "tests"]
 CEILING = 55 * 60
+DAY = 24 * 3600
 POLL = 30
 PINNED = wt.RELEASE
 version_pair = wt.release_pair
@@ -405,18 +412,118 @@ def jobs_of(run_id: int) -> list[dict]:
     return json.loads(out)["jobs"]
 
 
-def wait_for(run_id: int, deadline: float) -> dict:
+def repo_slug() -> str:
+    return sh(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]).strip()
+
+
+def runners_of(slug: str) -> list[dict]:
+    """The repository's registered runners: name, status (online or
+    offline), busy, and their label names."""
+    out = sh(["gh", "api", f"repos/{slug}/actions/runners?per_page=100"])
+    data = json.loads(out)
+    return [{"name": r["name"], "status": r["status"], "busy": r.get("busy", False),
+             "labels": [label["name"] for label in r.get("labels", [])]} for r in data.get("runners", [])]
+
+
+def queued_jobs_of(slug: str, run_id: int) -> list[dict]:
+    """The run's jobs with their status and the labels each asked for."""
+    out = sh(["gh", "api", f"repos/{slug}/actions/runs/{run_id}/jobs?per_page=100"])
+    return [{"name": job["name"], "status": job["status"], "labels": list(job.get("labels") or [])}
+            for job in json.loads(out).get("jobs", [])]
+
+
+def offline_waits(jobs: list[dict], runners: list[dict]) -> dict[str, str]:
+    """Job name to the runner it waits for: the queued jobs whose labels only
+    registered runners that are offline can take. A job with no registered
+    runner at all is not an offline wait; GitHub fails it on its own."""
+    waits = {}
+    for job in jobs:
+        if job.get("status") != "queued":
+            continue
+        wanted = set(job.get("labels") or [])
+        if "self-hosted" not in wanted:
+            continue
+        matching = [r for r in runners if wanted <= set(r.get("labels", []))]
+        if matching and all(r.get("status") != "online" for r in matching):
+            waits[job["name"]] = ", ".join(sorted(r["name"] for r in matching))
+    return waits
+
+
+class Waiter:
+    """The accounting BAR-012 asks of a wait: time while a job waits on an
+    offline machine is announced once per machine and does not count
+    against the ceiling on run time, which counts only while the run is
+    executing; the offline wait itself ends after a day."""
+
+    def __init__(self, ceiling: float = CEILING, day: float = DAY):
+        self.ceiling = ceiling
+        self.day = day
+        self.executing = 0.0
+        self.offline = 0.0
+        self.announced: set[str] = set()
+        self.waiting: set[str] = set()
+
+    def step(self, jobs: list[dict], runners: list[dict], elapsed: float) -> list[str]:
+        """Account `elapsed` seconds since the last look and return the
+        lines to tell the developer: a machine newly found offline, or back."""
+        waits = offline_waits(jobs, runners)
+        lines = []
+        if waits:
+            self.offline += elapsed
+            for job, runner in waits.items():
+                if runner not in self.announced:
+                    lines.append(f"waiting for the {runner} runner, which is offline, to run {job}; "
+                                 "this wait does not count against the run-time ceiling and ends after a day")
+                    self.announced.add(runner)
+            self.waiting = set(waits.values())
+        else:
+            self.executing += elapsed
+            for runner in sorted(self.waiting):
+                lines.append(f"the {runner} runner is back online; the run goes on")
+            self.waiting = set()
+        return lines
+
+    def over_ceiling(self) -> bool:
+        return self.executing > self.ceiling
+
+    def over_day(self) -> bool:
+        return self.offline > self.day
+
+
+def tell(line: str) -> None:
+    """Print the line for the record and, on the workstation, raise a desktop
+    notification; the notification is best effort."""
+    print(line, flush=True)
+    try:
+        subprocess.run(["notify-send", "--app-name=sudus", "--urgency=critical", "CI runner", line],
+                       capture_output=True, text=True, timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def wait_for(run_id: int, slug: str, waiter: Waiter) -> dict:
+    """Poll the run until it completes, the executing time passes the
+    ceiling, or an offline wait passes a day (no verdict)."""
+    last = time.monotonic()
     while True:
         out = sh(["gh", "run", "view", str(run_id), "--json", "status,conclusion,url"])
         run = json.loads(out)
         if run["status"] == "completed":
             return run
-        if time.monotonic() > deadline:
+        now = time.monotonic()
+        jobs = queued_jobs_of(slug, run_id)
+        runners = runners_of(slug) if any(job["status"] == "queued" for job in jobs) else []
+        for line in waiter.step(jobs, runners, now - last):
+            tell(line)
+        last = now
+        if waiter.over_ceiling():
             return run
+        if waiter.over_day():
+            raise NoVerdict(f"waited a day for an offline runner ({', '.join(sorted(waiter.announced))}); run {run['url']}")
         time.sleep(POLL)
 
 
-def dispatch(sha: str, deadline: float) -> dict:
+def dispatch(sha: str, slug: str, waiter: Waiter) -> dict:
     """Push the commit as a temporary branch, start the workflow on it, wait,
     and delete the branch whatever happened."""
     branch = f"ci/check-{sha[:12]}"
@@ -434,7 +541,7 @@ def dispatch(sha: str, deadline: float) -> dict:
             else:
                 time.sleep(5)
         print(f"started run {run['databaseId']} on {branch}: {run['url']}", flush=True)
-        final = wait_for(run["databaseId"], deadline)
+        final = wait_for(run["databaseId"], slug, waiter)
         final["databaseId"] = run["databaseId"]
         return final
     finally:
@@ -447,7 +554,7 @@ def verdict(run: dict, jobs: list[dict], expected: list[str]) -> tuple[bool, str
     which the falsifier names."""
     run_id = run["databaseId"]
     if run["status"] != "completed":
-        return False, f"run {run_id} did not finish within {CEILING // 60} minutes ({run['url']})"
+        return False, f"run {run_id} did not finish within {CEILING // 60} minutes of execution ({run['url']})"
     for job in jobs:
         print(f"  {job['name']}: {job['conclusion'] or job['status']}", flush=True)
     bad = [f"{j['name']} {j['conclusion'] or j['status']}" for j in jobs if j["conclusion"] not in ("success", "skipped")]
@@ -481,7 +588,8 @@ def gate() -> int:
         if dirty:
             print(f"{REQUIREMENT} unverified: a run tests a commit, and these inputs differ from HEAD: {', '.join(dirty[:6])}")
             return 1
-        deadline = time.monotonic() + CEILING
+        slug = repo_slug()
+        waiter = Waiter()
         runs = platform_runs(runs_for(sha))
         completed = [r for r in runs if r["status"] == "completed"]
         going = [r for r in runs if r["status"] != "completed"]
@@ -491,10 +599,10 @@ def gate() -> int:
         elif going:
             run = max(going, key=lambda r: r["createdAt"])
             print(f"waiting for run {run['databaseId']} for {sha[:12]} ({run['event']}): {run['url']}", flush=True)
-            run = {**wait_for(run["databaseId"], deadline), "databaseId": run["databaseId"]}
+            run = {**wait_for(run["databaseId"], slug, waiter), "databaseId": run["databaseId"]}
         else:
             print(f"no run for {sha[:12]}: starting one", flush=True)
-            run = dispatch(sha, deadline)
+            run = dispatch(sha, slug, waiter)
         ok, why = verdict(run, jobs_of(run["databaseId"]), expected)
     except (NoVerdict, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as error:
         print(f"{REQUIREMENT} unverified: {error}")
