@@ -90,6 +90,8 @@ struct Step {
     /// and presented no frame between them, so nothing it shows is still
     /// on its way to its place.
     idle: bool,
+    /// Wait until the latest frame satisfies this.
+    when: Option<FramePredicate>,
 }
 
 /// How many times in a row the App must ask for input without presenting a
@@ -327,6 +329,10 @@ impl Backend for InputBackend {
                     .absent
                     .iter()
                     .any(|text| frames.last().is_none_or(|frame| frame.text.contains(text)))
+                || step
+                    .when
+                    .as_ref()
+                    .is_some_and(|when| frames.last().is_none_or(|frame| !when(frame)))
                 || (step.painted
                     && frames
                         .last()
@@ -382,6 +388,45 @@ impl Backend for InputBackend {
     }
 }
 
+/// A frame predicate for `run_when_frame`.
+#[allow(dead_code)]
+pub type FramePredicate = Box<dyn Fn(&Snapshot) -> bool + Send + Sync>;
+
+/// Deliver each event at the first frame its predicate accepts, and fail
+/// after the hang guard. For an animation that a fast machine paints in
+/// many frames and a loaded one in few: the step waits for the frame that
+/// shows what the test asserts, however many frames come before it, where
+/// a count of frames would race the animation's end.
+#[allow(dead_code)]
+pub fn run_when_frame(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<(FramePredicate, Option<Event>)>,
+) -> Vec<Snapshot> {
+    run_steps_with_images(
+        root,
+        size,
+        steps
+            .into_iter()
+            .map(|(when, event)| Step {
+                frame: 1,
+                text: Vec::new(),
+                absent: Vec::new(),
+                occurrences: 1,
+                event,
+                pointer_text: None,
+                cell: None,
+                output: None,
+                painted: false,
+                idle: false,
+                when: Some(when),
+            })
+            .collect(),
+        None,
+        HANG_GUARD,
+    )
+}
+
 /// How long an App run may take to reach every step before it fails instead
 /// of hanging. It is a hang guard, not a timing check: frame work is
 /// measured separately (BAR-005), and a busy machine must not fail a correct
@@ -411,6 +456,7 @@ pub fn run(
                 output: None,
                 painted: false,
                 idle: false,
+                when: None,
             })
             .collect(),
     )
@@ -439,6 +485,7 @@ pub fn run_when_painted(
             output: None,
             painted: true,
             idle: false,
+            when: None,
         }]),
     )
 }
@@ -476,6 +523,7 @@ pub fn run_when_for(
                 output: None,
                 painted: false,
                 idle: false,
+                when: None,
             })
             .collect(),
         None,
@@ -505,6 +553,7 @@ pub fn run_when_all(
                 output: None,
                 painted: false,
                 idle: false,
+                when: None,
             })
             .collect(),
     )
@@ -531,6 +580,7 @@ pub fn run_until_hidden(
             output: None,
             painted: false,
             idle: false,
+            when: None,
         })
         .collect();
     steps.push_back(Step {
@@ -544,6 +594,7 @@ pub fn run_until_hidden(
         output: None,
         painted: false,
         idle: false,
+        when: None,
     });
     run_steps(root, size, steps)
 }
@@ -587,6 +638,7 @@ pub fn run_actions_until_hidden(
                 output: None,
                 painted: false,
                 idle,
+                when: None,
             }
         })
         .collect();
@@ -601,6 +653,7 @@ pub fn run_actions_until_hidden(
         output: None,
         painted: false,
         idle: false,
+        when: None,
     });
     run_steps(root, size, steps)
 }
@@ -628,6 +681,7 @@ pub fn run_visibility(
                 output: None,
                 painted: false,
                 idle: false,
+                when: None,
             })
             .collect(),
     )
@@ -655,6 +709,7 @@ pub fn run_when_seen(
             output: None,
             painted: false,
             idle: false,
+            when: None,
         }]),
     )
 }
@@ -689,6 +744,7 @@ pub fn run_when_cell(
                 output: None,
                 painted: false,
                 idle: false,
+                when: None,
             })
             .collect(),
     )
@@ -719,6 +775,7 @@ fn until(steps: Vec<Until>) -> VecDeque<Step> {
             output: None,
             painted: false,
             idle: true,
+            when: None,
         })
         .collect()
 }
@@ -780,6 +837,7 @@ pub fn run_on_debug(
                 output: None,
                 painted: false,
                 idle: false,
+                when: None,
             })
             .collect(),
         Target::Debug,
@@ -808,6 +866,7 @@ pub fn run_when_painted_on_debug(
             output: None,
             painted: true,
             idle: false,
+            when: None,
         }]),
         Target::Debug,
         HANG_GUARD,
@@ -843,6 +902,7 @@ pub fn run_when_output(
                 output: Some((needle, count)),
                 painted: false,
                 idle: false,
+                when: None,
             })
             .collect(),
         Some(images),

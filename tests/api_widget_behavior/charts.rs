@@ -529,16 +529,25 @@ fn chart_animation_paints_intermediate_frames_and_reduced_motion_is_immediate() 
         let mut config = props(ChartType::BarVertical, size);
         let complete = last(Element::typed::<Chart>(config.clone()), size);
         config.animated = true;
-        config.animation_duration = 800;
-        let frames = run(
+        // The run ends at the first frame with the bars part way up. The
+        // reveal is long so that a loaded machine, painting a frame every
+        // few hundred milliseconds, still paints such a frame before the
+        // bars are complete; a fast machine ends the run well before that.
+        config.animation_duration = 4000;
+        let full = count(&complete, '█');
+        let frames = app_input::run_when_frame(
             Control(Element::typed::<Chart>(config.clone())),
             size,
-            vec![(8, None)],
+            vec![(
+                Box::new(move |f: &app_input::Snapshot| count(f, '█') > 0 && count(f, '█') < full)
+                    as app_input::FramePredicate,
+                None,
+            )],
         );
         assert!(
             frames
                 .iter()
-                .any(|f| count(f, '█') > 0 && count(f, '█') < count(&complete, '█')),
+                .any(|f| count(f, '█') > 0 && count(f, '█') < full),
             "{:?}",
             frames.iter().map(|f| count(f, '█')).collect::<Vec<_>>()
         );

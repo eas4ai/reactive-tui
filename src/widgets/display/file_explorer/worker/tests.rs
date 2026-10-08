@@ -251,6 +251,29 @@ fn worker_replaces_pending_reads_and_drop_joins_its_owner() {
     );
 }
 
+/// Makes the fixture's symbolic link, or says why this host cannot: on
+/// Windows that takes a privilege which a service account, such as a CI
+/// runner's, does not hold, and the test then has no fixture to run against.
+#[cfg(any(unix, windows))]
+fn fixture_link(
+    symlink: impl FnOnce(&std::path::Path, &std::path::Path) -> std::io::Result<()>,
+    original: &std::path::Path,
+    link: &std::path::Path,
+) -> bool {
+    match symlink(original, link) {
+        Ok(()) => true,
+        #[cfg(windows)]
+        Err(error) if error.raw_os_error() == Some(1314) => {
+            eprintln!(
+                "this account may not create symbolic links (Windows error 1314): \
+                 the symlink fixture cannot be built on this host, so the test ends here"
+            );
+            false
+        }
+        Err(error) => panic!("fixture symlink {}: {error}", link.display()),
+    }
+}
+
 #[cfg(any(unix, windows))]
 #[test]
 fn worker_never_follows_an_external_symlink() {
@@ -263,7 +286,13 @@ fn worker_never_follows_an_external_symlink() {
     std::fs::create_dir(&root).unwrap();
     let outside = fixture.path().join("outside");
     std::fs::write(&outside, "outside bytes").unwrap();
-    symlink(&outside, root.join("link")).unwrap();
+    if !fixture_link(
+        |original, link| symlink(original, link),
+        &outside,
+        &root.join("link"),
+    ) {
+        return;
+    }
     let stored_target = std::fs::read_link(root.join("link")).unwrap();
     let Output::Entries { entries, .. } =
         execute(&request(&root, Job::Read(".".into())), &|| false).unwrap()
@@ -303,7 +332,13 @@ fn worker_copies_directory_symlinks_without_traversing_their_targets() {
     std::fs::create_dir(&root).unwrap();
     std::fs::create_dir(&outside).unwrap();
     std::fs::write(outside.join("secret"), b"outside bytes").unwrap();
-    symlink(&outside, root.join("link")).unwrap();
+    if !fixture_link(
+        |original, link| symlink(original, link),
+        &outside,
+        &root.join("link"),
+    ) {
+        return;
+    }
     let stored_target = std::fs::read_link(root.join("link")).unwrap();
     assert!(execute(&request(&root, Job::Read("link".into())), &|| false).is_err());
     execute(
