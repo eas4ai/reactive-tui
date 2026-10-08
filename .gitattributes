@@ -1,0 +1,11 @@
+# Every tracked text file is LF on every platform, so goldens, recorded
+# screens and fixtures compare byte for byte on a Windows checkout (BAR-012).
+* text=auto eol=lf
+*.ansi text eol=lf
+*.screen text eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ttf binary
+*.dll binary
+*.exe binary
