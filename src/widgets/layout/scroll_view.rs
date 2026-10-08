@@ -216,14 +216,31 @@ impl ScrollView {
         (width as usize, height as usize)
     }
 
+    /// Which bars show, decided together against the viewport each bar
+    /// leaves (NAV-005): a bar's row or column can make the content
+    /// overflow the other way, which brings that bar too. A bar only ever
+    /// gets added, so the decision settles within a few rounds, and the
+    /// viewport size, the limits, the painting and the pointer's track all
+    /// follow it.
     fn bars(&self, props: &ScrollViewProps) -> (bool, bool) {
         let full = self.full_size(props);
         let content = *self.content_size.lock().unwrap();
-        // Decide against the full box, before either bar takes layout space.
-        (
-            props.show_scrollbars && props.scroll_x && content.0 > full.0,
-            props.show_scrollbars && props.scroll_y && content.1 > full.1,
-        )
+        let wants = (
+            props.show_scrollbars && props.scroll_x,
+            props.show_scrollbars && props.scroll_y,
+        );
+        let mut bars = (false, false);
+        for _ in 0..3 {
+            let next = (
+                wants.0 && content.0 > full.0.saturating_sub(usize::from(bars.1)),
+                wants.1 && content.1 > full.1.saturating_sub(usize::from(bars.0)),
+            );
+            if next == bars {
+                break;
+            }
+            bars = next;
+        }
+        bars
     }
 
     fn visible_size(&self, props: &ScrollViewProps) -> (usize, usize) {
