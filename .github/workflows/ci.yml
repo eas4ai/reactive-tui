@@ -59,20 +59,23 @@ jobs:
       - name: The machine's Homebrew tools on the PATH
         if: runner.os == 'macOS'
         run: test -d /opt/homebrew/bin && echo /opt/homebrew/bin >> "$GITHUB_PATH"
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      # Python for the scripts comes from uv, which installs a standalone
+      # build and a virtual environment wherever the runner can write, with
+      # no installer and no administrator: the machines' own Pythons are
+      # not touched and the tablet's runner account has none.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version: '0.12.23'
           python-version: '3.12'
-        env:
-          # On a self-hosted runner the installer keeps Python in the
-          # runner's own tool cache, not a hosted runner's home directory,
-          # and its PowerShell script runs under a process-scoped policy.
-          AGENT_TOOLSDIRECTORY: ${{ runner.tool_cache }}
-          PSExecutionPolicyPreference: RemoteSigned
+          activate-environment: true
+          no-project: true
+          venv-path: ${{ runner.temp }}/ci-venv
+          enable-cache: false
       - name: Install the pinned Rust and dependency tools
         run: |
           rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt --component clippy
           cargo "+$TOOLCHAIN" install cargo-deny --version 0.20.2 --locked
-          python -m pip install -r scripts/requirements-ci.txt
+          uv pip install -r scripts/requirements-ci.txt
       - name: Build default targets
         run: cargo "+$TOOLCHAIN" build --locked --all-targets
       - name: ConPTY runtime beside the Windows test binaries
@@ -123,15 +126,18 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      # Python for the scripts comes from uv, which installs a standalone
+      # build and a virtual environment wherever the runner can write, with
+      # no installer and no administrator: the machines' own Pythons are
+      # not touched and the tablet's runner account has none.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version: '0.12.23'
           python-version: '3.12'
-        env:
-          # On a self-hosted runner the installer keeps Python in the
-          # runner's own tool cache, not a hosted runner's home directory,
-          # and its PowerShell script runs under a process-scoped policy.
-          AGENT_TOOLSDIRECTORY: ${{ runner.tool_cache }}
-          PSExecutionPolicyPreference: RemoteSigned
+          activate-environment: true
+          no-project: true
+          venv-path: ${{ runner.temp }}/ci-venv
+          enable-cache: false
       - name: macOS native build prerequisites
         if: runner.os == 'macOS'
         run: brew install autoconf automake libtool pkg-config
@@ -139,7 +145,7 @@ jobs:
         run: |
           rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt --component clippy
           cargo "+$TOOLCHAIN" install cargo-deny --version 0.20.2 --locked
-          python -m pip install -r scripts/requirements-ci.txt
+          uv pip install -r scripts/requirements-ci.txt
       - name: Build default targets
         run: cargo "+$TOOLCHAIN" build --locked --all-targets
       - name: ConPTY runtime beside the Windows test binaries
@@ -174,15 +180,18 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      # Python for the scripts comes from uv, which installs a standalone
+      # build and a virtual environment wherever the runner can write, with
+      # no installer and no administrator: the machines' own Pythons are
+      # not touched and the tablet's runner account has none.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version: '0.12.23'
           python-version: '3.12'
-        env:
-          # On a self-hosted runner the installer keeps Python in the
-          # runner's own tool cache, not a hosted runner's home directory,
-          # and its PowerShell script runs under a process-scoped policy.
-          AGENT_TOOLSDIRECTORY: ${{ runner.tool_cache }}
-          PSExecutionPolicyPreference: RemoteSigned
+          activate-environment: true
+          no-project: true
+          venv-path: ${{ runner.temp }}/ci-venv
+          enable-cache: false
       - name: Install the pinned Rust and security tools
         run: |
           rustup toolchain install "$TOOLCHAIN" --profile minimal
