@@ -74,6 +74,65 @@ class JobVerdict(unittest.TestCase):
         self.assertEqual(ci.platform_job_names(workflow()), EXPECTED)
 
 
+LINUX = ["self-hosted", "rust-ci", "Linux", "X64"]
+MAC = ["self-hosted", "rust-ci", "macOS", "ARM64"]
+
+
+def runner(name, labels, status="online", busy=False):
+    return {"name": name, "status": status, "busy": busy, "labels": list(labels)}
+
+
+def queued(name, labels, status="queued"):
+    return {"name": name, "status": status, "labels": list(labels)}
+
+
+RUNNERS = [runner("rust-linux-x64", LINUX), runner("rust-macos-arm64", MAC, status="offline")]
+
+
+class OfflineWait(unittest.TestCase):
+    def test_a_queued_job_whose_only_runner_is_offline_is_an_offline_wait(self):
+        jobs = [queued("platform (linux-x64)", LINUX, status="in_progress"), queued("platform (macos-arm64)", MAC)]
+        self.assertEqual(ci.offline_waits(jobs, RUNNERS), {"platform (macos-arm64)": "rust-macos-arm64"})
+
+    def test_a_job_queued_on_an_online_runner_is_not_an_offline_wait(self):
+        jobs = [queued("platform (linux-x64)", LINUX)]
+        self.assertEqual(ci.offline_waits(jobs, RUNNERS), {})
+
+    def test_a_hosted_or_unregistered_label_is_not_an_offline_wait(self):
+        jobs = [queued("platform-hosted (ubuntu-24.04)", ["ubuntu-24.04"]),
+                queued("platform (windows-x64)", ["self-hosted", "rust-ci", "Windows", "X64"])]
+        self.assertEqual(ci.offline_waits(jobs, RUNNERS), {})
+
+    def test_offline_time_is_announced_once_and_does_not_count_against_the_ceiling(self):
+        waiter = ci.Waiter(ceiling=100, day=1000)
+        jobs = [queued("platform (macos-arm64)", MAC)]
+        first = waiter.step(jobs, RUNNERS, 60)
+        self.assertEqual(len(first), 1)
+        self.assertIn("waiting for the rust-macos-arm64 runner, which is offline, to run platform (macos-arm64)", first[0])
+        self.assertEqual(waiter.step(jobs, RUNNERS, 60), [])
+        self.assertEqual((waiter.executing, waiter.offline), (0.0, 120.0))
+        self.assertFalse(waiter.over_ceiling())
+        back = waiter.step([queued("platform (macos-arm64)", MAC, status="in_progress")], [], 60)
+        self.assertEqual(back, ["the rust-macos-arm64 runner is back online; the run goes on"])
+        self.assertEqual(waiter.executing, 60.0)
+        self.assertEqual(waiter.step([], [], 50), [])
+        self.assertTrue(waiter.over_ceiling())
+
+    def test_an_offline_wait_ends_after_a_day(self):
+        waiter = ci.Waiter(ceiling=100, day=200)
+        jobs = [queued("platform (macos-arm64)", MAC)]
+        waiter.step(jobs, RUNNERS, 150)
+        self.assertFalse(waiter.over_day())
+        waiter.step(jobs, RUNNERS, 100)
+        self.assertTrue(waiter.over_day())
+        self.assertFalse(waiter.over_ceiling())
+
+    def test_an_unfinished_run_names_execution_time(self):
+        ok, why = ci.verdict(run(status="in_progress", conclusion=""), [], EXPECTED)
+        self.assertFalse(ok)
+        self.assertIn("did not finish within 55 minutes of execution", why)
+
+
 MATRIX_PIN = '"+$TOOLCHAIN"'
 INSTALL = 'rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt --component clippy'
 FLOOR_STEP = {"if": "runner.os == 'Linux'",

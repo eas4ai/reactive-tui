@@ -13,6 +13,13 @@ import workflow_toolchains as wt
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 MANIFEST = ROOT / "Cargo.toml"
+# The project's three machines, as the runners project labels them, in the
+# order the self-hosted platform matrix lists them (BAR-012).
+MACHINES = [("linux-x64", ["self-hosted", "rust-ci", "Linux", "X64"]),
+            ("macos-arm64", ["self-hosted", "rust-ci", "macOS", "ARM64"]),
+            ("windows-x64", ["self-hosted", "rust-ci", "Windows", "X64"])]
+LINUX_MACHINE = MACHINES[0][1]
+# GitHub's hosted runners, which a pull request's jobs use, in order.
 PLATFORMS = ["ubuntu-24.04", "macos-14", "windows-2022"]
 # Each job pins the toolchain its matrix entry names (BAR-012); the steps
 # spell the pin as the TOOLCHAIN variable the job sets from that entry.
@@ -30,11 +37,15 @@ FLOOR_COMMANDS = ("cargo build --locked --all-targets", "cargo test --locked --n
 PINNED_TOOLCHAIN = wt.RELEASE
 DEFAULT_CHANGES = re.compile(r"rustup\s+(default\b|set\s+default-host\b)")
 ADVISORY = "python -B scripts/check-pre-release-dependency-code-quality.py DQC-001"
-CONDITIONS = {"platform": "github.event_name != 'schedule'",
+CONDITIONS = {"platform": "github.event_name == 'push' || github.event_name == 'workflow_dispatch'",
+              "platform-hosted": "github.event_name == 'pull_request'",
               "advisories": "github.event_name == 'schedule'"}
+MATRIX_JOBS = ("platform", "platform-hosted")
 
 
 def selected_jobs(workflow: dict, event: str, branch: str) -> list[str]:
+    """The jobs the event starts on the branch, named as GitHub names them,
+    read from each job's `if` and `name`."""
     trigger = workflow.get("on", {}).get(event)
     if trigger is None:
         return []
@@ -42,17 +53,20 @@ def selected_jobs(workflow: dict, event: str, branch: str) -> list[str]:
         return []
     result = []
     for name, job in workflow.get("jobs", {}).items():
-        condition = job.get("if")
-        if condition == CONDITIONS["platform"] and event != "schedule":
-            result.extend(f"{name} ({os_name})" for os_name in matrix_platforms(job))
-        elif condition == CONDITIONS["advisories"] and event == "schedule":
+        if wt.runs_for_event(job.get("if"), event) is not True:
+            continue
+        entries = matrix_entries(job)
+        if not entries:
             result.append(name)
+            continue
+        for entry in entries:
+            text = wt.substitute(str(job.get("name", name)), entry)
+            result.append(text if not wt.EXPRESSION.search(text) else f"{name} (unreadable name)")
     return result
 
 
 def matrix_entries(job: dict) -> list[dict]:
-    """The platform job's matrix entries: `include` items, each an os and
-    its pinned toolchain."""
+    """A job's matrix entries: `include` items, each with its pinned toolchain."""
     include = job.get("strategy", {}).get("matrix", {}).get("include", [])
     return [entry for entry in include if isinstance(entry, dict)] if isinstance(include, list) else []
 
@@ -61,24 +75,69 @@ def matrix_platforms(job: dict) -> list[str]:
     return [str(entry.get("os", "")) for entry in matrix_entries(job)]
 
 
-def validate_matrix(job: dict) -> list[str]:
-    """Three entries, one per supported operating system in order, each with
-    a toolchain named in full, MSVC on Windows; the job takes TOOLCHAIN from
-    the entry and no step changes a runner's default toolchain or host."""
+def validate_matrix(name: str, job: dict) -> list[str]:
+    """The self-hosted matrix: three entries, one per machine in order, each
+    naming its machine's labels; the hosted matrix: one entry per supported
+    operating system in order. Each entry pins a toolchain named in full,
+    MSVC on Windows; the job takes TOOLCHAIN from the entry."""
     errors = []
     strategy = job.get("strategy", {})
     entries = matrix_entries(job)
-    if (job.get("runs-on") != "${{ matrix.os }}" or strategy.get("fail-fast") != "false"
-            or set(strategy.get("matrix", {})) != {"include"} or matrix_platforms(job) != PLATFORMS):
-        errors.append("platform job must run all three supported operating systems")
+    if strategy.get("fail-fast") != "false" or set(strategy.get("matrix", {})) != {"include"}:
+        errors.append(f"{name}: matrix must be an include list that does not fail fast")
+    if name == "platform":
+        if job.get("runs-on") != "${{ matrix.runner }}":
+            errors.append("platform: runs-on must take the runner labels from the matrix entry")
+        if job.get("name") != "platform (${{ matrix.name }})":
+            errors.append("platform: job name must be the entry's name")
+        found = [(str(entry.get("name", "")), list(entry.get("runner", []) or [])) for entry in entries]
+        if [(n, set(labels)) for n, labels in found] != [(n, set(labels)) for n, labels in MACHINES]:
+            errors.append("platform: must run on the three machines by their labels, in order")
+    else:
+        if job.get("runs-on") != "${{ matrix.os }}":
+            errors.append(f"{name}: runs-on must take the hosted runner from the matrix entry")
+        if matrix_platforms(job) != PLATFORMS:
+            errors.append(f"{name}: must run on all three hosted operating systems, in order")
     for entry in entries:
         toolchain = str(entry.get("toolchain", ""))
+        label = f"{name} ({entry.get('name') or entry.get('os')})"
+        windows = wt.os_of_labels(wt.labels_of(job, entry)) == "Windows"
         if not PINNED_TOOLCHAIN.match(toolchain):
-            errors.append(f"platform ({entry.get('os')}): toolchain is not pinned in full ({toolchain!r})")
-        elif str(entry.get("os", "")).startswith("windows") and not toolchain.endswith("-pc-windows-msvc"):
-            errors.append(f"platform ({entry.get('os')}): toolchain {toolchain} is not the MSVC toolchain named in full")
+            errors.append(f"{label}: toolchain is not pinned in full ({toolchain!r})")
+        elif windows and not toolchain.endswith("-pc-windows-msvc"):
+            errors.append(f"{label}: toolchain {toolchain} is not the MSVC toolchain named in full")
     if job.get("env", {}).get("TOOLCHAIN") != "${{ matrix.toolchain }}":
-        errors.append("platform: TOOLCHAIN must come from the matrix entry")
+        errors.append(f"{name}: TOOLCHAIN must come from the matrix entry")
+    return errors
+
+
+def validate_routing(workflow: dict) -> list[str]:
+    """Where each event goes: push and dispatch to the three machines only,
+    a pull request never to a self-hosted label, the schedule to the
+    advisories job on the Linux machine."""
+    errors = []
+    jobs = workflow.get("jobs", {})
+    for name, job in jobs.items():
+        condition = job.get("if")
+        for event in wt.EVENTS:
+            decision = wt.runs_for_event(condition, event)
+            if decision is None:
+                errors.append(f"{name}: event condition cannot be read ({condition!r})")
+                break
+            if not decision:
+                continue
+            entries = matrix_entries(job) or [None]
+            for entry in entries:
+                labels = wt.labels_of(job, entry)
+                label = f"{name} ({entry.get('name') or entry.get('os')})" if entry else name
+                if labels is None:
+                    errors.append(f"{label}: runs-on cannot be read")
+                elif event in ("push", "workflow_dispatch") and not wt.is_machine(labels):
+                    errors.append(f"{label}: a {event} run must go to one of the three machines, not {labels}")
+                elif event == "pull_request" and "self-hosted" in labels:
+                    errors.append(f"{label}: a pull request must never run on a self-hosted label")
+                elif event == "schedule" and (entry is not None or not (wt.is_machine(labels) and wt.os_of_labels(labels) == "Linux")):
+                    errors.append(f"{label}: the schedule must run only the advisories job on the Linux machine")
     return errors
 
 
@@ -87,11 +146,11 @@ def validate_job_toolchain(label: str, job: dict, entry: dict | None, pin: str, 
     """What the job does at a toolchain other than its pin, read the way
     rustup decides it: the pin at or above rust-version; RUSTUP_TOOLCHAIN,
     when set, naming the pin; no step overriding a toolchain variable; every
-    cargo call selecting the pin through the environment the step sees; a
-    step installing the pin. With `floor_steps`, a Linux-only step whose
-    build and test calls select the rust-version release is the floor
-    coverage BAR-012 asks of a pin above the floor, and it must install that
-    release too."""
+    cargo call naming a toolchain and selecting the pin through the
+    environment the step sees; a step installing the pin. With
+    `floor_steps`, a Linux-only step whose build and test calls select the
+    rust-version release is the floor coverage BAR-012 asks of a pin above
+    the floor, and it must install that release too."""
     errors = []
     floor_pair = wt.release_pair(floor)
     pin_pair = wt.release_pair(pin)
@@ -100,7 +159,7 @@ def validate_job_toolchain(label: str, job: dict, entry: dict | None, pin: str, 
     job_env = wt.effective_env(workflow_env, job.get("env", {}), entry=entry)
     if "RUSTUP_TOOLCHAIN" in job_env and wt.resolve(job_env["RUSTUP_TOOLCHAIN"], job_env) != pin:
         errors.append(f"{label}: RUSTUP_TOOLCHAIN does not name the pin {pin}")
-    os_label = wt.runner_os(str(entry.get("os", "")) if entry else str(job.get("runs-on", "")))
+    os_label = wt.os_of_labels(wt.labels_of(job, entry))
     installed: list[str | None] = []
     floor_release = None
     floor_seen = {command: False for command in FLOOR_COMMANDS}
@@ -143,18 +202,19 @@ def validate_job_toolchain(label: str, job: dict, entry: dict | None, pin: str, 
 
 
 def validate_toolchains(workflow: dict, floor: str | None) -> list[str]:
-    """The platform matrix per entry, and the advisories job through its
+    """Each matrix job per entry, and the advisories job through its
     job-level TOOLCHAIN, under the same pin rules."""
     errors = []
     jobs = workflow.get("jobs", {})
     workflow_env = workflow.get("env", {})
-    platform = jobs.get("platform", {})
-    for entry in matrix_entries(platform):
-        pin = str(entry.get("toolchain", ""))
-        if PINNED_TOOLCHAIN.match(pin):
-            linux = str(entry.get("os", "")).startswith("ubuntu")
-            errors.extend(validate_job_toolchain(f"platform ({entry.get('os')})", platform, entry, pin,
-                                                 workflow_env, floor, floor_steps=linux))
+    for name in MATRIX_JOBS:
+        job = jobs.get(name, {})
+        for entry in matrix_entries(job):
+            pin = str(entry.get("toolchain", ""))
+            if PINNED_TOOLCHAIN.match(pin):
+                linux = wt.os_of_labels(wt.labels_of(job, entry)) == "Linux"
+                errors.extend(validate_job_toolchain(f"{name} ({entry.get('name') or entry.get('os')})", job, entry,
+                                                     pin, workflow_env, floor, floor_steps=linux))
     advisories = jobs.get("advisories")
     if isinstance(advisories, dict):
         env = wt.effective_env(workflow_env, advisories.get("env", {}))
@@ -225,7 +285,7 @@ def validate_workflow(workflow: dict, floor: str | None = None) -> list[str]:
     if "defaults" in workflow:
         errors.append("workflow-wide command defaults are not supported")
     jobs = workflow.get("jobs", {})
-    for name, required in (("platform", COMMANDS), ("advisories", (ADVISORY,))):
+    for name, required in (("platform", COMMANDS), ("platform-hosted", COMMANDS), ("advisories", (ADVISORY,))):
         job = jobs.get(name)
         if not isinstance(job, dict):
             errors.append(f"missing {name} job")
@@ -248,15 +308,17 @@ def validate_workflow(workflow: dict, floor: str | None = None) -> list[str]:
         for flag in ("RUSTFLAGS", "RUSTDOCFLAGS", "CARGO_ENCODED_RUSTFLAGS"):
             if flag in job.get("env", {}) or flag in workflow.get("env", {}):
                 errors.append(f"{name}: workflow or job overrides {flag}")
-    platform = jobs.get("platform", {})
-    errors.extend(validate_matrix(platform))
+        if name in MATRIX_JOBS:
+            errors.extend(validate_matrix(name, job))
+    errors.extend(validate_routing(workflow))
     errors.extend(validate_toolchains(workflow, floor))
-    if jobs.get("advisories", {}).get("runs-on") != "ubuntu-24.04":
-        errors.append("advisory job must use its maintained Linux runner")
-    expected = [f"platform ({os_name})" for os_name in PLATFORMS]
-    for event in ("push", "pull_request", "workflow_dispatch"):
+    if jobs.get("advisories", {}).get("runs-on") != LINUX_MACHINE:
+        errors.append("advisory job must run on the Linux machine by its labels")
+    machines = [f"platform ({name})" for name, _ in MACHINES]
+    hosted = [f"platform-hosted ({os_name})" for os_name in PLATFORMS]
+    for event, expected in (("push", machines), ("workflow_dispatch", machines), ("pull_request", hosted)):
         if selected_jobs(workflow, event, "main") != expected:
-            errors.append(f"{event} fixture did not select every supported platform")
+            errors.append(f"{event} fixture did not select every platform job it should")
     if selected_jobs(workflow, "schedule", "main") != ["advisories"]:
         errors.append("schedule fixture did not select advisory checks")
     return errors
