@@ -36,6 +36,14 @@ class RunSelection(unittest.TestCase):
         runs = [run(databaseId=9, conclusion="cancelled"), run(databaseId=10, event="workflow_dispatch")]
         self.assertEqual([r["databaseId"] for r in ci.platform_runs(runs)], [10])
 
+    def test_a_pull_request_run_cannot_stand_for_the_platform_matrix(self):
+        runs = [run(databaseId=11, event="push", createdAt="2026-10-04T00:00:00Z"),
+                run(databaseId=12, event="pull_request", createdAt="2026-10-05T00:00:00Z")]
+        self.assertEqual([r["databaseId"] for r in ci.platform_runs(runs)], [11])
+
+    def test_only_a_pull_request_run_means_no_run(self):
+        self.assertEqual(ci.platform_runs([run(event="pull_request")]), [])
+
     def test_only_a_scheduled_run_means_no_run(self):
         self.assertEqual(ci.platform_runs([run(event="schedule")]), [])
 
