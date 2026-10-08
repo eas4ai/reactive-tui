@@ -705,7 +705,8 @@ pub(super) fn data_view(
 }
 
 /// A cell's number: an integer kept exact (a float would merge integers
-/// past 2^53), else a finite float.
+/// past 2^53), else a finite float; the two kinds compare exactly against
+/// each other (DAT-005).
 #[derive(Clone, Copy)]
 enum Number {
     Integer(i128),
@@ -724,21 +725,37 @@ impl Number {
             .map(Self::Float)
     }
 
-    fn float(self) -> f64 {
-        match self {
-            Self::Integer(integer) => integer as f64,
-            Self::Float(float) => float,
-        }
-    }
-
+    /// The exact order of the two numbers, a total order: an integer and
+    /// a float compare without rounding the integer (DAT-005).
     fn compare(self, other: Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
         match (self, other) {
             (Self::Integer(a), Self::Integer(b)) => a.cmp(&b),
-            _ => self
-                .float()
-                .partial_cmp(&other.float())
-                .unwrap_or(std::cmp::Ordering::Equal),
+            (Self::Float(a), Self::Float(b)) => a.partial_cmp(&b).unwrap_or(Ordering::Equal),
+            (Self::Integer(a), Self::Float(b)) => integer_against_float(a, b),
+            (Self::Float(a), Self::Integer(b)) => integer_against_float(b, a).reverse(),
         }
+    }
+}
+
+/// Two to the 127th: the first float past every i128.
+const PAST_I128: f64 = 1.7014118346046923e38;
+
+/// The exact order of an integer against a finite float (DAT-005): the
+/// float's integer part is exact as an i128 where it fits, beyond that only
+/// its sign matters, and a fraction above an equal integer part decides.
+fn integer_against_float(integer: i128, float: f64) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    let floor = float.floor();
+    if floor >= PAST_I128 {
+        return Ordering::Less;
+    }
+    if floor < -PAST_I128 {
+        return Ordering::Greater;
+    }
+    match integer.cmp(&(floor as i128)) {
+        Ordering::Equal if float > floor => Ordering::Less,
+        ordering => ordering,
     }
 }
 
@@ -1166,6 +1183,43 @@ mod tests {
 
     /// DAT-003: integers past 2^53 keep their order; a float cell still
     /// compares with an integer cell.
+    /// DAT-005: an integer and a decimal compare by their exact values,
+    /// never through a float that rounds the integer, and the comparison
+    /// is a total order.
+    #[test]
+    fn dat_005_mixed_integer_and_decimal_cells_compare_exactly() {
+        use std::cmp::Ordering::{Equal, Greater, Less};
+        assert_eq!(
+            compare_cells("9007199254740993", "9007199254740992.0", true),
+            Greater
+        );
+        assert_eq!(
+            compare_cells("9007199254740992.0", "9007199254740993", true),
+            Less
+        );
+        assert_eq!(
+            compare_cells("9007199254740992.0", "9007199254740992", true),
+            Equal
+        );
+        assert_eq!(compare_cells("-2.5", "-3", true), Greater);
+        assert_eq!(compare_cells("-3", "-2.5", true), Less);
+        assert_eq!(compare_cells("2.5", "3", true), Less);
+        assert_eq!(
+            compare_cells("1e30", "170141183460469231731687303715884105727", true),
+            Less
+        );
+        assert_eq!(
+            compare_cells("170141183460469231731687303715884105727", "1e40", true),
+            Less
+        );
+        let mut cells = vec!["9007199254740993", "9007199254740992.0", "9007199254740992"];
+        cells.sort_by(|a, b| compare_cells(a, b, true));
+        assert_eq!(
+            cells,
+            ["9007199254740992.0", "9007199254740992", "9007199254740993"]
+        );
+    }
+
     #[test]
     fn dat_003_integers_beyond_float_precision_sort_exactly() {
         use std::cmp::Ordering::{Equal, Greater, Less};
