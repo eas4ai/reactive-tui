@@ -5,6 +5,15 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- CI runs on the project's own machines: the push workflow's platform jobs
+  run on the three self-hosted runners by their labels for pushes and
+  dispatched checks, pull requests run the same steps on GitHub's hosted
+  runners and never reach a self-hosted label, and the weekly advisories
+  job runs on the Linux machine; every toolchain pin rule stays. The
+  BAR-012 gate names a machine that is asleep or off at once and waits for
+  it, up to a day, instead of failing, counting only executing time against
+  its ceiling; the pre-release inspection reads where each event's jobs run
+  (docs/spec/quality-bar.md, BAR-012).
 - The minimum supported Rust is 1.95 (it was 1.91). The push workflow pins
   1.95.0 on every job by full name, the MSVC toolchain on Windows, installs it
   beside the runner's own toolchains and names it on every cargo call, so no
