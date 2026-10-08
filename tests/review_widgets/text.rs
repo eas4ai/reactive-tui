@@ -21,5 +21,8 @@ fn txt_005_a_lowercase_fence_highlights_as_its_language() {
         "the fence named by the display name is highlighted: {upper:?}"
     );
     let lower = runs(&format!("```rust\n{SOURCE}```"));
-    assert_eq!(lower, upper, "a lowercase fence highlights as the uppercase one");
+    assert_eq!(
+        lower, upper,
+        "a lowercase fence highlights as the uppercase one"
+    );
 }
