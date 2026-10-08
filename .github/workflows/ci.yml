@@ -1,0 +1,211 @@
+name: Supported-platform CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supported-platform-ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # A push or a dispatched check runs on the project's three machines, each
+  # addressed by the labels its runner carries (docs/spec/quality-bar.md,
+  # BAR-012). Each job pins its toolchain in full, at or above Cargo.toml's
+  # rust-version, installs it beside the machine's own toolchains and names
+  # it on every cargo call; the machine's default toolchain and default host
+  # stay as its owner keeps them. The cargo job count is the runner
+  # service's setting, not the workflow's.
+  platform:
+    name: platform (${{ matrix.name }})
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            runner: [self-hosted, rust-ci, Linux, X64]
+            toolchain: 1.95.0
+          - name: macos-arm64
+            runner: [self-hosted, rust-ci, macOS, ARM64]
+            toolchain: 1.95.0
+          - name: windows-x64
+            runner: [self-hosted, rust-ci, Windows, X64]
+            toolchain: 1.95.0-x86_64-pc-windows-msvc
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_INCREMENTAL: '0'
+      TOOLCHAIN: ${{ matrix.toolchain }}
+      # A script that runs cargo itself resolves to the same toolchain.
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # The tablet's runner service has Git's `cmd` directory on its PATH but
+      # not the `bin` directory that holds bash, which every later step uses.
+      - name: Git's bash on the PATH
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $git = (Get-Command git.exe).Source
+          $bin = Join-Path (Split-Path -Parent (Split-Path -Parent $git)) 'bin'
+          if (-not (Test-Path (Join-Path $bin 'bash.exe'))) { throw "no bash.exe beside $git" }
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+      - name: The machine's Homebrew tools on the PATH
+        if: runner.os == 'macOS'
+        run: test -d /opt/homebrew/bin && echo /opt/homebrew/bin >> "$GITHUB_PATH"
+      # Python for the scripts comes from uv, which installs a standalone
+      # build and a virtual environment wherever the runner can write, with
+      # no installer and no administrator: the machines' own Pythons are
+      # not touched and the tablet's runner account has none.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.23'
+          python-version: '3.12'
+          activate-environment: true
+          no-project: true
+          venv-path: ${{ runner.temp }}/ci-venv
+          enable-cache: false
+      - name: Install the pinned Rust and dependency tools
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt --component clippy
+          cargo "+$TOOLCHAIN" install cargo-deny --version 0.20.2 --locked
+          uv pip install -r scripts/requirements-ci.txt
+      - name: Build default targets
+        run: cargo "+$TOOLCHAIN" build --locked --all-targets
+      - name: ConPTY runtime beside the Windows test binaries
+        if: runner.os == 'Windows'
+        run: python -B scripts/install-conpty-runtime.py target/debug/deps --arch x64
+      - name: The curl the dialog HTTP tests run
+        if: runner.os == 'Windows'
+        run: where.exe curl; curl --version | head -1
+      - name: Default tests and doctests
+        run: cargo "+$TOOLCHAIN" test --locked --no-fail-fast
+      - name: Workspace formatting
+        run: cargo "+$TOOLCHAIN" fmt --all -- --check
+      - name: Strict default-target Clippy
+        run: cargo "+$TOOLCHAIN" clippy --locked --all-targets -- -D warnings
+      - name: Dependency advisories, bans, licenses and sources
+        run: cargo "+$TOOLCHAIN" deny --locked check advisories bans licenses sources
+      - name: CI event and failure fixtures
+        run: python -B scripts/check-pre-release-ci.py RID-001
+
+  # A pull request runs the same steps on GitHub's hosted runners, never on
+  # a self-hosted label: the repository is public and a fork's pull request
+  # is arbitrary code.
+  platform-hosted:
+    name: platform-hosted (${{ matrix.os }})
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            toolchain: 1.95.0
+          - os: macos-14
+            toolchain: 1.95.0
+          - os: windows-2022
+            toolchain: 1.95.0-x86_64-pc-windows-msvc
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_INCREMENTAL: '0'
+      TOOLCHAIN: ${{ matrix.toolchain }}
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # Python for the scripts comes from uv, which installs a standalone
+      # build and a virtual environment wherever the runner can write, with
+      # no installer and no administrator: the machines' own Pythons are
+      # not touched and the tablet's runner account has none.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.23'
+          python-version: '3.12'
+          activate-environment: true
+          no-project: true
+          venv-path: ${{ runner.temp }}/ci-venv
+          enable-cache: false
+      - name: macOS native build prerequisites
+        if: runner.os == 'macOS'
+        run: brew install autoconf automake libtool pkg-config
+      - name: Install the pinned Rust and dependency tools
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt --component clippy
+          cargo "+$TOOLCHAIN" install cargo-deny --version 0.20.2 --locked
+          uv pip install -r scripts/requirements-ci.txt
+      - name: Build default targets
+        run: cargo "+$TOOLCHAIN" build --locked --all-targets
+      - name: ConPTY runtime beside the Windows test binaries
+        if: runner.os == 'Windows'
+        run: python -B scripts/install-conpty-runtime.py target/debug/deps --arch x64
+      - name: The curl the dialog HTTP tests run
+        if: runner.os == 'Windows'
+        run: where.exe curl; curl --version | head -1
+      - name: Default tests and doctests
+        run: cargo "+$TOOLCHAIN" test --locked --no-fail-fast
+      - name: Workspace formatting
+        run: cargo "+$TOOLCHAIN" fmt --all -- --check
+      - name: Strict default-target Clippy
+        run: cargo "+$TOOLCHAIN" clippy --locked --all-targets -- -D warnings
+      - name: Dependency advisories, bans, licenses and sources
+        run: cargo "+$TOOLCHAIN" deny --locked check advisories bans licenses sources
+      - name: CI event and failure fixtures
+        run: python -B scripts/check-pre-release-ci.py RID-001
+
+  advisories:
+    name: scheduled security advisories
+    if: github.event_name == 'schedule'
+    runs-on: [self-hosted, rust-ci, Linux, X64]
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      TOOLCHAIN: 1.95.0
+      RUSTUP_TOOLCHAIN: 1.95.0
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # Python for the scripts comes from uv, which installs a standalone
+      # build and a virtual environment wherever the runner can write, with
+      # no installer and no administrator: the machines' own Pythons are
+      # not touched and the tablet's runner account has none.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.23'
+          python-version: '3.12'
+          activate-environment: true
+          no-project: true
+          venv-path: ${{ runner.temp }}/ci-venv
+          enable-cache: false
+      - name: Install the pinned Rust and security tools
+        run: |
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          cargo "+$TOOLCHAIN" install cargo-audit --version 0.22.1 --locked
+          cargo "+$TOOLCHAIN" install cargo-deny --version 0.20.2 --locked
+      - name: Locked advisory, license, source, and duplicate checks
+        run: python -B scripts/check-pre-release-dependency-code-quality.py DQC-001
