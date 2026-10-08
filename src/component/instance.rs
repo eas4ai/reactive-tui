@@ -45,6 +45,13 @@ impl<C: Component> ComponentInstance<C> {
             self.lifecycle.complete_update();
             self.needs_update
         } else {
+            // Equal props may still carry other callbacks (CMP-008).
+            if self
+                .component
+                .adopt_callbacks(&mut self.props, &mut self.state, &new_props)
+            {
+                self.supplied_props = new_props;
+            }
             false
         }
     }
@@ -275,6 +282,15 @@ impl<C: Component> AnyComponent for ComponentInstanceWrapper<C> {
             // Compare before copying: a frame that changes nothing costs a
             // comparison, not a copy of the props (a chart's every point).
             if self.0.supplied_props == *typed_props {
+                // Equal props may still carry other callbacks (CMP-008): the
+                // copy is made only when they do.
+                if self.0.component.adopt_callbacks(
+                    &mut self.0.props,
+                    &mut self.0.state,
+                    typed_props,
+                ) {
+                    self.0.supplied_props = typed_props.clone();
+                }
                 return false;
             }
             self.0.update_props(typed_props.clone())

@@ -354,7 +354,9 @@ impl LiveTable {
         state.sort_ascending = state.sort_column != Some(column) || !state.sort_ascending;
         state.sort_column = Some(column);
         state.scroll_state.offset_y = 0;
-        if let Some(callback) = &props.on_sort {
+        // The slot holds the callback the latest render or adoption gave
+        // (CMP-008), where `props` is the copy made at this child's render.
+        if let Some(callback) = state.callbacks.get().on_sort {
             callback(column, state.sort_ascending);
         }
         EventResult::Consumed
@@ -388,6 +390,9 @@ impl Component for LiveTable {
     }
 
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        // The seed's slot is the table's own, shared, or a data view's,
+        // filled afresh with each render's bridges (CMP-008).
+        state.callbacks.set(props.seed.callbacks.get());
         let config = &props.config;
         self.error = validation_error(config);
         if self.window != props.window {

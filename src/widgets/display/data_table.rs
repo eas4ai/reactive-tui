@@ -243,6 +243,34 @@ pub struct DataTableState {
 
     /// Error message if any
     pub error_message: Option<String>,
+
+    /// The callbacks the data table calls, as the latest render or
+    /// adoption left them; the live child shares the slot (CMP-008).
+    pub callbacks: crate::component::CallbackSlot<DataTableCallbacks>,
+}
+
+/// The callbacks a data table calls (CMP-008).
+#[derive(Clone, Default)]
+pub struct DataTableCallbacks {
+    /// Called with the format of an export the user asked for.
+    pub on_export: Option<ExportCallback>,
+    /// Called with the selected row's index, or `None`.
+    pub on_select: Option<Arc<dyn Fn(Option<usize>) + Send + Sync>>,
+    /// Called with the selected rows' indices.
+    pub on_multi_select: Option<Arc<dyn Fn(Vec<usize>) + Send + Sync>>,
+    /// Called with the sorted column's index and whether it is ascending.
+    pub on_sort: Option<Arc<dyn Fn(usize, bool) + Send + Sync>>,
+}
+
+impl DataTableCallbacks {
+    pub(super) fn of(props: &DataTableProps) -> Self {
+        Self {
+            on_export: props.on_export.clone(),
+            on_select: props.table_props.on_select.clone(),
+            on_multi_select: props.table_props.on_multi_select.clone(),
+            on_sort: props.table_props.on_sort.clone(),
+        }
+    }
 }
 
 /// Advanced Data Table component
@@ -258,11 +286,40 @@ impl Component for DataTable {
         Self
     }
 
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        state.callbacks.set(DataTableCallbacks::of(props));
+        true
+    }
+
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        state.callbacks.set(DataTableCallbacks::of(props));
         Element::typed::<live::LiveDataTable>(live::LiveProps {
             config: props.clone(),
             seed: state.clone(),
         })
+    }
+
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        use crate::component::same_callback;
+        let (mine, theirs) = (&props.table_props, &supplied.table_props);
+        if same_callback(&props.on_export, &supplied.on_export)
+            && same_callback(&mine.on_select, &theirs.on_select)
+            && same_callback(&mine.on_multi_select, &theirs.on_multi_select)
+            && same_callback(&mine.on_sort, &theirs.on_sort)
+        {
+            return false;
+        }
+        props.on_export = supplied.on_export.clone();
+        props.table_props.on_select = theirs.on_select.clone();
+        props.table_props.on_multi_select = theirs.on_multi_select.clone();
+        props.table_props.on_sort = theirs.on_sort.clone();
+        state.callbacks.set(DataTableCallbacks::of(props));
+        true
     }
 }
 

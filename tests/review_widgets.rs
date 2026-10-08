@@ -12,6 +12,8 @@ mod common;
 
 #[path = "review_widgets/charts.rs"]
 mod charts;
+#[path = "review_widgets/components.rs"]
+mod components;
 #[path = "review_widgets/scroll.rs"]
 mod scroll;
 #[path = "review_widgets/text.rs"]

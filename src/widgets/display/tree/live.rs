@@ -384,11 +384,14 @@ impl LiveTree {
             state.selected_nodes = vec![id.to_string()];
         }
         if previous != state.selected_nodes {
+            // The slot holds the callbacks the latest render or adoption
+            // gave (CMP-008); `props` is the copy made at this child's render.
+            let callbacks = state.callbacks.get();
             if props.multi_select {
-                if let Some(callback) = &props.on_multi_select {
+                if let Some(callback) = callbacks.on_multi_select {
                     callback(state.selected_nodes.clone());
                 }
-            } else if let Some(callback) = &props.on_select {
+            } else if let Some(callback) = callbacks.on_select {
                 callback(Some(id.to_string()));
             }
         }
@@ -701,6 +704,7 @@ impl Component for LiveTree {
         state
     }
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        state.callbacks.set(props.seed.callbacks.get());
         let config = &props.config;
         let mut revealed = Vec::new();
         if self.previous.root != config.root {
