@@ -450,16 +450,18 @@ def offline_waits(jobs: list[dict], runners: list[dict]) -> dict[str, str]:
 
 
 class Waiter:
-    """The accounting BAR-012 asks of a wait: time while a job waits on an
-    offline machine is announced once per machine and does not count
-    against the ceiling on run time, which counts only while the run is
-    executing; the offline wait itself ends after a day."""
+    """The accounting BAR-012 asks of a wait: the ceiling on run time counts
+    only the seconds a job was executing; a job waiting on an offline
+    machine is announced once per machine, and that wait, like any wait
+    with no job executing (a queued job whose online runner is busy with
+    other work, or a run GitHub has given no job yet), ends after a day."""
 
     def __init__(self, ceiling: float = CEILING, day: float = DAY):
         self.ceiling = ceiling
         self.day = day
         self.executing = 0.0
         self.offline = 0.0
+        self.queued = 0.0
         self.announced: set[str] = set()
         self.waiting: set[str] = set()
 
@@ -467,9 +469,15 @@ class Waiter:
         """Account `elapsed` seconds since the last look and return the
         lines to tell the developer: a machine newly found offline, or back."""
         waits = offline_waits(jobs, runners)
-        lines = []
+        running = any(job.get("status") == "in_progress" for job in jobs)
+        if running:
+            self.executing += elapsed
         if waits:
             self.offline += elapsed
+        elif not running:
+            self.queued += elapsed
+        lines = []
+        if waits:
             for job, runner in waits.items():
                 if runner not in self.announced:
                     lines.append(f"waiting for the {runner} runner, which is offline, to run {job}; "
@@ -477,7 +485,6 @@ class Waiter:
                     self.announced.add(runner)
             self.waiting = set(waits.values())
         else:
-            self.executing += elapsed
             for runner in sorted(self.waiting):
                 lines.append(f"the {runner} runner is back online; the run goes on")
             self.waiting = set()
@@ -487,7 +494,7 @@ class Waiter:
         return self.executing > self.ceiling
 
     def over_day(self) -> bool:
-        return self.offline > self.day
+        return self.offline + self.queued > self.day
 
 
 def tell(line: str) -> None:
@@ -502,8 +509,8 @@ def tell(line: str) -> None:
 
 
 def wait_for(run_id: int, slug: str, waiter: Waiter) -> dict:
-    """Poll the run until it completes, the executing time passes the
-    ceiling, or an offline wait passes a day (no verdict)."""
+    """Poll the run until it completes, the time a job was executing passes
+    the ceiling, or the time none was passes a day (no verdict)."""
     last = time.monotonic()
     while True:
         out = sh(["gh", "run", "view", str(run_id), "--json", "status,conclusion,url"])
@@ -519,7 +526,9 @@ def wait_for(run_id: int, slug: str, waiter: Waiter) -> dict:
         if waiter.over_ceiling():
             return run
         if waiter.over_day():
-            raise NoVerdict(f"waited a day for an offline runner ({', '.join(sorted(waiter.announced))}); run {run['url']}")
+            who = (f"an offline runner ({', '.join(sorted(waiter.announced))})" if waiter.announced
+                   else "a runner to take a queued job")
+            raise NoVerdict(f"waited a day for {who}; run {run['url']}")
         time.sleep(POLL)
 
 

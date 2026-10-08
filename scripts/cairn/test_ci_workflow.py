@@ -115,8 +115,36 @@ class OfflineWait(unittest.TestCase):
         back = waiter.step([queued("platform (macos-arm64)", MAC, status="in_progress")], [], 60)
         self.assertEqual(back, ["the rust-macos-arm64 runner is back online; the run goes on"])
         self.assertEqual(waiter.executing, 60.0)
-        self.assertEqual(waiter.step([], [], 50), [])
+        self.assertEqual(waiter.step([queued("platform (macos-arm64)", MAC, status="in_progress")], [], 50), [])
         self.assertTrue(waiter.over_ceiling())
+
+    def test_a_job_queued_on_a_busy_online_runner_counts_toward_the_day_not_the_ceiling(self):
+        waiter = ci.Waiter(ceiling=100, day=200)
+        busy = [runner("rust-linux-x64", LINUX, status="online")]
+        jobs = [queued("platform (linux-x64)", LINUX)]
+        self.assertEqual(waiter.step(jobs, busy, 150), [])
+        self.assertEqual(waiter.executing, 0.0)
+        self.assertFalse(waiter.over_ceiling())
+        self.assertFalse(waiter.over_day())
+        waiter.step(jobs, busy, 100)
+        self.assertTrue(waiter.over_day())
+        self.assertFalse(waiter.over_ceiling())
+
+    def test_an_executing_job_counts_against_the_ceiling_while_another_waits_offline(self):
+        waiter = ci.Waiter(ceiling=100, day=1000)
+        jobs = [queued("platform (linux-x64)", LINUX, status="in_progress"), queued("platform (macos-arm64)", MAC)]
+        self.assertEqual(len(waiter.step(jobs, RUNNERS, 60)), 1)
+        self.assertEqual(waiter.step(jobs, RUNNERS, 60), [])
+        self.assertEqual((waiter.executing, waiter.offline), (120.0, 120.0))
+        self.assertTrue(waiter.over_ceiling())
+
+    def test_a_run_with_no_job_yet_counts_toward_the_day_not_the_ceiling(self):
+        waiter = ci.Waiter(ceiling=100, day=200)
+        self.assertEqual(waiter.step([], [], 150), [])
+        self.assertEqual(waiter.executing, 0.0)
+        self.assertFalse(waiter.over_day())
+        waiter.step([], [], 100)
+        self.assertTrue(waiter.over_day())
 
     def test_an_offline_wait_ends_after_a_day(self):
         waiter = ci.Waiter(ceiling=100, day=200)
