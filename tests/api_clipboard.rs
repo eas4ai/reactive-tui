@@ -353,8 +353,18 @@ fn inherited_output_handles_do_not_block() {
     let start = Instant::now();
     assert_eq!(paste(), Some("retained pipe control".into()));
     // The behavior under test: a retained output handle does not hold the
-    // paste until the clipboard's 2 s timeout.
-    assert!(start.elapsed() < Duration::from_secs(1));
+    // paste until the clipboard's 2 s timeout. A paste that waited for the
+    // handle would end in that timeout's error, so the content above is the
+    // proof. The bound is a hang guard for a library without a timeout: the
+    // fixture holds the handle for 30 s, and a bound well under that still
+    // catches a wait for it. It is not a speed check: the paste spawns a
+    // freshly written script, and macOS assesses every new executable on
+    // its first run, one at a time, so under a burst of fixtures that spawn
+    // alone passes a second (seen on the project's Mac runner).
+    assert!(
+        start.elapsed() < Duration::from_secs(20),
+        "paste waited for the retained output handle"
+    );
     assert!(state.get().error.is_none());
     assert_child_reaped();
 }

@@ -56,6 +56,16 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      # The tablet's runner service has Git's `cmd` directory on its PATH but
+      # not the `bin` directory that holds bash, which every later step uses.
+      - name: Git's bash on the PATH
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $git = (Get-Command git.exe).Source
+          $bin = Join-Path (Split-Path -Parent (Split-Path -Parent $git)) 'bin'
+          if (-not (Test-Path (Join-Path $bin 'bash.exe'))) { throw "no bash.exe beside $git" }
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
       - name: The machine's Homebrew tools on the PATH
         if: runner.os == 'macOS'
         run: test -d /opt/homebrew/bin && echo /opt/homebrew/bin >> "$GITHUB_PATH"
