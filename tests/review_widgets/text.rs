@@ -25,4 +25,9 @@ fn txt_005_a_lowercase_fence_highlights_as_its_language() {
         lower, upper,
         "a lowercase fence highlights as the uppercase one"
     );
+    let extension = runs(&format!("```rs\n{SOURCE}```"));
+    assert_eq!(
+        extension, upper,
+        "a fence naming the file extension highlights as the language"
+    );
 }
