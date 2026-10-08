@@ -230,13 +230,54 @@ fn parse_pid(line: &str) -> Option<i32> {
 }
 
 fn write_blocking_helper(directory: &Path, helper: &str) {
+    // The first line lets `warm` run the script with no pid file named: it
+    // exits at once and records nothing.
     let script = "#!/bin/sh\n\
+        [ -n \"$RTUI_TERMINAL_HELPER_PID_FILE\" ] || exit 0\n\
         echo \"direct:$$\" >> \"$RTUI_TERMINAL_HELPER_PID_FILE\"\n\
         /bin/sh -c 'echo \"desc:$$\" >> \"$RTUI_TERMINAL_HELPER_PID_FILE\"; exec /bin/sleep 300' &\n\
         wait\n";
     let path = directory.join(helper);
     fs::write(&path, script).unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+    warm(&path);
+}
+
+/// Runs a freshly written script once before anything times it. macOS
+/// assesses a new executable file on its first execution, one file at a
+/// time, which takes hundreds of milliseconds on an idle machine: a first
+/// run racing the 250 ms helper timeout can be killed before its first
+/// line, and the test then sees a helper that never recorded its pid. A
+/// warmed script starts in a few milliseconds, which is what the helper
+/// under test meets in use, where `which` and `stty` are the system's own.
+fn warm(path: &Path) {
+    // A sibling test's spawn may have forked while this file was open for
+    // writing and hold that handle until its own exec: Linux refuses to
+    // execute the file until then, so a busy file is tried again.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        let attempt = Command::new(path)
+            .env_remove(PID_FILE_ENV)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        match attempt {
+            Ok(status) => break status,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::ExecutableFileBusy
+                    && Instant::now() < deadline =>
+            {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            Err(error) => panic!("warming {} failed: {error}", path.display()),
+        }
+    };
+    assert!(
+        status.success(),
+        "warming {} failed: {status}",
+        path.display()
+    );
 }
 
 fn isolated(name: &str, helper: &str) -> bool {

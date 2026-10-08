@@ -58,14 +58,18 @@ jobs:
           persist-credentials: false
       # The tablet's runner service has Git's `cmd` directory on its PATH but
       # not the `bin` directory that holds bash, which every later step uses.
+      # The step runs under cmd, the one Windows shell no execution policy
+      # can refuse: whether PowerShell may run a script file is the machine's
+      # own setting, and this job makes no demand on it.
       - name: Git's bash on the PATH
         if: runner.os == 'Windows'
-        shell: powershell
+        shell: cmd
         run: |
-          $git = (Get-Command git.exe).Source
-          $bin = Join-Path (Split-Path -Parent (Split-Path -Parent $git)) 'bin'
-          if (-not (Test-Path (Join-Path $bin 'bash.exe'))) { throw "no bash.exe beside $git" }
-          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          for %%G in (git.exe) do set "GITDIR=%%~dp$PATH:G"
+          if not defined GITDIR (echo no git.exe on the PATH& exit /b 1)
+          for %%D in ("%GITDIR%..") do set "BIN=%%~fD\bin"
+          if not exist "%BIN%\bash.exe" (echo no bash.exe at "%BIN%"& exit /b 1)
+          echo %BIN%>>"%GITHUB_PATH%"
       - name: The machine's Homebrew tools on the PATH
         if: runner.os == 'macOS'
         run: test -d /opt/homebrew/bin && echo /opt/homebrew/bin >> "$GITHUB_PATH"
