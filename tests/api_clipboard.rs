@@ -41,6 +41,43 @@ impl Drop for Fixture {
     }
 }
 
+/// Runs a freshly written script once before anything times it. macOS
+/// assesses a new executable file on its first execution, one file at a
+/// time, which takes hundreds of milliseconds on an idle machine and seconds
+/// when the fixtures of this file start together: a first run racing the
+/// 2 s clipboard timeout can be killed before its first line. A warmed
+/// script starts in a few milliseconds, which is what the hook meets in use,
+/// where the clipboard tools are the system's own.
+fn warm(path: &std::path::Path) {
+    // A sibling test's spawn may have forked while this file was open for
+    // writing and hold that handle until its own exec: Linux refuses to
+    // execute the file until then, so a busy file is tried again.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        let attempt = Command::new(path)
+            .env_remove("RTUI_CLIPBOARD_PID")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        match attempt {
+            Ok(status) => break status,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::ExecutableFileBusy
+                    && Instant::now() < deadline =>
+            {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            Err(error) => panic!("warming {} failed: {error}", path.display()),
+        }
+    };
+    assert!(
+        status.success(),
+        "warming {} failed: {status}",
+        path.display()
+    );
+}
+
 fn isolated(name: &str) -> bool {
     if std::env::var("RTUI_API_CLIPBOARD_CHILD").as_deref() == Ok(name) {
         return false;
@@ -85,12 +122,18 @@ fn isolated(name: &str) -> bool {
             continue;
         }
         let path = fixture.directory.join(tool);
+        // The first line lets `warm` run the script with no pid file named:
+        // it exits at once and records nothing.
         fs::write(
             &path,
-            format!("#!/bin/sh\necho $$ >> \"$RTUI_CLIPBOARD_PID\"\n{body}\n"),
+            format!(
+                "#!/bin/sh\n[ -n \"$RTUI_CLIPBOARD_PID\" ] || exit 0\n\
+                 echo $$ >> \"$RTUI_CLIPBOARD_PID\"\n{body}\n"
+            ),
         )
         .unwrap();
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+        warm(&path);
     }
     let output_path = fixture.directory.join("output");
     let output = fs::File::create(&output_path).unwrap();
