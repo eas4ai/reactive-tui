@@ -365,21 +365,43 @@ fn progress_indeterminate_pulse_and_smooth_changes_advance_without_input() {
             .value(25.0)
             .animated(true)
             .build();
-        let frames = run(
+        // The smooth change: once the key arrives, the bar moves from 25 %
+        // (5 cells) to 100 % (20 cells) with no further input. Frames come
+        // at the machine's pace, so a loaded machine may paint the change in
+        // one step where a fast one paints many: every frame shows a fill
+        // between the two values, the fill never goes back, and the bar
+        // reaches 100 %. The interpolation at given times is proved by the
+        // progress bar's motion module test.
+        let frames = super::app_input::run_when_frame(
             Updates {
                 props: Mutex::new(props),
                 second: Arc::default(),
             },
             size,
-            vec![(2, key(KeyCode::Char('c'))), (10, None)],
+            vec![
+                (
+                    Box::new(|f: &super::app_input::Snapshot| count(f, '█') == 5)
+                        as super::app_input::FramePredicate,
+                    key(KeyCode::Char('c')),
+                ),
+                (
+                    Box::new(|f: &super::app_input::Snapshot| count(f, '█') == 20)
+                        as super::app_input::FramePredicate,
+                    None,
+                ),
+            ],
         );
+        // The bar reveals its first value the same way, so the frames before
+        // the key rise to 5 cells; the key went in at the first frame with 5.
+        let fills: Vec<_> = frames.iter().map(|f| count(f, '█')).collect();
+        let keyed = fills.iter().position(|fill| *fill == 5).unwrap();
+        assert!(fills[..keyed].iter().all(|fill| *fill < 5), "{fills:?}");
         assert!(
-            frames
-                .iter()
-                .any(|f| count(f, '█') > 5 && count(f, '█') < 20),
-            "{:?}",
-            frames.iter().map(|f| count(f, '█')).collect::<Vec<_>>()
+            fills[keyed..].iter().all(|fill| (5..=20).contains(fill)),
+            "{fills:?}"
         );
+        assert!(fills.windows(2).all(|pair| pair[1] >= pair[0]), "{fills:?}");
+        assert_eq!(fills.last(), Some(&20), "{fills:?}");
     }
 }
 
