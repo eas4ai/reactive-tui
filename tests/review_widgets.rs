@@ -8,5 +8,9 @@
 //! test that needs a module's private parts lives among the library's unit
 //! tests under the same name.
 
+mod common;
+
+#[path = "review_widgets/charts.rs"]
+mod charts;
 #[path = "review_widgets/text.rs"]
 mod text;

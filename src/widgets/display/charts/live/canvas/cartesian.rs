@@ -297,6 +297,13 @@ pub(super) fn cartesian(
             low = low.min(x);
             high = high.max(x);
         }
+        // A configured limit is an x value and bounds the domain (CHT-041).
+        if let Some(min) = category_axis.min {
+            low = min;
+        }
+        if let Some(max) = category_axis.max {
+            high = max;
+        }
         let domain = if low > high {
             (0.0, 1.0)
         } else if low == high {
@@ -305,8 +312,13 @@ pub(super) fn cartesian(
             (low, high)
         };
         // Exactly the x tick count of round ticks, as on the value axis
-        // (CHT-034): the free ends widen to a round step grid.
-        plot::nice_domain(domain, (false, false), category_axis.tick_count)
+        // (CHT-034): the free ends widen to a round step grid, a configured
+        // limit stays where it was set.
+        plot::nice_domain(
+            domain,
+            (category_axis.min.is_some(), category_axis.max.is_some()),
+            category_axis.tick_count,
+        )
     });
     let axes = class.has_axes();
     if let Some(title) = &props.y_axis.title {
@@ -822,6 +834,20 @@ pub(super) fn cartesian(
         category_axis.min.is_none_or(|m| i as f64 >= m)
             && category_axis.max.is_none_or(|m| i as f64 <= m)
     };
+    // On a numeric x axis the limits are x values: a point is visible when
+    // its x lies within them (CHT-041); a category axis clips by index.
+    let point_visible = |s: usize, i: usize| {
+        if numeric_x {
+            let x = props.series[s]
+                .data
+                .get(i)
+                .and_then(|p| p.x)
+                .unwrap_or(i as f64);
+            category_axis.min.is_none_or(|m| x >= m) && category_axis.max.is_none_or(|m| x <= m)
+        } else {
+            index_visible(i)
+        }
+    };
     let cell_of = |x: f64, y: f64| -> (usize, usize) {
         (
             (near(x) / ux).floor().max(0.0) as usize,
@@ -906,7 +932,7 @@ pub(super) fn cartesian(
         for (slot, &s) in vis.iter().enumerate() {
             let series = &props.series[s];
             for (i, point) in series.data.iter().enumerate() {
-                if !index_visible(i) {
+                if !point_visible(s, i) {
                     continue;
                 }
                 let Some(value) = job.values.get(s).and_then(|v| v.get(i)).copied() else {
@@ -1235,7 +1261,7 @@ pub(super) fn cartesian(
                 values
                     .iter()
                     .enumerate()
-                    .filter(|(index, _)| index_visible(*index))
+                    .filter(|(index, _)| point_visible(s, *index))
                     .map(|(index, value)| {
                         let column = (x_of(s, index) / column_unit).floor().max(0.0) as usize;
                         (index, column, *value)
@@ -1360,7 +1386,7 @@ pub(super) fn cartesian(
         // original point keeps an anchor at its own cell.
         if scatter && samples.len() < values.len() {
             for (index, value) in values.iter().enumerate() {
-                if !value.is_finite() || !index_visible(index) {
+                if !value.is_finite() || !point_visible(s, index) {
                     continue;
                 }
                 let cell = cell_of(x_of(s, index), map(*value));
