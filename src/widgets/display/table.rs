@@ -753,11 +753,22 @@ pub(super) fn data_view(
 }
 
 /// A cell's number: an integer kept exact (a float would merge integers
-/// past 2^53), else a finite float; the two kinds compare exactly against
-/// each other (DAT-005).
-#[derive(Clone, Copy)]
+/// past 2^53); a plain decimal kept exact as its sign, integer part and
+/// fraction digits, since a float would round it too (DAT-005); else, for
+/// an exponent form, a finite float. The kinds compare exactly against each
+/// other wherever no float is involved.
+#[derive(Clone)]
 enum Number {
     Integer(i128),
+    Decimal {
+        negative: bool,
+        /// The integer part's magnitude.
+        integer: u128,
+        /// The fraction's digits, trailing zeros removed.
+        fraction: String,
+        /// The nearest float, for a comparison with an exponent form.
+        approx: f64,
+    },
     Float(f64),
 }
 
@@ -767,22 +778,102 @@ impl Number {
         if let Ok(integer) = text.parse::<i128>() {
             return Some(Self::Integer(integer));
         }
-        text.parse::<f64>()
-            .ok()
-            .filter(|value| value.is_finite())
-            .map(Self::Float)
+        let approx = text.parse::<f64>().ok().filter(|value| value.is_finite())?;
+        let (negative, digits) = match text.strip_prefix('-') {
+            Some(rest) => (true, rest),
+            None => (false, text.strip_prefix('+').unwrap_or(text)),
+        };
+        if let Some((whole, fraction)) = digits.split_once('.') {
+            let plain = (whole.is_empty() || whole.bytes().all(|b| b.is_ascii_digit()))
+                && (fraction.is_empty() || fraction.bytes().all(|b| b.is_ascii_digit()))
+                && !(whole.is_empty() && fraction.is_empty());
+            if plain {
+                if let Ok(integer) = if whole.is_empty() {
+                    Ok(0)
+                } else {
+                    whole.parse::<u128>()
+                } {
+                    let fraction = fraction.trim_end_matches('0').to_string();
+                    let negative = negative && !(integer == 0 && fraction.is_empty());
+                    return Some(Self::Decimal {
+                        negative,
+                        integer,
+                        fraction,
+                        approx,
+                    });
+                }
+            }
+        }
+        Some(Self::Float(approx))
     }
 
-    /// The exact order of the two numbers, a total order: an integer and
-    /// a float compare without rounding the integer (DAT-005).
-    fn compare(self, other: Self) -> std::cmp::Ordering {
-        use std::cmp::Ordering;
-        match (self, other) {
-            (Self::Integer(a), Self::Integer(b)) => a.cmp(&b),
-            (Self::Float(a), Self::Float(b)) => a.partial_cmp(&b).unwrap_or(Ordering::Equal),
-            (Self::Integer(a), Self::Float(b)) => integer_against_float(a, b),
-            (Self::Float(a), Self::Integer(b)) => integer_against_float(b, a).reverse(),
+    /// The nearest float, for a comparison with an exponent form.
+    fn approx(&self) -> f64 {
+        match self {
+            Self::Integer(integer) => *integer as f64,
+            Self::Decimal { approx, .. } => *approx,
+            Self::Float(float) => *float,
         }
+    }
+
+    /// The sign, integer magnitude and fraction digits of an exact kind.
+    fn exact(&self) -> Option<(bool, u128, &str)> {
+        match self {
+            Self::Integer(integer) => Some((*integer < 0, integer.unsigned_abs(), "")),
+            Self::Decimal {
+                negative,
+                integer,
+                fraction,
+                ..
+            } => Some((*negative, *integer, fraction.as_str())),
+            Self::Float(_) => None,
+        }
+    }
+
+    /// The exact order of the two numbers, a total order (DAT-005): the
+    /// exact kinds compare by sign, integer part and fraction digits, and
+    /// only an exponent form compares through its float.
+    fn compare(&self, other: &Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+        match (self.exact(), other.exact()) {
+            (Some(a), Some(b)) => compare_exact(a, b),
+            (Some(_), None) => match (self, other) {
+                (Self::Integer(a), Self::Float(b)) => integer_against_float(*a, *b),
+                _ => self
+                    .approx()
+                    .partial_cmp(&other.approx())
+                    .unwrap_or(Ordering::Equal),
+            },
+            (None, Some(_)) => other.compare(self).reverse(),
+            (None, None) => self
+                .approx()
+                .partial_cmp(&other.approx())
+                .unwrap_or(Ordering::Equal),
+        }
+    }
+}
+
+/// The order of two exact numbers given as sign, integer magnitude and
+/// fraction digits (DAT-005): the fraction digits compare as written, the
+/// shorter padded with zeros.
+fn compare_exact(a: (bool, u128, &str), b: (bool, u128, &str)) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    if a.0 != b.0 {
+        return if a.0 {
+            Ordering::Less
+        } else {
+            Ordering::Greater
+        };
+    }
+    let magnitude = a.1.cmp(&b.1).then_with(|| {
+        let width = a.2.len().max(b.2.len());
+        let pad = |digits: &str| format!("{digits:0<width$}");
+        pad(a.2).cmp(&pad(b.2))
+    });
+    if a.0 {
+        magnitude.reverse()
+    } else {
+        magnitude
     }
 }
 
@@ -833,7 +924,7 @@ pub(super) fn compare_cells(a: &str, b: &str, numeric: bool) -> std::cmp::Orderi
         return a.cmp(b);
     }
     match (Number::parse(a), Number::parse(b)) {
-        (Some(a), Some(b)) => a.compare(b),
+        (Some(a), Some(b)) => a.compare(&b),
         (Some(_), None) => Greater,
         (None, Some(_)) => Less,
         (None, None) => a.cmp(b),
@@ -1267,6 +1358,43 @@ mod tests {
         assert_eq!(
             cells,
             ["9007199254740992.0", "9007199254740992", "9007199254740993"]
+        );
+    }
+
+    /// DAT-005, finding 3 of the review: a decimal cell compares by the
+    /// value its digits spell, not by the float they round to.
+    #[test]
+    fn dat_005_a_decimal_past_float_precision_keeps_its_exact_value() {
+        use std::cmp::Ordering::{Equal, Greater, Less};
+        assert_eq!(
+            compare_cells("9007199254740993.0", "9007199254740992", true),
+            Greater
+        );
+        assert_eq!(
+            compare_cells("9007199254740992", "9007199254740993.0", true),
+            Less
+        );
+        assert_eq!(
+            compare_cells("9007199254740993.25", "9007199254740993.2", true),
+            Greater
+        );
+        assert_eq!(compare_cells("0.10", "0.1", true), Equal);
+        assert_eq!(compare_cells("-1.25", "-1.5", true), Greater);
+        assert_eq!(compare_cells("2.45", "2.5", true), Less);
+        assert_eq!(compare_cells("1e3", "1000", true), Equal);
+        let mut cells = vec![
+            "9007199254740993.0",
+            "9007199254740992",
+            "9007199254740992.5",
+        ];
+        cells.sort_by(|a, b| compare_cells(a, b, true));
+        assert_eq!(
+            cells,
+            [
+                "9007199254740992",
+                "9007199254740992.5",
+                "9007199254740993.0"
+            ]
         );
     }
 
