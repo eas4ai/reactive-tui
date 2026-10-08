@@ -1,0 +1,15 @@
+{
+  "system": "Windows",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "inputs_digest": "b305d5f73f7a1492db59b67dc67ef4f0f47ddb1cfaeae1f3c8d34ec9c9fcba74",
+  "commit": "ff8f1e02e0149fb41a8979247feb5bc75c66220c",
+  "result": "pass",
+  "outputs": {
+    "build.out": "35e7337dc5b47c0c478ea5faa802e826c16d54795b3d29543ad89638b03deef8",
+    "corrected.out": "91f631b8659c173cd0fba28da4c826ee4739d99e9cf5286fdd24e175bed3c347",
+    "negative-build.out": "88b8bc3c58278ddd6b79e1447839fddbb484d662261ae50bcd2afc41107aa007",
+    "negative.out": "9fd6338110b4d9bd9bf6a7459d9d8d935739973a851d2cf3bab187bdfbb86176",
+    "ffi-exports.out": "c15ddd9aa9b544b539f647422f7c9ddb86e1866990da1c84dd59c1d54ea188db",
+    "runtime-errors.out": "4bac6cf5ef5ca22f67a297d5135abbf385b5a338ff5b196987ce462fb3cc7d12"
+  }
+}
