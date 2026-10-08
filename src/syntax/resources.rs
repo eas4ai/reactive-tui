@@ -98,13 +98,18 @@ impl SyntaxResources {
         Language::PlainText
     }
 
-    /// Find a compiled-in language by display name (`Rust`, `Python`).
-    ///
-    /// Matching is exact and case-sensitive, mirroring the old syntect
-    /// lookup: an unknown name yields `None` so callers fall back to
+    /// Find a compiled-in language by display name (`Rust`, `Python`),
+    /// whatever the name's case, or by a file extension the language takes
+    /// (`rs`, `py`), since a Markdown fence names its language either way
+    /// (TXT-005). An unknown name yields `None` so callers fall back to
     /// plain rendering instead of guessing.
     pub fn find_language_by_name(&self, name: &str) -> Option<Language> {
-        Language::iter().find(|language| language.name() == name)
+        Language::iter()
+            .find(|language| language.name().eq_ignore_ascii_case(name))
+            .or_else(|| {
+                let by_extension = self.find_language_for_file(&format!("fence.{name}"));
+                (by_extension != Language::PlainText).then_some(by_extension)
+            })
     }
 
     /// Get list of available theme names (custom themes first).
