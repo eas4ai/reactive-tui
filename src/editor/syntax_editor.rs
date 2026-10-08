@@ -234,7 +234,17 @@ impl SyntaxEditor {
             let source = if let Some(highlighted) =
                 self.highlighted_lines.get(index - self.scroll_offset)
             {
-                highlighted.to_styled_line()
+                // A run the highlighter left without a foreground of its
+                // own takes the editor's (TXT-006).
+                let mut line = StyledLine::new();
+                for run in &highlighted.runs {
+                    let mut run = run.clone();
+                    if run.fg == Rgba::transparent() {
+                        run.fg = foreground;
+                    }
+                    line.push(run);
+                }
+                line
             } else {
                 StyledLine::from_run(StyledRun::new(text, foreground, background, Attr::empty()))
             };

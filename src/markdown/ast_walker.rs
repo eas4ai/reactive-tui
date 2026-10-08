@@ -164,7 +164,9 @@ impl AstWalker {
                     // A highlighted run carries the theme's colors; one
                     // without a background of its own sits on the code
                     // block's, as the plain runs do, so a highlighted block
-                    // still reads as a block.
+                    // still reads as a block, and one without a foreground
+                    // of its own, a line left plain, takes the block's text
+                    // color (TXT-006).
                     let block = create_code_run("");
                     for line in lines {
                         self.add_text("  ");
@@ -172,6 +174,9 @@ impl AstWalker {
                             .extend(line.runs.into_iter().map(|mut run| {
                                 if run.bg == crate::core::surface::Rgba::transparent() {
                                     run.bg = block.bg;
+                                }
+                                if run.fg == crate::core::surface::Rgba::transparent() {
+                                    run.fg = block.fg;
                                 }
                                 run
                             }));

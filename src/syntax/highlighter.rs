@@ -317,12 +317,14 @@ fn style_to_run(style: &Style, default_fg: Rgba) -> (Rgba, Attr) {
     (fg, attr)
 }
 
-/// Plain single line used for lock-poisoned and unresolvable fallbacks.
+/// Plain single line used for lock-poisoned and unresolvable fallbacks. It
+/// carries no foreground of its own (transparent): the editor and the
+/// Markdown renderer paint it in theirs (TXT-006).
 fn plain_line(line_text: &str, line_num: usize) -> HighlightedLine {
     HighlightedLine {
         runs: vec![StyledRun::new(
             line_text.to_string(),
-            Rgba::black(),
+            Rgba::transparent(),
             Rgba::transparent(),
             Attr::empty(),
         )],
@@ -337,7 +339,7 @@ fn unhighlighted_lines(text: &str) -> Vec<HighlightedLine> {
         .map(|(line_num, line)| HighlightedLine {
             runs: vec![StyledRun::new(
                 line.to_string(),
-                Rgba::black(),
+                Rgba::transparent(),
                 Rgba::transparent(),
                 Attr::empty(),
             )],
@@ -352,7 +354,7 @@ fn fallback_range(lines: &[&str], start_line: usize, end_line: usize) -> Vec<Hig
         .map(|line_num| HighlightedLine {
             runs: vec![StyledRun::new(
                 lines.get(line_num).unwrap_or(&"").to_string(),
-                Rgba::black(),
+                Rgba::transparent(),
                 Rgba::transparent(),
                 Attr::empty(),
             )],
