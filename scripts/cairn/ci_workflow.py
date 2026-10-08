@@ -394,11 +394,17 @@ def runs_on_branch(branch: str) -> list[dict]:
     return json.loads(out or "[]")
 
 
+# The events on which the workflow runs the platform matrix on the machines.
+# A pull request runs the hosted matrix instead, with the machines' jobs
+# skipped, and a schedule runs only the advisories job.
+LOCAL_EVENTS = ("push", "workflow_dispatch")
+
+
 def platform_runs(runs: list[dict]) -> list[dict]:
-    """The runs that could have run the platform matrix: not cancelled, and
-    not scheduled, since the workflow skips the matrix on schedule and runs
-    only the advisories job then."""
-    return [r for r in runs if r["conclusion"] != "cancelled" and r["event"] != "schedule"]
+    """The runs that could have run the platform matrix on the machines: a
+    push or dispatch run that was not cancelled. A pull request's or a
+    schedule's run never stands for it, however new or green."""
+    return [r for r in runs if r["conclusion"] != "cancelled" and r["event"] in LOCAL_EVENTS]
 
 
 def missing_platform_jobs(jobs: list[dict], expected: list[str]) -> list[str]:
