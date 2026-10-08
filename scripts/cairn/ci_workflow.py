@@ -477,17 +477,17 @@ class Waiter:
         elif not running:
             self.queued += elapsed
         lines = []
-        if waits:
-            for job, runner in waits.items():
-                if runner not in self.announced:
-                    lines.append(f"waiting for the {runner} runner, which is offline, to run {job}; "
-                                 "this wait does not count against the run-time ceiling and ends after a day")
-                    self.announced.add(runner)
-            self.waiting = set(waits.values())
-        else:
-            for runner in sorted(self.waiting):
-                lines.append(f"the {runner} runner is back online; the run goes on")
-            self.waiting = set()
+        for job, runner in waits.items():
+            if runner not in self.announced:
+                lines.append(f"waiting for the {runner} runner, which is offline, to run {job}; "
+                             "this wait does not count against the run-time ceiling and ends after a day")
+                self.announced.add(runner)
+        # Each machine is reported back on its own, whether or not another
+        # is still offline.
+        current = set(waits.values())
+        for runner in sorted(self.waiting - current):
+            lines.append(f"the {runner} runner is back online; the run goes on")
+        self.waiting = current
         return lines
 
     def over_ceiling(self) -> bool:
