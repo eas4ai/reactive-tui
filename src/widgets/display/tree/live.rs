@@ -660,7 +660,7 @@ impl LiveTree {
                     .collect();
                 if selected != state.selected_nodes {
                     state.selected_nodes = selected;
-                    if let Some(callback) = &props.on_multi_select {
+                    if let Some(callback) = state.callbacks.get().on_multi_select {
                         callback(state.selected_nodes.clone());
                     }
                     self.rebuild(props, state);

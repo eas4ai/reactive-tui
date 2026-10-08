@@ -6,7 +6,7 @@ use reactive_tui::{
     component::{ComponentInstance, Element},
     event::{
         router::EventResult,
-        types::{Event, KeyCode},
+        types::{Event, KeyCode, KeyEvent, KeyModifiers},
     },
     widgets::display::{
         table::{Table, TableColumn, TableProps, TableRow},
@@ -231,4 +231,44 @@ fn cmp_008_an_instance_adopts_a_callback_without_asking_to_re_render() {
     removed.on_select = None;
     assert!(!instance.update_props(removed));
     assert!(instance.props().on_select.is_none());
+}
+
+/// Ctrl+A, the select-all key.
+fn select_all() -> Option<Event> {
+    let mut key = KeyEvent::new(KeyCode::Char('a'));
+    key.modifiers = KeyModifiers {
+        ctrl: true,
+        ..KeyModifiers::empty()
+    };
+    Some(Event::Key(key))
+}
+
+/// CMP-008, finding 4 of the review: a multi-select tree's `on_multi_select`
+/// swapped by a rerender that changes nothing else is the one Ctrl+A calls.
+#[test]
+fn cmp_008_a_trees_replaced_multi_select_callback_is_the_one_select_all_calls() {
+    let log: Log = Arc::default();
+    SWAP_LOG.with(|l| *l.borrow_mut() = Some(log.clone()));
+    let props = TreeProps {
+        multi_select: true,
+        on_select: None,
+        on_multi_select: Some(logging(&log, "A")),
+        ..tree_props(&log)
+    };
+    let root = Swap {
+        props: Mutex::new(props),
+        swap: |props: &mut TreeProps, tag| {
+            props.on_multi_select = tag.map(|_| {
+                let log = SWAP_LOG.with(|l| l.borrow().clone().unwrap());
+                logging::<Vec<String>>(&log, "B")
+            });
+        },
+        render: |props| Tree::with_props(props).auto_focus(),
+    };
+    app_input::run(
+        root,
+        (30, 8),
+        vec![(2, key(KeyCode::F(2))), (3, select_all()), (4, None)],
+    );
+    assert_eq!(*log.lock().unwrap(), vec!["B"]);
 }
