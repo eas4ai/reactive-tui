@@ -1,5 +1,60 @@
 use std::any::Any;
 
+/// A component's callbacks, kept where a rerender that changes only a
+/// callback can replace them without a repaint (CMP-008): the slot is one
+/// object for the component's life, shared with the live child that calls
+/// them, so two clones of it compare equal, and its `Debug` names no
+/// closure.
+pub struct CallbackSlot<T>(std::sync::Arc<std::sync::RwLock<T>>);
+
+impl<T: Default> Default for CallbackSlot<T> {
+    fn default() -> Self {
+        Self(std::sync::Arc::new(std::sync::RwLock::new(T::default())))
+    }
+}
+
+impl<T> Clone for CallbackSlot<T> {
+    fn clone(&self) -> Self {
+        Self(std::sync::Arc::clone(&self.0))
+    }
+}
+
+impl<T> PartialEq for CallbackSlot<T> {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl<T> std::fmt::Debug for CallbackSlot<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("CallbackSlot")
+    }
+}
+
+impl<T: Clone> CallbackSlot<T> {
+    /// The callbacks as they are now.
+    pub fn get(&self) -> T {
+        self.0.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Replaces the callbacks.
+    pub fn set(&self, value: T) {
+        *self.0.write().unwrap_or_else(|e| e.into_inner()) = value;
+    }
+}
+
+/// Whether two optional shared callbacks are the same object (CMP-008).
+pub fn same_callback<T: ?Sized>(
+    a: &Option<std::sync::Arc<T>>,
+    b: &Option<std::sync::Arc<T>>,
+) -> bool {
+    match (a, b) {
+        (Some(a), Some(b)) => std::sync::Arc::ptr_eq(a, b),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
 /// Trait for component properties.
 /// Props must be cloneable and comparable for efficient diffing.
 ///

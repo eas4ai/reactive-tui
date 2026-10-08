@@ -256,6 +256,30 @@ pub struct TableState {
     pub sort_column: Option<usize>,
     /// Whether sorting is in ascending order
     pub sort_ascending: bool,
+    /// The callbacks the table calls, as the latest render or adoption
+    /// left them; the live child shares the slot (CMP-008).
+    pub callbacks: crate::component::CallbackSlot<TableCallbacks>,
+}
+
+/// The callbacks a table calls (CMP-008).
+#[derive(Clone, Default)]
+pub struct TableCallbacks {
+    /// Called with the selected row's index, or `None`.
+    pub on_select: Option<Arc<dyn Fn(Option<usize>) + Send + Sync>>,
+    /// Called with the selected rows' indices.
+    pub on_multi_select: Option<Arc<dyn Fn(Vec<usize>) + Send + Sync>>,
+    /// Called with the sorted column's index and whether it is ascending.
+    pub on_sort: Option<Arc<dyn Fn(usize, bool) + Send + Sync>>,
+}
+
+impl TableCallbacks {
+    pub(super) fn of(props: &TableProps) -> Self {
+        Self {
+            on_select: props.on_select.clone(),
+            on_multi_select: props.on_multi_select.clone(),
+            on_sort: props.on_sort.clone(),
+        }
+    }
 }
 
 impl Default for TableState {
@@ -274,6 +298,7 @@ impl Default for TableState {
             visible_rows: Vec::new(),
             sort_column: None,
             sort_ascending: true,
+            callbacks: Default::default(),
         }
     }
 }
@@ -477,7 +502,7 @@ impl Table {
                 let previous = state.selected_rows.clone();
                 state.selected_rows = order;
                 if previous != state.selected_rows {
-                    if let Some(callback) = &props.on_multi_select {
+                    if let Some(callback) = state.callbacks.get().on_multi_select {
                         callback(state.selected_rows.clone());
                     }
                 }
@@ -513,12 +538,12 @@ impl Table {
         // Trigger callbacks
         if props.multi_select {
             if previous != state.selected_rows {
-                if let Some(callback) = &props.on_multi_select {
+                if let Some(callback) = state.callbacks.get().on_multi_select {
                     callback(state.selected_rows.clone());
                 }
             }
         } else if previous_row != state.selected_row {
-            if let Some(callback) = &props.on_select {
+            if let Some(callback) = state.callbacks.get().on_select {
                 callback(Some(row));
             }
         }
@@ -548,7 +573,7 @@ impl Table {
             state.selected_rows.push(row);
         }
 
-        if let Some(callback) = &props.on_multi_select {
+        if let Some(callback) = state.callbacks.get().on_multi_select {
             callback(state.selected_rows.clone());
         }
     }
@@ -614,6 +639,7 @@ impl Component for Table {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        state.callbacks.set(TableCallbacks::of(props));
         Element::typed::<live::LiveTable>(live::LiveProps {
             config: props.clone(),
             seed: state.clone(),
@@ -623,6 +649,26 @@ impl Component for Table {
             window: None,
             sorts: Vec::new(),
         })
+    }
+
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        use crate::component::same_callback;
+        if same_callback(&props.on_select, &supplied.on_select)
+            && same_callback(&props.on_multi_select, &supplied.on_multi_select)
+            && same_callback(&props.on_sort, &supplied.on_sort)
+        {
+            return false;
+        }
+        props.on_select = supplied.on_select.clone();
+        props.on_multi_select = supplied.on_multi_select.clone();
+        props.on_sort = supplied.on_sort.clone();
+        state.callbacks.set(TableCallbacks::of(props));
+        true
     }
 
     fn handle_event(
@@ -647,6 +693,7 @@ impl Component for Table {
     }
 
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        state.callbacks.set(TableCallbacks::of(props));
         let previous = (
             state.selected_row,
             state.selected_rows.clone(),
@@ -693,6 +740,7 @@ pub(super) fn data_view(
     window: Option<(usize, usize, u64)>,
     sorts: Vec<(usize, bool)>,
 ) -> Element {
+    seed.callbacks.set(TableCallbacks::of(&config));
     Element::typed::<live::LiveTable>(live::LiveProps {
         config,
         seed,
@@ -1153,6 +1201,8 @@ mod tests {
             sort_ascending: true,
             ..Default::default()
         };
+        // A mounted table fills the slot at its first update (CMP-008).
+        state.callbacks.set(TableCallbacks::of(&props));
         let table = Table;
         table.handle_key_navigation(KeyCode::Down, KeyModifiers::empty(), &props, &mut state);
         assert_eq!(state.selected_row, Some(2)); // Bob is first after sorting.

@@ -631,6 +631,27 @@ pub struct TreeState {
     pub drag_source: Option<String>,
     /// Node being targeted for drop (if any)
     pub drop_target: Option<String>,
+    /// The callbacks the tree calls, as the latest render or adoption left
+    /// them; the live child shares the slot (CMP-008).
+    pub callbacks: crate::component::CallbackSlot<TreeCallbacks>,
+}
+
+/// The callbacks a tree calls (CMP-008).
+#[derive(Clone, Default)]
+pub struct TreeCallbacks {
+    /// Called with the selected node's id, or `None`.
+    pub on_select: Option<Arc<dyn Fn(Option<String>) + Send + Sync>>,
+    /// Called with the selected nodes' ids.
+    pub on_multi_select: Option<Arc<dyn Fn(Vec<String>) + Send + Sync>>,
+}
+
+impl TreeCallbacks {
+    pub(super) fn of(props: &TreeProps) -> Self {
+        Self {
+            on_select: props.on_select.clone(),
+            on_multi_select: props.on_multi_select.clone(),
+        }
+    }
 }
 
 /// Flattened tree node for efficient rendering
@@ -1111,10 +1132,29 @@ impl Component for Tree {
     }
 
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        state.callbacks.set(TreeCallbacks::of(props));
         Element::typed::<live::LiveTree>(live::LiveProps {
             config: props.clone(),
             seed: state.clone(),
         })
+    }
+
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        use crate::component::same_callback;
+        if same_callback(&props.on_select, &supplied.on_select)
+            && same_callback(&props.on_multi_select, &supplied.on_multi_select)
+        {
+            return false;
+        }
+        props.on_select = supplied.on_select.clone();
+        props.on_multi_select = supplied.on_multi_select.clone();
+        state.callbacks.set(TreeCallbacks::of(props));
+        true
     }
 
     fn handle_event(
@@ -1147,6 +1187,7 @@ impl Component for Tree {
     }
 
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        state.callbacks.set(TreeCallbacks::of(props));
         // Always rebuild flat tree to ensure it's current
         state.flat_nodes = self.flatten_tree(props, state);
 

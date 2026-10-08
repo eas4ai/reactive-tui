@@ -31,7 +31,7 @@ pub use element::{Element, ElementMetadata, ElementType, LayoutType};
 pub use focus::{FocusProps, FocusPropsBuilder};
 pub use instance::{AnyComponentInstance, ComponentInstance};
 pub use lifecycle::{Lifecycle, LifecycleEvent};
-pub use props::Props;
+pub use props::{same_callback, CallbackSlot, Props};
 pub use registry::ComponentRegistry;
 pub use tracked_instance::{SharedTrackedInstance, TrackedComponentInstance};
 pub(crate) mod anchors;
@@ -73,6 +73,20 @@ pub trait Component: Any + Send + Sync + Unpin + 'static {
     fn update(&mut self, _props: &Self::Props, _state: &mut Self::State) -> bool {
         // Default implementation always re-renders
         true
+    }
+
+    /// Takes the callbacks of `supplied`, props that compare equal to
+    /// `props` yet may carry other callbacks, into `props` and the state,
+    /// so that a rerender changing only a callback acts from the next
+    /// event on, with no repaint (CMP-008). Returns whether any differed.
+    /// Props whose equality covers everything they carry take nothing.
+    fn adopt_callbacks(
+        &self,
+        _props: &mut Self::Props,
+        _state: &mut Self::State,
+        _supplied: &Self::Props,
+    ) -> bool {
+        false
     }
 
     /// Render the component into an Element tree

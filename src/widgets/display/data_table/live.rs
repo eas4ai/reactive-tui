@@ -1,4 +1,5 @@
 use super::*;
+use crate::component::CallbackSlot;
 use crate::{
     builder,
     component::{ElementType, LayoutInfo, LayoutType},
@@ -235,7 +236,12 @@ impl LiveDataTable {
         .with_key("search")
     }
 
-    fn toolbar(&self, props: &DataTableProps, shared: &Arc<Mutex<Model>>) -> Element {
+    fn toolbar(
+        &self,
+        props: &DataTableProps,
+        callbacks: &CallbackSlot<DataTableCallbacks>,
+        shared: &Arc<Mutex<Model>>,
+    ) -> Element {
         let mut buttons = Vec::new();
         if props.show_filters {
             let shared = shared.clone();
@@ -259,10 +265,12 @@ impl LiveDataTable {
         }
         if props.exportable {
             for format in ["csv", "json"] {
-                let callback = props.on_export.clone();
+                // Read at the press: the slot holds the callback the latest
+                // render or adoption gave (CMP-008).
+                let callbacks = callbacks.clone();
                 buttons.push(
                     button(&format.to_uppercase(), move || {
-                        if let Some(callback) = &callback {
+                        if let Some(callback) = callbacks.get().on_export {
                             callback(format);
                         }
                     })
@@ -383,6 +391,7 @@ impl LiveDataTable {
     fn table(
         &self,
         props: &DataTableProps,
+        callbacks: &CallbackSlot<DataTableCallbacks>,
         model: &Model,
         shared: &Arc<Mutex<Model>>,
         indices: &[usize],
@@ -439,7 +448,7 @@ impl LiveDataTable {
         let state = shared.clone();
         let source = indices.clone();
         let row_ids = ids.clone();
-        let callback = props.table_props.on_select.clone();
+        let callback = callbacks.clone();
         table.on_select = Some(Arc::new(move |index| {
             let selected = index.and_then(|index| row_ids.get(index)).cloned();
             let changed = {
@@ -450,14 +459,14 @@ impl LiveDataTable {
                 changed
             };
             if changed {
-                if let Some(callback) = &callback {
+                if let Some(callback) = callback.get().on_select {
                     callback(index.and_then(|index| source.get(index)).copied());
                 }
             }
         }));
         let state = shared.clone();
         let row_ids = ids.clone();
-        let callback = props.table_props.on_multi_select.clone();
+        let callback = callbacks.clone();
         let all_ids: Arc<Vec<_>> = Arc::new(
             props
                 .table_props
@@ -484,7 +493,7 @@ impl LiveDataTable {
                     .filter_map(|(index, id)| selected.contains(id).then_some(index))
                     .collect()
             };
-            if let Some(callback) = &callback {
+            if let Some(callback) = callback.get().on_multi_select {
                 callback(selected_sources);
             }
         }));
@@ -496,7 +505,7 @@ impl LiveDataTable {
             }
         }));
         let state = shared.clone();
-        let callback = props.table_props.on_sort.clone();
+        let callback = callbacks.clone();
         let column_keys: Vec<_> = props
             .table_props
             .columns
@@ -526,7 +535,7 @@ impl LiveDataTable {
                 model.reset_query();
                 ascending
             };
-            if let Some(callback) = &callback {
+            if let Some(callback) = callback.get().on_sort {
                 callback(source, ascending);
             }
         });
@@ -686,7 +695,7 @@ impl Component for LiveDataTable {
             || props_config.column_visibility_control
             || props_config.exportable
         {
-            children.push(self.toolbar(props_config, shared));
+            children.push(self.toolbar(props_config, &props.seed.callbacks, shared));
         }
         if props_config.show_filters && model.filter_panel {
             children.push(self.panel(filters::panel(props_config, &model, shared), "filter-panel"));
@@ -730,7 +739,13 @@ impl Component for LiveDataTable {
             } else {
                 0..indices.len()
             };
-            children.push(self.table(props_config, &model, shared, &indices[range]));
+            children.push(self.table(
+                props_config,
+                &props.seed.callbacks,
+                &model,
+                shared,
+                &indices[range],
+            ));
         }
         if props_config.pagination.enabled && props_config.show_pagination {
             children.push(self.pages(props_config, &model, shared, indices.len()));
