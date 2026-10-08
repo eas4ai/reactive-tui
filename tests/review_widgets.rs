@@ -14,3 +14,5 @@ mod common;
 mod charts;
 #[path = "review_widgets/text.rs"]
 mod text;
+#[path = "review_widgets/theme.rs"]
+mod theme;

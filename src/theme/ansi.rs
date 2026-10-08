@@ -4,43 +4,32 @@
 /// and basic 16-color palette for terminal compatibility
 use std::cmp;
 
-/// Convert RGB to ANSI 256 color
+/// xterm's six levels per component of the 216-color cube, indices 16 to
+/// 231: zero, then 55 + 40 n (THM-005).
+const CUBE_LEVELS: [u8; 6] = [0, 95, 135, 175, 215, 255];
+
+/// The cube level (0 to 5) nearest to a component.
+fn cube_level(component: u8) -> u8 {
+    (0..6u8)
+        .min_by_key(|&level| component.abs_diff(CUBE_LEVELS[usize::from(level)]))
+        .unwrap_or(0)
+}
+
+/// Convert RGB to the nearest ANSI 256 color (THM-005): each component to
+/// the nearest cube level, and a gray to the nearer of the gray ramp
+/// (indices 232 to 255, values 8 to 238 in steps of 10) and the cube's own
+/// grays, so a cube color encodes back to its index.
 pub fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
-    // Check for grayscale
     if r == g && g == b {
-        // Use grayscale ramp (colors 232-255)
-        if r < 8 {
-            return 16; // Black
+        let ramp = ((r.saturating_sub(8) + 5) / 10).min(23);
+        let ramp_value = 8 + ramp * 10;
+        let level = cube_level(r);
+        if r.abs_diff(CUBE_LEVELS[usize::from(level)]) <= r.abs_diff(ramp_value) {
+            return 16 + 36 * level + 6 * level + level;
         }
-        if r > 248 {
-            return 231; // White
-        }
-
-        // Map to 24 grayscale colors (232-255)
-        // Grayscale values: 8, 18, 28, ..., 238 (increments of 10)
-        // So for a given gray value, find nearest: round((value - 8) / 10)
-        let gray = ((r.saturating_sub(8)) as f32 / 10.0).round() as u8;
-        return 232 + gray.min(23); // Ensure we don't exceed 255
+        return 232 + ramp;
     }
-
-    // Use 6x6x6 color cube (colors 16-231)
-    let r_idx = if r < 48 {
-        0
-    } else {
-        cmp::min(5, (r - 35) / 40)
-    };
-    let g_idx = if g < 48 {
-        0
-    } else {
-        cmp::min(5, (g - 35) / 40)
-    };
-    let b_idx = if b < 48 {
-        0
-    } else {
-        cmp::min(5, (b - 35) / 40)
-    };
-
-    16 + 36 * r_idx + 6 * g_idx + b_idx
+    16 + 36 * cube_level(r) + 6 * cube_level(g) + cube_level(b)
 }
 
 /// Convert hex string to ANSI 256 color
@@ -140,13 +129,14 @@ pub fn ansi256_to_rgb(color: u8) -> (u8, u8, u8) {
         14 => (0, 255, 255),   // Bright Cyan
         15 => (255, 255, 255), // Bright White
 
-        // 216 color cube (16-231)
+        // The 216-color cube (16-231) at xterm's levels (THM-005).
         16..=231 => {
             let idx = color - 16;
-            let r = (idx / 36) * 51;
-            let g = ((idx % 36) / 6) * 51;
-            let b = (idx % 6) * 51;
-            (r, g, b)
+            (
+                CUBE_LEVELS[usize::from(idx / 36)],
+                CUBE_LEVELS[usize::from((idx % 36) / 6)],
+                CUBE_LEVELS[usize::from(idx % 6)],
+            )
         }
 
         // Grayscale (232-255)
