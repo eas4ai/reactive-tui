@@ -146,6 +146,21 @@ class OfflineWait(unittest.TestCase):
         waiter.step([], [], 100)
         self.assertTrue(waiter.over_day())
 
+    def test_each_machine_back_online_is_reported_even_while_another_stays_offline(self):
+        waiter = ci.Waiter(ceiling=100, day=1000)
+        win = ["self-hosted", "rust-ci", "Windows", "X64"]
+        runners = RUNNERS + [runner("rust-windows-x64", win, status="offline")]
+        both = [queued("platform (macos-arm64)", MAC), queued("platform (windows-x64)", win)]
+        self.assertEqual(len(waiter.step(both, runners, 10)), 2)
+        mac_back = [queued("platform (macos-arm64)", MAC, status="in_progress"), queued("platform (windows-x64)", win)]
+        self.assertEqual(waiter.step(mac_back, runners, 10),
+                         ["the rust-macos-arm64 runner is back online; the run goes on"])
+        self.assertEqual(waiter.step(mac_back, runners, 10), [])
+        win_back = [queued("platform (macos-arm64)", MAC, status="completed"),
+                    queued("platform (windows-x64)", win, status="in_progress")]
+        self.assertEqual(waiter.step(win_back, [], 10),
+                         ["the rust-windows-x64 runner is back online; the run goes on"])
+
     def test_an_offline_wait_ends_after_a_day(self):
         waiter = ci.Waiter(ceiling=100, day=200)
         jobs = [queued("platform (macos-arm64)", MAC)]
