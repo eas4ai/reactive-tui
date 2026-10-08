@@ -5,6 +5,25 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- Seven widget defects fixed, each with a test that failed first
+  (docs/spec/roadmap.md, widget-defects). A Markdown fence names its
+  language in any case or by file extension, so ```rust and ```rs highlight
+  as ```Rust did, and a highlighted block keeps the code block's background
+  (TXT-005). A line the highlighter leaves plain is painted in the editor's
+  or the renderer's foreground instead of black (TXT-006). A scatter chart's
+  numeric x-axis `min` and `max` are x values: they bound the domain and
+  clip points by value, where a category axis clips by index (CHT-041).
+  Indexed colors 16 to 231 decode with xterm's cube levels and encode to the
+  nearest, so a child terminal's or a captured image's shades come out as
+  xterm shows them (THM-005). A scroll view decides its two bars together:
+  the column a vertical bar takes brings the horizontal bar when the content
+  then overflows sideways, with the viewport, limits and pointer following
+  (NAV-005). A table's numeric sort compares an integer and a decimal cell
+  exactly, as a total order (DAT-005). A rerender that changes only a
+  callback of a table, a data table or a tree takes effect from the next
+  event, including removing it, without a repaint; a component with
+  callbacks adopts them through the new `Component::adopt_callbacks` and
+  keeps them in a `CallbackSlot` (CMP-008).
 - CI runs on the project's own machines: the push workflow's platform jobs
   run on the three self-hosted runners by their labels for pushes and
   dispatched checks, pull requests run the same steps on GitHub's hosted
