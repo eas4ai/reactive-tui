@@ -73,10 +73,13 @@ pub(super) fn shortcut_path(items: &[MenuItem], event: &KeyEvent) -> Option<Vec<
         .enumerate()
         .filter(|(_, item)| item.is_selectable())
     {
+        // An explicit shortcut, or the active keymap's binding of the
+        // action the item is bound to (KEY-002).
         if item
             .shortcut
             .as_ref()
             .is_some_and(|shortcut| shortcut_matches(&shortcut.keys, event))
+            || false
         {
             return Some(vec![index]);
         }
@@ -252,5 +255,53 @@ impl MenuModel {
         let next = (current as i128 + delta as i128).rem_euclid(eligible.len() as i128) as usize;
         self.path.truncate(depth);
         self.path.push(eligible[next]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::types::{KeyCode, KeyModifiers};
+    use crate::keymap::{Action, KeyBinding, Keymap};
+
+    fn press(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
+        KeyEvent::new(code).with_modifiers(modifiers)
+    }
+
+    /// KEY-002: an item bound to an action triggers on the active keymap's
+    /// binding of it, and on nothing else after a rebind.
+    #[test]
+    fn key_002_shortcut_path_matches_a_bound_action_through_the_active_keymap() {
+        let items = vec![
+            MenuItem::new("open", "Open"),
+            MenuItem::new("copy", "Copy").bound_to(Action::Copy),
+        ];
+        let ctrl_c = press(KeyCode::Char('c'), KeyModifiers::ctrl());
+        let ctrl_shift_c = press(
+            KeyCode::Char('c'),
+            KeyModifiers {
+                shift: true,
+                ..KeyModifiers::ctrl()
+            },
+        );
+        assert_eq!(shortcut_path(&items, &ctrl_c), Some(vec![1]));
+        assert_eq!(shortcut_path(&items, &ctrl_shift_c), None);
+        let mut rebound = Keymap::default();
+        rebound.rebind(
+            Action::Copy,
+            [KeyBinding::new(KeyCode::Char('c')).ctrl().shift()],
+        );
+        let _scope = Keymap::scoped(rebound);
+        assert_eq!(
+            shortcut_path(&items, &ctrl_c),
+            None,
+            "Ctrl+C no longer triggers it"
+        );
+        assert_eq!(shortcut_path(&items, &ctrl_shift_c), Some(vec![1]));
+        assert_eq!(
+            items[1].hint().as_deref(),
+            Some("Ctrl+Shift+C"),
+            "the hint follows the binding"
+        );
     }
 }

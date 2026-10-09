@@ -143,6 +143,9 @@ pub struct MenuItem {
     pub icon: Option<String>,
     /// Additional description or tooltip text
     pub description: Option<String>,
+    /// The named key action the item is bound to (KEY-002): its hint and its
+    /// trigger come from the active keymap's binding.
+    pub bound_to: Option<crate::keymap::Action>,
 }
 
 impl Default for MenuItem {
@@ -159,6 +162,7 @@ impl Default for MenuItem {
             separator: MenuSeparator::None,
             icon: None,
             description: None,
+            bound_to: None,
         }
     }
 }
@@ -393,6 +397,13 @@ impl MenuItemBuilder {
     /// Set a description for the item
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.item.description = Some(description.into());
+        self
+    }
+
+    /// Bind the item to a named key action: its hint and its trigger come
+    /// from the active keymap's binding (KEY-002).
+    pub fn bound_to(mut self, action: crate::keymap::Action) -> Self {
+        self.item.bound_to = Some(action);
         self
     }
 
@@ -900,6 +911,7 @@ fn convert_menu_item(builder_item: MenuItem) -> crate::widgets::menu::MenuItem {
         separator: widget_separator,
         icon: builder_item.icon,
         description: builder_item.description,
+        bound_to: builder_item.bound_to,
     }
 }
 

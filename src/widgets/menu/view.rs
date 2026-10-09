@@ -160,11 +160,13 @@ impl MenuView {
         children.push(
             Element::text(format!("{prefix}{}", item.text)).with_class("whitespace-pre shrink-0"),
         );
+        // The hint is the explicit shortcut's text or, for an item bound to
+        // an action, the active keymap's binding of it (KEY-002).
+        let hint = item.hint();
         if style.show_shortcuts && options.shortcuts {
-            if let Some(shortcut) = &item.shortcut {
+            if let Some(hint) = &hint {
                 children.push(
-                    Element::text(format!("  {}", shortcut.display))
-                        .with_class(part(&style.shortcut_classes)),
+                    Element::text(format!("  {hint}")).with_class(part(&style.shortcut_classes)),
                 );
             }
         }
@@ -179,6 +181,10 @@ impl MenuView {
         });
         semantic.set_clickable();
         semantic.set_label(item.text.clone());
+        if let Some(hint) = &hint {
+            // The screen reader hears the same text the hint shows (KEY-002).
+            semantic.set_keyboard_shortcut(hint.clone());
+        }
         if !item.enabled || !options.enabled {
             semantic.set_disabled();
         }
@@ -283,6 +289,38 @@ mod tests {
             .accessibility
             .expect("a row has an accessibility node")
             .inner
+    }
+
+    /// KEY-002: a row bound to an action tells the screen reader the same
+    /// text its hint shows, the active keymap's binding, before and after a
+    /// rebind; an explicit shortcut keeps its own text.
+    #[test]
+    fn key_002_a_row_bound_to_an_action_tells_the_screen_reader_the_bindings_text() {
+        use crate::event::types::KeyCode;
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        use crate::widgets::menu::MenuShortcut;
+        let copy = MenuItem::new("copy", "Copy").bound_to(Action::Copy);
+        assert_eq!(
+            spoken(&copy, &[0], &[0]).keyboard_shortcut(),
+            Some("Ctrl+C"),
+            "the default binding"
+        );
+        let mut rebound = Keymap::default();
+        rebound.rebind(Action::Copy, [KeyBinding::new(KeyCode::F(5))]);
+        let _scope = Keymap::scoped(rebound);
+        assert_eq!(spoken(&copy, &[0], &[0]).keyboard_shortcut(), Some("F5"));
+        let explicit = MenuItem::new("save", "Save")
+            .shortcut(MenuShortcut::new("Ctrl+S", vec!["ctrl", "s"]))
+            .bound_to(Action::Copy);
+        assert_eq!(
+            spoken(&explicit, &[0], &[0]).keyboard_shortcut(),
+            Some("Ctrl+S"),
+            "an explicit shortcut keeps its text"
+        );
+        assert_eq!(
+            spoken(&MenuItem::new("plain", "Plain"), &[0], &[0]).keyboard_shortcut(),
+            None
+        );
     }
 
     #[test]

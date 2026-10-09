@@ -453,3 +453,78 @@ fn key_001_unbinding_activate_leaves_a_checkbox_untoggled_by_space() {
         "Space no longer toggles the box"
     );
 }
+
+#[test]
+#[serial_test::serial(theme)]
+fn key_002_a_menu_item_bound_to_copy_shows_its_binding_and_triggers_on_it() {
+    let calls: Log<&'static str> = Arc::default();
+    let menu = |calls: &Log<&'static str>| {
+        let log = calls.clone();
+        Element::typed::<ContextMenu>(ContextMenuProps {
+            items: vec![
+                MenuItem::action("open", "Open", || {}),
+                MenuItem::action("copy", "Copy", move || log.lock().unwrap().push("copy"))
+                    .bound_to(Action::Copy),
+            ],
+            ..Default::default()
+        })
+        .class("w-full h-4")
+        .auto_focus()
+    };
+    let ctrl_c = || {
+        Some(Event::Key(
+            KeyEvent::new(KeyCode::Char('c')).with_modifiers(KeyModifiers::ctrl()),
+        ))
+    };
+    let ctrl_shift_c = || {
+        Some(Event::Key(
+            KeyEvent::new(KeyCode::Char('c')).with_modifiers(KeyModifiers {
+                shift: true,
+                ..KeyModifiers::ctrl()
+            }),
+        ))
+    };
+    // Under the default keymap the hint reads Ctrl+C and Ctrl+C runs the item.
+    app_input::run_when_frame(
+        Root(menu(&calls)),
+        (60, 20),
+        vec![
+            (gone("Copy"), shift_f10()),
+            (shown("Ctrl+C"), ctrl_c()),
+            (gone("Copy"), None),
+        ],
+    );
+    assert_eq!(held(&calls), vec!["copy"], "Ctrl+C runs the bound item");
+
+    // Rebound, the hint reads Ctrl+Shift+C and Ctrl+Shift+C runs the item.
+    // A bare Ctrl+C is not sent here: unhandled, it is the App's default
+    // quit key; that it no longer matches the item is the model's unit test
+    // key_002_shortcut_path_matches_a_bound_action_through_the_active_keymap.
+    let mut rebound = Keymap::default();
+    rebound.rebind(
+        Action::Copy,
+        [KeyBinding::new(KeyCode::Char('c')).ctrl().shift()],
+    );
+    let _scope = Keymap::scoped(rebound);
+    let calls: Log<&'static str> = Arc::default();
+    let frames = app_input::run_when_frame(
+        Root(menu(&calls)),
+        (60, 20),
+        vec![
+            (gone("Copy"), shift_f10()),
+            (shown("Ctrl+Shift+C"), ctrl_shift_c()),
+            (gone("Copy"), None),
+        ],
+    );
+    assert!(
+        frames
+            .iter()
+            .all(|frame| !frame.text.contains("Ctrl+C ") && !frame.text.ends_with("Ctrl+C")),
+        "no frame shows the old hint"
+    );
+    assert_eq!(
+        held(&calls),
+        vec!["copy"],
+        "Ctrl+Shift+C runs the rebound item"
+    );
+}

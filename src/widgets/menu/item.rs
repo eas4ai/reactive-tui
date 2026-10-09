@@ -127,6 +127,11 @@ pub struct MenuItem {
     pub icon: Option<String>,
     /// Additional description or tooltip text
     pub description: Option<String>,
+    /// The named key action this item is bound to (KEY-002): its hint shows
+    /// the active keymap's binding of the action and that binding triggers
+    /// it, so a rebind changes both. An explicit `shortcut` keeps its own
+    /// display and matching beside it.
+    pub bound_to: Option<crate::keymap::Action>,
 }
 
 impl Default for MenuItem {
@@ -143,11 +148,30 @@ impl Default for MenuItem {
             separator: MenuSeparator::None,
             icon: None,
             description: None,
+            bound_to: None,
         }
     }
 }
 
 impl MenuItem {
+    /// Binds this item to a named key action (KEY-002): the hint beside it
+    /// is the active keymap's binding of `action`, and that binding
+    /// triggers it, so a rebind changes both at once.
+    pub fn bound_to(mut self, action: crate::keymap::Action) -> Self {
+        self.bound_to = Some(action);
+        self
+    }
+
+    /// The key hint shown beside this item and told to the screen reader:
+    /// an explicit shortcut's display, else the text form of the active
+    /// keymap's first binding of the action the item is bound to (KEY-002).
+    pub fn hint(&self) -> Option<String> {
+        if let Some(shortcut) = &self.shortcut {
+            return Some(shortcut.display.clone());
+        }
+        None
+    }
+
     /// Create a new menu item
     pub fn new(id: impl Into<String>, text: impl Into<String>) -> Self {
         Self {
@@ -333,6 +357,13 @@ impl MenuItemBuilder {
     /// Set the action callback
     pub fn action(mut self, callback: impl Fn() + Send + Sync + 'static) -> Self {
         self.item.action = Some(MenuAction::new(&self.item.id, callback));
+        self
+    }
+
+    /// Bind the item to a named key action: its hint and its trigger come
+    /// from the active keymap's binding (KEY-002).
+    pub fn bound_to(mut self, action: crate::keymap::Action) -> Self {
+        self.item.bound_to = Some(action);
         self
     }
 
