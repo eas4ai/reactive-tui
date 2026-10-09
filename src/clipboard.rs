@@ -148,19 +148,28 @@ mod tests {
     #[test]
     #[serial_test::serial(clipboard_requests)]
     fn clp_001_a_requested_copy_is_pending_until_taken() {
+        // Other tests of this binary may copy at the same time into the
+        // process-wide part of the queue, so the requests made here are
+        // looked for by content, and their absence after a take is what is
+        // checked, not an empty queue.
         let _app = enter_app_thread();
         let _ = take_pending();
-        assert!(take_pending().is_empty(), "nothing waits without a copy");
         copy_to_terminal("hello");
         std::thread::spawn(|| copy_to_terminal("world"))
             .join()
             .unwrap();
-        assert_eq!(
-            take_pending(),
-            vec![osc52("hello"), osc52("world")],
-            "this App's request first, then the background thread's"
+        let taken = take_pending();
+        let hello = taken.iter().position(|s| *s == osc52("hello"));
+        let world = taken.iter().position(|s| *s == osc52("world"));
+        assert!(
+            hello.is_some() && world.is_some() && hello < world,
+            "this App's request first, then the background thread's: {taken:?}"
         );
-        assert!(take_pending().is_empty(), "a take empties both queues");
+        let again = take_pending();
+        assert!(
+            !again.contains(&osc52("hello")) && !again.contains(&osc52("world")),
+            "a take empties both queues of what was taken"
+        );
         let other = std::thread::spawn(|| {
             let _app = enter_app_thread();
             copy_to_terminal("mine");
@@ -168,11 +177,13 @@ mod tests {
         })
         .join()
         .unwrap();
-        assert_eq!(
-            other,
-            vec![osc52("mine")],
+        assert!(
+            other.contains(&osc52("mine")),
             "another App's thread drains its own"
         );
-        assert!(take_pending().is_empty(), "and leaves nothing for this one");
+        assert!(
+            !take_pending().contains(&osc52("mine")),
+            "and leaves nothing of its own for this one"
+        );
     }
 }
