@@ -325,6 +325,15 @@ impl ComponentRuntime {
             if options.click_event.is_some() {
                 target.click_event = options.click_event;
             }
+            if options.set_value_event.is_some() {
+                target.set_value_event = options.set_value_event;
+            }
+            if options.increment_event.is_some() {
+                target.increment_event = options.increment_event;
+            }
+            if options.decrement_event.is_some() {
+                target.decrement_event = options.decrement_event;
+            }
             if options.label.is_some() {
                 target.label = options.label;
             }

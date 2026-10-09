@@ -12,6 +12,10 @@ use unicode_segmentation::UnicodeSegmentation;
 mod accessibility;
 mod paint;
 
+/// The event a text input takes for the screen reader's SetValue request
+/// (CTL-005); its data is the requested text.
+pub(crate) const SET_VALUE_EVENT: &str = "reactive_tui.text_input.set_value";
+
 /// Input mode for different text input behaviors
 #[derive(Clone, Debug, PartialEq, Default)]
 pub enum InputMode {
@@ -656,11 +660,7 @@ impl TextInput {
         {
             return;
         }
-        if matches!(props.mode, InputMode::Numeric)
-            && !inserted
-                .chars()
-                .all(|c| c.is_numeric() || matches!(c, '.' | '-'))
-        {
+        if !inserted.chars().all(|c| Self::takes_typed(props, c)) {
             return;
         }
         if candidate == text {
@@ -674,6 +674,49 @@ impl TextInput {
             },
             state,
         );
+    }
+
+    /// Whether typing `c` puts it in the field: a numeric field takes
+    /// digits, `.` and `-` only.
+    fn takes_typed(props: &TextInputProps, c: char) -> bool {
+        !matches!(props.mode, InputMode::Numeric) || c.is_numeric() || matches!(c, '.' | '-')
+    }
+
+    /// Replace the whole text with `requested`, filtered as typing filters
+    /// it, and put the cursor at its end: the screen reader's SetValue
+    /// request (CTL-005). Line breaks become what a paste makes of them, a
+    /// numeric field keeps what typing takes in it, and a field with a
+    /// maximum length keeps that many graphemes, where typing stops.
+    fn set_requested_text(
+        &mut self,
+        requested: &str,
+        props: &TextInputProps,
+        state: &mut TextInputState,
+    ) {
+        let text = if matches!(props.mode, InputMode::MultiLine { .. }) {
+            requested.replace("\r\n", "\n").replace('\r', "\n")
+        } else {
+            requested.replace(['\r', '\n'], " ")
+        };
+        let typed: String = text
+            .chars()
+            .filter(|&c| Self::takes_typed(props, c))
+            .collect();
+        let typed = match props.max_length {
+            Some(max) => typed.graphemes(true).take(max).collect(),
+            None => typed,
+        };
+        let current = self.get_text_value(state);
+        if typed != current {
+            self.execute_command(
+                EditCommand::Replace {
+                    position: 0,
+                    old_text: current,
+                    new_text: typed,
+                },
+                state,
+            );
+        }
     }
 
     /// Move cursor to a specific byte offset
@@ -1026,6 +1069,15 @@ impl Component for TextInput {
                 self.insert_text(&text, props, state);
                 EventResult::Consumed
             }
+            Event::Custom(event) if event.name == SET_VALUE_EVENT => {
+                match std::str::from_utf8(&event.data) {
+                    Ok(requested) => {
+                        self.set_requested_text(requested, props, state);
+                        EventResult::Consumed
+                    }
+                    Err(_) => EventResult::Ignored,
+                }
+            }
             Event::Focus(event)
                 if matches!(
                     event.kind,
@@ -1377,6 +1429,23 @@ mod tests {
                 .as_ref()
                 .and_then(|node| node.inner.label()),
             Some("Capture name")
+        );
+    }
+
+    /// CTL-005: a text input tells the screen reader that it takes
+    /// SetValue.
+    #[test]
+    fn ctl_005_a_text_input_advertises_set_value() {
+        let props = TextInputBuilder::new().placeholder("Name").build();
+        let element = TextInput::new(props.clone()).render(&props, &TextInputState::default());
+        let node = element
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the field has a node");
+        assert!(
+            node.inner.supports_action(accesskit::Action::SetValue),
+            "CTL-005: a text input's node advertises SetValue"
         );
     }
     use crate::event::types::KeyModifiers;

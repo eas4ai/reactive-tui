@@ -27,6 +27,12 @@ impl TextInput {
         if let Some(placeholder) = &props.placeholder {
             accessible.set_description(placeholder.clone());
         }
+        // SetValue replaces the text as typing would; a field that takes no
+        // edit advertises none (CTL-005).
+        let settable = !props.disabled && !self.is_read_only();
+        if settable {
+            accessible.inner.add_action(accesskit::Action::SetValue);
+        }
         let mut element = self.render_control(props, state);
         let anchor = state
             .selection
@@ -43,6 +49,17 @@ impl TextInput {
             password,
             Some([anchor, focus]),
         );
-        element.with_accessibility(accessible)
+        let mut element = element.with_accessibility(accessible);
+        if settable {
+            element
+                .metadata
+                .accessibility_options
+                .get_or_insert_default()
+                .set_value_event = Some(crate::event::CustomEvent::new(
+                super::SET_VALUE_EVENT,
+                Vec::new(),
+            ));
+        }
+        element
     }
 }

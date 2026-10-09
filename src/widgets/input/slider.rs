@@ -5,6 +5,13 @@ use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
 
+/// The events a slider takes for the screen reader's requests (CTL-005):
+/// SetValue, whose data is the requested number as text, Increment and
+/// Decrement.
+const SET_VALUE_EVENT: &str = "reactive_tui.slider.set_value";
+const INCREMENT_EVENT: &str = "reactive_tui.slider.increment";
+const DECREMENT_EVENT: &str = "reactive_tui.slider.decrement";
+
 /// Builder for creating Slider components with a fluent API
 #[derive(Clone, Debug)]
 pub struct SliderBuilder {
@@ -562,10 +569,33 @@ impl Component for Slider {
         if props.disabled {
             accessible.set_disabled();
         }
-        element
+        // The screen reader moves the slider a step either way or sets its
+        // value; a slider that cannot move advertises neither (CTL-005).
+        let movable = !props.disabled && length > 0;
+        if movable {
+            for action in [
+                accesskit::Action::Increment,
+                accesskit::Action::Decrement,
+                accesskit::Action::SetValue,
+            ] {
+                accessible.inner.add_action(action);
+            }
+        }
+        let mut element = element
             .with_accessibility(accessible)
             .with_focus(crate::component::FocusProps::input())
-            .disabled(props.disabled || length == 0)
+            .disabled(props.disabled || length == 0);
+        if movable {
+            use crate::event::CustomEvent;
+            let options = element
+                .metadata
+                .accessibility_options
+                .get_or_insert_default();
+            options.set_value_event = Some(CustomEvent::new(SET_VALUE_EVENT, Vec::new()));
+            options.increment_event = Some(CustomEvent::new(INCREMENT_EVENT, Vec::new()));
+            options.decrement_event = Some(CustomEvent::new(DECREMENT_EVENT, Vec::new()));
+        }
+        element
     }
 
     fn handle_event(
@@ -597,12 +627,53 @@ impl Component for Slider {
         match event {
             Event::Key(event) if state.is_focused => self.handle_key_event(event, props, state),
             Event::Mouse(event) => self.handle_mouse_event(event, props, state),
+            Event::Custom(event) => self.handle_request(event, props),
             _ => EventResult::Ignored,
         }
     }
 }
 
 impl Slider {
+    /// The value one step up or down from `value`, within the range: where
+    /// an arrow key and the screen reader's Increment and Decrement move.
+    fn stepped(value: f64, up: bool, props: &SliderProps) -> f64 {
+        if up {
+            (value + props.step).min(props.max)
+        } else {
+            (value - props.step).max(props.min)
+        }
+    }
+
+    /// Take the screen reader's request (CTL-005): Increment and Decrement
+    /// move one step as Right and Left do, SetValue takes the requested
+    /// number snapped to the step and clamped to the range; each reports
+    /// the change as a key does. A SetValue that names no finite number
+    /// changes nothing.
+    fn handle_request(
+        &mut self,
+        event: &crate::event::CustomEvent,
+        props: &mut SliderProps,
+    ) -> EventResult {
+        let value = props.bounded_value();
+        let new_value = match event.name.as_str() {
+            INCREMENT_EVENT => Self::stepped(value, true, props),
+            DECREMENT_EVENT => Self::stepped(value, false, props),
+            SET_VALUE_EVENT => {
+                let requested = std::str::from_utf8(&event.data)
+                    .ok()
+                    .and_then(|text| text.trim().parse::<f64>().ok())
+                    .filter(|requested| requested.is_finite());
+                match requested {
+                    Some(requested) => Self::snap(requested, props),
+                    None => return EventResult::Ignored,
+                }
+            }
+            _ => return EventResult::Ignored,
+        };
+        self.change(new_value, props);
+        EventResult::Consumed
+    }
+
     fn handle_key_event(
         &mut self,
         event: &KeyEvent,
@@ -611,8 +682,8 @@ impl Slider {
     ) -> EventResult {
         let value = props.bounded_value();
         let new_value = match event.code {
-            KeyCode::Left | KeyCode::Down => (value - props.step).max(props.min),
-            KeyCode::Right | KeyCode::Up => (value + props.step).min(props.max),
+            KeyCode::Left | KeyCode::Down => Self::stepped(value, false, props),
+            KeyCode::Right | KeyCode::Up => Self::stepped(value, true, props),
             KeyCode::PageDown => Self::snap(
                 (value - ((props.max - props.min) * 0.1).max(props.step)).max(props.min),
                 props,
@@ -761,6 +832,33 @@ mod tests {
 
         let value = slider.value_from_position(19, &props);
         assert_eq!(value, 10.0);
+    }
+
+    /// CTL-005: a slider tells the screen reader that it takes Increment,
+    /// Decrement and SetValue.
+    #[test]
+    fn ctl_005_a_slider_advertises_increment_decrement_and_set_value() {
+        let props = SliderProps {
+            value: 50.0,
+            step: 10.0,
+            ..Default::default()
+        };
+        let element = Slider::new(props.clone()).render(&props, &SliderState::default());
+        let node = element
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the slider has a node");
+        for action in [
+            accesskit::Action::Increment,
+            accesskit::Action::Decrement,
+            accesskit::Action::SetValue,
+        ] {
+            assert!(
+                node.inner.supports_action(action),
+                "CTL-005: a slider's node advertises {action:?}"
+            );
+        }
     }
 
     #[test]

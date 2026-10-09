@@ -135,6 +135,19 @@ impl Frame<'_> {
             if clickable {
                 node.add_action(Action::Click);
             }
+            // Each value action the element takes an event for (CTL-005).
+            let set_value_event = options.and_then(|options| options.set_value_event.clone());
+            let increment_event = options.and_then(|options| options.increment_event.clone());
+            let decrement_event = options.and_then(|options| options.decrement_event.clone());
+            for (action, event) in [
+                (Action::SetValue, &set_value_event),
+                (Action::Increment, &increment_event),
+                (Action::Decrement, &decrement_event),
+            ] {
+                if event.is_some() {
+                    node.add_action(action);
+                }
+            }
             self.snapshot.targets.insert(
                 id,
                 Target {
@@ -142,6 +155,9 @@ impl Frame<'_> {
                     owner,
                     focus_event: focus_event.cloned(),
                     click_event: options.and_then(|options| options.click_event.clone()),
+                    set_value_event,
+                    increment_event,
+                    decrement_event,
                     bounds,
                     clickable,
                 },

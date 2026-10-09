@@ -5,6 +5,35 @@ use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
 
+/// The event a select takes for the screen reader's SetValue request
+/// (CTL-005); its data is the requested option's value or label.
+const SET_VALUE_EVENT: &str = "reactive_tui.select.set_value";
+
+/// Whether `value` reads as `text`: a string value equal to it, or a
+/// number, a character or a boolean whose text form is it. A value of
+/// another type has no text a request can name; its option is named by its
+/// label alone (CTL-005).
+fn value_reads_as<T: 'static>(value: &T, text: &str) -> bool {
+    let value = value as &dyn Any;
+    if let Some(value) = value.downcast_ref::<String>() {
+        return value == text;
+    }
+    if let Some(value) = value.downcast_ref::<&'static str>() {
+        return *value == text;
+    }
+    macro_rules! reads_as {
+        ($($kind:ty),*) => {
+            $(
+                if let Some(value) = value.downcast_ref::<$kind>() {
+                    return value.to_string() == text;
+                }
+            )*
+        };
+    }
+    reads_as!(char, bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64);
+    false
+}
+
 /// Builder for creating Select components with a fluent API
 #[derive(Clone, Debug)]
 pub struct SelectBuilder<T: Clone + PartialEq + Send + Sync + 'static> {
@@ -313,6 +342,12 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
         } else {
             semantic.set_clickable();
         }
+        // The screen reader chooses an option by its value or label; a
+        // select of several choices takes no such request (CTL-005).
+        let settable = !props.disabled && multiple.is_none();
+        if settable {
+            semantic.inner.add_action(accesskit::Action::SetValue);
+        }
         let mut root = Element::layout(crate::component::LayoutType::Flex)
             .with_focus(crate::component::FocusProps::input())
             .disabled(props.disabled)
@@ -324,6 +359,13 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
             "reactive_tui.select.toggle",
             Vec::new(),
         ));
+        if settable {
+            root.metadata
+                .accessibility_options
+                .get_or_insert_default()
+                .set_value_event =
+                Some(crate::event::CustomEvent::new(SET_VALUE_EVENT, Vec::new()));
+        }
 
         let open = state.is_open && !props.options.is_empty();
         if !open {
@@ -655,6 +697,16 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Component for Select<
                 }
                 EventResult::Consumed
             }
+            Event::Custom(event) if event.name == SET_VALUE_EVENT => {
+                let Some(index) = std::str::from_utf8(&event.data)
+                    .ok()
+                    .and_then(|requested| Self::requested_option(requested, props))
+                else {
+                    return EventResult::Ignored;
+                };
+                self.choose(index, props, state);
+                EventResult::Consumed
+            }
             Event::Custom(event) if event.name == "reactive_tui.select.focus" => {
                 let index = std::str::from_utf8(&event.data)
                     .ok()
@@ -727,6 +779,23 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
             .unwrap_or(0);
         self.update_scroll(state, self.visible_items(props));
         self.set_open(true, state);
+    }
+
+    /// The option a screen reader's SetValue request names (CTL-005): the
+    /// first enabled option whose value reads as the request, else the
+    /// first whose label is the request.
+    fn requested_option(requested: &str, props: &SelectProps<T>) -> Option<usize> {
+        let enabled = || {
+            props
+                .options
+                .iter()
+                .enumerate()
+                .filter(|(_, option)| !option.disabled)
+        };
+        enabled()
+            .find(|(_, option)| value_reads_as(&option.value, requested))
+            .or_else(|| enabled().find(|(_, option)| option.label == requested))
+            .map(|(index, _)| index)
     }
 
     fn choose(&mut self, index: usize, props: &mut SelectProps<T>, state: &mut SelectState) {
@@ -999,5 +1068,79 @@ mod tests {
         select.set_open(false, &mut state);
         assert!(select.search.is_empty());
         assert!(select.search_updated.is_none());
+    }
+
+    /// CTL-005: a select tells the screen reader that it takes SetValue.
+    #[test]
+    fn ctl_005_a_select_advertises_set_value() {
+        let props = SelectBuilder::new()
+            .add_option("a".to_owned(), "Alpha")
+            .add_option("b".to_owned(), "Bravo")
+            .placeholder("Pick one")
+            .build();
+        let element = Select::new(props.clone()).render(&props, &SelectState::default());
+        let node = element
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the select has a node");
+        assert!(
+            node.inner.supports_action(accesskit::Action::SetValue),
+            "CTL-005: a select's node advertises SetValue"
+        );
+    }
+
+    /// CTL-005: a disabled text input, slider or select advertises no
+    /// action to the screen reader.
+    #[test]
+    fn ctl_005_a_disabled_control_advertises_no_action() {
+        use crate::widgets::input::{
+            Slider, SliderProps, SliderState, TextInput, TextInputProps, TextInputState,
+        };
+        let text = TextInputProps {
+            value: "kept".to_owned(),
+            disabled: true,
+            ..Default::default()
+        };
+        let slider = SliderProps {
+            disabled: true,
+            ..Default::default()
+        };
+        let select = SelectBuilder::new()
+            .add_option("a".to_owned(), "Alpha")
+            .disabled(true)
+            .build();
+        let controls = [
+            (
+                "text input",
+                TextInput::new(text.clone()).render(&text, &TextInputState::default()),
+            ),
+            (
+                "slider",
+                Slider::new(slider.clone()).render(&slider, &SliderState::default()),
+            ),
+            (
+                "select",
+                Select::new(select.clone()).render(&select, &SelectState::default()),
+            ),
+        ];
+        for (name, element) in controls {
+            let node = element
+                .metadata
+                .accessibility
+                .as_ref()
+                .unwrap_or_else(|| panic!("the {name} has a node"));
+            for action in [
+                accesskit::Action::Click,
+                accesskit::Action::SetValue,
+                accesskit::Action::Increment,
+                accesskit::Action::Decrement,
+            ] {
+                assert!(
+                    !node.inner.supports_action(action),
+                    "CTL-005: a disabled {name}'s node advertises {action:?}"
+                );
+            }
+        }
     }
 }

@@ -98,6 +98,11 @@ mod connection;
 pub(crate) use connection::Connection;
 
 #[cfg(target_os = "linux")]
+mod channel;
+#[cfg(target_os = "linux")]
+pub use channel::ReaderChannel;
+
+#[cfg(target_os = "linux")]
 use crate::event::{hit::Bounds, router::NodeId, CustomEvent};
 #[cfg(target_os = "linux")]
 use std::collections::HashMap;
@@ -109,6 +114,11 @@ pub(crate) struct Target {
     pub owner: NodeId,
     pub focus_event: Option<CustomEvent>,
     pub click_event: Option<CustomEvent>,
+    /// The node's events for SetValue, Increment and Decrement; the node
+    /// advertises the action of each one present (CTL-005).
+    pub set_value_event: Option<CustomEvent>,
+    pub increment_event: Option<CustomEvent>,
+    pub decrement_event: Option<CustomEvent>,
     pub bounds: Bounds,
     pub clickable: bool,
 }
