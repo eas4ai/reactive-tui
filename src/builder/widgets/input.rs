@@ -863,15 +863,47 @@ impl crate::component::Component for ConfiguredSelect {
         props: &mut Self::Props,
         state: &mut Self::State,
     ) -> crate::event::router::EventResult {
-        use crate::event::types::{Event, KeyCode, MouseButton, MouseEventKind};
+        use crate::event::types::{Event, MouseButton, MouseEventKind};
         // The callback a rebuild adopted acts from this event on (CMP-008).
         self.inner.set_on_change(props.on_change.clone());
+        if props.multiple {
+            if let Event::Custom(custom) = event {
+                if custom.name == crate::widgets::input::SET_VALUE_EVENT {
+                    // The screen reader's SetValue names a choice by its value
+                    // or label (CTL-005): the request toggles that choice and
+                    // opens no list.
+                    let inner = props.widget_props();
+                    let Some(value) = std::str::from_utf8(&custom.data)
+                        .ok()
+                        .and_then(|requested| {
+                            crate::widgets::Select::requested_option(requested, &inner)
+                        })
+                        .map(|index| inner.options[index].value.clone())
+                    else {
+                        return crate::event::router::EventResult::Ignored;
+                    };
+                    if self.selected.contains(&value) {
+                        self.selected.retain(|selected| selected != &value);
+                    } else {
+                        self.selected.push(value.clone());
+                    }
+                    props.selected_value = Some(value.clone());
+                    if let Some(on_change) = &props.on_change {
+                        on_change(value);
+                    }
+                    return crate::event::router::EventResult::Consumed;
+                }
+            }
+        }
+        // A choice is made on the keys the keymap binds to Confirm and
+        // Activate (KEY-001), or a click on an option.
         let choosing = state.is_open
             && match event {
-                Event::Key(key) => matches!(
-                    key.code,
-                    KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Space
-                ),
+                Event::Key(key) => {
+                    let keymap = crate::keymap::Keymap::active();
+                    keymap.is(key, crate::keymap::Action::Confirm)
+                        || keymap.is(key, crate::keymap::Action::Activate)
+                }
                 Event::Mouse(mouse) => {
                     self.inner
                         .option_at(mouse.position, &props.widget_props(), state)
@@ -906,3 +938,98 @@ impl From<SelectBuilder> for Element {
 
 // Note: Placeholder builders (RadioButtonBuilder, SliderBuilder)
 // are now provided by the placeholders module
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::component::Component;
+    use crate::event::types::{Event, KeyCode, KeyEvent, KeyModifiers};
+    use crate::widgets::SelectState;
+
+    fn two_choices() -> SelectBuilder {
+        select()
+            .option("a", "Alpha")
+            .option("b", "Bravo")
+            .multiple(true)
+    }
+
+    fn press(code: KeyCode) -> Event {
+        Event::Key(KeyEvent::new(code).with_modifiers(KeyModifiers::empty()))
+    }
+
+    /// KEY-001: a select of several choices takes the highlighted option on
+    /// the key Confirm is rebound to, and no longer on Enter.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_a_multiple_select_chooses_on_the_key_confirm_is_rebound_to() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Confirm, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut props = two_choices();
+        let mut widget = ConfiguredSelect::new(props.clone());
+        let mut state = SelectState {
+            is_open: true,
+            is_focused: true,
+            highlighted_index: 1,
+            ..Default::default()
+        };
+        widget.handle_event(&press(KeyCode::Enter), &mut props, &mut state);
+        assert!(widget.selected.is_empty(), "Enter is no longer Confirm");
+        state.is_open = true;
+        state.highlighted_index = 1;
+        widget.handle_event(&press(KeyCode::F(2)), &mut props, &mut state);
+        assert_eq!(
+            widget.selected,
+            vec!["b".to_string()],
+            "F2, the key Confirm is bound to, chooses the highlighted option"
+        );
+        assert!(state.is_open, "the list stays open for more choices");
+    }
+
+    /// CTL-005: a select of several choices advertises SetValue, and the
+    /// request toggles the option whose value or label it names without
+    /// opening the list.
+    #[test]
+    fn ctl_005_a_multiple_select_advertises_set_value_and_toggles_the_named_option() {
+        let mut props = two_choices();
+        let mut widget = ConfiguredSelect::new(props.clone());
+        let mut state = SelectState::default();
+        let node = widget
+            .render(&props, &state)
+            .metadata
+            .accessibility
+            .expect("the select's node");
+        assert!(
+            node.inner.supports_action(accesskit::Action::SetValue),
+            "a select of several choices advertises SetValue"
+        );
+        let request = |text: &str| {
+            Event::Custom(crate::event::CustomEvent::new(
+                crate::widgets::input::SET_VALUE_EVENT,
+                text.as_bytes().to_vec(),
+            ))
+        };
+        widget.handle_event(&request("b"), &mut props, &mut state);
+        assert_eq!(widget.selected, vec!["b".to_string()], "the value chooses");
+        assert!(!state.is_open, "a request opens no list");
+        widget.handle_event(&request("Alpha"), &mut props, &mut state);
+        assert_eq!(
+            widget.selected,
+            vec!["b".to_string(), "a".to_string()],
+            "the label chooses too"
+        );
+        widget.handle_event(&request("b"), &mut props, &mut state);
+        assert_eq!(
+            widget.selected,
+            vec!["a".to_string()],
+            "a second request un-chooses"
+        );
+        widget.handle_event(&request("zzz"), &mut props, &mut state);
+        assert_eq!(
+            widget.selected,
+            vec!["a".to_string()],
+            "a request naming no option changes nothing"
+        );
+    }
+}
