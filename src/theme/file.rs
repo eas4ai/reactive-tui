@@ -40,6 +40,8 @@ pub enum ThemeFileError {
     },
     /// `variables` is present but is not an object.
     VariablesNotAnObject,
+    /// The document has no `variables` object.
+    MissingVariables,
     /// The document has no `name`.
     MissingName,
 }
@@ -69,6 +71,9 @@ impl fmt::Display for ThemeFileError {
                 write!(f, "`variables` must be a JSON object")
             }
             ThemeFileError::MissingName => write!(f, "theme document has no `name`"),
+            ThemeFileError::MissingVariables => {
+                write!(f, "theme document has no `variables` object")
+            }
         }
     }
 }
@@ -99,9 +104,10 @@ fn preset_named(name: &str) -> Option<Theme> {
 impl Theme {
     /// Load a theme from a JSON document: an object with `name` (a string),
     /// an optional `extends` (a built-in preset name) and `variables` (an
-    /// object of variable names to string values). Any other key, an
-    /// unknown preset, or a non-string value is refused with an error that
-    /// names it (THM-006).
+    /// object of variable names to string values, empty when the theme
+    /// changes nothing of its preset). Any other key, an unknown preset, a
+    /// non-string value, or a missing `name` or `variables` is refused with
+    /// an error that names it (THM-006).
     pub fn from_json(text: &str) -> Result<Theme, ThemeFileError> {
         let value: Value = serde_json::from_str(text).map_err(ThemeFileError::Json)?;
         let Value::Object(map) = value else {
@@ -138,7 +144,7 @@ impl Theme {
         };
         let mut variables = ThemeVariables::new();
         match map.get("variables") {
-            None => {}
+            None => return Err(ThemeFileError::MissingVariables),
             Some(Value::Object(entries)) => {
                 for (key, value) in entries {
                     let Value::String(value) = value else {
@@ -295,5 +301,20 @@ mod tests {
             err.to_string().contains(&missing.display().to_string()),
             "message was: {err}"
         );
+    }
+
+    /// THM-006: `variables` is one of the two required keys; a document
+    /// without it is refused with an error that names it.
+    #[test]
+    fn thm_006_a_document_without_variables_is_refused_naming_the_key() {
+        let err = Theme::from_json(r#"{"name":"ocean"}"#).expect_err("variables is required");
+        assert!(
+            matches!(err, ThemeFileError::MissingVariables),
+            "the error is the missing key, not {err:?}"
+        );
+        assert!(err.to_string().contains("variables"), "message was: {err}");
+        let err = Theme::from_json(r#"{"name":"ocean","extends":"dark"}"#)
+            .expect_err("extends does not stand in for variables");
+        assert!(matches!(err, ThemeFileError::MissingVariables));
     }
 }
