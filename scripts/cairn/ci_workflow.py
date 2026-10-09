@@ -17,7 +17,11 @@ step `env`, the matrix entry substituted), so every cargo call must name a
 toolchain and that toolchain must be the job's pin; no step may override
 TOOLCHAIN or RUSTUP_TOOLCHAIN; an expression the reader cannot resolve is a
 violation. Each job that runs cargo installs its pin with `rustup toolchain
-install`; no step runs `rustup default` or `rustup set default-host`; every
+install`, and only when `rustup toolchain list` lacks it, as every `cargo
+install` of a tool runs only after the tool's `--version` was found wanting
+and every `uv pip install` tries `--offline` first, so a runner that holds
+the pinned tools reaches no network for them and a network blip fails no
+job; no step runs `rustup default` or `rustup set default-host`; every
 platform job's steps run the five commands (build, test, fmt, clippy, cargo
 deny) at the pin; the Linux job builds and tests at rust-version (its own
 pin when that is the floor, otherwise a Linux step whose calls select the
@@ -319,6 +323,34 @@ def platform_job_names(workflow: dict) -> list[str]:
     return names
 
 
+CARGO_INSTALL = re.compile(r"cargo\s+(?:\S+\s+)?install\s+cargo-([a-z-]+)\s+--version")
+UV_INSTALL = re.compile(r"uv\s+pip\s+install\b(?![^\n|]*--offline)")
+
+
+def guard_violations(label: str, run: str) -> list[str]:
+    """The installs a step runs without first finding the tool missing: a
+    `rustup toolchain install` with no `rustup toolchain list` check, a
+    `cargo install cargo-<tool>` with no `cargo-<tool> --version` check, or a
+    `uv pip install` with no `--offline` try before it. Such a step reaches
+    the network on every job, and a blip on the runner fails the job."""
+    found = []
+    if wt.INSTALL.search(run) and not re.search(r"rustup\s+toolchain\s+list\b", run):
+        found.append(f"the {label} installs its toolchain without checking `rustup toolchain list` first, "
+                     "so every job reaches the network for it")
+    for match in CARGO_INSTALL.finditer(run):
+        tool = match.group(1)
+        if not re.search(rf"\b{re.escape(tool)}\s+--version\b", run[: match.start()]):
+            found.append(f"the {label} installs cargo-{tool} without checking `cargo {tool} --version` first, "
+                         "so every job reaches the network for it")
+    offline = re.search(r"uv\s+pip\s+install\s+--offline\b", run)
+    for match in UV_INSTALL.finditer(run):
+        if offline is None or offline.start() > match.start():
+            found.append(f"the {label} installs its Python tools without an offline try first, "
+                         "so every job reaches the network for them")
+            break
+    return found
+
+
 def static_violations(workflow: dict | None = None, attributes: str | None = None,
                       version: str | None = None) -> list[str]:
     """What the workflow file and the attributes lack, as the falsifier lists it.
@@ -348,6 +380,8 @@ def static_violations(workflow: dict | None = None, attributes: str | None = Non
     for name, job in jobs.items():
         if not isinstance(job, dict):
             continue
+        for _, run in runs_of(job):
+            found.extend(guard_violations(f"{name} job", run))
         entries = matrix_entries(job)
         if entries:
             for entry in entries:
