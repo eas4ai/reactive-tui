@@ -744,6 +744,7 @@ impl Slider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::types::KeyCode;
     use crate::event::types::KeyModifiers;
 
     #[test]
