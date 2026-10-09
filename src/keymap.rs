@@ -1,9 +1,9 @@
 //! Named key actions and the keymap that binds keys to them
 //! (docs/spec/keymap.md).
 //!
-//! A widget asks the active keymap which [`Action`] a key means instead of
+//! A widget asks the active keymap which [`Action`](crate::keymap::Action) a key means instead of
 //! matching key codes itself, so an application rebinds a key once and every
-//! widget follows (KEY-001). A [`KeyBinding`] has one text form, the hint a
+//! widget follows (KEY-001). A [`KeyBinding`](crate::keymap::KeyBinding) has one text form, the hint a
 //! menu shows beside an item and the text the screen reader is told
 //! (KEY-002). Typing is not an action: a widget that takes text keeps taking a
 //! plain character as text, so a binding to a plain character reaches only
