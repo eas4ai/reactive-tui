@@ -384,9 +384,17 @@ thread_local! {
 }
 
 /// Keeps a keymap active on the current thread until it is dropped
-/// ([`Keymap::scoped`]).
+/// ([`Keymap::scoped`]). The scope stays on the thread that made it: it is
+/// neither `Send` nor `Sync`, so it cannot be dropped on another thread and
+/// pop that thread's scope in place of its own (KEY-001).
+///
+/// ```compile_fail
+/// use reactive_tui::keymap::Keymap;
+/// let scope = Keymap::scoped(Keymap::default());
+/// std::thread::spawn(move || drop(scope));
+/// ```
 #[must_use = "the keymap stays active only while the scope lives"]
-pub struct KeymapScope(());
+pub struct KeymapScope(std::marker::PhantomData<*const ()>);
 
 impl Drop for KeymapScope {
     fn drop(&mut self) {
@@ -509,7 +517,7 @@ impl Keymap {
     /// one App leaves the others alone.
     pub fn scoped(keymap: Keymap) -> KeymapScope {
         SCOPED.with(|scoped| scoped.borrow_mut().push(Arc::new(keymap)));
-        KeymapScope(())
+        KeymapScope(std::marker::PhantomData)
     }
 
     /// Makes `keymap` the one every widget reads from the next event on;
