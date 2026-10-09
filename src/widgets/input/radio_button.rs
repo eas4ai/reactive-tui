@@ -248,6 +248,10 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Component for RadioBu
                 Toggled::False
             });
             node.set_selected(chosen);
+            // The screen reader hears "n of m" for each radio, as it does
+            // for a tab (CTL-006). A disabled radio still counts.
+            node.inner.set_position_in_set(index + 1);
+            node.inner.set_size_of_set(props.options.len());
             if disabled {
                 node.set_disabled();
             } else {
@@ -535,6 +539,66 @@ mod tests {
             .as_ref()
             .expect("the other radio's node");
         assert_ne!(other.inner.is_selected(), Some(true));
+    }
+
+    /// CTL-006: each radio tells the screen reader its position in the
+    /// group and the group's count, and a disabled radio counts too.
+    #[test]
+    fn ctl_006_each_radio_tells_the_screen_reader_its_position_and_the_groups_count() {
+        let props = RadioButtonProps {
+            options: vec![
+                RadioOption {
+                    value: "low".to_string(),
+                    label: "Low".to_string(),
+                    disabled: false,
+                },
+                RadioOption {
+                    value: "medium".to_string(),
+                    label: "Medium".to_string(),
+                    disabled: false,
+                },
+                RadioOption {
+                    value: "high".to_string(),
+                    label: "High".to_string(),
+                    disabled: true,
+                },
+            ],
+            selected: Some("low".to_string()),
+            aria_label: None,
+            disabled: false,
+            orientation: RadioOrientation::Horizontal,
+        };
+        let element = RadioButton::new(props.clone()).render(&props, &RadioButtonState::default());
+        let second = element.children[1]
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the second radio's node");
+        assert_eq!(
+            second.inner.position_in_set(),
+            Some(2),
+            "the second radio is position 2 in the group"
+        );
+        assert_eq!(
+            second.inner.size_of_set(),
+            Some(3),
+            "the group has three radios"
+        );
+        let disabled = element.children[2]
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the disabled radio's node");
+        assert_eq!(
+            disabled.inner.position_in_set(),
+            Some(3),
+            "the disabled third radio is still position 3"
+        );
+        assert_eq!(
+            disabled.inner.size_of_set(),
+            Some(3),
+            "the disabled radio counts toward the group's size"
+        );
     }
 
     #[test]
