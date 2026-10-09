@@ -6,6 +6,8 @@ use crate::{
     component::{ElementType, FocusProps, LayoutInfo, LayoutType},
     event::types::{FocusEventKind, MouseButton, MouseEventKind, WheelDelta},
     layout::style::{Direction, StyleBuilder},
+    reactive::ThreadSafeSignal,
+    widgets::menu::{MenuItem, PopupMenu, RelativePlacement},
 };
 use std::sync::{Arc, Mutex};
 use unicode_width::UnicodeWidthStr;
@@ -31,6 +33,11 @@ struct Geometry {
     targets: HashMap<String, LayoutInfo>,
     visible: Vec<String>,
     overflow: bool,
+    /// How many visible segments stand before the ellipsis, while the
+    /// trail hides segments behind one (NAV-006).
+    ellipsis_at: Option<usize>,
+    /// The ellipsis as last laid out, for a click on it.
+    ellipsis: Option<LayoutInfo>,
 }
 
 pub(super) struct LiveBreadcrumb {
@@ -39,6 +46,15 @@ pub(super) struct LiveBreadcrumb {
     seed: BreadcrumbState,
     focused: bool,
     hovered: Option<String>,
+    /// Whether the ellipsis, rather than a segment, holds the keyboard
+    /// focus while the trail shows one (NAV-006).
+    ellipsis_focused: bool,
+    /// Whether the pointer is over the ellipsis.
+    ellipsis_hovered: bool,
+    /// The menu of hidden segments: the number of its opening while it is
+    /// open, so each opening mounts a menu of its own.
+    menu: ThreadSafeSignal<Option<u64>>,
+    openings: u64,
 }
 
 fn separator(props: &BreadcrumbProps) -> String {
@@ -66,25 +82,142 @@ impl LiveBreadcrumb {
             .collect()
     }
 
-    fn target_at(&self, mouse: &crate::event::MouseEvent) -> Option<String> {
+    /// The pointer's cell in the coordinates the layouts are kept in.
+    fn pointer(&self, mouse: &crate::event::MouseEvent) -> Option<(f32, f32)> {
         let root = self.viewport?;
         let [a, b, c, d, tx, ty] = root.transform;
         let (x, y) = (mouse.position.x() as f32, mouse.position.y() as f32);
-        let (x, y) = (a * x + c * y + tx, b * x + d * y + ty);
+        Some((a * x + c * y + tx, b * x + d * y + ty))
+    }
+
+    fn hits(layout: &LayoutInfo, (x, y): (f32, f32)) -> bool {
+        let clip = layout.clip;
+        x >= clip.x
+            && y >= clip.y
+            && x < clip.x + clip.width
+            && y < clip.y + clip.height
+            && layout.local_cell(x, y).is_some()
+    }
+
+    fn target_at(&self, mouse: &crate::event::MouseEvent) -> Option<String> {
+        let point = self.pointer(mouse)?;
         self.geometry
             .lock()
             .unwrap()
             .targets
             .iter()
-            .find_map(|(id, layout)| {
-                let clip = layout.clip;
-                (x >= clip.x
-                    && y >= clip.y
-                    && x < clip.x + clip.width
-                    && y < clip.y + clip.height
-                    && layout.local_cell(x, y).is_some())
-                .then(|| id.clone())
-            })
+            .find_map(|(id, layout)| Self::hits(layout, point).then(|| id.clone()))
+    }
+
+    /// Whether the pointer is over the ellipsis the trail shows.
+    fn on_ellipsis(&self, mouse: &crate::event::MouseEvent) -> bool {
+        let Some(point) = self.pointer(mouse) else {
+            return false;
+        };
+        let geometry = self.geometry.lock().unwrap();
+        geometry.ellipsis_at.is_some()
+            && geometry
+                .ellipsis
+                .as_ref()
+                .is_some_and(|layout| Self::hits(layout, point))
+    }
+
+    /// Whether the ellipsis holds the keyboard focus: it was moved there
+    /// and the trail still shows it.
+    fn ellipsis_has_focus(&self) -> bool {
+        self.ellipsis_focused && self.geometry.lock().unwrap().ellipsis_at.is_some()
+    }
+
+    fn open_menu(&mut self) {
+        self.openings += 1;
+        self.menu.set(Some(self.openings));
+    }
+
+    /// The ellipsis that stands for the segments at `hidden` (NAV-006): a
+    /// stop of the trail's keyboard walk, a button that names how many
+    /// segments it hides, and the box the menu of those segments opens
+    /// under.
+    fn ellipsis(
+        &self,
+        props: &BreadcrumbProps,
+        hidden: &[usize],
+        width: Option<usize>,
+        opening: Option<u64>,
+    ) -> Element {
+        let mut node = Node::new(Role::Button);
+        node.set_label(match hidden.len() {
+            1 => "1 hidden segment".to_owned(),
+            count => format!("{count} hidden segments"),
+        });
+        node.set_clickable();
+        node.set_expanded(opening.is_some());
+        let fill = if self.focused && self.ellipsis_has_focus() {
+            look::FOCUSED
+        } else if self.ellipsis_hovered {
+            look::HOVER
+        } else {
+            ""
+        };
+        let mut style = StyleBuilder::new()
+            .display_flex()
+            .direction(Direction::Row)
+            .flex_shrink(0.0)
+            .overflow_hidden();
+        if let Some(width) = width {
+            style = style.width_px(width as f32);
+        }
+        let mut children = vec![Element::text("...").with_class("shrink-0 whitespace-pre")];
+        if let Some(opening) = opening {
+            let items = hidden
+                .iter()
+                .map(|&index| {
+                    let segment = &props.segments[index];
+                    let mut item = MenuItem::new(segment.id.clone(), segment.label.clone())
+                        .enabled(segment.clickable && !segment.current);
+                    if let Some(icon) = segment.icon.as_ref().filter(|_| props.show_icons) {
+                        item = item.icon(icon.clone());
+                    }
+                    item
+                })
+                .collect();
+            // Choosing a hidden segment is a click on it.
+            let config = props.clone();
+            let menu = self.menu.clone();
+            children.push(
+                PopupMenu::beside(
+                    items,
+                    RelativePlacement::Below,
+                    None,
+                    Arc::new(move |id: &str| {
+                        Breadcrumb::activate_segment(id, &config);
+                    }),
+                    Arc::new(move || menu.set(None)),
+                )
+                .with_key(format!("menu:{opening}")),
+            );
+        }
+        let mut result = ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
+            .styles(style)
+            .class(&format!("shrink-0 whitespace-pre {} {fill}", look::MUTED))
+            .children(children)
+            .build()
+            .with_key("ellipsis-stop")
+            .with_accessibility(node);
+        let options = result
+            .metadata
+            .accessibility_options
+            .get_or_insert_default();
+        options.focus = self.ellipsis_has_focus();
+        options.focus_event = Some(crate::event::CustomEvent::new(
+            "reactive_tui.breadcrumb.ellipsis",
+            Vec::new(),
+        ));
+        let geometry = self.geometry.clone();
+        result.metadata.layout.push(Arc::new(move |layout| {
+            geometry.lock().unwrap().ellipsis = Some(layout);
+            false
+        }));
+        result
     }
 
     fn clamp_scroll(
@@ -207,7 +340,9 @@ impl LiveBreadcrumb {
         } else {
             look::DISABLED
         };
-        let fill = if self.focused && state.focused_segment.as_ref() == Some(&segment.id) {
+        let has_focus =
+            !self.ellipsis_has_focus() && state.focused_segment.as_ref() == Some(&segment.id);
+        let fill = if self.focused && has_focus {
             look::FOCUSED
         } else if self.hovered.as_ref() == Some(&segment.id) {
             look::HOVER
@@ -226,7 +361,7 @@ impl LiveBreadcrumb {
                 .metadata
                 .accessibility_options
                 .get_or_insert_default();
-            options.focus = state.focused_segment.as_ref() == Some(&segment.id);
+            options.focus = has_focus;
             options.focus_event = Some(crate::event::CustomEvent::new(
                 "reactive_tui.breadcrumb.focus",
                 segment.id.as_bytes().to_vec(),
@@ -253,6 +388,10 @@ impl Component for LiveBreadcrumb {
             seed: props.seed,
             focused: false,
             hovered: None,
+            ellipsis_focused: false,
+            ellipsis_hovered: false,
+            menu: ThreadSafeSignal::new(None),
+            openings: 0,
         }
     }
 
@@ -307,6 +446,15 @@ impl Component for LiveBreadcrumb {
             self.available(props),
             separator.width(),
         );
+        // The segments the ellipsis stands for, in trail order (NAV-006).
+        let ellipsis_at = plan.entries.iter().position(|(index, _)| index.is_none());
+        let hidden: Vec<usize> = if ellipsis_at.is_some() {
+            (0..props.segments.len())
+                .filter(|index| !plan.entries.iter().any(|(shown, _)| *shown == Some(*index)))
+                .collect()
+        } else {
+            Vec::new()
+        };
         {
             let mut geometry = self.geometry.lock().unwrap();
             geometry.targets.clear();
@@ -316,23 +464,19 @@ impl Component for LiveBreadcrumb {
                 .filter_map(|(index, _)| index.map(|index| props.segments[index].id.clone()))
                 .collect();
             geometry.overflow = plan.overflow;
+            geometry.ellipsis_at = ellipsis_at;
+            if ellipsis_at.is_none() {
+                geometry.ellipsis = None;
+            }
         }
+        // The menu is open only while the ellipsis it opens under is shown.
+        let opening = self.menu.get().filter(|_| ellipsis_at.is_some());
         let mut units = Vec::new();
         for (position, (index, width)) in plan.entries.iter().enumerate() {
             let segment = if let Some(index) = index {
                 self.segment(props, &state, *index, *width)
             } else {
-                let mut node = Node::new(Role::Label);
-                node.set_hidden();
-                let mut style = StyleBuilder::new().flex_shrink(0.0).overflow_hidden();
-                if let Some(width) = width {
-                    style = style.width_px(*width as f32);
-                }
-                ElementBuilder::new(ElementType::Text("...".into()))
-                    .styles(style)
-                    .class(&format!("shrink-0 whitespace-pre {}", look::MUTED))
-                    .build()
-                    .with_accessibility(node)
+                self.ellipsis(props, &hidden, *width, opening)
             };
             let mut children = vec![segment];
             if position + 1 < plan.entries.len() {
@@ -423,10 +567,13 @@ impl Component for LiveBreadcrumb {
             .children(children)
             .build()
             .with_accessibility(node);
-        let mut root = if props
-            .segments
-            .iter()
-            .any(|segment| segment.clickable && !segment.current)
+        // The ellipsis is a stop of its own, so a trail that shows one takes
+        // the focus even when no segment it shows is clickable (NAV-006).
+        let mut root = if ellipsis_at.is_some()
+            || props
+                .segments
+                .iter()
+                .any(|segment| segment.clickable && !segment.current)
         {
             root.with_focus(FocusProps::input())
         } else {
@@ -494,13 +641,36 @@ impl Component for LiveBreadcrumb {
                 FocusEventKind::Lost => {
                     self.focused = false;
                     self.hovered = None;
+                    self.ellipsis_hovered = false;
                 }
                 _ => return EventResult::Ignored,
             },
             Event::Key(key) if self.focused && config.keyboard_navigation => {
-                let result = Breadcrumb.handle_keyboard_event(key, config, &mut state);
+                let after = self.geometry.lock().unwrap().ellipsis_at;
+                let mut stop = after.map(|after| EllipsisStop {
+                    after,
+                    focused: self.ellipsis_focused,
+                    open: false,
+                });
+                let result =
+                    Breadcrumb.handle_keyboard_event(key, config, &mut state, stop.as_mut());
+                self.ellipsis_focused = stop.as_ref().is_some_and(|stop| stop.focused);
+                if stop.is_some_and(|stop| stop.open) {
+                    self.open_menu();
+                }
                 self.clamp_scroll(config, &mut state, true);
                 return result;
+            }
+            // The arrows the open menu leaves pass up to the trail, which
+            // does not move under its menu.
+            Event::Key(key)
+                if self.menu.get().is_some()
+                    && matches!(key.code, KeyCode::Left | KeyCode::Right) => {}
+            Event::Custom(event) if event.name == "reactive_tui.breadcrumb.ellipsis" => {
+                if self.geometry.lock().unwrap().ellipsis_at.is_none() {
+                    return EventResult::Ignored;
+                }
+                self.ellipsis_focused = true;
             }
             Event::Custom(event) if event.name == "reactive_tui.breadcrumb.focus" => {
                 let Ok(id) = std::str::from_utf8(&event.data) else {
@@ -514,11 +684,19 @@ impl Component for LiveBreadcrumb {
                     return EventResult::Ignored;
                 }
                 state.focused_segment = Some(id.into());
+                self.ellipsis_focused = false;
                 self.clamp_scroll(config, &mut state, true);
             }
             Event::Mouse(mouse)
                 if mouse.kind == MouseEventKind::Down && mouse.button == MouseButton::Left =>
             {
+                // A click on the ellipsis opens the menu of the segments it
+                // hides (NAV-006).
+                if self.on_ellipsis(mouse) {
+                    self.ellipsis_focused = true;
+                    self.open_menu();
+                    return EventResult::Consumed;
+                }
                 let Some(id) = self.target_at(mouse) else {
                     return EventResult::Ignored;
                 };
@@ -526,16 +704,20 @@ impl Component for LiveBreadcrumb {
                     return EventResult::Ignored;
                 }
                 state.focused_segment = Some(id);
+                self.ellipsis_focused = false;
             }
             Event::Mouse(mouse) if mouse.kind == MouseEventKind::Move => {
                 let hovered = self.target_at(mouse);
-                if hovered == self.hovered {
+                let ellipsis_hovered = self.on_ellipsis(mouse);
+                if hovered == self.hovered && ellipsis_hovered == self.ellipsis_hovered {
                     return EventResult::Ignored;
                 }
                 self.hovered = hovered;
+                self.ellipsis_hovered = ellipsis_hovered;
             }
             Event::Mouse(mouse) if mouse.kind == MouseEventKind::Leave => {
                 self.hovered = None;
+                self.ellipsis_hovered = false;
             }
             Event::Mouse(mouse)
                 if mouse.kind == MouseEventKind::Wheel

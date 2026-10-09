@@ -4,6 +4,8 @@ use crate::component::{Component, Element, ElementType, LayoutInfo, LayoutType, 
 use crate::event::router::EventResult;
 use crate::event::types::{FocusEventKind, KeyCode, MouseEventKind};
 use crate::event::{Event, MouseEvent};
+use crate::reactive::ThreadSafeSignal;
+use crate::widgets::menu::{MenuItem, MenuItemType, PopupMenu, RelativePlacement};
 use std::any::Any;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -390,6 +392,13 @@ pub struct Tabs {
     bar: Arc<Mutex<Bar>>,
     on_change: Option<Arc<dyn Fn(usize) + Send + Sync>>,
     on_close: Option<Arc<dyn Fn(usize) + Send + Sync>>,
+    /// The menu of every tab (NAV-006): the number of its opening while it
+    /// is open, so each opening mounts a menu of its own.
+    menu: ThreadSafeSignal<Option<u64>>,
+    openings: u64,
+    /// The tab chosen from the menu, selected at the next event the tabs
+    /// receive: the focus coming back to them as the menu closes.
+    chosen: Arc<Mutex<Option<usize>>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -613,11 +622,151 @@ impl Tabs {
         element
     }
 
-    fn target_at(&self, event: &MouseEvent) -> Option<(usize, bool)> {
+    /// The pointer's cell in the coordinates the layouts are kept in.
+    fn pointer(&self, event: &MouseEvent) -> Option<(f32, f32)> {
         let root = self.viewport?;
         let [a, b, c, d, tx, ty] = root.transform;
         let (x, y) = (event.position.x() as f32, event.position.y() as f32);
-        let (x, y) = (a * x + c * y + tx, b * x + d * y + ty);
+        Some((a * x + c * y + tx, b * x + d * y + ty))
+    }
+
+    /// Whether the pointer is over the overflow mark the bar shows.
+    fn on_mark(&self, event: &MouseEvent) -> bool {
+        let Some((x, y)) = self.pointer(event) else {
+            return false;
+        };
+        let bar = self.bar.lock().unwrap();
+        bar.overflow
+            && bar.end.is_some_and(|layout| {
+                let clip = layout.clip;
+                x >= clip.x
+                    && y >= clip.y
+                    && x < clip.x + clip.width
+                    && y < clip.y + clip.height
+                    && layout.local_cell(x, y).is_some()
+            })
+    }
+
+    fn open_menu(&mut self) {
+        self.openings += 1;
+        self.menu.set(Some(self.openings));
+    }
+
+    /// The bar's far end (NAV-006): while a tab is out of view, the
+    /// overflow mark in the muted text role, `»` in the last cell of a
+    /// horizontal bar and `⌄` across the last row of a vertical one; and
+    /// the box the menu of every tab opens beside, the selected tab
+    /// checked.
+    fn bar_end(
+        &self,
+        props: &TabsProps,
+        active: Option<usize>,
+        vertical: bool,
+        overflow: bool,
+        opening: Option<u64>,
+    ) -> Element {
+        let mut children = Vec::new();
+        if overflow {
+            // A vertical mark fills its row, so no header shows beside it.
+            let width = if vertical {
+                self.bar
+                    .lock()
+                    .unwrap()
+                    .viewport
+                    .map_or(1, |view| view.size.0.ceil().max(1.0) as usize)
+            } else {
+                1
+            };
+            let mark = if vertical { "⌄" } else { "»" };
+            children.push(
+                Element::text(format!("{mark:<width$}")).with_class("shrink-0 whitespace-pre"),
+            );
+        }
+        if let Some(opening) = opening {
+            let items = props
+                .tabs
+                .iter()
+                .enumerate()
+                .map(|(index, tab)| {
+                    MenuItem {
+                        item_type: MenuItemType::Checkbox {
+                            checked: active == Some(index),
+                        },
+                        ..MenuItem::new(index.to_string(), tab.label.clone())
+                    }
+                    .enabled(!props.disabled && !tab.disabled)
+                })
+                .collect();
+            let chosen = self.chosen.clone();
+            let menu = self.menu.clone();
+            children.push(
+                PopupMenu::beside(
+                    items,
+                    if vertical {
+                        RelativePlacement::Right
+                    } else {
+                        RelativePlacement::Below
+                    },
+                    active,
+                    Arc::new(move |id: &str| {
+                        if let Ok(index) = id.parse() {
+                            *chosen.lock().unwrap() = Some(index);
+                        }
+                    }),
+                    Arc::new(move || menu.set(None)),
+                )
+                .with_key(format!("menu:{opening}")),
+            );
+        }
+        // The mark is a button that opens the menu; the box alone, when the
+        // menu is opened with every tab in view, says nothing.
+        let semantic = if overflow {
+            let mut semantic = Node::new(Role::Button);
+            semantic.set_label(format!("{} tabs", props.tabs.len()));
+            semantic.set_clickable();
+            semantic.set_expanded(opening.is_some());
+            semantic
+        } else {
+            let mut semantic = Node::new(Role::GenericContainer);
+            semantic.set_hidden();
+            semantic
+        };
+        let mut end = Element::layout(LayoutType::Flex)
+            .with_key("end")
+            .with_class(format!(
+                "absolute flex flex-row h-1 {} {}",
+                if vertical {
+                    "left-0 bottom-0 w-full"
+                } else {
+                    "right-0 top-0 w-1"
+                },
+                look::MUTED
+            ))
+            .with_children(children)
+            .with_accessibility(semantic);
+        if overflow {
+            end.metadata
+                .accessibility_options
+                .get_or_insert_default()
+                .click_event = Some(crate::event::CustomEvent::new(
+                "reactive_tui.tabs.menu",
+                Vec::new(),
+            ));
+        }
+        let bar = self.bar.clone();
+        end.metadata.layout.push(Arc::new(move |layout| {
+            bar.lock().unwrap().end = Some(layout);
+            false
+        }));
+        end
+    }
+
+    fn target_at(&self, event: &MouseEvent) -> Option<(usize, bool)> {
+        // The mark stands over the header under it.
+        if self.on_mark(event) {
+            return None;
+        }
+        let (x, y) = self.pointer(event)?;
         let contains = |layout: LayoutInfo| {
             let clip = layout.clip;
             x >= clip.x
@@ -656,12 +805,34 @@ struct Bar {
     /// The tab to keep in view: the one with the focus, else the selected.
     keep: Option<usize>,
     vertical: bool,
+    /// Whether the frame shows the overflow mark: the row was longer than
+    /// the box when the frame was rendered (NAV-006). The mark takes the
+    /// box's last cell (or row), so a tab kept in view stops short of it.
+    overflow: bool,
+    /// The bar's far end as last laid out: the overflow mark, or the box
+    /// the menu of every tab opens beside.
+    end: Option<LayoutInfo>,
 }
 
 impl Bar {
+    /// Whether the row of headers is longer than the box it is shown
+    /// through, as last laid out.
+    fn overflows(&self) -> bool {
+        let (Some(view), Some(row)) = (self.viewport, self.row) else {
+            return false;
+        };
+        if self.vertical {
+            row.size.1 - view.clip.height >= 0.5
+        } else {
+            row.size.0 - view.clip.width >= 0.5
+        }
+    }
+
     /// Brings the kept tab whole into view and never leaves the row's end
     /// short of the box when the row is longer than the box. `true` when
-    /// the offset changed, so the tabs are laid out again with it.
+    /// the offset changed, so the tabs are laid out again with it, or when
+    /// the frame shows the overflow mark where the row now fits or lacks it
+    /// where the row no longer fits (NAV-006), so it is rendered again.
     fn settle(bar: &Mutex<Self>, targets: &Mutex<Vec<TabTarget>>) -> bool {
         let mut bar = bar.lock().unwrap();
         let (Some(view), Some(row)) = (bar.viewport, bar.row) else {
@@ -682,6 +853,12 @@ impl Bar {
         } else {
             (view.clip.y, view.clip.height)
         };
+        // The overflow mark this frame shows takes the box's last cell.
+        let view_length = if bar.overflow {
+            (view_length - 1.0).max(0.0)
+        } else {
+            view_length
+        };
         let mut offset = bar.offset;
         let keep = bar
             .keep
@@ -698,11 +875,11 @@ impl Bar {
             }
         }
         offset = offset.min((length(row) - view_length).max(0.0)).max(0.0);
-        if (offset - bar.offset).abs() < 0.5 {
-            return false;
+        let moved = (offset - bar.offset).abs() >= 0.5;
+        if moved {
+            bar.offset = offset;
         }
-        bar.offset = offset;
-        true
+        moved || bar.overflows() != bar.overflow
     }
 }
 
@@ -722,6 +899,9 @@ impl Component for Tabs {
             bar: Arc::default(),
             on_change: None,
             on_close: None,
+            menu: ThreadSafeSignal::new(None),
+            openings: 0,
+            chosen: Arc::default(),
         }
     }
 
@@ -754,10 +934,14 @@ impl Component for Tabs {
         let active = Self::active(props);
         let vertical = props.orientation == TabOrientation::Vertical
             || matches!(props.position, TabPosition::Left | TabPosition::Right);
-        let (offset, bar_height) = {
+        let (offset, bar_height, overflow) = {
             let mut bar = self.bar.lock().unwrap();
             bar.keep = state.focused_tab.filter(|_| state.is_focused).or(active);
             bar.vertical = vertical;
+            bar.overflow = bar.overflows();
+            if !bar.overflow {
+                bar.end = None;
+            }
             // A vertical bar takes a definite height, the row's or what its
             // clip shows of it: with the row shifted by a negative margin,
             // an auto height collapses to nothing.
@@ -765,7 +949,7 @@ impl Component for Tabs {
                 (true, Some(view), Some(row)) => Some(row.size.1.min(view.clip.height).max(1.0)),
                 _ => None,
             };
-            (bar.offset, height)
+            (bar.offset, height, bar.overflow)
         };
         let padding = match props.size {
             TabSize::Small => "px-0",
@@ -887,6 +1071,13 @@ impl Component for Tabs {
         if let Some(height) = bar_height {
             bar_style = bar_style.height_px(height);
         }
+        // The overflow mark at the bar's far end, and the menu of every tab
+        // that opens beside it (NAV-006).
+        let opening = self.menu.get();
+        let mut bar_children = vec![row];
+        if overflow || opening.is_some() {
+            bar_children.push(self.bar_end(props, active, vertical, overflow, opening));
+        }
         let mut header = crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
             .styles(bar_style)
             .class(if vertical {
@@ -894,7 +1085,7 @@ impl Component for Tabs {
             } else {
                 "flex flex-row shrink-0 min-w-0 w-full overflow-hidden"
             })
-            .child(row)
+            .children(bar_children)
             .build()
             .with_key("bar")
             .with_accessibility(semantic);
@@ -976,6 +1167,12 @@ impl Component for Tabs {
         }
         self.received_event = true;
         let mut current = self.live.clone();
+        // The tab chosen from the menu is selected, and so kept whole in
+        // view (NAV-006), before the event is handled.
+        let chosen = self.chosen.lock().unwrap().take();
+        if let Some(index) = chosen {
+            self.activate(index, &mut current, state);
+        }
         let result = self.dispatch(event, &mut current, state);
         self.live = current.clone();
         *supplied = current;
@@ -1036,6 +1233,11 @@ impl Tabs {
                 }
                 EventResult::Consumed
             }
+            // The screen reader's click on the overflow mark (NAV-006).
+            Event::Custom(event) if event.name == "reactive_tui.tabs.menu" => {
+                self.open_menu();
+                EventResult::Consumed
+            }
             Event::Key(key)
                 if state.is_focused && key.kind != crate::event::types::KeyEventKind::Release =>
             {
@@ -1047,6 +1249,11 @@ impl Tabs {
                     return EventResult::Ignored;
                 };
                 let next = match key.code {
+                    // Shift+F10 opens the menu of every tab (NAV-006).
+                    KeyCode::F(10) if key.modifiers.shift => {
+                        self.open_menu();
+                        return EventResult::Consumed;
+                    }
                     KeyCode::Left | KeyCode::Up => self.find_next_enabled_tab(props, current, -1),
                     KeyCode::Right | KeyCode::Down => self.find_next_enabled_tab(props, current, 1),
                     KeyCode::Home => props.tabs.iter().position(|t| !t.disabled),
@@ -1075,7 +1282,12 @@ impl Tabs {
             }
             Event::Mouse(mouse) => match mouse.kind {
                 MouseEventKind::Down if mouse.button == crate::event::types::MouseButton::Left => {
-                    if let Some((index, close)) = self.target_at(mouse) {
+                    // A click on the overflow mark opens the menu of every
+                    // tab (NAV-006).
+                    if self.on_mark(mouse) {
+                        self.open_menu();
+                        EventResult::Consumed
+                    } else if let Some((index, close)) = self.target_at(mouse) {
                         if close {
                             self.close(index, props, state);
                         } else {

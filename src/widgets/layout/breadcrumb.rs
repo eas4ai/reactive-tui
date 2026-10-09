@@ -239,11 +239,22 @@ impl Component for Breadcrumb {
     ) -> EventResult {
         match event {
             Event::Key(key) if props.keyboard_navigation => {
-                self.handle_keyboard_event(key, props, state)
+                self.handle_keyboard_event(key, props, state, None)
             }
             _ => EventResult::Ignored,
         }
     }
+}
+
+/// The ellipsis of a trail that hides segments, as a stop of the keyboard
+/// walk in its place among the segments (NAV-006).
+struct EllipsisStop {
+    /// How many visible segments stand before it.
+    after: usize,
+    /// Whether it, rather than a segment, holds the focus.
+    focused: bool,
+    /// Set when Enter or Space on it asks for the menu of hidden segments.
+    open: bool,
 }
 
 impl Breadcrumb {
@@ -252,39 +263,69 @@ impl Breadcrumb {
         event: &KeyEvent,
         props: &BreadcrumbProps,
         state: &mut BreadcrumbState,
+        ellipsis: Option<&mut EllipsisStop>,
     ) -> EventResult {
         if event.kind == KeyEventKind::Release {
             return EventResult::Ignored;
         }
-        let enabled: Vec<_> = state
-            .visible_segments
-            .iter()
-            .filter(|id| {
-                props
-                    .segments
-                    .iter()
-                    .any(|segment| &segment.id == *id && segment.clickable && !segment.current)
-            })
-            .collect();
-        if enabled.is_empty() {
+        // The stops in trail order: each enabled visible segment, and the
+        // ellipsis (`None`) in its place among them.
+        let at = ellipsis.as_ref().map(|stop| stop.after);
+        let mut stops: Vec<Option<String>> = Vec::new();
+        for (position, id) in state.visible_segments.iter().enumerate() {
+            if at == Some(position) {
+                stops.push(None);
+            }
+            if props
+                .segments
+                .iter()
+                .any(|segment| &segment.id == id && segment.clickable && !segment.current)
+            {
+                stops.push(Some(id.clone()));
+            }
+        }
+        if at.is_some_and(|at| at >= state.visible_segments.len()) {
+            stops.push(None);
+        }
+        if stops.is_empty() {
             return EventResult::Ignored;
         }
-        let current = enabled
-            .iter()
-            .position(|id| Some(*id) == state.focused_segment.as_ref())
-            .unwrap_or(0);
+        let current = if ellipsis.as_ref().is_some_and(|stop| stop.focused) {
+            stops.iter().position(Option::is_none)
+        } else {
+            stops
+                .iter()
+                .position(|stop| stop.is_some() && stop.as_ref() == state.focused_segment.as_ref())
+        }
+        .unwrap_or(0);
+        // Home and End go to the first and the last segment, as without an
+        // ellipsis; to the ellipsis only when no segment it shows is a stop.
         let next = match event.code {
             KeyCode::Left => current.saturating_sub(1),
-            KeyCode::Right => (current + 1).min(enabled.len() - 1),
-            KeyCode::Home => 0,
-            KeyCode::End => enabled.len() - 1,
+            KeyCode::Right => (current + 1).min(stops.len() - 1),
+            KeyCode::Home => stops.iter().position(Option::is_some).unwrap_or(0),
+            KeyCode::End => stops
+                .iter()
+                .rposition(Option::is_some)
+                .unwrap_or(stops.len() - 1),
             KeyCode::Enter | KeyCode::Char(' ') => {
-                Self::activate_segment(enabled[current], props);
+                match (&stops[current], ellipsis) {
+                    (Some(id), _) => {
+                        Self::activate_segment(id, props);
+                    }
+                    (None, Some(stop)) => stop.open = true,
+                    (None, None) => {}
+                }
                 return EventResult::Consumed;
             }
             _ => return EventResult::Ignored,
         };
-        state.focused_segment = Some(enabled[next].clone());
+        if let Some(id) = &stops[next] {
+            state.focused_segment = Some(id.clone());
+        }
+        if let Some(stop) = ellipsis {
+            stop.focused = stops[next].is_none();
+        }
         EventResult::Consumed
     }
 
