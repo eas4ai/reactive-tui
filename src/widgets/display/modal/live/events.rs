@@ -16,8 +16,10 @@ impl Runtime {
         let Event::Key(key) = event else {
             return EventResult::Ignored;
         };
+        // The keys mean what the active keymap says (KEY-001).
+        let action = crate::keymap::Keymap::active().action(key);
         if !self.data.lock().unwrap().visible
-            || key.code != KeyCode::Escape
+            || action != Some(crate::keymap::Action::Cancel)
             || key.kind == KeyEventKind::Release
         {
             return EventResult::Ignored;
@@ -48,14 +50,19 @@ impl Runtime {
         {
             return EventResult::Ignored;
         }
-        let (dx, dy) = match key.code {
-            KeyCode::Left => (-1.0, 0.0),
-            KeyCode::Right => (1.0, 0.0),
-            KeyCode::Up => (0.0, -1.0),
-            KeyCode::Down => (0.0, 1.0),
+        // Alt is the modal's own modifier: the key without it means what the
+        // active keymap says (KEY-001), and Shift is read as its variant.
+        let mut plain = key.clone();
+        plain.modifiers.alt = false;
+        let action = crate::keymap::Keymap::active().action_shifted(&plain);
+        use crate::keymap::Action;
+        let (dx, dy, resize) = match action {
+            Some((Action::Left, shifted)) => (-1.0, 0.0, shifted),
+            Some((Action::Right, shifted)) => (1.0, 0.0, shifted),
+            Some((Action::Up, shifted)) => (0.0, -1.0, shifted),
+            Some((Action::Down, shifted)) => (0.0, 1.0, shifted),
             _ => return EventResult::Ignored,
         };
-        let resize = key.modifiers.shift;
         if (resize && !props.resizable) || (!resize && !props.draggable) {
             return EventResult::Ignored;
         }
@@ -205,5 +212,58 @@ impl Runtime {
         drop(data);
         self.wake();
         EventResult::Consumed
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::types::{KeyCode, KeyEvent};
+
+    /// KEY-001: the modal closes on the key the active keymap binds to
+    /// Cancel, and no longer on the key it replaced.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_modal_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Cancel, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let reasons = Arc::new(Mutex::new(Vec::new()));
+        let heard = reasons.clone();
+        let props = ModalProps {
+            visible: true,
+            on_close: Some(Arc::new(move |reason| heard.lock().unwrap().push(reason))),
+            ..Default::default()
+        };
+        let child = LiveModal::new(LiveProps {
+            config: props.clone(),
+            seed: ModalState::default(),
+            spoken: crate::accessibility::Node::new(crate::accessibility::Role::Dialog),
+            motion: None,
+            on_presented: None,
+            escape_closable: true,
+        });
+        child.0.sample(&props, Instant::now());
+        let old = child
+            .0
+            .escape(&Event::Key(KeyEvent::new(KeyCode::Escape)), &props, true);
+        let closed_by_old = reasons.lock().unwrap().clone();
+        let rebound = child
+            .0
+            .escape(&Event::Key(KeyEvent::new(KeyCode::F(2))), &props, true);
+        let closed_by_rebound = reasons.lock().unwrap().clone();
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(old, EventResult::Ignored);
+        assert!(
+            closed_by_old.is_empty(),
+            "Escape, no longer Cancel, does nothing"
+        );
+        assert_eq!(rebound, EventResult::Consumed);
+        assert_eq!(
+            closed_by_rebound,
+            [ModalCloseReason::EscapeKey],
+            "the new Cancel key closes the modal"
+        );
     }
 }

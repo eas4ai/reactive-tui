@@ -460,40 +460,60 @@ impl DialogComponent for AutocompleteDialog {
 
     fn handle_event(&mut self, event: &Event) -> DialogEventResult {
         match event {
-            Event::Key(key_event) => match key_event.code {
-                KeyCode::Escape => {
-                    if self.suggestions_visible {
-                        self.suggestions_visible = false;
-                        self.selected_suggestion = None;
-                        DialogEventResult::StateChanged
-                    } else if self.options.escape_closable {
-                        DialogEventResult::Close(DialogResult::Cancelled)
-                    } else {
-                        DialogEventResult::NotHandled
+            Event::Key(key_event) => {
+                // Typing is not an action: a plain character is the query's
+                // text whatever the keymap binds it to (KEY-001).
+                if let KeyCode::Char(c) = key_event.code {
+                    if !key_event.modifiers.ctrl
+                        && !key_event.modifiers.alt
+                        && !key_event.modifiers.meta
+                    {
+                        return self.handle_text_input(&c.to_string());
                     }
                 }
-                KeyCode::Enter => {
-                    if self.suggestions_visible && self.selected_suggestion.is_some() {
-                        self.select_suggestion()
-                    } else {
-                        self.submit()
+                // The other keys mean what the active keymap says (KEY-001);
+                // Backspace is the field's own.
+                let action = crate::keymap::Keymap::active().action(key_event);
+                use crate::keymap::Action;
+                match action {
+                    Some(Action::Cancel) => {
+                        if self.suggestions_visible {
+                            self.suggestions_visible = false;
+                            self.selected_suggestion = None;
+                            DialogEventResult::StateChanged
+                        } else if self.options.escape_closable {
+                            DialogEventResult::Close(DialogResult::Cancelled)
+                        } else {
+                            DialogEventResult::NotHandled
+                        }
                     }
-                }
-                KeyCode::Up => self.move_selection_up(),
-                KeyCode::Down => self.move_selection_down(),
-                KeyCode::Left => self.move_cursor_left(),
-                KeyCode::Right => self.move_cursor_right(),
-                KeyCode::Backspace => self.handle_backspace(),
-                KeyCode::Tab => {
-                    if self.suggestions_visible && self.selected_suggestion.is_some() {
-                        self.select_suggestion()
-                    } else {
-                        DialogEventResult::NotHandled
+                    Some(Action::Confirm) => {
+                        if self.suggestions_visible && self.selected_suggestion.is_some() {
+                            self.select_suggestion()
+                        } else {
+                            self.submit()
+                        }
                     }
+                    Some(Action::Up) => self.move_selection_up(),
+                    Some(Action::Down) => self.move_selection_down(),
+                    Some(Action::Left) => self.move_cursor_left(),
+                    Some(Action::Right) => self.move_cursor_right(),
+                    Some(Action::Next) => {
+                        if self.suggestions_visible && self.selected_suggestion.is_some() {
+                            self.select_suggestion()
+                        } else {
+                            DialogEventResult::NotHandled
+                        }
+                    }
+                    _ => match key_event.code {
+                        KeyCode::Backspace => self.handle_backspace(),
+                        // A character with Ctrl, Alt or Meta held that no
+                        // action took is text, as it was before the keymap.
+                        KeyCode::Char(c) => self.handle_text_input(&c.to_string()),
+                        _ => DialogEventResult::NotHandled,
+                    },
                 }
-                KeyCode::Char(c) => self.handle_text_input(&c.to_string()),
-                _ => DialogEventResult::NotHandled,
-            },
+            }
             Event::Mouse(mouse_event) => {
                 match mouse_event.kind {
                     MouseEventKind::Down => {
@@ -849,5 +869,39 @@ mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert_eq!(dialog.input_value, "draft");
         assert!(dialog.suggestions_visible);
+    }
+
+    /// KEY-001: the dialog closes on the key the active keymap binds to
+    /// Cancel and no longer on the key it replaced, and a plain character
+    /// bound to Cancel is still typed into the query.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_autocomplete_dialog_reads_its_keys_through_the_keymap() {
+        use crate::event::types::KeyEvent;
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(
+            Action::Cancel,
+            [
+                KeyBinding::new(KeyCode::F(2)),
+                KeyBinding::new(KeyCode::Char('x')),
+            ],
+        );
+        let _scope = Keymap::scoped(keymap);
+        let mut dialog = AutocompleteDialog::new(DialogId::from_u32(1), Default::default());
+        dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::Char('x'))));
+        let typed = dialog.input_value.clone();
+        let old = dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::Escape)));
+        let rebound = dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::F(2))));
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(typed, "x", "a plain character is text, not Cancel");
+        assert!(
+            matches!(old, DialogEventResult::NotHandled),
+            "Escape, no longer Cancel, does nothing"
+        );
+        assert!(
+            matches!(rebound, DialogEventResult::Close(DialogResult::Cancelled)),
+            "the new Cancel key closes the dialog"
+        );
     }
 }

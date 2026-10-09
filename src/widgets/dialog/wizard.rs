@@ -277,9 +277,13 @@ impl WizardDialog {
     /// Handle keyboard events for wizard navigation
     fn handle_key_event(&mut self, key_event: &crate::event::types::KeyEvent) -> DialogEventResult {
         use crate::event::types::KeyCode;
+        use crate::keymap::Action;
 
-        match key_event.code {
-            KeyCode::Enter => {
+        // The keys mean what the active keymap says (KEY-001); Backspace,
+        // which goes back as Left does, is the wizard's own.
+        let action = crate::keymap::Keymap::active().action(key_event);
+        match action {
+            Some(Action::Confirm) => {
                 // Move to next step or finish
                 if self.current_step + 1 >= self.options.steps.len() {
                     self.finish_wizard()
@@ -289,11 +293,11 @@ impl WizardDialog {
                     DialogEventResult::NotHandled
                 }
             }
-            KeyCode::Escape => {
+            Some(Action::Cancel) => {
                 // Cancel wizard
                 self.cancel_wizard()
             }
-            KeyCode::Left | KeyCode::Backspace => {
+            _ if action == Some(Action::Left) || key_event.code == KeyCode::Backspace => {
                 // Go back if allowed
                 if self.options.allow_back && self.current_step > 0 {
                     if self.previous_step() {

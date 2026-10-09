@@ -7,7 +7,9 @@ impl Popover {
             let Event::Key(key) = event else {
                 return EventResult::Ignored;
             };
-            if key.code != KeyCode::Escape || key.kind == KeyEventKind::Release {
+            // The keys mean what the active keymap says (KEY-001).
+            let action = crate::keymap::Keymap::active().action(key);
+            if action != Some(crate::keymap::Action::Cancel) || key.kind == KeyEventKind::Release {
                 return EventResult::Ignored;
             }
             if props.close_on_escape && key.kind == KeyEventKind::Press && !key.repeat {
@@ -97,13 +99,14 @@ pub(super) fn activation(event: &Event) -> bool {
         Event::Mouse(mouse) => {
             mouse.button == MouseButton::Left && mouse.kind == MouseEventKind::Down
         }
+        // The keys mean what the active keymap says (KEY-001); a binding
+        // names its modifiers, so a key with others held is no action.
         Event::Key(key) => {
             key.kind == KeyEventKind::Press
                 && !key.repeat
-                && key.modifiers.is_empty()
                 && matches!(
-                    key.code,
-                    KeyCode::Enter | KeyCode::Space | KeyCode::Char(' ')
+                    crate::keymap::Keymap::active().action(key),
+                    Some(crate::keymap::Action::Confirm | crate::keymap::Action::Activate)
                 )
         }
         _ => false,

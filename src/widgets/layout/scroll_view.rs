@@ -2,8 +2,7 @@ use super::look;
 use crate::component::{Component, Element, ElementType, LayoutInfo, LayoutType, Props};
 use crate::event::router::EventResult;
 use crate::event::types::{
-    FocusEventKind, KeyCode, KeyEventKind, MouseButton, MouseEvent, MouseEventKind, Position,
-    WheelDelta,
+    FocusEventKind, KeyEventKind, MouseButton, MouseEvent, MouseEventKind, Position, WheelDelta,
 };
 use crate::event::Event;
 use crate::layout::style::{Direction, StyleBuilder};
@@ -552,30 +551,33 @@ impl Component for ScrollView {
             }
             Event::Key(key) if state.is_focused && key.kind != KeyEventKind::Release => {
                 let (_, height) = self.visible_size(props);
-                match key.code {
-                    KeyCode::Up if props.scroll_y => {
+                // The keys mean what the active keymap says (KEY-001).
+                let action = crate::keymap::Keymap::active().action(key);
+                use crate::keymap::Action;
+                match action {
+                    Some(Action::Up) if props.scroll_y => {
                         state.scroll_y = state.scroll_y.saturating_sub(1)
                     }
-                    KeyCode::Down if props.scroll_y => {
+                    Some(Action::Down) if props.scroll_y => {
                         state.scroll_y = state.scroll_y.saturating_add(1)
                     }
-                    KeyCode::Left if props.scroll_x => {
+                    Some(Action::Left) if props.scroll_x => {
                         state.scroll_x = state.scroll_x.saturating_sub(1)
                     }
-                    KeyCode::Right if props.scroll_x => {
+                    Some(Action::Right) if props.scroll_x => {
                         state.scroll_x = state.scroll_x.saturating_add(1)
                     }
-                    KeyCode::PageUp if props.scroll_y => {
+                    Some(Action::PageUp) if props.scroll_y => {
                         state.scroll_y = state.scroll_y.saturating_sub(height.max(1))
                     }
-                    KeyCode::PageDown if props.scroll_y => {
+                    Some(Action::PageDown) if props.scroll_y => {
                         state.scroll_y = state.scroll_y.saturating_add(height.max(1))
                     }
-                    KeyCode::Home => {
+                    Some(Action::Home) => {
                         state.scroll_x = 0;
                         state.scroll_y = 0;
                     }
-                    KeyCode::End => {
+                    Some(Action::End) => {
                         let limits = self.limits(props);
                         state.scroll_y = limits.1;
                         if !props.scroll_y {
@@ -827,5 +829,49 @@ mod tests {
                 (Some(0.0), Some(0.0))
             );
         }
+    }
+
+    /// KEY-001: the view scrolls on the key the active keymap binds to Down,
+    /// and no longer on the key it replaced.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_scroll_view_reads_its_keys_through_the_keymap() {
+        use crate::event::types::{KeyCode, KeyEvent};
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Down, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut props = ScrollViewBuilder::default()
+            .viewport_size(20, 5)
+            .scroll_x(false)
+            .build();
+        let mut view = ScrollView::new(props.clone());
+        *view.content_size.lock().unwrap() = (6, 60);
+        let mut state = ScrollViewState {
+            is_focused: true,
+            ..Default::default()
+        };
+        view.layout(
+            LayoutInfo::from_bounds(crate::event::hit::Bounds::new(0.0, 0.0, 20.0, 5.0)),
+            &mut props,
+            &mut state,
+        );
+        let rebound = view.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::F(2))),
+            &mut props,
+            &mut state,
+        );
+        let after_rebound = state.scroll_y;
+        let old = view.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Down)),
+            &mut props,
+            &mut state,
+        );
+        let after_old = state.scroll_y;
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(rebound, EventResult::Consumed);
+        assert_eq!(after_rebound, 1, "the new Down key scrolls a row");
+        assert_eq!(old, EventResult::Ignored);
+        assert_eq!(after_old, 1, "the arrow, no longer Down, does nothing");
     }
 }

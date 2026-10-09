@@ -1,6 +1,6 @@
 use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
+use crate::event::types::{KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
@@ -408,10 +408,13 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> RadioButton<T> {
         let Some(current) = state.focused_index.filter(|&i| i < props.options.len()) else {
             return EventResult::Ignored;
         };
-        match event.code {
-            KeyCode::Up | KeyCode::Left | KeyCode::Down | KeyCode::Right => {
+        // The keys mean what the active keymap says (KEY-001).
+        let action = crate::keymap::Keymap::active().action(event);
+        use crate::keymap::Action;
+        match action {
+            Some(Action::Up | Action::Left | Action::Down | Action::Right) => {
                 let len = props.options.len();
-                let backwards = matches!(event.code, KeyCode::Up | KeyCode::Left);
+                let backwards = matches!(action, Some(Action::Up | Action::Left));
                 state.focused_index = (1..=len)
                     .map(|offset| {
                         if backwards {
@@ -423,9 +426,7 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> RadioButton<T> {
                     .find(|&i| !props.options[i].disabled);
                 EventResult::Consumed
             }
-            KeyCode::Char(' ') | KeyCode::Space | KeyCode::Enter => {
-                self.select(current, props, state)
-            }
+            Some(Action::Activate | Action::Confirm) => self.select(current, props, state),
             _ => EventResult::Ignored,
         }
     }
@@ -487,7 +488,7 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> RadioButton<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::types::KeyModifiers;
+    use crate::event::types::{KeyCode, KeyModifiers};
 
     /// CTL-004: the group's node carries its orientation, and the chosen
     /// radio is selected as well as toggled.
@@ -602,6 +603,8 @@ mod tests {
     }
 
     #[test]
+    // Sends a default key: kept apart from the tests that rebind it (KEY-001).
+    #[serial_test::parallel(keymap)]
     fn test_radio_selection() {
         let mut radio = RadioButton::<String>::new(RadioButtonProps::default());
         let mut props = RadioButtonProps {
@@ -642,6 +645,8 @@ mod tests {
     }
 
     #[test]
+    // Sends a default key: kept apart from the tests that rebind it (KEY-001).
+    #[serial_test::parallel(keymap)]
     fn test_radio_navigation() {
         let mut radio = RadioButton::<i32>::new(RadioButtonProps::default());
         let mut props = RadioButtonProps {
@@ -691,5 +696,55 @@ mod tests {
         // Navigate down to wrap around
         radio.handle_event(&event, &mut props, &mut state);
         assert_eq!(state.focused_index, Some(0));
+    }
+
+    /// KEY-001: the radio group moves on the key the active keymap binds to
+    /// Down, and no longer on the key it replaced.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_radio_button_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Down, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut radio = RadioButton::<i32>::new(RadioButtonProps::default());
+        let mut props = RadioButtonProps {
+            options: (1..=3)
+                .map(|value| RadioOption {
+                    value,
+                    label: value.to_string(),
+                    disabled: false,
+                })
+                .collect(),
+            selected: None,
+            aria_label: None,
+            disabled: false,
+            orientation: RadioOrientation::Vertical,
+        };
+        let mut state = RadioButtonState {
+            focused_index: Some(0),
+            hover_index: None,
+        };
+        let rebound = radio.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::F(2))),
+            &mut props,
+            &mut state,
+        );
+        let after_rebound = state.focused_index;
+        let old = radio.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Down)),
+            &mut props,
+            &mut state,
+        );
+        let after_old = state.focused_index;
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(rebound, EventResult::Consumed);
+        assert_eq!(after_rebound, Some(1), "the new Down key moves the focus");
+        assert_eq!(old, EventResult::Ignored);
+        assert_eq!(
+            after_old,
+            Some(1),
+            "the arrow, no longer Down, does nothing"
+        );
     }
 }

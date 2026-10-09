@@ -486,33 +486,46 @@ impl DialogComponent for InputDialog {
             {
                 DialogEventResult::NotHandled
             }
-            Event::Key(key_event) => match key_event.code {
-                KeyCode::Escape if self.options.escape_closable => {
-                    DialogEventResult::Close(DialogResult::Cancelled)
-                }
-                KeyCode::Enter => {
-                    if self.options.input.multiline {
-                        self.handle_text_input("\n")
-                    } else {
-                        self.submit()
-                    }
-                }
-                KeyCode::Backspace => self.handle_backspace(),
-                KeyCode::Delete => self.handle_delete(),
-                KeyCode::Left => self.move_cursor_left(key_event.modifiers.shift),
-                KeyCode::Right => self.move_cursor_right(key_event.modifiers.shift),
-                KeyCode::Home => self.move_cursor_home(key_event.modifiers.shift),
-                KeyCode::End => self.move_cursor_end(key_event.modifiers.shift),
-                KeyCode::Char('a') if key_event.modifiers.ctrl => self.select_all(),
-                KeyCode::Char(c)
+            Event::Key(key_event) => {
+                // Typing is not an action: a plain character is the field's
+                // text whatever the keymap binds it to (KEY-001).
+                if let KeyCode::Char(c) = key_event.code {
                     if !key_event.modifiers.ctrl
                         && !key_event.modifiers.alt
-                        && !key_event.modifiers.meta =>
-                {
-                    self.handle_text_input(&c.to_string())
+                        && !key_event.modifiers.meta
+                    {
+                        return self.handle_text_input(&c.to_string());
+                    }
                 }
-                _ => DialogEventResult::NotHandled,
-            },
+                // The other keys mean what the active keymap says (KEY-001);
+                // Shift is read as a variant of a key, the one that extends
+                // the selection. Backspace and Ctrl+A, select-all, are the
+                // field's own.
+                let action = crate::keymap::Keymap::active().action_shifted(key_event);
+                use crate::keymap::Action;
+                match action {
+                    Some((Action::Cancel, _)) if self.options.escape_closable => {
+                        DialogEventResult::Close(DialogResult::Cancelled)
+                    }
+                    Some((Action::Confirm, _)) => {
+                        if self.options.input.multiline {
+                            self.handle_text_input("\n")
+                        } else {
+                            self.submit()
+                        }
+                    }
+                    Some((Action::Delete, _)) => self.handle_delete(),
+                    Some((Action::Left, shifted)) => self.move_cursor_left(shifted),
+                    Some((Action::Right, shifted)) => self.move_cursor_right(shifted),
+                    Some((Action::Home, shifted)) => self.move_cursor_home(shifted),
+                    Some((Action::End, shifted)) => self.move_cursor_end(shifted),
+                    _ if key_event.code == KeyCode::Backspace => self.handle_backspace(),
+                    _ if key_event.code == KeyCode::Char('a') && key_event.modifiers.ctrl => {
+                        self.select_all()
+                    }
+                    _ => DialogEventResult::NotHandled,
+                }
+            }
             Event::Paste(paste) => {
                 let text = if self.options.input.multiline {
                     paste.content.replace("\r\n", "\n").replace('\r', "\n")
@@ -785,5 +798,49 @@ impl ValidationRule {
             message: message.to_string(),
             required: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::types::KeyEvent;
+
+    /// KEY-001: the dialog submits on the key the active keymap binds to
+    /// Confirm and no longer on the key it replaced, and a plain character
+    /// bound to Confirm is still typed as text.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_input_dialog_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(
+            Action::Confirm,
+            [
+                KeyBinding::new(KeyCode::F(2)),
+                KeyBinding::new(KeyCode::Char('q')),
+            ],
+        );
+        let _scope = Keymap::scoped(keymap);
+        let mut options = InputDialogOptions::default();
+        options.input.default_value = Some("ab".into());
+        let mut dialog = InputDialog::new(DialogId::from_u32(1), options);
+        let old = dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::Enter)));
+        dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::Char('q'))));
+        let typed = dialog.input_value.clone();
+        let rebound = dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::F(2))));
+        // The scope above restores the default keymap when it drops.
+        assert!(
+            matches!(old, DialogEventResult::NotHandled),
+            "Enter, no longer Confirm, does nothing"
+        );
+        assert_eq!(typed, "abq", "a plain character is text, not Confirm");
+        assert!(
+            matches!(
+                rebound,
+                DialogEventResult::Close(DialogResult::Confirmed(Some(ref value))) if value == "abq"
+            ),
+            "the new Confirm key submits the value"
+        );
     }
 }

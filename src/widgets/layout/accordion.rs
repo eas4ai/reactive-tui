@@ -12,7 +12,7 @@
 
 use crate::component::{CallbackSlot, Component, Element, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent};
+use crate::event::types::KeyEvent;
 use crate::event::Event;
 use std::any::Any;
 use std::collections::HashMap;
@@ -419,12 +419,15 @@ impl Accordion {
             .iter()
             .position(|s| state.focused_section.as_ref() == Some(&s.id))
             .unwrap_or(0);
-        let next = match event.code {
-            KeyCode::Down => (current + 1) % enabled.len(),
-            KeyCode::Up => (current + enabled.len() - 1) % enabled.len(),
-            KeyCode::Home => 0,
-            KeyCode::End => enabled.len() - 1,
-            KeyCode::Enter | KeyCode::Char(' ') => {
+        // The keys mean what the active keymap says (KEY-001).
+        let action = crate::keymap::Keymap::active().action(event);
+        use crate::keymap::Action;
+        let next = match action {
+            Some(Action::Down) => (current + 1) % enabled.len(),
+            Some(Action::Up) => (current + enabled.len() - 1) % enabled.len(),
+            Some(Action::Home) => 0,
+            Some(Action::End) => enabled.len() - 1,
+            Some(Action::Confirm | Action::Activate) => {
                 self.toggle_section(&enabled[current].id, props, state);
                 return EventResult::Consumed;
             }
@@ -543,5 +546,54 @@ impl AccordionBuilder {
 impl Default for AccordionBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::types::KeyCode;
+
+    /// KEY-001: the accordion moves its focus on the key the active keymap
+    /// binds to Down, and no longer on the key it replaced.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_accordion_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Down, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut props = AccordionBuilder::new()
+            .section(AccordionSection::new("one", "One"))
+            .section(AccordionSection::new("two", "Two"))
+            .section(AccordionSection::new("three", "Three"))
+            .props;
+        let mut accordion = Accordion;
+        let mut state = accordion.initial_state(&props);
+        let rebound = accordion.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::F(2))),
+            &mut props,
+            &mut state,
+        );
+        let after_rebound = state.focused_section.clone();
+        let old = accordion.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Down)),
+            &mut props,
+            &mut state,
+        );
+        let after_old = state.focused_section.clone();
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(rebound, EventResult::Consumed);
+        assert_eq!(
+            after_rebound.as_deref(),
+            Some("two"),
+            "the new Down key moves the focus"
+        );
+        assert_eq!(old, EventResult::Ignored);
+        assert_eq!(
+            after_old.as_deref(),
+            Some("two"),
+            "the arrow, no longer Down, does nothing"
+        );
     }
 }
