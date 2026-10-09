@@ -4,7 +4,11 @@
 //! checkboxes, radio buttons, select dropdowns, and sliders.
 
 use super::super::specialized::{RadioButtonBuilder, SliderBuilder};
-use crate::component::Element;
+use crate::component::{same_callback, Element};
+use std::sync::Arc;
+
+/// A builder's change callback, called with the value the control reports.
+type Callback<T> = Arc<dyn Fn(T) + Send + Sync>;
 
 /// Create a Text Input builder
 ///
@@ -91,7 +95,7 @@ pub fn slider() -> SliderBuilder {
 ///     .class("email-field")
 ///     .build();
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct TextInputBuilder {
     value: String,
     placeholder: Option<String>,
@@ -101,6 +105,36 @@ pub struct TextInputBuilder {
     max_length: Option<usize>,
     input_type: String,
     class: Option<String>,
+    on_change: Option<Callback<String>>,
+    on_submit: Option<Callback<String>>,
+}
+
+/// Equal over the settings and not the callbacks, so a rebuild that changes
+/// only a callback keeps the mounted input and hands it the new one
+/// (CMP-008).
+impl PartialEq for TextInputBuilder {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            value,
+            placeholder,
+            aria_label,
+            disabled,
+            readonly,
+            max_length,
+            input_type,
+            class,
+            on_change: _,
+            on_submit: _,
+        } = self;
+        *value == other.value
+            && *placeholder == other.placeholder
+            && *aria_label == other.aria_label
+            && *disabled == other.disabled
+            && *readonly == other.readonly
+            && *max_length == other.max_length
+            && *input_type == other.input_type
+            && *class == other.class
+    }
 }
 
 impl TextInputBuilder {
@@ -115,6 +149,8 @@ impl TextInputBuilder {
             max_length: None,
             input_type: "text".to_string(),
             class: None,
+            on_change: None,
+            on_submit: None,
         }
     }
 
@@ -188,6 +224,20 @@ impl TextInputBuilder {
         self
     }
 
+    /// Set the callback called with the text after each change the user
+    /// makes to it, as `TextInput::with_on_change` is (CMP-009).
+    pub fn on_change(mut self, f: impl Fn(String) + Send + Sync + 'static) -> Self {
+        self.on_change = Some(Arc::new(f));
+        self
+    }
+
+    /// Set the callback called with the text when Enter submits it, as
+    /// `TextInput::with_on_submit` is (CMP-009).
+    pub fn on_submit(mut self, f: impl Fn(String) + Send + Sync + 'static) -> Self {
+        self.on_submit = Some(Arc::new(f));
+        self
+    }
+
     /// Build the TextInput element
     ///
     /// Creates a text input element with the configured properties.
@@ -233,12 +283,37 @@ impl TextInputBuilder {
 
 struct ConfiguredTextInput(crate::widgets::TextInput);
 
+impl ConfiguredTextInput {
+    /// Hand the input the callbacks `props` carry (CMP-009).
+    fn take_callbacks(&mut self, props: &TextInputBuilder) {
+        self.0.set_on_change(props.on_change.clone());
+        self.0.set_on_submit(props.on_submit.clone());
+    }
+}
+
 impl crate::component::Component for ConfiguredTextInput {
     type Props = TextInputBuilder;
     type State = crate::widgets::TextInputState;
 
     fn new(props: Self::Props) -> Self {
-        Self(crate::widgets::TextInput::new(props.widget_props()))
+        let mut input = Self(crate::widgets::TextInput::new(props.widget_props()));
+        input.take_callbacks(&props);
+        input
+    }
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        _state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        if same_callback(&props.on_change, &supplied.on_change)
+            && same_callback(&props.on_submit, &supplied.on_submit)
+        {
+            return false;
+        }
+        props.on_change = supplied.on_change.clone();
+        props.on_submit = supplied.on_submit.clone();
+        true
     }
     fn initial_state(&mut self, props: &Self::Props) -> Self::State {
         self.0.initial_state(&props.widget_props())
@@ -267,6 +342,8 @@ impl crate::component::Component for ConfiguredTextInput {
             router::EventResult,
             types::{Event, KeyCode},
         };
+        // The callbacks a rebuild adopted act from this event on (CMP-008).
+        self.take_callbacks(props);
         if props.readonly {
             let allowed = match event {
                 Event::Key(key) if key.modifiers.ctrl => matches!(
@@ -326,6 +403,7 @@ impl From<TextInputBuilder> for Element {
 ///     .class("terms-checkbox")
 ///     .build();
 /// ```
+#[derive(Clone)]
 pub struct CheckboxBuilder {
     checked: bool,
     label: Option<String>,
@@ -333,6 +411,30 @@ pub struct CheckboxBuilder {
     disabled: bool,
     indeterminate: bool,
     class: Option<String>,
+    on_change: Option<Callback<bool>>,
+}
+
+/// Equal over the settings and not the callback, so a rebuild that changes
+/// only the callback keeps the mounted checkbox and hands it the new one
+/// (CMP-008).
+impl PartialEq for CheckboxBuilder {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            checked,
+            label,
+            aria_label,
+            disabled,
+            indeterminate,
+            class,
+            on_change: _,
+        } = self;
+        *checked == other.checked
+            && *label == other.label
+            && *aria_label == other.aria_label
+            && *disabled == other.disabled
+            && *indeterminate == other.indeterminate
+            && *class == other.class
+    }
 }
 
 impl CheckboxBuilder {
@@ -345,6 +447,7 @@ impl CheckboxBuilder {
             disabled: false,
             indeterminate: false,
             class: None,
+            on_change: None,
         }
     }
 
@@ -400,6 +503,13 @@ impl CheckboxBuilder {
         self
     }
 
+    /// Set the callback called with the new checked state each time the
+    /// user toggles the box, as `Checkbox::with_on_change` is (CMP-009).
+    pub fn on_change(mut self, f: impl Fn(bool) + Send + Sync + 'static) -> Self {
+        self.on_change = Some(Arc::new(f));
+        self
+    }
+
     /// Build the Checkbox element
     ///
     /// Creates a checkbox element with the configured properties.
@@ -407,20 +517,87 @@ impl CheckboxBuilder {
     /// # Returns
     /// An `Element` representing the checkbox input
     pub fn build(self) -> Element {
-        let mut element =
-            Element::typed::<crate::widgets::Checkbox>(crate::widgets::CheckboxProps {
-                checked: self.checked,
-                label: self.label,
-                aria_label: self.aria_label,
-                disabled: self.disabled,
-                indeterminate: self.indeterminate,
-            });
-
-        if let Some(class) = self.class {
+        let class = self.class.clone();
+        let mut element = Element::typed::<ConfiguredCheckbox>(self);
+        if let Some(class) = class {
             element = element.with_class(&class);
         }
 
         element
+    }
+
+    fn widget_props(&self) -> crate::widgets::CheckboxProps {
+        crate::widgets::CheckboxProps {
+            checked: self.checked,
+            label: self.label.clone(),
+            aria_label: self.aria_label.clone(),
+            disabled: self.disabled,
+            indeterminate: self.indeterminate,
+        }
+    }
+}
+
+impl crate::component::Props for CheckboxBuilder {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// A checkbox built through its builder: the checkbox itself, with the
+/// builder's callback handed to it (CMP-009).
+struct ConfiguredCheckbox(crate::widgets::Checkbox);
+
+impl crate::component::Component for ConfiguredCheckbox {
+    type Props = CheckboxBuilder;
+    type State = crate::widgets::CheckboxState;
+
+    fn new(props: Self::Props) -> Self {
+        let mut inner = crate::widgets::Checkbox::new(props.widget_props());
+        inner.set_on_change(props.on_change.clone());
+        Self(inner)
+    }
+    fn initial_state(&mut self, props: &Self::Props) -> Self::State {
+        self.0.initial_state(&props.widget_props())
+    }
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        self.0.update(&props.widget_props(), state)
+    }
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        _state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        if same_callback(&props.on_change, &supplied.on_change) {
+            return false;
+        }
+        props.on_change = supplied.on_change.clone();
+        true
+    }
+    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        self.0.render(&props.widget_props(), state)
+    }
+    fn layout(
+        &mut self,
+        bounds: crate::component::LayoutInfo,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> bool {
+        self.0.layout(bounds, &mut props.widget_props(), state)
+    }
+    fn handle_event(
+        &mut self,
+        event: &crate::event::Event,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> crate::event::router::EventResult {
+        // The callback a rebuild adopted acts from this event on (CMP-008).
+        self.0.set_on_change(props.on_change.clone());
+        let mut inner = props.widget_props();
+        let result = self.0.handle_event(event, &mut inner, state);
+        props.checked = inner.checked;
+        props.indeterminate = inner.indeterminate;
+        result
     }
 }
 
@@ -446,7 +623,7 @@ impl From<CheckboxBuilder> for Element {
 ///     .placeholder("Choose country")
 ///     .build();
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct SelectBuilder {
     options: Vec<(String, String)>, // (value, label)
     selected_value: Option<String>,
@@ -454,6 +631,30 @@ pub struct SelectBuilder {
     disabled: bool,
     multiple: bool,
     class: Option<String>,
+    on_change: Option<Callback<String>>,
+}
+
+/// Equal over the settings and not the callback, so a rebuild that changes
+/// only the callback keeps the mounted select and hands it the new one
+/// (CMP-008).
+impl PartialEq for SelectBuilder {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            options,
+            selected_value,
+            placeholder,
+            disabled,
+            multiple,
+            class,
+            on_change: _,
+        } = self;
+        *options == other.options
+            && *selected_value == other.selected_value
+            && *placeholder == other.placeholder
+            && *disabled == other.disabled
+            && *multiple == other.multiple
+            && *class == other.class
+    }
 }
 
 impl SelectBuilder {
@@ -466,6 +667,7 @@ impl SelectBuilder {
             disabled: false,
             multiple: false,
             class: None,
+            on_change: None,
         }
     }
 
@@ -535,6 +737,14 @@ impl SelectBuilder {
         self
     }
 
+    /// Set the callback called with the chosen option's value each time
+    /// the user chooses another option, as `Select::with_on_change` is
+    /// (CMP-009).
+    pub fn on_change(mut self, f: impl Fn(String) + Send + Sync + 'static) -> Self {
+        self.on_change = Some(Arc::new(f));
+        self
+    }
+
     /// Build the Select element
     ///
     /// Creates a select dropdown element with the configured options and properties.
@@ -587,12 +797,26 @@ impl crate::component::Component for ConfiguredSelect {
     type Props = SelectBuilder;
     type State = crate::widgets::SelectState;
     fn new(props: Self::Props) -> Self {
+        let mut inner = crate::widgets::Select::new(props.widget_props());
+        inner.set_on_change(props.on_change.clone());
         Self {
-            inner: crate::widgets::Select::new(props.widget_props()),
+            inner,
             selected: props.selected_value.clone().into_iter().collect(),
             selection_prop: props.selected_value,
             multiple_prop: props.multiple,
         }
+    }
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        _state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        if same_callback(&props.on_change, &supplied.on_change) {
+            return false;
+        }
+        props.on_change = supplied.on_change.clone();
+        true
     }
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
         if self.selection_prop != props.selected_value || self.multiple_prop != props.multiple {
@@ -626,6 +850,8 @@ impl crate::component::Component for ConfiguredSelect {
         state: &mut Self::State,
     ) -> crate::event::router::EventResult {
         use crate::event::types::{Event, KeyCode, MouseButton, MouseEventKind};
+        // The callback a rebuild adopted acts from this event on (CMP-008).
+        self.inner.set_on_change(props.on_change.clone());
         let choosing = state.is_open
             && match event {
                 Event::Key(key) => matches!(

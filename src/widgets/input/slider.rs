@@ -239,6 +239,12 @@ impl Slider {
         self
     }
 
+    /// Replace the onChange callback, or remove it with `None`: a builder's
+    /// slider takes the one its latest render carried (CMP-009).
+    pub(crate) fn set_on_change(&mut self, f: Option<Arc<dyn Fn(f64) + Send + Sync>>) {
+        self.on_change = f;
+    }
+
     pub(crate) fn set_label(&mut self, label: Option<String>) {
         self.label = label;
     }

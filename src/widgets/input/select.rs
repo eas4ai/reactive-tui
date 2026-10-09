@@ -518,6 +518,12 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
         self
     }
 
+    /// Replace the onChange callback, or remove it with `None`: a builder's
+    /// select takes the one its latest render carried (CMP-009).
+    pub(crate) fn set_on_change(&mut self, f: Option<Arc<dyn Fn(T) + Send + Sync>>) {
+        self.on_change = f;
+    }
+
     /// Set the onOpen callback for when the dropdown opens
     ///
     /// # Arguments

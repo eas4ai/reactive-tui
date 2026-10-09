@@ -53,7 +53,7 @@ impl RadioGroups {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub(crate) struct NamedRadioProps {
     pub value: String,
     pub label: Option<String>,
@@ -61,6 +61,32 @@ pub(crate) struct NamedRadioProps {
     pub checked: bool,
     pub disabled: bool,
     pub group: Option<String>,
+    /// Called with `value` when the user chooses this radio while it was
+    /// not chosen (CMP-009).
+    pub on_change: Option<Arc<dyn Fn(String) + Send + Sync>>,
+}
+
+/// Equal over the settings and not the callback, so a rebuild that changes
+/// only the callback keeps the mounted radio and its new callback acts from
+/// the next event on (CMP-008).
+impl PartialEq for NamedRadioProps {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            value,
+            label,
+            aria_label,
+            checked,
+            disabled,
+            group,
+            on_change: _,
+        } = self;
+        *value == other.value
+            && *label == other.label
+            && *aria_label == other.aria_label
+            && *checked == other.checked
+            && *disabled == other.disabled
+            && *group == other.group
+    }
 }
 impl Props for NamedRadioProps {
     fn as_any(&self) -> &dyn Any {
@@ -117,6 +143,19 @@ impl Component for NamedRadio {
         if props.disabled {
             *state = NamedRadioState::default();
         }
+        true
+    }
+
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        _state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        if crate::component::same_callback(&props.on_change, &supplied.on_change) {
+            return false;
+        }
+        props.on_change = supplied.on_change.clone();
         true
     }
 
@@ -220,10 +259,18 @@ impl Component for NamedRadio {
         if !select {
             return EventResult::Ignored;
         }
+        let chosen = !self.selected.load(Ordering::Relaxed);
         if let Some(group) = &self.group {
             self.groups.select(group, &self.selected);
         } else {
             self.selected.store(true, Ordering::Relaxed);
+        }
+        // As a `RadioButton` does, the callback hears a choice that changes
+        // the selection, not a press on the radio already chosen.
+        if chosen {
+            if let Some(callback) = &props.on_change {
+                callback(props.value.clone());
+            }
         }
         EventResult::Consumed
     }
@@ -262,6 +309,7 @@ mod tests {
             checked: true,
             disabled: false,
             group: Some("choice".into()),
+            on_change: None,
         };
         let mut radio = NamedRadio::new(props.clone());
         assert_eq!(groups.0.lock().unwrap().len(), 1);

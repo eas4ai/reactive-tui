@@ -117,6 +117,12 @@ impl Checkbox {
         self.on_change = Some(Arc::new(f));
         self
     }
+
+    /// Replace the onChange callback, or remove it with `None`: a builder's
+    /// checkbox takes the one its latest render carried (CMP-009).
+    pub(crate) fn set_on_change(&mut self, f: Option<Arc<dyn Fn(bool) + Send + Sync>>) {
+        self.on_change = f;
+    }
 }
 
 impl Component for Checkbox {

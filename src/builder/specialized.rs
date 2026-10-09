@@ -3,11 +3,15 @@
 //! This module contains builders for specialized widgets like Tree and Image
 //! that have complete implementations in the widgets module.
 
-use crate::component::Element;
+use crate::component::{same_callback, Element};
 use crate::widgets::display::tree::{TreeNode, TreeProps};
 use crate::widgets::layout::stack::{StackAlignment, StackDirection, StackJustify, StackPadding};
 use crate::widgets::{ImageDisplayMode, ImageFormat, ImageQuality, ImageSource};
 use std::path::PathBuf;
+use std::sync::Arc;
+
+/// A builder's change callback, called with the value the control reports.
+type Callback<T> = Arc<dyn Fn(T) + Send + Sync>;
 
 /// Create a Tree view builder
 ///
@@ -230,6 +234,7 @@ pub struct RadioButtonBuilder {
     disabled: bool,
     group: Option<String>,
     class: Option<String>,
+    on_change: Option<Callback<String>>,
 }
 
 impl Default for RadioButtonBuilder {
@@ -249,6 +254,7 @@ impl RadioButtonBuilder {
             disabled: false,
             group: None,
             class: None,
+            on_change: None,
         }
     }
 
@@ -295,6 +301,14 @@ impl RadioButtonBuilder {
         self
     }
 
+    /// Set the callback called with this radio's value when the user
+    /// chooses it while it was not chosen, as `RadioButton::with_on_change`
+    /// is called with the chosen value (CMP-009).
+    pub fn on_change(mut self, f: impl Fn(String) + Send + Sync + 'static) -> Self {
+        self.on_change = Some(Arc::new(f));
+        self
+    }
+
     /// Build the RadioButton element
     pub fn build(self) -> Element {
         use crate::widgets::input::named_radio::{NamedRadio, NamedRadioProps};
@@ -305,6 +319,7 @@ impl RadioButtonBuilder {
             checked: self.checked,
             disabled: self.disabled,
             group: self.group,
+            on_change: self.on_change,
         });
         if let Some(class) = self.class {
             element = element.with_class(class);
@@ -322,7 +337,7 @@ impl From<RadioButtonBuilder> for Element {
 /// Builder for Slider input components
 ///
 /// Provides a fluent API for creating slider widgets for numeric value selection.
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct SliderBuilder {
     value: f64,
     min: f64,
@@ -332,6 +347,34 @@ pub struct SliderBuilder {
     aria_label: Option<String>,
     disabled: bool,
     class: Option<String>,
+    on_change: Option<Callback<f64>>,
+}
+
+/// Equal over the settings and not the callback, so a rebuild that changes
+/// only the callback keeps the mounted slider and hands it the new one
+/// (CMP-008).
+impl PartialEq for SliderBuilder {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            value,
+            min,
+            max,
+            step,
+            label,
+            aria_label,
+            disabled,
+            class,
+            on_change: _,
+        } = self;
+        *value == other.value
+            && *min == other.min
+            && *max == other.max
+            && *step == other.step
+            && *label == other.label
+            && *aria_label == other.aria_label
+            && *disabled == other.disabled
+            && *class == other.class
+    }
 }
 
 impl Default for SliderBuilder {
@@ -352,6 +395,7 @@ impl SliderBuilder {
             aria_label: None,
             disabled: false,
             class: None,
+            on_change: None,
         }
     }
 
@@ -404,6 +448,13 @@ impl SliderBuilder {
         self
     }
 
+    /// Set the callback called with the new value each time the user moves
+    /// the slider, as `Slider::with_on_change` is (CMP-009).
+    pub fn on_change(mut self, f: impl Fn(f64) + Send + Sync + 'static) -> Self {
+        self.on_change = Some(Arc::new(f));
+        self
+    }
+
     /// Build the Slider element
     pub fn build(self) -> Element {
         let class = self.class.clone();
@@ -440,8 +491,21 @@ impl crate::component::Component for ConfiguredSlider {
     type State = crate::widgets::input::SliderState;
     fn new(props: Self::Props) -> Self {
         let mut inner = crate::widgets::Slider::new(props.widget_props());
+        inner.set_on_change(props.on_change.clone());
         inner.set_label(props.label);
         Self(inner)
+    }
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        _state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        if same_callback(&props.on_change, &supplied.on_change) {
+            return false;
+        }
+        props.on_change = supplied.on_change.clone();
+        true
     }
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
         self.0.set_label(props.label.clone());
@@ -464,6 +528,8 @@ impl crate::component::Component for ConfiguredSlider {
         props: &mut Self::Props,
         state: &mut Self::State,
     ) -> crate::event::router::EventResult {
+        // The callback a rebuild adopted acts from this event on (CMP-008).
+        self.0.set_on_change(props.on_change.clone());
         let mut inner = props.widget_props();
         let result = self.0.handle_event(event, &mut inner, state);
         props.value = inner.value;

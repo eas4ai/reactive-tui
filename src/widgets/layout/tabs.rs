@@ -460,6 +460,12 @@ impl Tabs {
         self
     }
 
+    /// Replace the active-tab-change callback, or remove it with `None`: a
+    /// builder's tab set takes the one its latest render carried (CMP-009).
+    pub(crate) fn set_on_change(&mut self, f: Option<Arc<dyn Fn(usize) + Send + Sync>>) {
+        self.on_change = f;
+    }
+
     /// Request that the parent close a tab. The parent owns tab removal.
     pub fn with_on_close(mut self, f: impl Fn(usize) + Send + Sync + 'static) -> Self {
         self.on_close = Some(Arc::new(f));
