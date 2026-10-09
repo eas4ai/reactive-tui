@@ -724,8 +724,10 @@ mod tests {
     }
 
     /// KEY-001: a scoped keymap is read on its thread only, and the default
-    /// returns when the scope drops.
+    /// returns when the scope drops. The other thread reads the process-wide
+    /// keymap, which the test above sets and restores, so the two run apart.
     #[test]
+    #[serial_test::serial(keymap)]
     fn key_001_a_scoped_keymap_is_read_on_its_thread_and_drops_away() {
         let mut rebound = Keymap::default();
         rebound.rebind(Action::Confirm, [KeyBinding::new(KeyCode::F(2))]);
