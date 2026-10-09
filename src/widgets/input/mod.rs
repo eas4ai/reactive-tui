@@ -19,6 +19,7 @@ pub use radio_button::{
     RadioButton, RadioButtonBuilder, RadioButtonProps, RadioButtonState, RadioOption,
     RadioOrientation,
 };
+pub(crate) use select::SET_VALUE_EVENT;
 pub use select::{Select, SelectBuilder, SelectOption, SelectProps, SelectState};
 pub use slider::{Slider, SliderBuilder, SliderOrientation, SliderProps, SliderState};
 /// The event a text input takes for the screen reader's SetValue (CTL-005).

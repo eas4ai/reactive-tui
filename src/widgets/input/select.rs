@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 /// The event a select takes for the screen reader's SetValue request
 /// (CTL-005); its data is the requested option's value or label.
-const SET_VALUE_EVENT: &str = "reactive_tui.select.set_value";
+pub(crate) const SET_VALUE_EVENT: &str = "reactive_tui.select.set_value";
 
 /// Whether `value` reads as `text`: a string value equal to it, or a
 /// number, a character or a boolean whose text form is it. A value of
@@ -342,9 +342,9 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
         } else {
             semantic.set_clickable();
         }
-        // The screen reader chooses an option by its value or label; a
-        // select of several choices takes no such request (CTL-005).
-        let settable = !props.disabled && multiple.is_none();
+        // The screen reader chooses an option by its value or label
+        // (CTL-005); for a select of several choices the request toggles it.
+        let settable = !props.disabled;
         if settable {
             semantic.inner.add_action(accesskit::Action::SetValue);
         }
@@ -784,7 +784,7 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
     /// The option a screen reader's SetValue request names (CTL-005): the
     /// first enabled option whose value reads as the request, else the
     /// first whose label is the request.
-    fn requested_option(requested: &str, props: &SelectProps<T>) -> Option<usize> {
+    pub(crate) fn requested_option(requested: &str, props: &SelectProps<T>) -> Option<usize> {
         let enabled = || {
             props
                 .options
