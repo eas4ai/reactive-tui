@@ -445,6 +445,27 @@ impl Keymap {
             .collect()
     }
 
+    /// The action `event` presses, with `false`; or, when no binding names
+    /// the event as it is, the action its unshifted form presses, with
+    /// `true` for "Shift was held": a widget that treats Shift as a variant
+    /// of a key (Shift+Right widens a column where Right moves to it) reads
+    /// its keys so. A binding that names the shifted key itself wins.
+    pub fn action_shifted(&self, event: &KeyEvent) -> Option<(Action, bool)> {
+        if let Some(action) = self.action(event) {
+            return Some((action, false));
+        }
+        let shifted_char = matches!(&event.code, KeyCode::Char(c) if c.is_uppercase());
+        if !event.modifiers.shift && !shifted_char {
+            return None;
+        }
+        let mut plain = event.clone();
+        plain.modifiers.shift = false;
+        if let KeyCode::Char(c) = &plain.code {
+            plain.code = KeyCode::Char(c.to_lowercase().next().unwrap_or(*c));
+        }
+        self.action(&plain).map(|action| (action, true))
+    }
+
     /// Whether `event` presses a binding of `action`.
     pub fn is(&self, event: &KeyEvent, action: Action) -> bool {
         self.bindings
@@ -588,6 +609,34 @@ mod tests {
         );
         assert_eq!(
             rebound.action(&press_with(KeyCode::Char('c'), KeyModifiers::ctrl())),
+            None
+        );
+    }
+
+    /// KEY-001: a key with Shift held reads as its unshifted action with the
+    /// shift flag, unless a binding names the shifted key itself.
+    #[test]
+    fn key_001_shift_reads_as_a_variant_of_the_unshifted_action() {
+        let keymap = Keymap::default();
+        assert_eq!(
+            keymap.action_shifted(&press(KeyCode::Right)),
+            Some((Action::Right, false))
+        );
+        assert_eq!(
+            keymap.action_shifted(&press_with(KeyCode::Right, KeyModifiers::shift())),
+            Some((Action::Right, true))
+        );
+        assert_eq!(
+            keymap.action_shifted(&press(KeyCode::Char('S'))),
+            Some((Action::Sort, true))
+        );
+        assert_eq!(
+            keymap.action_shifted(&press_with(KeyCode::Tab, KeyModifiers::shift())),
+            Some((Action::Previous, false)),
+            "Shift+Tab is a binding of its own"
+        );
+        assert_eq!(
+            keymap.action_shifted(&press_with(KeyCode::F(5), KeyModifiers::shift())),
             None
         );
     }

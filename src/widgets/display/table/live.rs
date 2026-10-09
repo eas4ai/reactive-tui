@@ -812,16 +812,18 @@ impl Component for LiveTable {
                 EventResult::Consumed
             }
             Event::Key(key) if state.focused && key.kind != KeyEventKind::Release => {
-                match key.code {
+                // The keys mean what the active keymap says (KEY-001); Shift
+                // is read as a variant of the key.
+                let action = crate::keymap::Keymap::active().action_shifted(key);
+                use crate::keymap::Action;
+                match action {
                     // Left and Right move the column cursor and bring its
-                    // column into view; `s` sorts by it (DAT-004).
+                    // column into view; Sort (`s`) sorts by it (DAT-004).
                     // Shift with Left or Right narrows or widens the cursor's
                     // column by a cell, as a drag of its header's edge does
                     // (DAT-004).
-                    KeyCode::Left | KeyCode::Right
-                        if key.modifiers.shift
-                            && config.resizable_columns
-                            && !config.columns.is_empty() =>
+                    Some((Action::Left | Action::Right, true))
+                        if config.resizable_columns && !config.columns.is_empty() =>
                     {
                         let column = state
                             .selected_column
@@ -833,7 +835,7 @@ impl Component for LiveTable {
                         }
                         let current = state.column_widths.get(column).copied().unwrap_or(0);
                         let floor = Table::column_floor(config, spec);
-                        let width = if key.code == KeyCode::Left {
+                        let width = if action == Some((Action::Left, true)) {
                             current.saturating_sub(1)
                         } else {
                             current.saturating_add(1)
@@ -842,12 +844,10 @@ impl Component for LiveTable {
                         self.resized.insert(spec.key.clone(), width);
                         EventResult::Consumed
                     }
-                    KeyCode::Left | KeyCode::Right
-                        if !key.modifiers.shift && !config.columns.is_empty() =>
-                    {
+                    Some((Action::Left | Action::Right, false)) if !config.columns.is_empty() => {
                         let last = config.columns.len() - 1;
                         let current = state.selected_column.unwrap_or(0).min(last);
-                        let column = if key.code == KeyCode::Left {
+                        let column = if action == Some((Action::Left, false)) {
                             current.saturating_sub(1)
                         } else {
                             (current + 1).min(last)
@@ -856,9 +856,9 @@ impl Component for LiveTable {
                         self.reveal_column(state, column);
                         EventResult::Consumed
                     }
-                    KeyCode::Char('s') if !key.modifiers.ctrl && !key.modifiers.alt => {
+                    Some((Action::Sort, shifted)) => {
                         let column = state.selected_column.unwrap_or(0);
-                        self.sort_by(props, state, column, key.modifiers.shift)
+                        self.sort_by(props, state, column, shifted)
                     }
                     _ => {
                         Table.handle_key_navigation(key.code.clone(), key.modifiers, config, state)
@@ -984,8 +984,15 @@ impl Component for LiveTable {
             }
             _ => EventResult::Ignored,
         };
-        if matches!(event,Event::Key(key) if matches!(key.code,KeyCode::Up | KeyCode::Down | KeyCode::Home | KeyCode::End | KeyCode::PageUp | KeyCode::PageDown))
-        {
+        if matches!(event, Event::Key(key) if matches!(
+            crate::keymap::Keymap::active().action(key),
+            Some(crate::keymap::Action::Up
+                | crate::keymap::Action::Down
+                | crate::keymap::Action::Home
+                | crate::keymap::Action::End
+                | crate::keymap::Action::PageUp
+                | crate::keymap::Action::PageDown)
+        )) {
             self.reveal_selection(config, state);
         }
         if previous_cursor != state.selected_row {

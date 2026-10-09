@@ -453,18 +453,23 @@ impl Table {
         let position = current.and_then(|row| order.iter().position(|&index| index == row));
         let last = order.len() - 1;
         let page = state.scroll_state.viewport_height.max(1) as usize;
-        let target = match key {
-            KeyCode::Down => Some(position.map_or(0, |index| (index + 1) % order.len())),
-            KeyCode::Up => {
+        // The keys mean what the active keymap says (KEY-001); Ctrl+A, the
+        // select-all of a multi-select table, is the table's own.
+        let event = crate::event::types::KeyEvent::new(key.clone()).with_modifiers(modifiers);
+        let action = crate::keymap::Keymap::active().action(&event);
+        use crate::keymap::Action;
+        let target = match action {
+            Some(Action::Down) => Some(position.map_or(0, |index| (index + 1) % order.len())),
+            Some(Action::Up) => {
                 Some(position.map_or(last, |index| if index == 0 { last } else { index - 1 }))
             }
-            KeyCode::Home => Some(0),
-            KeyCode::End => Some(last),
-            KeyCode::PageDown => {
+            Some(Action::Home) => Some(0),
+            Some(Action::End) => Some(last),
+            Some(Action::PageDown) => {
                 Some(position.map_or(0, |index| index.saturating_add(page).min(last)))
             }
-            KeyCode::PageUp => Some(position.map_or(last, |index| index.saturating_sub(page))),
-            KeyCode::Enter => {
+            Some(Action::PageUp) => Some(position.map_or(last, |index| index.saturating_sub(page))),
+            Some(Action::Confirm) => {
                 let Some(row) = position.map(|index| order[index]) else {
                     return EventResult::Ignored;
                 };
@@ -483,22 +488,22 @@ impl Table {
                 }
                 return EventResult::Consumed;
             }
-            KeyCode::Char(' ') if props.multi_select => {
+            Some(Action::Activate) if props.multi_select => {
                 let Some(row) = position.map(|index| order[index]) else {
                     return EventResult::Ignored;
                 };
                 self.toggle_row_selection(props, state, row);
                 return EventResult::Consumed;
             }
-            // A click on a row selects it; Space is its key (DAT-004).
-            KeyCode::Char(' ') => {
+            // A click on a row selects it; Activate (Space) is its key (DAT-004).
+            Some(Action::Activate) => {
                 let Some(row) = position.map(|index| order[index]) else {
                     return EventResult::Ignored;
                 };
                 self.select_row(props, state, row, false);
                 return EventResult::Consumed;
             }
-            KeyCode::Char('a') if modifiers.ctrl && props.multi_select => {
+            _ if key == KeyCode::Char('a') && modifiers.ctrl && props.multi_select => {
                 let previous = state.selected_rows.clone();
                 state.selected_rows = order;
                 if previous != state.selected_rows {
