@@ -822,17 +822,21 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
             self.search.clear();
             self.search_updated = None;
         }
-        match event.code {
-            KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Space => {
+        // The keys mean what the active keymap says (KEY-001); a typed
+        // letter that is no action is the select's own type-ahead.
+        use crate::keymap::Action;
+        let action = crate::keymap::Keymap::active().action(event);
+        match action {
+            Some(Action::Confirm | Action::Activate) => {
                 if state.is_open {
                     self.choose(state.highlighted_index, props, state);
                 } else {
                     self.open(0, props, state);
                 }
             }
-            KeyCode::Escape if state.is_open => self.set_open(false, state),
-            KeyCode::Up | KeyCode::Down => {
-                let direction = if event.code == KeyCode::Up { -1 } else { 1 };
+            Some(Action::Cancel) if state.is_open => self.set_open(false, state),
+            Some(Action::Up | Action::Down) => {
+                let direction = if action == Some(Action::Up) { -1 } else { 1 };
                 if state.is_open {
                     if let Some(index) = self.find_next_selectable(
                         &props.options,
@@ -846,11 +850,13 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
                     self.open(direction, props, state);
                 }
             }
-            KeyCode::Home | KeyCode::End | KeyCode::PageUp | KeyCode::PageDown if state.is_open => {
-                let index = match event.code {
-                    KeyCode::Home => props.options.iter().position(|option| !option.disabled),
-                    KeyCode::End => props.options.iter().rposition(|option| !option.disabled),
-                    KeyCode::PageUp => {
+            Some(Action::Home | Action::End | Action::PageUp | Action::PageDown)
+                if state.is_open =>
+            {
+                let index = match action {
+                    Some(Action::Home) => props.options.iter().position(|option| !option.disabled),
+                    Some(Action::End) => props.options.iter().rposition(|option| !option.disabled),
+                    Some(Action::PageUp) => {
                         let end = state
                             .highlighted_index
                             .saturating_sub(self.visible_items(props));
@@ -874,15 +880,17 @@ impl<T: Clone + PartialEq + Send + Sync + Unpin + 'static> Select<T> {
                     self.update_scroll(state, self.visible_items(props));
                 }
             }
-            KeyCode::Char(character)
-                if !character.is_control()
-                    && !event.modifiers.ctrl
-                    && !event.modifiers.alt
-                    && !event.modifiers.meta =>
-            {
-                self.search_option(character, std::time::Instant::now(), props, state);
-            }
-            _ => return EventResult::Ignored,
+            _ => match event.code {
+                KeyCode::Char(character)
+                    if !character.is_control()
+                        && !event.modifiers.ctrl
+                        && !event.modifiers.alt
+                        && !event.modifiers.meta =>
+                {
+                    self.search_option(character, std::time::Instant::now(), props, state);
+                }
+                _ => return EventResult::Ignored,
+            },
         }
         EventResult::Consumed
     }

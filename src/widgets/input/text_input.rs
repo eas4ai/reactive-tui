@@ -906,6 +906,10 @@ impl TextInput {
         props: &mut TextInputProps,
         state: &mut TextInputState,
     ) -> EventResult {
+        // Copy, Cut, Paste, Undo and Redo are the active keymap's (KEY-001);
+        // select-all and the word moves and deletes are the field's own.
+        use crate::keymap::Action;
+        let action = crate::keymap::Keymap::active().action(event);
         match event.code {
             KeyCode::Char('a') => {
                 let start = CursorPosition::default();
@@ -916,11 +920,13 @@ impl TextInput {
                     end: state.cursor.clone(),
                 });
             }
-            KeyCode::Char('c') if state.selection.is_some() => self.copy_selection(state),
-            KeyCode::Char('x') => self.cut_selection(state),
-            KeyCode::Char('v') => self.paste_from_clipboard(props, state),
-            KeyCode::Char('z') => self.undo(state),
-            KeyCode::Char('y') => self.redo(state),
+            _ if action == Some(Action::Copy) && state.selection.is_some() => {
+                self.copy_selection(state)
+            }
+            _ if action == Some(Action::Cut) => self.cut_selection(state),
+            _ if action == Some(Action::Paste) => self.paste_from_clipboard(props, state),
+            _ if action == Some(Action::Undo) => self.undo(state),
+            _ if action == Some(Action::Redo) => self.redo(state),
             KeyCode::Left | KeyCode::Right | KeyCode::Home | KeyCode::End => {
                 let text = self.get_text_value(state);
                 let destination = match event.code {
@@ -1125,10 +1131,16 @@ impl TextInput {
         if event.modifiers.alt {
             return self.handle_alt_key(event, props, state);
         }
+        // A plain character is text first (KEY-001: typing wins); the other
+        // keys mean what the active keymap says, Shift as the extend variant.
+        use crate::keymap::Action;
+        let (action, shifted) = crate::keymap::Keymap::active()
+            .action_shifted(event)
+            .map_or((None, false), |(action, shifted)| (Some(action), shifted));
         match event.code {
             KeyCode::Char(c) => self.insert_text(&c.to_string(), props, state),
             KeyCode::Space => self.insert_text(" ", props, state),
-            KeyCode::Backspace | KeyCode::Delete => {
+            _ if event.code == KeyCode::Backspace || action == Some(Action::Delete) => {
                 if state.selection.is_some() {
                     self.delete_selection(state);
                 } else {
@@ -1149,7 +1161,7 @@ impl TextInput {
                     }
                 }
             }
-            KeyCode::Enter => {
+            _ if action == Some(Action::Confirm) => {
                 if matches!(props.mode, InputMode::MultiLine { .. }) {
                     let indent = if props.auto_indent {
                         state.lines[state.cursor.line]
@@ -1164,7 +1176,7 @@ impl TextInput {
                     callback(self.get_text_value(state));
                 }
             }
-            KeyCode::Tab => {
+            _ if action == Some(Action::Next) => {
                 if self.is_read_only() {
                     return EventResult::Ignored;
                 }
@@ -1183,7 +1195,7 @@ impl TextInput {
                     return EventResult::Ignored;
                 }
             }
-            KeyCode::Escape => {
+            _ if action == Some(Action::Cancel) => {
                 if !state.show_suggestions && state.selection.is_none() {
                     return EventResult::Ignored;
                 }
@@ -1191,38 +1203,46 @@ impl TextInput {
                 state.suggestion_index = None;
                 state.selection = None;
             }
-            KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
-                if state.show_suggestions && matches!(event.code, KeyCode::Up | KeyCode::Down) {
+            _ if matches!(
+                action,
+                Some(Action::Left | Action::Right | Action::Up | Action::Down)
+            ) =>
+            {
+                if state.show_suggestions && matches!(action, Some(Action::Up | Action::Down)) {
                     let index = state.suggestion_index.unwrap_or(0);
-                    state.suggestion_index = Some(if event.code == KeyCode::Up {
+                    state.suggestion_index = Some(if action == Some(Action::Up) {
                         index.saturating_sub(1)
                     } else {
                         (index + 1).min(props.suggestions.len().saturating_sub(1))
                     });
                 } else {
-                    if !event.modifiers.shift {
+                    if !shifted {
                         state.selection = None;
                     }
-                    match (&event.code, event.modifiers.shift) {
-                        (KeyCode::Left, true) => self.extend_selection_left(state),
-                        (KeyCode::Left, false) => self.move_cursor_left(state),
-                        (KeyCode::Right, true) => self.extend_selection_right(state),
-                        (KeyCode::Right, false) => self.move_cursor_right(state),
-                        (KeyCode::Up, true) => self.extend_selection_up(state),
-                        (KeyCode::Up, false) => self.move_cursor_up(state),
-                        (KeyCode::Down, true) => self.extend_selection_down(state),
+                    match (action, shifted) {
+                        (Some(Action::Left), true) => self.extend_selection_left(state),
+                        (Some(Action::Left), false) => self.move_cursor_left(state),
+                        (Some(Action::Right), true) => self.extend_selection_right(state),
+                        (Some(Action::Right), false) => self.move_cursor_right(state),
+                        (Some(Action::Up), true) => self.extend_selection_up(state),
+                        (Some(Action::Up), false) => self.move_cursor_up(state),
+                        (Some(Action::Down), true) => self.extend_selection_down(state),
                         _ => self.move_cursor_down(state),
                     }
                 }
             }
-            KeyCode::Home | KeyCode::End | KeyCode::PageUp | KeyCode::PageDown => {
+            _ if matches!(
+                action,
+                Some(Action::Home | Action::End | Action::PageUp | Action::PageDown)
+            ) =>
+            {
                 let start = state
                     .selection
                     .as_ref()
                     .map_or_else(|| state.cursor.clone(), |selection| selection.start.clone());
-                match event.code {
-                    KeyCode::Home => state.cursor.column = 0,
-                    KeyCode::End => {
+                match action {
+                    Some(Action::Home) => state.cursor.column = 0,
+                    Some(Action::End) => {
                         state.cursor.column = state.lines[state.cursor.line].graphemes(true).count()
                     }
                     _ => {
@@ -1230,7 +1250,7 @@ impl TextInput {
                             InputMode::MultiLine { height } => usize::from(height).max(1),
                             _ => 1,
                         };
-                        if event.code == KeyCode::PageUp {
+                        if action == Some(Action::PageUp) {
                             state.cursor.line = state.cursor.line.saturating_sub(height);
                         } else {
                             state.cursor.line = state
@@ -1246,7 +1266,7 @@ impl TextInput {
                     }
                 }
                 self.update_cursor_byte_offset(state);
-                state.selection = event.modifiers.shift.then(|| Selection {
+                state.selection = shifted.then(|| Selection {
                     start,
                     end: state.cursor.clone(),
                 });

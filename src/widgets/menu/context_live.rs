@@ -7,7 +7,7 @@ use crate::{
     component::{Component, Element, FocusProps, LayoutInfo, Props},
     event::{
         router::EventResult,
-        types::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind},
+        types::{Event, MouseButton, MouseEventKind},
     },
     layout::style::StyleBuilder,
     reactive::{
@@ -168,9 +168,9 @@ impl Component for LiveContext {
         if let Event::Key(key) = event {
             // Shift+F10 opens the menu at the first cell of the area it
             // serves: its first trigger area, or its own box (MNU-003).
-            let opens = key.code == KeyCode::F(10)
-                && key.modifiers.shift
-                && key.kind != KeyEventKind::Release
+            // ContextMenu (Shift+F10 by default) opens it (KEY-001); a
+            // release presses nothing.
+            let opens = crate::keymap::Keymap::active().is(key, crate::keymap::Action::ContextMenu)
                 && self.state.get().is_none();
             let Some(root) = self.root.filter(|_| opens) else {
                 return EventResult::Ignored;

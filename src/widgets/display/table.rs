@@ -1245,6 +1245,33 @@ mod tests {
         assert_eq!(sorted_indices[0], 2);
     }
 
+    /// KEY-001: the table reads its keys through the active keymap; with
+    /// Down rebound to `j`, `j` moves the cursor and the arrow does not.
+    #[test]
+    fn key_001_table_reads_its_keys_through_the_keymap() {
+        let mut keymap = crate::keymap::Keymap::default();
+        keymap.rebind(
+            crate::keymap::Action::Down,
+            [crate::keymap::KeyBinding::new(KeyCode::Char('j'))],
+        );
+        let _scope = crate::keymap::Keymap::scoped(keymap);
+        let table = Table;
+        let props = create_test_props();
+        let mut state = TableState::default();
+        let result =
+            table.handle_key_navigation(KeyCode::Down, KeyModifiers::empty(), &props, &mut state);
+        assert_eq!(result, EventResult::Ignored, "the arrow is no action now");
+        assert_eq!(state.selected_rows, Vec::<usize>::new());
+        let result = table.handle_key_navigation(
+            KeyCode::Char('j'),
+            KeyModifiers::empty(),
+            &props,
+            &mut state,
+        );
+        assert_eq!(result, EventResult::Consumed, "`j` moves the cursor");
+        assert_eq!(state.selected_rows, vec![0]);
+    }
+
     #[test]
     fn test_keyboard_navigation() {
         let table = Table;

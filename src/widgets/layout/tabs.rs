@@ -1248,25 +1248,36 @@ impl Tabs {
                 else {
                     return EventResult::Ignored;
                 };
-                let next = match key.code {
-                    // Shift+F10 opens the menu of every tab (NAV-006).
-                    KeyCode::F(10) if key.modifiers.shift => {
+                // The keys mean what the active keymap says (KEY-001); the
+                // digits that pick a tab are the tabs' own.
+                use crate::keymap::Action;
+                let action = crate::keymap::Keymap::active().action(key);
+                let next = match action {
+                    // ContextMenu (Shift+F10) opens the menu of every tab (NAV-006).
+                    Some(Action::ContextMenu) => {
                         self.open_menu();
                         return EventResult::Consumed;
                     }
-                    KeyCode::Left | KeyCode::Up => self.find_next_enabled_tab(props, current, -1),
-                    KeyCode::Right | KeyCode::Down => self.find_next_enabled_tab(props, current, 1),
-                    KeyCode::Home => props.tabs.iter().position(|t| !t.disabled),
-                    KeyCode::End => props.tabs.iter().rposition(|t| !t.disabled),
-                    KeyCode::Enter | KeyCode::Char(' ') => {
+                    Some(Action::Left | Action::Up) => {
+                        self.find_next_enabled_tab(props, current, -1)
+                    }
+                    Some(Action::Right | Action::Down) => {
+                        self.find_next_enabled_tab(props, current, 1)
+                    }
+                    Some(Action::Home) => props.tabs.iter().position(|t| !t.disabled),
+                    Some(Action::End) => props.tabs.iter().rposition(|t| !t.disabled),
+                    Some(Action::Confirm | Action::Activate) => {
                         self.activate(current, props, state);
                         return EventResult::Consumed;
                     }
-                    KeyCode::Delete | KeyCode::Char('x') => {
+                    Some(Action::Delete) => {
                         self.close(current, props, state);
                         return EventResult::Consumed;
                     }
-                    KeyCode::Char(c @ '1'..='9') => {
+                    _ if matches!(key.code, KeyCode::Char('1'..='9')) => {
+                        let KeyCode::Char(c) = key.code else {
+                            return EventResult::Ignored;
+                        };
                         self.activate(c as usize - '1' as usize, props, state);
                         return EventResult::Consumed;
                     }
@@ -1350,6 +1361,43 @@ mod tests {
             None,
             "the tab list has no name when the props set none"
         );
+    }
+
+    /// KEY-001: the tabs read their keys through the active keymap; with
+    /// Right rebound to `l`, `l` moves to the next tab and the arrow does not.
+    #[test]
+    fn key_001_tabs_read_their_keys_through_the_keymap() {
+        let mut keymap = crate::keymap::Keymap::default();
+        keymap.rebind(
+            crate::keymap::Action::Right,
+            [crate::keymap::KeyBinding::new(KeyCode::Char('l'))],
+        );
+        let _scope = crate::keymap::Keymap::scoped(keymap);
+        let mut props = TabsProps {
+            tabs: vec![
+                Tab::new("A", Element::text("A1").with_key("a")),
+                Tab::new("B", Element::text("B1").with_key("b")),
+            ],
+            ..Default::default()
+        };
+        let mut tabs = Tabs::new(props.clone());
+        let mut state = TabsState {
+            is_focused: true,
+            focused_tab: Some(0),
+            ..Default::default()
+        };
+        tabs.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Right)),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(tabs.live.active_tab, 0, "the arrow is no action now");
+        tabs.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Char('l'))),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(tabs.live.active_tab, 1, "`l` moves to the next tab");
     }
 
     #[test]

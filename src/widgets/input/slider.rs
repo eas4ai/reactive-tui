@@ -1,6 +1,6 @@
 use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
+use crate::event::types::{KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
@@ -681,19 +681,21 @@ impl Slider {
         _state: &mut SliderState,
     ) -> EventResult {
         let value = props.bounded_value();
-        let new_value = match event.code {
-            KeyCode::Left | KeyCode::Down => Self::stepped(value, false, props),
-            KeyCode::Right | KeyCode::Up => Self::stepped(value, true, props),
-            KeyCode::PageDown => Self::snap(
+        // The keys mean what the active keymap says (KEY-001).
+        use crate::keymap::Action;
+        let new_value = match crate::keymap::Keymap::active().action(event) {
+            Some(Action::Left | Action::Down) => Self::stepped(value, false, props),
+            Some(Action::Right | Action::Up) => Self::stepped(value, true, props),
+            Some(Action::PageDown) => Self::snap(
                 (value - ((props.max - props.min) * 0.1).max(props.step)).max(props.min),
                 props,
             ),
-            KeyCode::PageUp => Self::snap(
+            Some(Action::PageUp) => Self::snap(
                 (value + ((props.max - props.min) * 0.1).max(props.step)).min(props.max),
                 props,
             ),
-            KeyCode::Home => props.min,
-            KeyCode::End => props.max,
+            Some(Action::Home) => props.min,
+            Some(Action::End) => props.max,
             _ => return EventResult::Ignored,
         };
         self.change(new_value, props);
@@ -742,6 +744,7 @@ impl Slider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::types::KeyCode;
     use crate::event::types::KeyModifiers;
 
     #[test]
