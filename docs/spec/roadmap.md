@@ -1879,3 +1879,38 @@ passes; widget-behavior has recorded a fail on the tree as it was at the
 start for each new requirement, KEY-002 against its revised text; the
 workflow's run for the final commit is green on the three machines; and
 the adversary's findings are resolved or declined.
+
+## ci-setup-skips-installed-tools
+
+Requirements: BAR-012, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011
+
+The backlog item ci-setup-skips-installed-tools (d4eec4dd), from a side
+agent's note the developer passed on during widget-behavior-2 on
+2026-10-09: the workflow's step "Install the pinned Rust and dependency
+tools" runs `rustup toolchain install`, `cargo install cargo-deny` and
+`uv pip install` on every job, so every job on each of the three machines
+reaches static.rust-lang.org, crates.io and PyPI even when the pinned
+toolchain and tools are already there (rustup prints "syncing channel
+updates" and fetches the channel manifest each time). That day the
+Windows job died in that step on a connection reset before any build and
+cost a rerun of the CI gate. The developer approved taking this item, then
+cht-040-hang-guard-under-load, before the study's widgets ("confirmed and
+approved").
+
+Delivery: in `.github/workflows/ci.yml` each install of the platform jobs'
+setup step and of the weekly advisories job's runs only when its pinned
+tool is missing: the toolchain when `rustup toolchain list` lacks it or
+its rustfmt or clippy component is absent, cargo-deny and cargo-audit when
+`--version` does not answer the pinned version, and the Python tools
+after `uv pip install --offline` of the pinned set fails; a missing or
+wrong version still installs, and a fresh hosted runner installs
+everything as before. scripts/cairn/ci_workflow.py's static part refuses
+an install without its check (a `rustup toolchain install` with no
+`rustup toolchain list`, a `cargo install cargo-<tool>` with no
+`cargo <tool> --version` before it, a `uv pip install` with no `--offline`
+try first), with its own tests extended and the mechanism rebound on
+today's unguarded workflow as the failing example.
+
+Done when the workflow's run for the final commit is green on the three
+machines with every install guarded, every named requirement passes, and
+the adversary's findings are resolved or declined.
