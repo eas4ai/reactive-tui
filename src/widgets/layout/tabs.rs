@@ -1363,6 +1363,43 @@ mod tests {
         );
     }
 
+    /// KEY-001: the tabs read their keys through the active keymap; with
+    /// Right rebound to `l`, `l` moves to the next tab and the arrow does not.
+    #[test]
+    fn key_001_tabs_read_their_keys_through_the_keymap() {
+        let mut keymap = crate::keymap::Keymap::default();
+        keymap.rebind(
+            crate::keymap::Action::Right,
+            [crate::keymap::KeyBinding::new(KeyCode::Char('l'))],
+        );
+        let _scope = crate::keymap::Keymap::scoped(keymap);
+        let mut props = TabsProps {
+            tabs: vec![
+                Tab::new("A", Element::text("A1").with_key("a")),
+                Tab::new("B", Element::text("B1").with_key("b")),
+            ],
+            ..Default::default()
+        };
+        let mut tabs = Tabs::new(props.clone());
+        let mut state = TabsState {
+            is_focused: true,
+            focused_tab: Some(0),
+            ..Default::default()
+        };
+        tabs.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Right)),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(tabs.live.active_tab, 0, "the arrow is no action now");
+        tabs.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Char('l'))),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(tabs.live.active_tab, 1, "`l` moves to the next tab");
+    }
+
     #[test]
     fn authored_updates_preserve_keyed_choice_and_replace_content() {
         let mut props = TabsProps {
