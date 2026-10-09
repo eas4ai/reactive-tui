@@ -1007,7 +1007,6 @@ fn run_worker<W: Write>(
                 };
                 let _ = reply.send(outcome);
             }
-            #[cfg(unix)]
             Command::Sequence(bytes) => {
                 // Written ahead of the next frame; a failure is reported with
                 // the next present, sync or shutdown, as a flush failure is.
@@ -1016,6 +1015,7 @@ fn run_worker<W: Write>(
                     force = true;
                 }
             }
+            #[cfg(unix)]
             Command::Suspend(reply) => {
                 let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
                 graphics = made_apart();
