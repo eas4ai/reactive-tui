@@ -469,9 +469,10 @@ mod tests {
         let hooks = Hooks::new();
         let (state, copy, paste) = use_clipboard(&hooks);
         copy("hello");
-        assert_eq!(
-            crate::clipboard::take_pending(),
-            vec![crate::clipboard::osc52("hello")],
+        // Other tests of this binary may copy at the same time into the
+        // process-wide queue, so the request is looked for, not matched alone.
+        assert!(
+            crate::clipboard::take_pending().contains(&crate::clipboard::osc52("hello")),
             "the terminal is asked to set its clipboard"
         );
         #[cfg(unix)]
@@ -496,10 +497,7 @@ mod tests {
         let result = copy_through(ClipboardBackend::Wayland, "hello", || false);
         crate::clipboard::set_local_commands(true);
         assert_eq!(result, Ok(()));
-        assert_eq!(
-            crate::clipboard::take_pending(),
-            vec![crate::clipboard::osc52("hello")]
-        );
+        assert!(crate::clipboard::take_pending().contains(&crate::clipboard::osc52("hello")));
     }
 
     /// CLP-001: with no local command, the copy still reaches the terminal
@@ -512,10 +510,7 @@ mod tests {
             copy_through(ClipboardBackend::Unavailable, "hello", || false),
             Ok(())
         );
-        assert_eq!(
-            crate::clipboard::take_pending(),
-            vec![crate::clipboard::osc52("hello")]
-        );
+        assert!(crate::clipboard::take_pending().contains(&crate::clipboard::osc52("hello")));
     }
 
     #[test]

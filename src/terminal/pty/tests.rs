@@ -229,11 +229,25 @@ fn trm_001_kill_reaps_a_child_whose_output_a_stop_character_paused() {
     .unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
     let mut pty = PseudoTerminal::new();
-    pty.spawn(&TerminalConfig {
-        shell: Some(path.to_str().unwrap().to_owned()),
-        ..Default::default()
-    })
-    .unwrap();
+    // A freshly written script can still be open for writing in another
+    // thread of this binary when it is first run: Linux answers ETXTBSY
+    // (Text file busy). Retry for up to 30 s, as the other fixtures do.
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        match pty.spawn(&TerminalConfig {
+            shell: Some(path.to_str().unwrap().to_owned()),
+            ..Default::default()
+        }) {
+            Ok(()) => break,
+            Err(error)
+                if error.to_string().contains("Text file busy")
+                    && std::time::Instant::now() < deadline =>
+            {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Err(error) => panic!("spawn: {error}"),
+        }
+    }
     assert!(pty
         .read_output(Some(Duration::from_secs(30)))
         .unwrap()
