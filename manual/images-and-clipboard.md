@@ -75,8 +75,18 @@ sextant on any other terminal. `set_image_blitter` and the
 `quadrant`, `half-block` or `ascii`) replace that choice; the environment
 variable wins. `AsciiArt` keeps the character ramp.
 
-Clipboard operations select a platform command, run it as an owned process,
-capture bounded output, and publish completion into hook state.
+A copy reaches the terminal's clipboard (CLP-001): the clipboard hook's
+writer (`use_clipboard`, `use_simple_clipboard`) and a text input's copy
+(Ctrl+C) and cut (Ctrl+X) ask the App to write `ESC ] 52 ; c ; <base64>
+ESC \`, the OSC 52 sequence, to the terminal before its next frame, so a
+copy made over SSH lands on the user's machine, where the terminal runs.
+When a local clipboard command is available (wl-copy, xsel, xclip, pbcopy
+or PowerShell) the copy runs it as well, as an owned process with bounded
+output, so copying keeps working in a terminal that ignores OSC 52; the
+hook publishes that command's result into its state. A paste keeps coming
+from the terminal's bracketed paste or from the local command.
+`reactive_tui::clipboard::copy_to_terminal(text)` makes the same request
+from any component, on the App's thread.
 
 ## Limits
 
@@ -92,7 +102,10 @@ capture bounded output, and publish completion into hook state.
   table is a judgment from each terminal's identity; a font without the chosen
   glyphs shows empty boxes until `REACTIVE_TUI_BLITTER` names a lower tier.
 - Clipboard tools differ by operating system and desktop session and may be
-  absent.
+  absent; the terminal's clipboard (OSC 52) needs a terminal that honors the
+  sequence. Apple's Terminal ignores it, iTerm2 ignores it until its
+  "Applications in terminal may access clipboard" setting is on, and tmux
+  needs `set-clipboard on`. The local command covers those.
 - Clipboard and image operations can fail after the UI has requested them.
 
 ## Source map

@@ -74,6 +74,46 @@ The application rebuilds its event tree from the presented frame. Focus state
 is preserved when possible and moved when a focused node disappears. Positions
 preserve whether coordinates are terminal cells or pixels.
 
+## Key actions and rebinding
+
+Every widget reads its keys through one keymap instead of matching key codes
+of its own (KEY-001). The keymap binds keys to named actions; the defaults
+are the keys the widgets answered to before:
+
+| Action | Default | Action | Default |
+|---|---|---|---|
+| `Confirm` | Enter | `Next` | Tab |
+| `Activate` | Space | `Previous` | Shift+Tab |
+| `Cancel` | Escape | `Delete` | Delete |
+| `Up`, `Down`, `Left`, `Right` | the arrows | `Sort` | `s` |
+| `Home`, `End` | Home, End | `Expand`, `Collapse` | `+`, `-` |
+| `PageUp`, `PageDown` | Page Up, Page Down | `ContextMenu` | Shift+F10 |
+| `Copy`, `Cut`, `Paste` | Ctrl+C, Ctrl+X, Ctrl+V | `Undo`, `Redo`, `Search` | Ctrl+Z, Ctrl+Y, Ctrl+F |
+
+`Keymap::default()` holds these; `bind(action, key)` adds a key to an
+action, `unbind(action, &key)` removes one and `rebind(action, keys)`
+replaces them all. A key is a `KeyBinding`: `KeyBinding::new(KeyCode::F(2))`,
+with `.ctrl()`, `.alt()`, `.shift()` or `.meta()` for modifiers. The keymap
+the widgets read is the active one: `Keymap::active()` returns it and
+`Keymap::set_active(keymap)` or `App::set_keymap(keymap)` replaces it, from
+the next event on. After `rebind(Action::Confirm, [F2])` a select chooses,
+a checkbox toggles, a tab selects and a dialog's button presses on F2, and
+no longer on Enter.
+
+Typing wins: a widget that takes text keeps taking a plain character as
+text, so a plain letter bound to an action reaches only widgets that take
+no text. A key that belongs to one widget alone, a file explorer's toolbar
+letter or a select's type-ahead, stays that widget's own. A widget that
+treats Shift as a variant of a key, as the table does when Shift+Right
+widens a column where Right moves to it, reads the unshifted key's action
+with the shift flag.
+
+Every binding has one text form, `KeyBinding::display()`: the modifiers as
+`Ctrl+`, `Alt+`, `Shift+` and `Meta+` in that order, then the key's name,
+`Enter`, `Escape`, `Space`, `Tab`, `F2`, `Up`, `Page Down`, a letter in
+upper case. A menu item that names an action shows that binding as its
+hint and triggers on it, so a rebind changes both (KEY-002).
+
 ## Limits
 
 - A mouse handler needs presented geometry before it can receive hit-tested

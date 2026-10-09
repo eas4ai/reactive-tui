@@ -113,7 +113,9 @@ control on a Kitty host and compares its picture with the reference under
 `TextInputProps`; the widget's own `TextInputBuilder` adds `.multi_line()`,
 `.password()`, `.numeric()`, `.validator_pattern()`, `.error_message()`,
 `.suggestions()`, `.show_line_numbers()`, `.wrap_text()`, `.tab_size()`
-and `.auto_indent()`. The field is `[text]` on the `input` role; the
+and `.auto_indent()`. `.on_change(f)` is called with the text after each
+edit and `.on_submit(f)` with it on Enter (CMP-009). The field is `[text]`
+on the `input` role; the
 cursor cell is the field reversed, the selection `selection`, and an error
 line under the field `text-error`. The suggestion list opens as a panel
 under the field, or above it when only the space above holds it, painted
@@ -126,7 +128,7 @@ alert.
 
 `Checkbox` holds a yes or no. Build it with `checkbox()` (`.label()`,
 `.aria_label()`, `.checked()`, `.indeterminate()`, `.disabled()`,
-`.class()`) or with `CheckboxProps`. It paints `[✓]`, `[▬]` for a mixed
+`.class()`, `.on_change(f)` with the new state) or with `CheckboxProps`. It paints `[✓]`, `[▬]` for a mixed
 state, or `[ ]`, then its label. Space or Enter toggles it, as a click does.
 The screen reader hears it as a check box with its label or `aria_label`
 and whether it is checked, unchecked or mixed.
@@ -134,8 +136,9 @@ and whether it is checked, unchecked or mixed.
 ## Radio button
 
 `radio_button()` builds one radio of a named group (`.group()`, `.value()`,
-`.label()`, `.aria_label()`, `.checked()`, `.disabled()`, `.class()`); the
-radios of a group share one choice. `RadioButton` holds a whole group in
+`.label()`, `.aria_label()`, `.checked()`, `.disabled()`, `.class()`,
+`.on_change(f)` with the chosen value); the radios of a group share one
+choice. `RadioButton` holds a whole group in
 one widget, vertical or horizontal, built with `RadioButtonBuilder`
 (`.option()`, `.disabled_option()`, `.selected()`, `.orientation()`,
 `.aria_label()`). Each radio paints `(●)` or `( )` and its label. Up and
@@ -149,7 +152,8 @@ it is the choice.
 `Select` chooses one option from a list, or several through
 `select().multiple(true)`. Build it with `select()` (`.option()`,
 `.options()`, `.selected()`, `.placeholder()`, `.aria_label()`,
-`.disabled()`, `.multiple()`, `.class()`) or with `SelectProps`; the
+`.disabled()`, `.multiple()`, `.class()`, `.on_change(f)` with the chosen
+value) or with `SelectProps`; the
 widget's `SelectBuilder` adds `.width()` and `.max_visible_items()`. The
 row is a field, `[value ▾]`, that fills its parent's width. Enter, Space,
 Up or Down opens the list, as a click on the row does: a panel in
@@ -168,7 +172,7 @@ and whether it is selected.
 
 `Slider` sets a number in a range. Build it with `slider()` (`.value()`,
 `.min()`, `.max()`, `.step()`, `.label()`, `.aria_label()`, `.disabled()`,
-`.class()`) or with `SliderProps`; the widget's `SliderBuilder` adds
+`.class()`, `.on_change(f)` with the new value) or with `SliderProps`; the widget's `SliderBuilder` adds
 `.range()`, `.orientation()`, `.show_value()`, `.show_labels()` and
 `.width()`. It is one row: the label, the track `[════●────]` filling
 what the label, the value and the end labels leave, and the value. Left
