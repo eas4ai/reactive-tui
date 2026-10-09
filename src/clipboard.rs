@@ -4,14 +4,16 @@
 //! the terminal: the App writes `ESC ] 52 ; c ; <base64> ESC \`, the OSC 52
 //! sequence, to its terminal before its next frame, so a copy over SSH lands
 //! on the user's machine. The clipboard hook's writer and a text input's copy
-//! and cut ask for it here, on the App's thread; the App drains the requests
-//! on each turn of its loop and before each frame, and hands them to its
-//! backend. When a local clipboard command is available (wl-copy, xsel, xclip,
+//! and cut ask for it here; the App drains the requests on each turn of its
+//! loop and before each frame, and hands them to its backend. A request made
+//! on the thread that runs an App is that App's; one made on any other
+//! thread waits for whichever App drains next. When a local clipboard command is available (wl-copy, xsel, xclip,
 //! pbcopy or PowerShell) the copy runs it as well, so it keeps working in a
 //! terminal that ignores OSC 52.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 use base64::Engine as _;
 
@@ -32,11 +34,34 @@ pub fn set_local_commands(enabled: bool) {
 }
 
 thread_local! {
-    // One queue per thread: a copy is requested on the thread that runs the
-    // App, where its components, hooks and callbacks run, and that App drains
-    // it. Two Apps on two threads, as a test binary runs them, never take each
-    // other's requests.
+    // The queue of the thread that runs an App: a copy requested there, by
+    // its components, hooks and callbacks, is that App's alone, so two Apps
+    // on two threads, as a test binary runs them, never take each other's.
     static PENDING: RefCell<Vec<Vec<u8>>> = const { RefCell::new(Vec::new()) };
+    // Whether an App's loop runs on this thread ([`enter_app_thread`]).
+    static RUNS_APP: Cell<bool> = const { Cell::new(false) };
+}
+
+// The queue of every thread that runs no App: a copy requested from a
+// background thread, a timer or a task elsewhere waits here for whichever
+// App drains next, the one App a terminal application has.
+static ELSEWHERE: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
+
+/// Marks the current thread as one that runs an App's loop, until the
+/// returned guard drops: the App's own requests queue on this thread and
+/// the App drains them with the process-wide ones.
+pub(crate) fn enter_app_thread() -> AppThread {
+    RUNS_APP.with(|runs| runs.set(true));
+    AppThread(())
+}
+
+/// The guard of [`enter_app_thread`].
+pub(crate) struct AppThread(());
+
+impl Drop for AppThread {
+    fn drop(&mut self) {
+        RUNS_APP.with(|runs| runs.set(false));
+    }
 }
 
 /// The OSC 52 sequence that asks the terminal to put `text` on the clipboard:
@@ -53,11 +78,20 @@ pub fn osc52(text: &str) -> Vec<u8> {
 }
 
 /// Asks the running App to put `text` on the terminal's clipboard: the OSC 52
-/// sequence is written to the terminal before the App's next frame. Call it
-/// on the thread that runs the App, where components, hooks and callbacks
-/// run; a request made on another thread reaches no App.
+/// sequence is written to the terminal before the App's next frame. On the
+/// thread that runs the App, where components, hooks and callbacks run, the
+/// request is that App's; from any other thread, a background task or a
+/// timer, it waits for whichever App drains next.
 pub fn copy_to_terminal(text: &str) {
-    PENDING.with(|pending| pending.borrow_mut().push(osc52(text)));
+    let sequence = osc52(text);
+    if RUNS_APP.with(Cell::get) {
+        PENDING.with(|pending| pending.borrow_mut().push(sequence));
+    } else {
+        ELSEWHERE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(sequence);
+    }
 }
 
 /// Puts `text` on the clipboard every way this process can: through the
@@ -84,10 +118,12 @@ pub fn copy(text: &str) {
     }
 }
 
-/// The sequences requested since the last take, in order; the App writes
-/// them to its terminal.
+/// The sequences requested since the last take, this thread's first and
+/// then every other thread's, in order; the App writes them to its terminal.
 pub(crate) fn take_pending() -> Vec<Vec<u8>> {
-    PENDING.with(|pending| std::mem::take(&mut *pending.borrow_mut()))
+    let mut taken = PENDING.with(|pending| std::mem::take(&mut *pending.borrow_mut()));
+    taken.append(&mut ELSEWHERE.lock().unwrap_or_else(|e| e.into_inner()));
+    taken
 }
 
 #[cfg(test)]
@@ -107,14 +143,36 @@ mod tests {
     }
 
     /// CLP-001: a request waits for the App to take it; nothing is written
-    /// without a copy.
+    /// without a copy. A request from a thread that runs no App reaches the
+    /// App too; a request on an App's thread stays that App's.
     #[test]
+    #[serial_test::serial(clipboard_requests)]
     fn clp_001_a_requested_copy_is_pending_until_taken() {
+        let _app = enter_app_thread();
         let _ = take_pending();
         assert!(take_pending().is_empty(), "nothing waits without a copy");
         copy_to_terminal("hello");
-        copy_to_terminal("world");
-        assert_eq!(take_pending(), vec![osc52("hello"), osc52("world")]);
-        assert!(take_pending().is_empty(), "a take empties the queue");
+        std::thread::spawn(|| copy_to_terminal("world"))
+            .join()
+            .unwrap();
+        assert_eq!(
+            take_pending(),
+            vec![osc52("hello"), osc52("world")],
+            "this App's request first, then the background thread's"
+        );
+        assert!(take_pending().is_empty(), "a take empties both queues");
+        let other = std::thread::spawn(|| {
+            let _app = enter_app_thread();
+            copy_to_terminal("mine");
+            take_pending()
+        })
+        .join()
+        .unwrap();
+        assert_eq!(
+            other,
+            vec![osc52("mine")],
+            "another App's thread drains its own"
+        );
+        assert!(take_pending().is_empty(), "and leaves nothing for this one");
     }
 }
