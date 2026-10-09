@@ -55,6 +55,8 @@ pub mod app;
 pub mod backend;
 /// Builder patterns and utilities for constructing UI elements
 pub mod builder;
+/// The terminal's clipboard: a copy written as OSC 52 so it reaches the user's machine
+pub mod clipboard;
 /// React-like component system with lifecycle and state management
 pub mod component;
 /// Core rendering primitives and terminal abstractions
