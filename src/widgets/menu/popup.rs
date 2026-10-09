@@ -206,6 +206,52 @@ impl PopupMenu {
         })
     }
 
+    /// The menu a widget opens from a part of itself (NAV-006): it fills
+    /// the box of its parent element and opens its panel on `side` of
+    /// that box, at the other side when only that one holds it (MNU-003),
+    /// over everything (MNU-004), with the row at `current` selected and
+    /// the default look (MNU-001, MNU-002). `chosen` gets the id of the row
+    /// chosen; `closed` runs once the menu closes, by a choice, Escape or a
+    /// click beside it, or when it is removed while open.
+    pub(crate) fn beside(
+        items: Vec<MenuItem>,
+        side: super::popup_live::RelativePlacement,
+        current: Option<usize>,
+        chosen: Arc<dyn Fn(&str) + Send + Sync>,
+        closed: Arc<dyn Fn() + Send + Sync>,
+    ) -> Element {
+        let mut element =
+            Element::typed::<super::popup_live::LivePopup>(super::popup_live::LiveProps {
+                config: PopupMenuProps {
+                    items,
+                    visible: true,
+                    ..Default::default()
+                },
+                relative_placement: Some(side),
+                seed: PopupMenuState {
+                    selected_index: current,
+                    ..Default::default()
+                },
+                selected: Some(chosen),
+                shown: None,
+                hidden: Some(closed),
+            });
+        // The menu's box covers the part that opened it, and no box that
+        // clips that part clips the menu's box: from its first frame the
+        // menu is placed and sized in the whole viewport (MNU-002, MNU-003).
+        element.metadata.styles = Some(Arc::new(
+            crate::layout::style::StyleBuilder::new()
+                .position_absolute()
+                .inset_left(0.0)
+                .inset_top(0.0)
+                .width_percent(100.0)
+                .height_percent(100.0)
+                .unclipped()
+                .snapshot(),
+        ));
+        element
+    }
+
     /// Set callback for when a menu item is selected
     pub fn with_on_item_selected(mut self, f: impl Fn(&str) + Send + Sync + 'static) -> Self {
         self.on_item_selected = Some(Arc::new(f));
