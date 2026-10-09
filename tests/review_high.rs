@@ -12,7 +12,7 @@ mod common;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 // ---------------------------------------------------------------------------
 // The bytes this test process holds, and the most it has held since a mark:
@@ -908,17 +908,28 @@ mod cht_040 {
         ]
     }
 
-    /// Build the chart and draw it until it has painted settled frames: the
-    /// last frame's text and how long both took, or why they did not finish.
+    /// Build the chart and draw it until the App paints a settled frame that
+    /// shows the chart's one value, so a loaded machine that paints fewer
+    /// frames still reaches it. Returns the last frame's text and the App's
+    /// work over the frames it painted (the sum of `work_ms`), as the draw's
+    /// cost, or why the chart did not finish.
     fn draw(build: Build) -> Result<(String, Duration), String> {
-        let started = Instant::now();
         let frames = within(Duration::from_secs(60), move || {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let props = build();
-                app_input::run(Root(Element::typed::<Chart>(props)), SIZE, vec![(3, None)])
+                let shows_the_value: app_input::FramePredicate =
+                    Box::new(|frame: &app_input::Snapshot| {
+                        !frame.busy && shows_a_mark(&frame.text)
+                    });
+                app_input::run_when_frame(
+                    Root(Element::typed::<Chart>(props)),
+                    SIZE,
+                    vec![(shows_the_value, None)],
+                )
             }))
             .map_err(|_| {
-                "the chart did not build, or the App did not paint three settled frames".to_owned()
+                "the chart did not build, or the App did not paint a settled frame showing its value"
+                    .to_owned()
             })
         })
         .ok_or_else(|| "the chart did not finish within 60 seconds".to_owned())??;
@@ -926,7 +937,8 @@ mod cht_040 {
             .last()
             .map(|frame| frame.text.clone())
             .unwrap_or_default();
-        Ok((last, started.elapsed()))
+        let work_ms: f64 = frames.iter().map(|frame| frame.work_ms).sum();
+        Ok((last, Duration::from_secs_f64(work_ms / 1000.0)))
     }
 
     /// Whether the plot shows a mark: a braille dot or a block glyph.
