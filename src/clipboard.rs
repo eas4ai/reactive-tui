@@ -10,7 +10,7 @@
 //! thread waits for whichever App drains next. When a local clipboard
 //! command is available (wl-copy, xsel, xclip, pbcopy or PowerShell) the
 //! copy runs it as well, so it keeps working in a terminal that ignores
-//! OSC 52, and a paste reads it ([`paste_local`]); the terminal's bracketed
+//! OSC 52, and a paste reads it ([`crate::clipboard::paste_local`]); the terminal's bracketed
 //! paste arrives as an event either way.
 
 use std::cell::{Cell, RefCell};
