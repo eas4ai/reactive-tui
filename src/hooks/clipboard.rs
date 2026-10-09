@@ -20,6 +20,14 @@ enum ClipboardBackend {
     Unavailable,
 }
 
+/// The direction a backend is looked for: a copy needs the copy command on
+/// the PATH and a paste the paste command, each on its own (CLP-001).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Direction {
+    Copy,
+    Paste,
+}
+
 impl ClipboardBackend {
     fn command_exists(program: &str) -> bool {
         let Some(path) = std::env::var_os("PATH") else {
@@ -46,26 +54,38 @@ impl ClipboardBackend {
         })
     }
 
-    fn detect() -> Self {
+    /// The backend for one direction on this machine: the PATH's commands
+    /// and the display variables decide.
+    fn detect_for(direction: Direction) -> Self {
+        Self::detect_with(direction, Self::command_exists, |name| {
+            std::env::var_os(name).is_some_and(|display| !display.is_empty())
+        })
+    }
+
+    /// The backend for one direction, given which commands exist and which
+    /// display variables are set.
+    fn detect_with(
+        direction: Direction,
+        exists: impl Fn(&str) -> bool,
+        display: impl Fn(&str) -> bool,
+    ) -> Self {
+        let copy = direction == Direction::Copy;
         #[cfg(target_os = "windows")]
-        if Self::command_exists("powershell") {
+        if exists("powershell") {
             return Self::Windows;
         }
         #[cfg(target_os = "macos")]
-        if Self::command_exists("pbcopy") && Self::command_exists("pbpaste") {
+        if exists(if copy { "pbcopy" } else { "pbpaste" }) {
             return Self::MacOS;
         }
-        if std::env::var_os("WAYLAND_DISPLAY").is_some_and(|display| !display.is_empty())
-            && Self::command_exists("wl-copy")
-            && Self::command_exists("wl-paste")
-        {
+        if display("WAYLAND_DISPLAY") && exists(if copy { "wl-copy" } else { "wl-paste" }) {
             return Self::Wayland;
         }
-        if std::env::var_os("DISPLAY").is_some_and(|display| !display.is_empty()) {
-            if Self::command_exists("xsel") {
+        if display("DISPLAY") {
+            if exists("xsel") {
                 return Self::Xsel;
             }
-            if Self::command_exists("xclip") {
+            if exists("xclip") {
                 return Self::Xclip;
             }
         }
@@ -160,7 +180,7 @@ fn copy_through(
 /// (CLP-001); with none, succeeds without copying, since the terminal's
 /// clipboard is written by the caller.
 pub(crate) fn local_copy(text: &str, cancelled: impl Fn() -> bool) -> Result<(), String> {
-    match ClipboardBackend::detect() {
+    match ClipboardBackend::detect_for(Direction::Copy) {
         ClipboardBackend::Unavailable => Ok(()),
         backend => backend.copy(text, cancelled),
     }
@@ -173,8 +193,10 @@ pub struct ClipboardState {
     pub content: Option<String>,
     /// Last error if any
     pub error: Option<String>,
-    /// Backend being used
+    /// The backend a copy runs
     backend: ClipboardBackend,
+    /// The backend a paste reads; a machine may have one and not the other
+    paste_backend: ClipboardBackend,
 }
 
 impl ClipboardState {
@@ -198,7 +220,8 @@ impl Default for ClipboardState {
         Self {
             content: None,
             error: None,
-            backend: ClipboardBackend::detect(),
+            backend: ClipboardBackend::detect_for(Direction::Copy),
+            paste_backend: ClipboardBackend::detect_for(Direction::Paste),
         }
     }
 }
@@ -256,7 +279,7 @@ pub fn use_clipboard(
     }) as ClipboardWriter;
 
     let paste = Arc::new(move || -> Option<String> {
-        let backend = state_paste.get().backend;
+        let backend = state_paste.get().paste_backend;
         match backend.paste(|| !paste_owner.is_alive()) {
             Ok(text) => {
                 state_paste.update_atomic(|current| {
@@ -400,9 +423,9 @@ mod tests {
 
     #[test]
     fn test_clipboard_backend_detection() {
-        let backend = ClipboardBackend::detect();
+        let backend = ClipboardBackend::detect_for(Direction::Copy);
         // Detection is read-only, including an unavailable desktop, so it is stable.
-        assert_eq!(backend, ClipboardBackend::detect());
+        assert_eq!(backend, ClipboardBackend::detect_for(Direction::Copy));
         let has_display = ["WAYLAND_DISPLAY", "DISPLAY"]
             .iter()
             .any(|name| std::env::var_os(name).is_some_and(|value| !value.is_empty()));
@@ -414,6 +437,44 @@ mod tests {
             );
         }
         println!("Detected clipboard backend: {backend:?}");
+    }
+
+    /// CLP-001: a local copy command on the PATH is run whether or not its
+    /// paste counterpart is there, and a paste is judged by its own command.
+    #[test]
+    fn clp_001_a_copy_needs_only_the_copy_command_on_the_path() {
+        let wayland = |name: &str| name == "WAYLAND_DISPLAY";
+        let only_wl_copy = |program: &str| program == "wl-copy";
+        assert_eq!(
+            ClipboardBackend::detect_with(Direction::Copy, only_wl_copy, wayland),
+            ClipboardBackend::Wayland,
+            "wl-copy alone serves a copy"
+        );
+        assert_eq!(
+            ClipboardBackend::detect_with(Direction::Paste, only_wl_copy, wayland),
+            ClipboardBackend::Unavailable,
+            "and no paste"
+        );
+        let only_wl_paste = |program: &str| program == "wl-paste";
+        assert_eq!(
+            ClipboardBackend::detect_with(Direction::Copy, only_wl_paste, wayland),
+            ClipboardBackend::Unavailable
+        );
+        assert_eq!(
+            ClipboardBackend::detect_with(Direction::Paste, only_wl_paste, wayland),
+            ClipboardBackend::Wayland
+        );
+        let x11 = |name: &str| name == "DISPLAY";
+        assert_eq!(
+            ClipboardBackend::detect_with(Direction::Copy, |p| p == "xclip", x11),
+            ClipboardBackend::Xclip,
+            "xclip copies and pastes alike"
+        );
+        assert_eq!(
+            ClipboardBackend::detect_with(Direction::Copy, |p| p == "wl-copy", x11),
+            ClipboardBackend::Unavailable,
+            "no Wayland display, no wl-copy"
+        );
     }
 
     #[test]
