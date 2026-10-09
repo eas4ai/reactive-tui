@@ -79,7 +79,9 @@ pub(super) fn shortcut_path(items: &[MenuItem], event: &KeyEvent) -> Option<Vec<
             .shortcut
             .as_ref()
             .is_some_and(|shortcut| shortcut_matches(&shortcut.keys, event))
-            || false
+            || item
+                .bound_to
+                .is_some_and(|action| crate::keymap::Keymap::active().is(event, action))
         {
             return Some(vec![index]);
         }

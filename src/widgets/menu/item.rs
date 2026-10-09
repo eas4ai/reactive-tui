@@ -169,7 +169,9 @@ impl MenuItem {
         if let Some(shortcut) = &self.shortcut {
             return Some(shortcut.display.clone());
         }
-        None
+        self.bound_to
+            .and_then(|action| crate::keymap::Keymap::active().binding(action))
+            .map(|binding| binding.display())
     }
 
     /// Create a new menu item
