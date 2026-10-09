@@ -2,6 +2,8 @@
 pub mod ansi;
 /// Color definitions and palettes
 pub mod colors;
+/// Themes loaded from JSON documents (THM-006)
+mod file;
 /// Pre-built theme presets
 pub mod presets;
 /// The color roles and what a theme that leaves one out gets for it
@@ -13,6 +15,7 @@ pub use ansi::{
     hex_to_ansi256, hex_to_rgb, rgb_to_ansi, rgb_to_ansi16, rgb_to_ansi256, AnsiColor, ColorDepth,
 };
 pub use colors::{get_color, Colors};
+pub use file::ThemeFileError;
 pub use presets::{
     dark_theme, gruvbox_dark_theme, high_contrast_theme, light_theme, solarized_dark_theme,
 };
