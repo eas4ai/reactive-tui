@@ -569,17 +569,25 @@ impl LiveTree {
         let index = current.unwrap_or(0);
         let id = self.rows[index].node.id.clone();
         let step = state.scroll_state.viewport_height.max(1) as usize;
-        let destination = match key.code {
-            KeyCode::Down => Some(current.map_or(0, |i| (i + 1).min(self.rows.len() - 1))),
-            KeyCode::Up => Some(index.saturating_sub(1)),
-            KeyCode::Home => Some(0),
-            KeyCode::End => Some(self.rows.len() - 1),
-            KeyCode::PageDown => Some(index.saturating_add(step).min(self.rows.len() - 1)),
-            KeyCode::PageUp => Some(index.saturating_sub(step)),
+        // The keys mean what the active keymap says (KEY-001); Shift is read
+        // as a variant of the key. `=`, `*` and Ctrl+A are the tree's own.
+        let action = crate::keymap::Keymap::active().action_shifted(key);
+        use crate::keymap::Action;
+        let destination = match action {
+            Some((Action::Down, _)) => {
+                Some(current.map_or(0, |i| (i + 1).min(self.rows.len() - 1)))
+            }
+            Some((Action::Up, _)) => Some(index.saturating_sub(1)),
+            Some((Action::Home, _)) => Some(0),
+            Some((Action::End, _)) => Some(self.rows.len() - 1),
+            Some((Action::PageDown, _)) => {
+                Some(index.saturating_add(step).min(self.rows.len() - 1))
+            }
+            Some((Action::PageUp, _)) => Some(index.saturating_sub(step)),
             _ => None,
         };
         if let Some(mut destination) = destination {
-            let backward = matches!(key.code, KeyCode::Up | KeyCode::End | KeyCode::PageUp);
+            let backward = matches!(action, Some((Action::Up | Action::End | Action::PageUp, _)));
             while !self.rows[destination].selectable {
                 let next = if backward {
                     destination.checked_sub(1)
@@ -592,18 +600,19 @@ impl LiveTree {
                 destination = next;
             }
             let id = self.rows[destination].node.id.clone();
-            self.select(props, state, &id, key.modifiers.shift, false);
+            let shifted = matches!(action, Some((_, true)));
+            self.select(props, state, &id, shifted, false);
             return EventResult::Consumed;
         }
-        match key.code {
-            KeyCode::Left if !key.modifiers.shift => {
+        match action {
+            Some((Action::Left, false)) => {
                 if self.rows[index].node.expanded {
                     self.expand(props, state, &id, false);
                 } else if let Some(parent) = self.rows[index].node.parent_id.clone() {
                     self.select(props, state, &parent, false, false);
                 }
             }
-            KeyCode::Right if !key.modifiers.shift => {
+            Some((Action::Right, false)) => {
                 if !self.rows[index].node.expanded {
                     self.expand(props, state, &id, true);
                 } else if let Some(child) = self
@@ -615,31 +624,33 @@ impl LiveTree {
                     self.select(props, state, &child, false, false);
                 }
             }
-            KeyCode::Left | KeyCode::Right if props.scrollable => {
-                state.scroll_state.offset_x = if key.code == KeyCode::Left {
+            Some((Action::Left | Action::Right, true)) if props.scrollable => {
+                state.scroll_state.offset_x = if action == Some((Action::Left, true)) {
                     state.scroll_state.offset_x.saturating_sub(3)
                 } else {
                     state.scroll_state.offset_x.saturating_add(3)
                 };
                 self.clamp(props, state);
             }
-            KeyCode::Enter => {
+            Some((Action::Confirm, _)) => {
                 let expand = !self.rows[index].node.expanded;
                 self.expand(props, state, &id, expand);
                 if let Some(callback) = &props.on_node_action {
                     callback(id, "activate");
                 }
             }
-            KeyCode::Char(' ') => {
+            Some((Action::Activate, _)) => {
                 if self.rows[index].checkable {
                     self.check(props, state, &id);
                 } else if props.multi_select {
                     self.select(props, state, &id, false, true);
                 }
             }
-            KeyCode::Char('+') | KeyCode::Char('=') => self.expand(props, state, &id, true),
-            KeyCode::Char('-') => self.expand(props, state, &id, false),
-            KeyCode::Char('*') => {
+            Some((Action::Expand, _)) => self.expand(props, state, &id, true),
+            Some((Action::Collapse, _)) => self.expand(props, state, &id, false),
+            // `=`, the unshifted `+`, also expands: the tree's own key.
+            _ if key.code == KeyCode::Char('=') => self.expand(props, state, &id, true),
+            _ if key.code == KeyCode::Char('*') => {
                 let level = self.rows[index].node.level;
                 let ids: Vec<_> = self
                     .rows
@@ -651,7 +662,7 @@ impl LiveTree {
                     self.expand(props, state, &id, true);
                 }
             }
-            KeyCode::Char('a') if key.modifiers.ctrl && props.multi_select => {
+            _ if key.code == KeyCode::Char('a') && key.modifiers.ctrl && props.multi_select => {
                 let selected: Vec<_> = self
                     .rows
                     .iter()
@@ -814,11 +825,18 @@ impl Component for LiveTree {
                     self.check(props, state, id);
                     EventResult::Consumed
                 } else if event.name == "reactive_tui.tree.activate" {
-                    self.key(
-                        &crate::event::types::KeyEvent::new(KeyCode::Enter),
-                        props,
-                        state,
-                    )
+                    // An activation presses the key the active keymap binds
+                    // to Confirm (KEY-001), Enter by default.
+                    let confirm = crate::keymap::Keymap::active()
+                        .binding(crate::keymap::Action::Confirm)
+                        .map_or_else(
+                            || crate::event::types::KeyEvent::new(KeyCode::Enter),
+                            |binding| {
+                                crate::event::types::KeyEvent::new(binding.code().clone())
+                                    .with_modifiers(binding.modifiers())
+                            },
+                        );
+                    self.key(&confirm, props, state)
                 } else {
                     EventResult::Consumed
                 }
@@ -1104,6 +1122,64 @@ mod tests {
             live.cursor.as_deref(),
             Some("folder"),
             "the cursor moves to the collapsed parent"
+        );
+    }
+
+    /// KEY-001: the live tree reads its keys through the active keymap:
+    /// after `rebind(Confirm, [F2])`, F2 activates the cursor's row, Enter no
+    /// longer does, and a screen reader's activation presses F2.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_live_tree_reads_its_keys_through_the_keymap() {
+        use crate::event::types::KeyEvent;
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let root = TreeNode::new("root", "Root").expanded(true).children(vec![
+            TreeNode::new("folder", "Folder").children(vec![TreeNode::new("leaf", "Leaf")]),
+            TreeNode::new("other", "Other"),
+        ]);
+        let mut props = props(root, None);
+        let actions = Arc::new(Mutex::new(Vec::new()));
+        let sink = actions.clone();
+        props.config.on_node_action = Some(Arc::new(move |id, action| {
+            sink.lock().unwrap().push((id, action.to_string()))
+        }));
+        let mut live = LiveTree::new(props.clone());
+        let mut state = live.initial_state(&props);
+        let expanded = |state: &TreeState| state.expanded_nodes.iter().any(|id| id == "root");
+        assert!(expanded(&state));
+        let activate = Event::Custom(crate::event::CustomEvent::new(
+            "reactive_tui.tree.activate",
+            b"root".to_vec(),
+        ));
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Confirm, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let old = live.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Enter)),
+            &mut props,
+            &mut state,
+        );
+        let expanded_after_old = expanded(&state);
+        let new = live.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::F(2))),
+            &mut props,
+            &mut state,
+        );
+        let expanded_after_new = expanded(&state);
+        let activated = live.handle_event(&activate, &mut props, &mut state);
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(old, EventResult::Ignored, "Enter is no longer Confirm");
+        assert!(expanded_after_old, "Enter left the row as it was");
+        assert_eq!(new, EventResult::Consumed);
+        assert!(!expanded_after_new, "F2 toggled the row");
+        assert_eq!(activated, EventResult::Consumed);
+        assert!(expanded(&state), "the activation pressed F2");
+        assert_eq!(
+            *actions.lock().unwrap(),
+            vec![
+                ("root".to_string(), "activate".to_string()),
+                ("root".to_string(), "activate".to_string())
+            ]
         );
     }
 }

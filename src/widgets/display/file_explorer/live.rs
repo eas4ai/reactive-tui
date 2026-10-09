@@ -666,51 +666,64 @@ impl Explorer {
         if self.config.max_visible_items == 0 {
             return EventResult::Ignored;
         }
+        // The keys mean what the active keymap says (KEY-001); Shift is read
+        // as a variant of the key. The toolbar words' letters, the function
+        // keys, Backspace, Ctrl+U, Ctrl+Space and Ctrl+A are the explorer's
+        // own, and while the explorer takes text a plain character is text,
+        // whatever the keymap binds it to.
+        let action = crate::keymap::Keymap::active().action_shifted(key);
+        use crate::keymap::Action;
+        let typed = match key.code {
+            KeyCode::Char(c) if !key.modifiers.ctrl && !key.modifiers.alt => Some(c),
+            _ => None,
+        };
         if self.pending_operation {
-            if key.code == KeyCode::Escape {
+            if matches!(action, Some((Action::Cancel, _))) {
                 self.action(Target::Cancel);
             }
             return EventResult::Consumed;
         }
         if self.error.is_some() && self.prompt.is_none() {
-            match key.code {
-                KeyCode::Escape => self.action(Target::Cancel),
-                KeyCode::F(5) if self.config.keyboard_navigation => self.action(Target::Refresh),
+            match action {
+                Some((Action::Cancel, _)) => self.action(Target::Cancel),
+                _ if key.code == KeyCode::F(5) && self.config.keyboard_navigation => {
+                    self.action(Target::Refresh)
+                }
                 _ => return EventResult::Ignored,
             }
             return EventResult::Consumed;
         }
         if self.prompt.is_some() {
-            match key.code {
-                KeyCode::Escape => self.action(Target::Cancel),
-                KeyCode::Enter => self.action(Target::Confirm),
-                KeyCode::Backspace => {
+            match action {
+                _ if typed.is_some() => self.prompt.as_mut().unwrap().destination.extend(typed),
+                Some((Action::Cancel, _)) => self.action(Target::Cancel),
+                Some((Action::Confirm, _)) => self.action(Target::Confirm),
+                _ if key.code == KeyCode::Backspace => {
                     let text = &mut self.prompt.as_mut().unwrap().destination;
                     if let Some((index, _)) = text.grapheme_indices(true).next_back() {
                         text.truncate(index);
                     }
                 }
-                KeyCode::Char('u') if key.modifiers.ctrl => {
+                _ if key.code == KeyCode::Char('u') && key.modifiers.ctrl => {
                     self.prompt.as_mut().unwrap().destination.clear()
-                }
-                KeyCode::Char(c) if !key.modifiers.ctrl && !key.modifiers.alt => {
-                    self.prompt.as_mut().unwrap().destination.push(c)
                 }
                 _ => return EventResult::Ignored,
             }
             return EventResult::Consumed;
         }
         if self.search_edit {
-            match &key.code {
-                KeyCode::Escape | KeyCode::Enter => self.search_edit = false,
-                KeyCode::Backspace => {
+            match action {
+                _ if typed.is_some() => self
+                    .config
+                    .search_query
+                    .get_or_insert_default()
+                    .extend(typed),
+                Some((Action::Cancel | Action::Confirm, _)) => self.search_edit = false,
+                _ if key.code == KeyCode::Backspace => {
                     let query = self.config.search_query.get_or_insert_default();
                     if let Some((index, _)) = query.grapheme_indices(true).next_back() {
                         query.truncate(index);
                     }
-                }
-                KeyCode::Char(c) if !key.modifiers.ctrl && !key.modifiers.alt => {
-                    self.config.search_query.get_or_insert_default().push(*c)
                 }
                 _ => return EventResult::Ignored,
             }
@@ -721,22 +734,22 @@ impl Explorer {
         if !self.config.keyboard_navigation {
             return EventResult::Ignored;
         }
-        let action = match key.code {
-            KeyCode::Char('/') => Some(Target::Search),
-            KeyCode::Char('v') if !key.modifiers.ctrl => Some(Target::View),
-            KeyCode::Char('s') if !key.modifiers.ctrl => Some(Target::Sort),
-            KeyCode::Char('o') if !key.modifiers.ctrl => Some(Target::Order),
-            KeyCode::Char('.') => Some(Target::Hidden),
-            KeyCode::Char('p') if !key.modifiers.ctrl => Some(Target::Preview),
-            KeyCode::F(5) => Some(Target::Refresh),
-            KeyCode::F(2) => Some(Target::Operation(worker::Operation::Rename)),
-            KeyCode::F(6) => Some(Target::Operation(worker::Operation::Move)),
-            KeyCode::F(7) => Some(Target::Operation(worker::Operation::Copy)),
-            KeyCode::Delete => Some(Target::Operation(worker::Operation::Delete)),
+        let toolbar = match action {
+            _ if key.code == KeyCode::Char('/') => Some(Target::Search),
+            _ if key.code == KeyCode::Char('v') && !key.modifiers.ctrl => Some(Target::View),
+            _ if key.code == KeyCode::Char('s') && !key.modifiers.ctrl => Some(Target::Sort),
+            _ if key.code == KeyCode::Char('o') && !key.modifiers.ctrl => Some(Target::Order),
+            _ if key.code == KeyCode::Char('.') => Some(Target::Hidden),
+            _ if key.code == KeyCode::Char('p') && !key.modifiers.ctrl => Some(Target::Preview),
+            _ if key.code == KeyCode::F(5) => Some(Target::Refresh),
+            _ if key.code == KeyCode::F(2) => Some(Target::Operation(worker::Operation::Rename)),
+            _ if key.code == KeyCode::F(6) => Some(Target::Operation(worker::Operation::Move)),
+            _ if key.code == KeyCode::F(7) => Some(Target::Operation(worker::Operation::Copy)),
+            Some((Action::Delete, _)) => Some(Target::Operation(worker::Operation::Delete)),
             _ => None,
         };
-        if let Some(action) = action {
-            self.action(action);
+        if let Some(toolbar) = toolbar {
+            self.action(toolbar);
             return EventResult::Consumed;
         }
         if key.code == KeyCode::Backspace {
@@ -760,46 +773,51 @@ impl Explorer {
             .position(|row| Some(&row.entry.path) == self.cursor.as_ref())
             .unwrap_or(0);
         let columns = self.columns();
-        let target = match key.code {
-            KeyCode::Up => Some(index.saturating_sub(columns)),
-            KeyCode::Down => Some(index.saturating_add(columns).min(self.rows.len() - 1)),
-            KeyCode::Home => Some(0),
-            KeyCode::End => Some(self.rows.len() - 1),
-            KeyCode::PageUp => Some(index.saturating_sub(self.visible_rows().max(1) * columns)),
-            KeyCode::PageDown => Some(
+        let target = match action {
+            Some((Action::Up, _)) => Some(index.saturating_sub(columns)),
+            Some((Action::Down, _)) => Some(index.saturating_add(columns).min(self.rows.len() - 1)),
+            Some((Action::Home, _)) => Some(0),
+            Some((Action::End, _)) => Some(self.rows.len() - 1),
+            Some((Action::PageUp, _)) => {
+                Some(index.saturating_sub(self.visible_rows().max(1) * columns))
+            }
+            Some((Action::PageDown, _)) => Some(
                 index
                     .saturating_add(self.visible_rows().max(1) * columns)
                     .min(self.rows.len() - 1),
             ),
-            KeyCode::Left if columns > 1 => Some(index.saturating_sub(1)),
-            KeyCode::Right if columns > 1 => Some((index + 1).min(self.rows.len() - 1)),
+            Some((Action::Left, _)) if columns > 1 => Some(index.saturating_sub(1)),
+            Some((Action::Right, _)) if columns > 1 => Some((index + 1).min(self.rows.len() - 1)),
             _ => None,
         };
         if let Some(index) = target {
-            self.select(
-                self.rows[index].entry.path.clone(),
-                key.modifiers.shift,
-                false,
-            );
+            let shifted = matches!(action, Some((_, true)));
+            self.select(self.rows[index].entry.path.clone(), shifted, false);
             return EventResult::Consumed;
         }
         let path = self.rows[index].entry.path.clone();
-        match key.code {
-            KeyCode::Enter => self.activate(path),
-            KeyCode::Char(' ') => self.select(path, key.modifiers.shift, true),
-            KeyCode::Right if self.config.view_mode == ViewMode::Tree => {
+        match action {
+            Some((Action::Confirm, _)) => self.activate(path),
+            Some((Action::Activate, shifted)) => self.select(path, shifted, true),
+            Some((Action::Right, _)) if self.config.view_mode == ViewMode::Tree => {
                 if !self.expanded.contains(&path)
                     && self.rows[index].entry.file_type == FileType::Directory
                 {
                     self.expand(path);
                 }
             }
-            KeyCode::Left if self.config.view_mode == ViewMode::Tree => {
+            Some((Action::Left, _)) if self.config.view_mode == ViewMode::Tree => {
                 self.expanded.remove(&path);
                 self.rebuild();
             }
-            KeyCode::Char('a')
-                if key.modifiers.ctrl && self.config.selection_mode == SelectionMode::Multiple =>
+            // Ctrl+Space toggles the cursor's entry as Space does: the
+            // explorer's own key, since no action binds it.
+            _ if key.code == KeyCode::Char(' ') && key.modifiers.ctrl => {
+                self.select(path, key.modifiers.shift, true)
+            }
+            _ if key.code == KeyCode::Char('a')
+                && key.modifiers.ctrl
+                && self.config.selection_mode == SelectionMode::Multiple =>
             {
                 let before = self.selected.clone();
                 self.selected = self.rows.iter().map(|row| row.entry.path.clone()).collect();
@@ -1218,5 +1236,51 @@ mod dat_tests {
         assert_eq!(node(rows[0]).position_in_set(), Some(1));
         assert_eq!(node(rows[1]).position_in_set(), Some(2));
         assert_eq!(node(rows[1]).size_of_set(), Some(2));
+    }
+
+    /// KEY-001: the explorer reads its keys through the active keymap: after
+    /// `rebind(PageDown, [n])`, `n` moves the cursor a page and Page Down no
+    /// longer does, while the search field still takes `n` as text.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_file_explorer_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut explorer = Explorer::new(FileExplorerProps {
+            root_path: PathBuf::from("/fixture"),
+            current_path: PathBuf::from("/fixture"),
+            ..Default::default()
+        });
+        explorer.apply_seed(&FileExplorerState {
+            entries: vec![entry("alpha"), entry("beta"), entry("gamma")],
+            initialized: true,
+            ..Default::default()
+        });
+        explorer.layout(LayoutInfo::from_bounds(crate::event::hit::Bounds {
+            x: 0.0,
+            y: 0.0,
+            width: 40.0,
+            height: 12.0,
+        }));
+        assert_eq!(explorer.cursor, Some(PathBuf::from("/fixture/alpha")));
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::PageDown, [KeyBinding::new(KeyCode::Char('n'))]);
+        let _scope = Keymap::scoped(keymap);
+        let old = explorer.key(&KeyEvent::new(KeyCode::PageDown));
+        let after_old = explorer.cursor.clone();
+        let new = explorer.key(&KeyEvent::new(KeyCode::Char('n')));
+        let after_new = explorer.cursor.clone();
+        explorer.search_edit = true;
+        let typed = explorer.key(&KeyEvent::new(KeyCode::Char('n')));
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(old, EventResult::Ignored, "Page Down is no longer PageDown");
+        assert_eq!(after_old, Some(PathBuf::from("/fixture/alpha")));
+        assert_eq!(new, EventResult::Consumed);
+        assert_eq!(after_new, Some(PathBuf::from("/fixture/gamma")));
+        assert_eq!(typed, EventResult::Consumed);
+        assert_eq!(
+            explorer.config.search_query.as_deref(),
+            Some("n"),
+            "the search field takes a plain character as text"
+        );
     }
 }
