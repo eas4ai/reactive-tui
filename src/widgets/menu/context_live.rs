@@ -7,7 +7,7 @@ use crate::{
     component::{Component, Element, FocusProps, LayoutInfo, Props},
     event::{
         router::EventResult,
-        types::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind},
+        types::{Event, MouseButton, MouseEventKind},
     },
     layout::style::StyleBuilder,
     reactive::{

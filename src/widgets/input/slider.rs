@@ -1,6 +1,6 @@
 use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
+use crate::event::types::{KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;

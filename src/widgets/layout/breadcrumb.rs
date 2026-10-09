@@ -11,7 +11,7 @@
 
 use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, KeyEventKind};
+use crate::event::types::{KeyEvent, KeyEventKind};
 use crate::event::Event;
 use std::any::Any;
 use std::collections::HashMap;

@@ -9,7 +9,7 @@ use crate::{
     component::{Component, Element, FocusProps, LayoutInfo, Props},
     event::{
         router::EventResult,
-        types::{Event, FocusEventKind, KeyCode, KeyEventKind, MouseButton, MouseEventKind},
+        types::{Event, FocusEventKind, KeyEventKind, MouseButton, MouseEventKind},
     },
     layout::style::{Direction, StyleBuilder},
 };
