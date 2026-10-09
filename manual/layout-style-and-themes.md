@@ -153,6 +153,33 @@ So a theme written with only `background`, `foreground` and `primary` still
 gives every widget a color. A name that is no role and that the theme does
 not define resolves to nothing, as before.
 
+## Theme files
+
+A theme can come from a JSON document instead of code (THM-006). The
+document is an object with three keys: `name`, a string; `extends`,
+optional, the name of a built-in preset (`dark`, `light`, `high-contrast`,
+`solarized-dark` or `gruvbox-dark`), whose colors the theme starts from; and
+`variables`, an object whose keys are variable names such as
+`--color-primary` and whose values are the strings `ThemeVariables::set`
+takes: a hex color, a palette name or another variable's name.
+
+```json
+{
+  "name": "ocean",
+  "extends": "dark",
+  "variables": { "--color-primary": "#0077aa", "--color-accent": "#22d3ee" }
+}
+```
+
+`Theme::from_json(&text)` and `Theme::from_file(path)` load it, and the
+result is an ordinary `Theme`: `Theme::set_active(theme)` or
+`App::set_theme(theme)` puts it in use. A role the document does not set
+resolves as the color roles section says. A document that is not such an
+object, names an unknown preset, has a key other than the three, or holds
+a value that is not a string is refused with a `ThemeFileError` that names
+the key or the preset. `Theme::to_json()` writes a theme back, variables
+sorted by name; every built-in preset round-trips through it.
+
 ## Limits
 
 - Layout values are terminal-cell measurements after computation.

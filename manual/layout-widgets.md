@@ -21,8 +21,8 @@ parent allots, and the scroll view its height too (NAV-002).
 
 `builder::tabs()` takes `.tab(title, content)` for each tab, `.active(index)`
 for the selected one, `.closable(true)` to let a tab close, `.class(..)` for
-the container and `.aria_label(..)` for the screen reader's name of the tab
-list. `widgets::layout::TabsBuilder` adds `.variant(..)` (`Line`, the
+the container, `.aria_label(..)` for the screen reader's name of the tab
+list and `.on_change(f)` for the new tab's index (CMP-009). `widgets::layout::TabsBuilder` adds `.variant(..)` (`Line`, the
 default, underlines the selected label; `Enclosed` puts it on `surface`,
 `Soft` on `secondary`, `Solid` on `primary`), `.size(..)` (`Small`, `Medium`
 and `Large` give a label none, one or two cells of padding at each side),
@@ -31,11 +31,13 @@ and `Large` give a label none, one or two cells of padding at each side),
 
 Left, Right, Up and Down move between tabs and wrap, Home and End reach the
 ends, Enter and Space select the focused tab (arrows select at once unless
-activation is `Manual`), Delete or `x` closes a closable tab, and the digits
+activation is `Manual`), Delete closes a closable tab, and the digits
 1 to 9 select by position. A bar wider than its parent scrolls so the tab
 with the focus, or the selected tab, is whole in view (NAV-003). Each tab
 tells the screen reader its label, whether it is selected, its position and
 the count of tabs; its panel is named by the tab's label (NAV-004).
+
+When the tabs do not fit, the bar scrolls to keep the focused tab in view and paints an overflow mark at its far end, `»` on a horizontal bar and `⌄` on a vertical one; Shift+F10 while the bar holds the focus, or a click on the mark, opens a menu of every tab with the selected one checked, and choosing one selects it and brings it into view (NAV-006).
 
 ## Accordion
 
@@ -43,7 +45,8 @@ the count of tabs; its panel is named by the tab's label (NAV-004).
 (`AccordionSection::new(id, title).content(element).expanded(bool)
 .disabled(bool)`), `.mode(..)` for one or several open sections,
 `.animated(..)`, `.icons(expand, collapse)` for the glyphs after a title,
-`.keyboard_navigation(..)` and `.aria_label(..)`. `simple_accordion(vec![(id,
+`.keyboard_navigation(..)`, `.aria_label(..)` and `.on_change(f)`, called
+with a section's index and whether it is open (CMP-009). `simple_accordion(vec![(id,
 title, text)])` builds one from strings. Up and Down move between headers
 and wrap, Home and End reach the ends, Enter and Space toggle the focused
 section; a click on a header toggles it too. A header tells the screen
@@ -65,6 +68,8 @@ segment whole and replaces middle ones with an ellipsis before it cuts a
 label (NAV-003). The root is a navigation landmark named by `aria_label`
 only; each segment is a link with its label, its position and the count
 of segments, and the current one is marked as the current page.
+
+When the trail does not fit, the middle segments give way to an ellipsis that is a stop of its own: Left and Right reach it in its place, and Enter, Space or a click on it opens a menu of the hidden segments in trail order; choosing one acts as a click on that segment (NAV-006).
 
 ## Scroll view
 

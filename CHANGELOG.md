@@ -5,6 +5,24 @@ This file records user-visible changes to Reactive TUI. The project follows
 
 ## [Unreleased]
 
+- The behavior the widgets share (docs/spec/roadmap.md, widget-behavior).
+  Every builder of a widget that reports a change takes the callback:
+  `on_change` on `text_input()`, `checkbox()`, `radio_button()`,
+  `select()`, `slider()`, `tabs()` and `accordion()`, and `on_submit` on
+  `text_input()` (CMP-009). A screen reader can set a text input's text,
+  move a slider by one step or to a value, and choose a select's option
+  (CTL-005), and hears each radio's position in its group (CTL-006). A
+  theme loads from a JSON document with `Theme::from_json` and
+  `Theme::from_file` and writes back with `to_json` (THM-006). A
+  breadcrumb's ellipsis is a focusable stop that opens a menu of the hidden
+  segments, and a tab bar with tabs out of view paints `»` and lists every
+  tab on Shift+F10 (NAV-006). A copy from the clipboard hook or a text
+  input reaches the terminal's clipboard through OSC 52, beside the local
+  command, so a copy over SSH lands on the user's machine (CLP-001). Keys
+  are named actions in one keymap every widget reads, which an application
+  can rebind with `Keymap::rebind` and `App::set_keymap`, and a menu item
+  that names an action takes its hint and its trigger from the binding
+  (KEY-001, KEY-002); tabs no longer close on `x`, Delete stays.
 - Seven widget defects fixed, each with a test that failed first
   (docs/spec/roadmap.md, widget-defects). A Markdown fence names its
   language in any case or by file extension, so ```rust and ```rs highlight
