@@ -4,19 +4,22 @@
 //! the terminal: the App writes `ESC ] 52 ; c ; <base64> ESC \`, the OSC 52
 //! sequence, to its terminal before its next frame, so a copy over SSH lands
 //! on the user's machine. The clipboard hook's writer and a text input's copy
-//! and cut ask for it here; the App drains the requests on each turn of its
-//! loop and before each frame, and hands them to its backend. When a local
-//! clipboard command is available (wl-copy, xsel, xclip, pbcopy or
-//! PowerShell) the copy runs it as well, so it keeps working in a terminal
-//! that ignores OSC 52.
+//! and cut ask for it here, on the App's thread; the App drains the requests
+//! on each turn of its loop and before each frame, and hands them to its
+//! backend. When a local clipboard command is available (wl-copy, xsel, xclip,
+//! pbcopy or PowerShell) the copy runs it as well, so it keeps working in a
+//! terminal that ignores OSC 52.
 
-use std::sync::{Mutex, OnceLock};
+use std::cell::RefCell;
 
 use base64::Engine as _;
 
-fn pending() -> &'static Mutex<Vec<Vec<u8>>> {
-    static PENDING: OnceLock<Mutex<Vec<Vec<u8>>>> = OnceLock::new();
-    PENDING.get_or_init(|| Mutex::new(Vec::new()))
+thread_local! {
+    // One queue per thread: a copy is requested on the thread that runs the
+    // App, where its components, hooks and callbacks run, and that App drains
+    // it. Two Apps on two threads, as a test binary runs them, never take each
+    // other's requests.
+    static PENDING: RefCell<Vec<Vec<u8>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// The OSC 52 sequence that asks the terminal to put `text` on the clipboard:
@@ -33,12 +36,11 @@ pub fn osc52(text: &str) -> Vec<u8> {
 }
 
 /// Asks the running App to put `text` on the terminal's clipboard: the OSC 52
-/// sequence is written to the terminal before the App's next frame.
+/// sequence is written to the terminal before the App's next frame. Call it
+/// on the thread that runs the App, where components, hooks and callbacks
+/// run; a request made on another thread reaches no App.
 pub fn copy_to_terminal(text: &str) {
-    pending()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .push(osc52(text));
+    PENDING.with(|pending| pending.borrow_mut().push(osc52(text)));
 }
 
 /// Puts `text` on the clipboard every way this process can: through the
@@ -54,7 +56,7 @@ pub fn copy(text: &str) -> Result<(), String> {
 /// The sequences requested since the last take, in order; the App writes
 /// them to its terminal.
 pub(crate) fn take_pending() -> Vec<Vec<u8>> {
-    std::mem::take(&mut *pending().lock().unwrap_or_else(|e| e.into_inner()))
+    PENDING.with(|pending| std::mem::take(&mut *pending.borrow_mut()))
 }
 
 #[cfg(test)]
@@ -76,7 +78,6 @@ mod tests {
     /// CLP-001: a request waits for the App to take it; nothing is written
     /// without a copy.
     #[test]
-    #[serial_test::serial(clipboard_requests)]
     fn clp_001_a_requested_copy_is_pending_until_taken() {
         let _ = take_pending();
         assert!(take_pending().is_empty(), "nothing waits without a copy");
