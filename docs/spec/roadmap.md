@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: widget-behavior
+Current: widget-behavior-2
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1853,5 +1853,29 @@ item widget-study-adoption stays open until the last of them.
 
 Done when every named requirement passes; widget-behavior has recorded a
 fail on the tree as it was at the start for each new requirement; the
+workflow's run for the final commit is green on the three machines; and
+the adversary's findings are resolved or declined.
+
+## widget-behavior-2
+
+Requirements: CMP-009, CTL-005, CTL-006, THM-006, NAV-006, CLP-001, KEY-001, KEY-002, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The widget-behavior commitment resumed. On 2026-10-09, with seven of its
+eight requirements built, KEY-002's parenthetical turned out to name a
+method that cannot exist: `MenuItem::action(Action)`, where
+`MenuItem::action(id, text, callback)` is the constructor every menu in
+the crate, the examples, the tests and the manual builds with. The
+developer ruled ("ok", escalation 5444961a) that the method is
+`MenuItem::bound_to(Action)`, with `MenuItemBuilder::bound_to(Action)`
+beside it, and that KEY-002 changes in that one word only. A commitment's
+frozen text does not change under it, so widget-behavior was superseded
+by this one, which freezes the revised text and carries every commit,
+receipt and binding of the first; the review, the report and the gates
+measure from the first start, as the manual says.
+
+Delivered here: what widget-behavior's section lists, with KEY-002's menu
+item bound to an action by `bound_to`. Done when every named requirement
+passes; widget-behavior has recorded a fail on the tree as it was at the
+start for each new requirement, KEY-002 against its revised text; the
 workflow's run for the final commit is green on the three machines; and
 the adversary's findings are resolved or declined.
