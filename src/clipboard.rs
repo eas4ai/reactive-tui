@@ -11,8 +11,25 @@
 //! terminal that ignores OSC 52.
 
 use std::cell::RefCell;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use base64::Engine as _;
+
+static LOCAL_COMMANDS: AtomicBool = AtomicBool::new(true);
+
+/// Whether a copy runs the local clipboard command beside the terminal's
+/// sequence. On by default (CLP-001); an application turns it off with
+/// [`set_local_commands`], for example a test that must not touch the
+/// developer's clipboard.
+pub fn local_commands() -> bool {
+    LOCAL_COMMANDS.load(Ordering::Relaxed)
+}
+
+/// Turns the local clipboard command on or off for every copy in this
+/// process; the terminal's sequence is written either way.
+pub fn set_local_commands(enabled: bool) {
+    LOCAL_COMMANDS.store(enabled, Ordering::Relaxed);
+}
 
 thread_local! {
     // One queue per thread: a copy is requested on the thread that runs the
@@ -51,6 +68,9 @@ pub fn copy_to_terminal(text: &str) {
 /// the command is logged, not returned: the terminal has the text.
 pub fn copy(text: &str) {
     copy_to_terminal(text);
+    if !local_commands() {
+        return;
+    }
     let text = text.to_owned();
     let spawned = std::thread::Builder::new()
         .name("reactive-tui clipboard".into())

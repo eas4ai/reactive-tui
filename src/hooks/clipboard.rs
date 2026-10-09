@@ -147,6 +147,9 @@ fn copy_through(
     cancelled: impl Fn() -> bool,
 ) -> Result<(), String> {
     crate::clipboard::copy_to_terminal(text);
+    if !crate::clipboard::local_commands() {
+        return Ok(());
+    }
     match backend {
         ClipboardBackend::Unavailable => Ok(()),
         backend => backend.copy(text, cancelled),
@@ -479,6 +482,24 @@ mod tests {
         }
         #[cfg(not(unix))]
         let _ = (state, paste);
+    }
+
+    /// CLP-001: with the local command turned off, the copy reaches the
+    /// terminal alone and runs nothing, whatever tool the desktop has.
+    #[test]
+    #[serial_test::serial(clipboard_requests)]
+    fn clp_001_the_local_command_can_be_turned_off() {
+        let _ = crate::clipboard::take_pending();
+        crate::clipboard::set_local_commands(false);
+        // Wayland names wl-copy; with the switch off it is never run, so
+        // the result is Ok on a machine without it as well.
+        let result = copy_through(ClipboardBackend::Wayland, "hello", || false);
+        crate::clipboard::set_local_commands(true);
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            crate::clipboard::take_pending(),
+            vec![crate::clipboard::osc52("hello")]
+        );
     }
 
     /// CLP-001: with no local command, the copy still reaches the terminal
