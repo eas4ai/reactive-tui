@@ -100,9 +100,11 @@ the next event on. After `rebind(Action::Confirm, [F2])` a select chooses,
 a checkbox toggles, a tab selects and a dialog's button presses on F2, and
 no longer on Enter.
 
-Typing wins: a widget that takes text keeps taking a plain character as
-text, so a plain letter bound to an action reaches only widgets that take
-no text. A key that belongs to one widget alone, a file explorer's toolbar
+A binding is a key with its modifiers, compared exactly: a key pressed
+with a modifier its binding does not name does nothing (Ctrl+Down is not
+Down), and a key release never acts. Typing wins: a widget that takes text
+keeps taking a plain character as text, so a plain letter bound to an
+action reaches only widgets that take no text. A key that belongs to one widget alone, a file explorer's toolbar
 letter or a select's type-ahead, stays that widget's own. A widget that
 treats Shift as a variant of a key, as the table does when Shift+Right
 widens a column where Right moves to it, reads the unshifted key's action

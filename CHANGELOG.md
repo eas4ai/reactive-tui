@@ -22,7 +22,13 @@ This file records user-visible changes to Reactive TUI. The project follows
   are named actions in one keymap every widget reads, which an application
   can rebind with `Keymap::rebind` and `App::set_keymap`, and a menu item
   that names an action takes its hint and its trigger from the binding
-  (KEY-001, KEY-002); tabs no longer close on `x`, Delete stays.
+  (KEY-001, KEY-002). Two consequences of a binding being a key with its
+  modifiers: a key pressed with a modifier its binding does not name does
+  nothing (Ctrl+Down or Alt+Enter no longer act as Down or Enter), and a
+  key release never acts, where a few widgets used to act twice on
+  terminals that report releases; Shift stays a variant where a widget
+  treats it as one, as the table does when Shift+Right widens a column.
+  Tabs no longer close on `x`, Delete stays.
 - Seven widget defects fixed, each with a test that failed first
   (docs/spec/roadmap.md, widget-defects). A Markdown fence names its
   language in any case or by file extension, so ```rust and ```rs highlight
