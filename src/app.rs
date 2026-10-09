@@ -148,6 +148,12 @@ impl App {
         crate::theme::Theme::set_active(theme);
     }
 
+    /// Make `keymap` the keymap every widget reads its keys through, from
+    /// the next event on (KEY-001).
+    pub fn set_keymap(&mut self, keymap: crate::keymap::Keymap) {
+        crate::keymap::Keymap::set_active(keymap);
+    }
+
     /// Register a refresh callback owned by this App. Keep the returned token alive.
     /// Requests coalesce and run in registration order before a subsequent render.
     pub fn register_updater(
