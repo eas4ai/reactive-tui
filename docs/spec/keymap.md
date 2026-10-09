@@ -29,7 +29,7 @@ Falsifier: After `Keymap::rebind(Confirm, [F2])` one of the listed widgets still
 Mechanism: widget-behavior
 Status: Agreed 2026-10-09
 
-[KEY-002] A key binding MUST have one text form, `KeyBinding::display`, that writes the modifiers as `Ctrl+`, `Alt+`, `Shift+` and `Meta+` in that order before the key's name (`Enter`, `Escape`, `Space`, `Tab`, `F2`, `Up`, `Page Down`, a letter in upper case); a menu item that names an action (`MenuItem::bound_to(Action)`) MUST take both its hint and the key that triggers it from the active keymap's binding of that action, so that a rebind changes both; an item given an explicit shortcut keeps it; and the screen reader MUST be told the same text as the item's keyboard shortcut.
+[KEY-002] A key binding MUST have one text form, `KeyBinding::display`, that writes the modifiers as `Ctrl+`, `Alt+`, `Shift+` and `Meta+` in that order before the key's name (`Enter`, `Escape`, `Space`, `Tab`, `F2`, `Up`, `Page Down`, a letter in upper case); a menu item that names an action (`MenuItem::action(Action)`) MUST take both its hint and the key that triggers it from the active keymap's binding of that action, so that a rebind changes both; an item given an explicit shortcut keeps it; and the screen reader MUST be told the same text as the item's keyboard shortcut.
 Falsifier: `KeyBinding::display` of Ctrl+Shift+F10 is other than `Ctrl+Shift+F10`, or of Page Down other than `Page Down`; a menu item naming Copy shows a hint other than `Ctrl+C` under the default keymap; after `rebind(Copy, [Ctrl+Shift+C])` the item still shows `Ctrl+C`, still triggers on Ctrl+C or does not trigger on Ctrl+Shift+C; or the item's node carries a keyboard shortcut other than the hint shown.
 Mechanism: widget-behavior
 Status: Agreed 2026-10-09
