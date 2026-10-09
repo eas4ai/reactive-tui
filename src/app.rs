@@ -235,6 +235,8 @@ impl App {
     }
 
     fn run_loop(&mut self) -> Result<()> {
+        // Clipboard requests made on this thread are this App's (CLP-001).
+        let _app_thread = crate::clipboard::enter_app_thread();
         self.running = true;
         self.root.attach_waker(self.wake.clone());
         let (width, height) = self.backend.size();
