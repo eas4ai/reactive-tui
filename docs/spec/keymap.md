@@ -13,7 +13,7 @@ disagree about one action, and a hint can drift from the key it names. The
 App keeps one key of its own, the quit key (src/app.rs:319-327). gpui-kit
 defines shared actions (Confirm, Cancel, SelectUp, SelectDown, SelectLeft,
 SelectRight, SelectFirst, SelectLast, SelectPageUp, SelectPageDown;
-crates/base/src/actions.rs) that the application's keymap binds to keys, and
+B/actions.rs:6-28, as docs/widget-study.md cites it) that the application's keymap binds to keys, and
 its menus read an item's hint from the real binding (docs/widget-study.md,
 change 7). Typing is not an action: a widget that takes text keeps taking a
 plain character as text.
