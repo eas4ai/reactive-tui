@@ -118,7 +118,7 @@ fn isolated(name: &str) -> bool {
         ("wl-copy", copy),
         ("wl-paste", paste),
     ] {
-        if name == "missing_backend_is_error" && tool != "which" {
+        if name == "missing_backend_copies_through_the_terminal_alone" && tool != "which" {
             continue;
         }
         let path = fixture.directory.join(tool);
@@ -229,16 +229,19 @@ fn paste_nonzero_is_error() {
     assert_child_reaped();
 }
 
+/// CLP-001: with no local clipboard tool, a copy still reaches the terminal's
+/// clipboard through OSC 52, so the hook reports no error and keeps the text;
+/// a paste has nothing local to read.
 #[test]
-fn missing_backend_is_error() {
-    if isolated("missing_backend_is_error") {
+fn missing_backend_copies_through_the_terminal_alone() {
+    if isolated("missing_backend_copies_through_the_terminal_alone") {
         return;
     }
     let hooks = Hooks::new();
     let (state, copy, paste) = use_clipboard(&hooks);
     copy("payload");
-    assert!(state.get().error.is_some());
-    assert!(state.get().content.is_none());
+    assert!(state.get().error.is_none(), "{:?}", state.get().error);
+    assert_eq!(state.get().content.as_deref(), Some("payload"));
     assert_eq!(paste(), None);
 }
 
