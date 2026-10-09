@@ -236,7 +236,7 @@ impl App {
 
     fn run_loop(&mut self) -> Result<()> {
         // Clipboard requests made on this thread are this App's (CLP-001).
-        let _app_thread = crate::clipboard::enter_app_thread();
+        let _app_thread = crate::clipboard::enter_app_thread(self.wake.clone());
         self.running = true;
         self.root.attach_waker(self.wake.clone());
         let (width, height) = self.backend.size();
@@ -314,6 +314,15 @@ impl App {
                 self.wake.wait(timeout);
             }
             self.flush_terminal_requests()?;
+            // Text fetched for a paste on another thread arrives as the
+            // terminal's paste would (CLP-001).
+            for content in crate::clipboard::take_pastes() {
+                let paste = crate::event::types::PasteEvent {
+                    content,
+                    timestamp: Instant::now(),
+                };
+                dirty |= self.process_input(&crate::event::types::Event::Paste(paste))?;
+            }
         }
         self.running = false;
         Ok(())

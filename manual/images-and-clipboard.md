@@ -85,9 +85,13 @@ or PowerShell) the copy runs it as well, as an owned process with bounded
 output, so copying keeps working in a terminal that ignores OSC 52; the
 hook publishes that command's result into its state. A paste keeps coming
 from the terminal's bracketed paste or from the local command: a text
-input's Ctrl+V reads the local paste command when one is available
-(`reactive_tui::clipboard::paste_local`) and otherwise inserts its own last
-copy or cut.
+input's Ctrl+V asks the clipboard's thread for the local paste command's
+text when one is available (`reactive_tui::clipboard::request_paste`), and
+the text arrives as a paste event, so the App never waits for the command;
+with no command it inserts its own last copy or cut. The copies and pastes
+run on that one thread in the order asked, so a paste after a cut reads the
+cut. `reactive_tui::clipboard::paste_text(text)` hands the App text to
+paste the same way from any thread.
 `reactive_tui::clipboard::copy_to_terminal(text)` makes the same request
 from anywhere: on the App's thread the request is that App's, and from a
 background thread, a timer or a task it waits for whichever App drains
