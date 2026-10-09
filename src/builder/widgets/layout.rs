@@ -4,7 +4,12 @@
 //! stack layouts, tabs, and other container widgets.
 
 use super::super::specialized::{ScrollViewBuilder, StackBuilder};
-use crate::component::Element;
+use crate::component::{same_callback, Element};
+use std::sync::Arc;
+
+/// The callback a tab set built through its builder calls with the new
+/// active tab's index.
+type ChangeCallback = Arc<dyn Fn(usize) + Send + Sync>;
 
 /// Create a Scroll View builder
 ///
@@ -61,6 +66,7 @@ pub struct TabsBuilder {
     closable: bool,
     class: Option<String>,
     aria_label: Option<String>,
+    on_change: Option<ChangeCallback>,
 }
 
 impl TabsBuilder {
@@ -72,6 +78,7 @@ impl TabsBuilder {
             closable: false,
             class: None,
             aria_label: None,
+            on_change: None,
         }
     }
 
@@ -118,6 +125,13 @@ impl TabsBuilder {
         self
     }
 
+    /// Set the callback called with the new active tab's index each time
+    /// the user selects another tab, as `Tabs::with_on_change` is (CMP-009).
+    pub fn on_change(mut self, f: impl Fn(usize) + Send + Sync + 'static) -> Self {
+        self.on_change = Some(Arc::new(f));
+        self
+    }
+
     /// Build the Tabs element
     ///
     /// Creates a tabs container element with the configured tabs and properties.
@@ -136,13 +150,91 @@ impl TabsBuilder {
             aria_label: self.aria_label,
             ..Default::default()
         };
-        let mut element = Element::typed::<crate::widgets::layout::Tabs>(props);
+        let mut element = Element::typed::<ConfiguredTabs>(ConfiguredTabsProps {
+            tabs: props,
+            on_change: self.on_change,
+        });
 
         if let Some(class) = self.class {
             element = element.with_class(&class);
         }
 
         element
+    }
+}
+
+/// The props of a tab set built through its builder: the tab set's own
+/// props and the builder's callback, which equality leaves out so that a
+/// rebuild changing only the callback keeps the mounted tab set (CMP-008).
+#[derive(Clone)]
+struct ConfiguredTabsProps {
+    tabs: crate::widgets::layout::TabsProps,
+    on_change: Option<ChangeCallback>,
+}
+
+impl PartialEq for ConfiguredTabsProps {
+    fn eq(&self, other: &Self) -> bool {
+        self.tabs == other.tabs
+    }
+}
+
+impl crate::component::Props for ConfiguredTabsProps {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// A tab set built through its builder: the tab set itself, with the
+/// builder's callback handed to it (CMP-009).
+struct ConfiguredTabs(crate::widgets::layout::Tabs);
+
+impl crate::component::Component for ConfiguredTabs {
+    type Props = ConfiguredTabsProps;
+    type State = crate::widgets::layout::TabsState;
+
+    fn new(props: Self::Props) -> Self {
+        let mut inner = crate::widgets::layout::Tabs::new(props.tabs);
+        inner.set_on_change(props.on_change);
+        Self(inner)
+    }
+    fn initial_state(&mut self, props: &Self::Props) -> Self::State {
+        self.0.initial_state(&props.tabs)
+    }
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        self.0.update(&props.tabs, state)
+    }
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        _state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        if same_callback(&props.on_change, &supplied.on_change) {
+            return false;
+        }
+        props.on_change = supplied.on_change.clone();
+        true
+    }
+    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        self.0.render(&props.tabs, state)
+    }
+    fn layout(
+        &mut self,
+        bounds: crate::component::LayoutInfo,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> bool {
+        self.0.layout(bounds, &mut props.tabs, state)
+    }
+    fn handle_event(
+        &mut self,
+        event: &crate::event::Event,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> crate::event::router::EventResult {
+        // The callback a rebuild adopted acts from this event on (CMP-008).
+        self.0.set_on_change(props.on_change.clone());
+        self.0.handle_event(event, &mut props.tabs, state)
     }
 }
 

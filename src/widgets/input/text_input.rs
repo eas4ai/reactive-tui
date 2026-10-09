@@ -423,6 +423,17 @@ impl TextInput {
         self
     }
 
+    /// Replace the onChange callback, or remove it with `None`: a builder's
+    /// input takes the one its latest render carried (CMP-009).
+    pub(crate) fn set_on_change(&mut self, f: Option<Arc<dyn Fn(String) + Send + Sync>>) {
+        self.on_change = f;
+    }
+
+    /// Replace the onSubmit callback, or remove it with `None` (CMP-009).
+    pub(crate) fn set_on_submit(&mut self, f: Option<Arc<dyn Fn(String) + Send + Sync>>) {
+        self.on_submit = f;
+    }
+
     /// Create a new TextInput with a suggestion callback
     pub fn with_suggestions(
         mut self,

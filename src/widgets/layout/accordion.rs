@@ -10,13 +10,18 @@
 //! - Nested accordion support
 //! - Auto-collapse modes
 
-use crate::component::{Component, Element, Props};
+use crate::component::{CallbackSlot, Component, Element, Props};
 use crate::event::router::EventResult;
 use crate::event::types::{KeyCode, KeyEvent};
 use crate::event::Event;
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
+
+/// The callback an accordion calls with a section's index and whether it
+/// is open.
+type ToggleCallback = Arc<dyn Fn(usize, bool) + Send + Sync>;
 
 /// Accordion expansion mode
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -134,7 +139,7 @@ impl AccordionSection {
 }
 
 /// Accordion widget properties
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct AccordionProps {
     /// List of accordion sections
     pub sections: Vec<AccordionSection>,
@@ -157,10 +162,68 @@ pub struct AccordionProps {
     /// CustomEvent name delivered to the App root when expansion changes.
     /// JSON data contains section_id, expanded, and ordered expanded_sections.
     pub on_change: Option<String>, // Event handler ID
+    /// Called with the section's index in `sections` and whether it is now
+    /// open, each time the user opens or closes a section: the change
+    /// `on_change` names an event for (CMP-009). Equality leaves it out, so
+    /// a rerender that changes only this callback keeps the mounted
+    /// accordion and the new callback acts from the next event on (CMP-008).
+    pub on_toggle: Option<ToggleCallback>,
     /// The name the screen reader gives the accordion; none when unset.
     pub aria_label: Option<String>,
     /// Whether to use reduced motion (accessibility)
     pub reduced_motion: bool,
+}
+
+impl PartialEq for AccordionProps {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            sections,
+            mode,
+            animation,
+            show_icons,
+            expand_icon,
+            collapse_icon,
+            keyboard_navigation,
+            class,
+            persist_state,
+            on_change,
+            on_toggle: _,
+            aria_label,
+            reduced_motion,
+        } = self;
+        *sections == other.sections
+            && *mode == other.mode
+            && *animation == other.animation
+            && *show_icons == other.show_icons
+            && *expand_icon == other.expand_icon
+            && *collapse_icon == other.collapse_icon
+            && *keyboard_navigation == other.keyboard_navigation
+            && *class == other.class
+            && *persist_state == other.persist_state
+            && *on_change == other.on_change
+            && *aria_label == other.aria_label
+            && *reduced_motion == other.reduced_motion
+    }
+}
+
+impl std::fmt::Debug for AccordionProps {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AccordionProps")
+            .field("sections", &self.sections)
+            .field("mode", &self.mode)
+            .field("animation", &self.animation)
+            .field("show_icons", &self.show_icons)
+            .field("expand_icon", &self.expand_icon)
+            .field("collapse_icon", &self.collapse_icon)
+            .field("keyboard_navigation", &self.keyboard_navigation)
+            .field("class", &self.class)
+            .field("persist_state", &self.persist_state)
+            .field("on_change", &self.on_change)
+            .field("on_toggle", &self.on_toggle.as_ref().map(|_| "Fn"))
+            .field("aria_label", &self.aria_label)
+            .field("reduced_motion", &self.reduced_motion)
+            .finish()
+    }
 }
 
 impl Default for AccordionProps {
@@ -176,6 +239,7 @@ impl Default for AccordionProps {
             class: None,
             persist_state: true,
             on_change: None,
+            on_toggle: None,
             aria_label: None,
             reduced_motion: false,
         }
@@ -201,6 +265,9 @@ pub struct AccordionState {
     pub initialized: bool,
     /// Last interaction timestamp (for performance)
     pub last_interaction: Option<std::time::Instant>,
+    /// The `on_toggle` callback, as the latest update or adoption left it;
+    /// the live child that handles the input shares the slot (CMP-008).
+    pub callbacks: CallbackSlot<Option<ToggleCallback>>,
 }
 
 /// Production-ready Accordion widget
@@ -219,6 +286,7 @@ impl Component for Accordion {
     fn initial_state(&mut self, props: &Self::Props) -> Self::State {
         let mut state = AccordionState::default();
         self.initialize_state(props, &mut state);
+        state.callbacks.set(props.on_toggle.clone());
         state
     }
 
@@ -228,6 +296,21 @@ impl Component for Accordion {
         } else {
             self.sync_sections(props, state);
         }
+        state.callbacks.set(props.on_toggle.clone());
+        true
+    }
+
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        if crate::component::same_callback(&props.on_toggle, &supplied.on_toggle) {
+            return false;
+        }
+        props.on_toggle = supplied.on_toggle.clone();
+        state.callbacks.set(props.on_toggle.clone());
         true
     }
 
@@ -255,7 +338,11 @@ impl Component for Accordion {
 
 impl Accordion {
     fn initialize_state(&self, props: &AccordionProps, state: &mut AccordionState) {
-        *state = AccordionState::default();
+        // The callback slot stays the one the live child shares (CMP-008).
+        *state = AccordionState {
+            callbacks: state.callbacks.clone(),
+            ..AccordionState::default()
+        };
         state.expanded_sections = props
             .sections
             .iter()
@@ -374,6 +461,11 @@ impl Accordion {
                 .collect();
             crate::event::notifications::emit(crate::event::CustomEvent::new(callback, serde_json::json!({"section_id": id, "expanded": expanded, "expanded_sections": expanded_ids}).to_string().into_bytes()));
         }
+        if let Some(callback) = state.callbacks.get() {
+            if let Some(index) = props.sections.iter().position(|s| s.id == id) {
+                callback(index, expanded);
+            }
+        }
     }
 }
 
@@ -430,6 +522,15 @@ impl AccordionBuilder {
     /// The name the screen reader gives the accordion (NAV-004).
     pub fn aria_label(mut self, label: impl Into<String>) -> Self {
         self.props.aria_label = Some(label.into());
+        self
+    }
+
+    /// Set the callback called with a section's index and whether it is
+    /// now open, each time the user opens or closes a section: the change
+    /// the props' `on_change` event reports (CMP-009). It sets the props'
+    /// `on_toggle`.
+    pub fn on_change(mut self, f: impl Fn(usize, bool) + Send + Sync + 'static) -> Self {
+        self.props.on_toggle = Some(Arc::new(f));
         self
     }
 
