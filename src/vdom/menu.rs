@@ -96,6 +96,7 @@ mod tests {
             separator: MenuSeparator::None,
             icon: None,
             description: None,
+            bound_to: None,
         }];
 
         let vnode = simple_menubar(items);
@@ -121,6 +122,7 @@ mod tests {
             separator: MenuSeparator::None,
             icon: None,
             description: None,
+            bound_to: None,
         }];
 
         let vnode = simple_context_menu(items);
@@ -146,6 +148,7 @@ mod tests {
             separator: MenuSeparator::None,
             icon: None,
             description: None,
+            bound_to: None,
         }];
 
         let vnode = simple_popup_menu(items, PopupPlacement::Cursor);

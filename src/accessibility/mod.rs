@@ -39,6 +39,11 @@ impl Node {
     pub fn set_description(&mut self, description: impl Into<String>) {
         self.inner.set_description(description.into());
     }
+    /// The key that triggers this element, as text (`Ctrl+C`), told the
+    /// same as the hint shown beside a menu item (KEY-002).
+    pub fn set_keyboard_shortcut(&mut self, shortcut: impl Into<String>) {
+        self.inner.set_keyboard_shortcut(shortcut.into());
+    }
     /// Expanded or collapsed state of a disclosure control.
     pub fn set_expanded(&mut self, expanded: bool) {
         self.inner.set_expanded(expanded);

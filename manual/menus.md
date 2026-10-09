@@ -131,6 +131,16 @@ the rows Enter and Escape choose; `.modal()` puts the veil over the page.
 Its buttons take the theme's `primary` fill. The dialog menu centers in
 the viewport unless `.position()` places it.
 
+## Key hints from the keymap
+
+A menu item bound to a named key action with `.bound_to(action)`, on
+`MenuItem` or on `MenuItemBuilder`, shows the active keymap's binding of
+that action as its hint and triggers on it, so rebinding the action
+changes both at once; the screen reader hears the same text (KEY-002). An
+item given an explicit `MenuShortcut` keeps that shortcut's display and
+keys. See the key actions in the events chapter for the actions and the
+defaults.
+
 ## Limits
 
 - A shortcut value describes and matches input; the host application still
