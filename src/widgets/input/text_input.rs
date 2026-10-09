@@ -913,17 +913,10 @@ impl TextInput {
         }
     }
 
-    /// Handle Ctrl+key combinations
-    fn handle_ctrl_key(
-        &mut self,
-        event: &KeyEvent,
-        props: &mut TextInputProps,
-        state: &mut TextInputState,
-    ) -> EventResult {
-        // Copy, Cut, Paste, Undo and Redo are the active keymap's (KEY-001);
-        // select-all and the word moves and deletes are the field's own.
-        use crate::keymap::Action;
-        let action = crate::keymap::Keymap::active().action(event);
+    /// The Ctrl keys the field keeps for itself: select-all and the word
+    /// moves and deletes. The keymap's actions were read before this
+    /// (KEY-001), so a Ctrl key bound to one never gets here.
+    fn handle_ctrl_key(&mut self, event: &KeyEvent, state: &mut TextInputState) -> EventResult {
         match event.code {
             KeyCode::Char('a') => {
                 let start = CursorPosition::default();
@@ -934,13 +927,6 @@ impl TextInput {
                     end: state.cursor.clone(),
                 });
             }
-            _ if action == Some(Action::Copy) && state.selection.is_some() => {
-                self.copy_selection(state)
-            }
-            _ if action == Some(Action::Cut) => self.cut_selection(state),
-            _ if action == Some(Action::Paste) => self.paste_from_clipboard(props, state),
-            _ if action == Some(Action::Undo) => self.undo(state),
-            _ if action == Some(Action::Redo) => self.redo(state),
             KeyCode::Left | KeyCode::Right | KeyCode::Home | KeyCode::End => {
                 let text = self.get_text_value(state);
                 let destination = match event.code {
@@ -1135,43 +1121,55 @@ impl TextInput {
         props: &mut TextInputProps,
         state: &mut TextInputState,
     ) -> EventResult {
+        // A plain character or Space is text first (KEY-001: typing wins).
+        // Every other key means what the active keymap says, whatever its
+        // modifiers, Shift as the extend variant of a move; a key the keymap
+        // leaves alone, or binds to an action the field has no use for, is
+        // the field's own: Ctrl+A, the word moves and deletes, Backspace.
+        let typed = !event.modifiers.ctrl
+            && !event.modifiers.alt
+            && matches!(event.code, KeyCode::Char(_) | KeyCode::Space);
+        if !typed {
+            if let Some((action, shifted)) = crate::keymap::Keymap::active().action_shifted(event) {
+                if let Some(result) = self.handle_action(action, shifted, props, state) {
+                    return result;
+                }
+            }
+        }
         if event.modifiers.ctrl {
-            return self.handle_ctrl_key(event, props, state);
+            return self.handle_ctrl_key(event, state);
         }
         if event.modifiers.alt {
             return self.handle_alt_key(event, props, state);
         }
-        // A plain character is text first (KEY-001: typing wins); the other
-        // keys mean what the active keymap says, Shift as the extend variant.
-        use crate::keymap::Action;
-        let (action, shifted) = crate::keymap::Keymap::active()
-            .action_shifted(event)
-            .map_or((None, false), |(action, shifted)| (Some(action), shifted));
         match event.code {
             KeyCode::Char(c) => self.insert_text(&c.to_string(), props, state),
             KeyCode::Space => self.insert_text(" ", props, state),
-            _ if event.code == KeyCode::Backspace || action == Some(Action::Delete) => {
-                if state.selection.is_some() {
-                    self.delete_selection(state);
-                } else {
-                    let text = self.get_text_value(state);
-                    let cursor = state.cursor.byte_offset;
-                    let range = if event.code == KeyCode::Backspace {
-                        text.grapheme_indices(true)
-                            .take_while(|(index, _)| *index < cursor)
-                            .last()
-                            .map(|(index, grapheme)| (index, grapheme.to_owned()))
-                    } else {
-                        text.get(cursor..)
-                            .and_then(|tail| tail.graphemes(true).next())
-                            .map(|grapheme| (cursor, grapheme.to_owned()))
-                    };
-                    if let Some((position, text)) = range {
-                        self.execute_command(EditCommand::Delete { position, text }, state);
-                    }
-                }
-            }
-            _ if action == Some(Action::Confirm) => {
+            KeyCode::Backspace => self.delete_grapheme(true, state),
+            _ => return EventResult::Ignored,
+        }
+        EventResult::Consumed
+    }
+
+    /// The field's response to a keymap action, or `None` for an action the
+    /// field has no use for, so its key falls through to the field's own
+    /// keys. Copy with nothing selected is such a key.
+    fn handle_action(
+        &mut self,
+        action: crate::keymap::Action,
+        shifted: bool,
+        props: &mut TextInputProps,
+        state: &mut TextInputState,
+    ) -> Option<EventResult> {
+        use crate::keymap::Action;
+        match action {
+            Action::Copy if state.selection.is_some() => self.copy_selection(state),
+            Action::Cut => self.cut_selection(state),
+            Action::Paste => self.paste_from_clipboard(props, state),
+            Action::Undo => self.undo(state),
+            Action::Redo => self.redo(state),
+            Action::Delete => self.delete_grapheme(false, state),
+            Action::Confirm => {
                 if matches!(props.mode, InputMode::MultiLine { .. }) {
                     let indent = if props.auto_indent {
                         state.lines[state.cursor.line]
@@ -1186,9 +1184,9 @@ impl TextInput {
                     callback(self.get_text_value(state));
                 }
             }
-            _ if action == Some(Action::Next) => {
+            Action::Next => {
                 if self.is_read_only() {
-                    return EventResult::Ignored;
+                    return Some(EventResult::Ignored);
                 }
                 if state.show_suggestions {
                     if let Some(index) = state.suggestion_index {
@@ -1202,25 +1200,21 @@ impl TextInput {
                     };
                     self.insert_text(&text, props, state);
                 } else {
-                    return EventResult::Ignored;
+                    return Some(EventResult::Ignored);
                 }
             }
-            _ if action == Some(Action::Cancel) => {
+            Action::Cancel => {
                 if !state.show_suggestions && state.selection.is_none() {
-                    return EventResult::Ignored;
+                    return Some(EventResult::Ignored);
                 }
                 state.show_suggestions = false;
                 state.suggestion_index = None;
                 state.selection = None;
             }
-            _ if matches!(
-                action,
-                Some(Action::Left | Action::Right | Action::Up | Action::Down)
-            ) =>
-            {
-                if state.show_suggestions && matches!(action, Some(Action::Up | Action::Down)) {
+            Action::Left | Action::Right | Action::Up | Action::Down => {
+                if state.show_suggestions && matches!(action, Action::Up | Action::Down) {
                     let index = state.suggestion_index.unwrap_or(0);
-                    state.suggestion_index = Some(if action == Some(Action::Up) {
+                    state.suggestion_index = Some(if action == Action::Up {
                         index.saturating_sub(1)
                     } else {
                         (index + 1).min(props.suggestions.len().saturating_sub(1))
@@ -1230,29 +1224,25 @@ impl TextInput {
                         state.selection = None;
                     }
                     match (action, shifted) {
-                        (Some(Action::Left), true) => self.extend_selection_left(state),
-                        (Some(Action::Left), false) => self.move_cursor_left(state),
-                        (Some(Action::Right), true) => self.extend_selection_right(state),
-                        (Some(Action::Right), false) => self.move_cursor_right(state),
-                        (Some(Action::Up), true) => self.extend_selection_up(state),
-                        (Some(Action::Up), false) => self.move_cursor_up(state),
-                        (Some(Action::Down), true) => self.extend_selection_down(state),
+                        (Action::Left, true) => self.extend_selection_left(state),
+                        (Action::Left, false) => self.move_cursor_left(state),
+                        (Action::Right, true) => self.extend_selection_right(state),
+                        (Action::Right, false) => self.move_cursor_right(state),
+                        (Action::Up, true) => self.extend_selection_up(state),
+                        (Action::Up, false) => self.move_cursor_up(state),
+                        (Action::Down, true) => self.extend_selection_down(state),
                         _ => self.move_cursor_down(state),
                     }
                 }
             }
-            _ if matches!(
-                action,
-                Some(Action::Home | Action::End | Action::PageUp | Action::PageDown)
-            ) =>
-            {
+            Action::Home | Action::End | Action::PageUp | Action::PageDown => {
                 let start = state
                     .selection
                     .as_ref()
                     .map_or_else(|| state.cursor.clone(), |selection| selection.start.clone());
                 match action {
-                    Some(Action::Home) => state.cursor.column = 0,
-                    Some(Action::End) => {
+                    Action::Home => state.cursor.column = 0,
+                    Action::End => {
                         state.cursor.column = state.lines[state.cursor.line].graphemes(true).count()
                     }
                     _ => {
@@ -1260,7 +1250,7 @@ impl TextInput {
                             InputMode::MultiLine { height } => usize::from(height).max(1),
                             _ => 1,
                         };
-                        if action == Some(Action::PageUp) {
+                        if action == Action::PageUp {
                             state.cursor.line = state.cursor.line.saturating_sub(height);
                         } else {
                             state.cursor.line = state
@@ -1281,9 +1271,33 @@ impl TextInput {
                     end: state.cursor.clone(),
                 });
             }
-            _ => return EventResult::Ignored,
+            _ => return None,
         }
-        EventResult::Consumed
+        Some(EventResult::Consumed)
+    }
+
+    /// Deletes the selection, or else the grapheme before the cursor
+    /// (`backward`, Backspace) or under it (Delete).
+    fn delete_grapheme(&mut self, backward: bool, state: &mut TextInputState) {
+        if state.selection.is_some() {
+            self.delete_selection(state);
+            return;
+        }
+        let text = self.get_text_value(state);
+        let cursor = state.cursor.byte_offset;
+        let range = if backward {
+            text.grapheme_indices(true)
+                .take_while(|(index, _)| *index < cursor)
+                .last()
+                .map(|(index, grapheme)| (index, grapheme.to_owned()))
+        } else {
+            text.get(cursor..)
+                .and_then(|tail| tail.graphemes(true).next())
+                .map(|grapheme| (cursor, grapheme.to_owned()))
+        };
+        if let Some((position, text)) = range {
+            self.execute_command(EditCommand::Delete { position, text }, state);
+        }
     }
 
     fn accept_suggestion(
@@ -1403,6 +1417,101 @@ impl TextInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn press(code: KeyCode, modifiers: KeyModifiers) -> Event {
+        Event::Key(KeyEvent::new(code).with_modifiers(modifiers))
+    }
+
+    /// KEY-001: the editing actions reach the field through the keymap
+    /// whatever their keys' modifiers: Copy rebound to F3 copies, and
+    /// Ctrl+C no longer does.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_a_text_input_copies_on_the_key_copy_is_rebound_to() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        crate::clipboard::set_local_commands(false);
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Copy, [KeyBinding::new(KeyCode::F(3))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut props = TextInputProps {
+            value: "hello".to_string(),
+            ..Default::default()
+        };
+        let mut input = TextInput::new(props.clone());
+        let mut state = TextInputState {
+            is_focused: true,
+            ..Default::default()
+        };
+        input.update(&props, &mut state);
+        input.handle_event(
+            &press(KeyCode::Char('a'), KeyModifiers::ctrl()),
+            &mut props,
+            &mut state,
+        );
+        assert!(
+            state.selection.is_some(),
+            "Ctrl+A, the field's own key, selects all"
+        );
+        input.handle_event(
+            &press(KeyCode::Char('c'), KeyModifiers::ctrl()),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(input.clipboard_content, None, "Ctrl+C is no longer Copy");
+        input.handle_event(
+            &press(KeyCode::F(3), KeyModifiers::empty()),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(
+            input.clipboard_content.as_deref(),
+            Some("hello"),
+            "F3, the key Copy is bound to, copies the selection"
+        );
+    }
+
+    /// KEY-001: Confirm rebound to a key with Ctrl submits the field, and
+    /// Enter no longer does.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_a_text_input_submits_on_confirm_rebound_to_a_ctrl_key() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Confirm, [KeyBinding::new(KeyCode::F(2)).ctrl()]);
+        let _scope = Keymap::scoped(keymap);
+        let submitted = Arc::new(Mutex::new(Vec::new()));
+        let seen = submitted.clone();
+        let mut props = TextInputProps {
+            value: "hello".to_string(),
+            ..Default::default()
+        };
+        let mut input = TextInput::new(props.clone())
+            .with_on_submit(move |text| seen.lock().unwrap().push(text));
+        let mut state = TextInputState {
+            is_focused: true,
+            ..Default::default()
+        };
+        input.update(&props, &mut state);
+        input.handle_event(
+            &press(KeyCode::Enter, KeyModifiers::empty()),
+            &mut props,
+            &mut state,
+        );
+        assert!(
+            submitted.lock().unwrap().is_empty(),
+            "Enter is no longer Confirm"
+        );
+        input.handle_event(
+            &press(KeyCode::F(2), KeyModifiers::ctrl()),
+            &mut props,
+            &mut state,
+        );
+        assert_eq!(
+            *submitted.lock().unwrap(),
+            vec!["hello".to_string()],
+            "Ctrl+F2, the key Confirm is bound to, submits"
+        );
+    }
 
     /// CTL-004: a text input's error line is an alert to the screen
     /// reader, and the field is named by its placeholder when it has no
