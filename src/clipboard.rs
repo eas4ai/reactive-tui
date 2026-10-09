@@ -10,8 +10,11 @@
 //! thread waits for whichever App drains next. When a local clipboard
 //! command is available (wl-copy, xsel, xclip, pbcopy or PowerShell) the
 //! copy runs it as well, so it keeps working in a terminal that ignores
-//! OSC 52, and a paste reads it ([`crate::clipboard::paste_local`]); the terminal's bracketed
-//! paste arrives as an event either way.
+//! OSC 52, and a text input's paste asks it for the text
+//! ([`crate::clipboard::request_paste`]): the command runs on the
+//! clipboard's own thread, in order with the copies, and the text reaches
+//! the App as a paste event, as the terminal's bracketed paste does
+//! ([`crate::clipboard::paste_text`]), so the App's thread never waits.
 
 use std::cell::{Cell, RefCell};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -42,7 +45,15 @@ thread_local! {
     static PENDING: RefCell<Vec<Vec<u8>>> = const { RefCell::new(Vec::new()) };
     // Whether an App's loop runs on this thread ([`enter_app_thread`]).
     static RUNS_APP: Cell<bool> = const { Cell::new(false) };
+    // The waker of the App on this thread, for text fetched for it elsewhere.
+    static WAKER: RefCell<Option<crate::app::AppWaker>> = const { RefCell::new(None) };
+    // Text handed over on the thread that runs an App: that App's to paste.
+    static PASTES_HERE: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
+
+// Text handed over on a thread that runs no App, the clipboard's thread
+// among them, waiting for whichever App drains next.
+static PASTES: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 // The queue of every thread that runs no App: a copy requested from a
 // background thread, a timer or a task elsewhere waits here for whichever
@@ -51,9 +62,11 @@ static ELSEWHERE: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
 
 /// Marks the current thread as one that runs an App's loop, until the
 /// returned guard drops: the App's own requests queue on this thread and
-/// the App drains them with the process-wide ones.
-pub(crate) fn enter_app_thread() -> AppThread {
+/// the App drains them with the process-wide ones, and `waker` wakes it
+/// when text fetched for it elsewhere is ready.
+pub(crate) fn enter_app_thread(waker: crate::app::AppWaker) -> AppThread {
     RUNS_APP.with(|runs| runs.set(true));
+    WAKER.with(|slot| *slot.borrow_mut() = Some(waker));
     AppThread(())
 }
 
@@ -63,6 +76,71 @@ pub(crate) struct AppThread(());
 impl Drop for AppThread {
     fn drop(&mut self) {
         RUNS_APP.with(|runs| runs.set(false));
+        WAKER.with(|slot| slot.borrow_mut().take());
+    }
+}
+
+/// A job for the clipboard's thread, run in the order asked, so a paste
+/// asked for after a cut reads the cut's text.
+enum Job {
+    Copy(String),
+    Paste(Option<crate::app::AppWaker>),
+}
+
+/// The clipboard's thread: started on first use, it runs the local commands
+/// one after another so no App thread waits for one.
+fn jobs() -> &'static Mutex<std::sync::mpsc::Sender<Job>> {
+    static JOBS: std::sync::OnceLock<Mutex<std::sync::mpsc::Sender<Job>>> =
+        std::sync::OnceLock::new();
+    JOBS.get_or_init(|| {
+        let (sender, jobs) = std::sync::mpsc::channel::<Job>();
+        let spawned = std::thread::Builder::new()
+            .name("reactive-tui clipboard".into())
+            .spawn(move || {
+                for job in jobs {
+                    match job {
+                        Job::Copy(text) => {
+                            if let Err(error) = crate::hooks::clipboard::local_copy(&text, || false)
+                            {
+                                log::debug!("Local clipboard copy failed: {error}");
+                            }
+                        }
+                        Job::Paste(waker) => {
+                            let deadline =
+                                std::time::Instant::now() + std::time::Duration::from_secs(2);
+                            match crate::hooks::clipboard::local_paste(|| {
+                                std::time::Instant::now() > deadline
+                            }) {
+                                Ok(Some(text)) => {
+                                    paste_text(&text);
+                                    if let Some(waker) = waker {
+                                        waker.wake();
+                                    }
+                                }
+                                Ok(None) => {}
+                                Err(error) => {
+                                    log::debug!("Local clipboard paste failed: {error}");
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        if let Err(error) = spawned {
+            log::debug!("The clipboard thread could not start: {error}");
+        }
+        Mutex::new(sender)
+    })
+}
+
+fn ask(job: Job) {
+    if jobs()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .send(job)
+        .is_err()
+    {
+        log::debug!("The clipboard thread is gone; a local clipboard command was not run");
     }
 }
 
@@ -98,44 +176,56 @@ pub fn copy_to_terminal(text: &str) {
 
 /// Puts `text` on the clipboard every way this process can: through the
 /// terminal (OSC 52), asked for on this thread, and, when a local clipboard
-/// command is available, through that command as well, run on a thread of
-/// its own so the App's thread never waits for it (a clipboard tool that
-/// hands the text to a daemon can hold its pipes for seconds). A failure of
-/// the command is logged, not returned: the terminal has the text.
+/// command is available, through that command as well, run on the
+/// clipboard's thread so the App's thread never waits for it (a clipboard
+/// tool that hands the text to a daemon can hold its pipes for seconds). A
+/// failure of the command is logged, not returned: the terminal has the text.
 pub fn copy(text: &str) {
     copy_to_terminal(text);
     if !local_commands() {
         return;
     }
-    let text = text.to_owned();
-    let spawned = std::thread::Builder::new()
-        .name("reactive-tui clipboard".into())
-        .spawn(move || {
-            if let Err(error) = crate::hooks::clipboard::local_copy(&text, || false) {
-                log::debug!("Local clipboard copy failed: {error}");
-            }
-        });
-    if let Err(error) = spawned {
-        log::debug!("Local clipboard copy could not start: {error}");
+    ask(Job::Copy(text.to_owned()));
+}
+
+/// Asks the clipboard's thread for the local paste command's text (CLP-001)
+/// and returns `true` when it will come: the local commands are on and a
+/// command (wl-paste, xsel, xclip, pbpaste or PowerShell) is available. The
+/// command runs after any copy asked for before it, given two seconds, and
+/// its text reaches the App of the asking thread as a paste event, as the
+/// terminal's bracketed paste does; the App's thread never waits. `false`
+/// means nothing will come, so the caller pastes what it has.
+pub fn request_paste() -> bool {
+    if !local_commands() || !crate::hooks::clipboard::local_paste_available() {
+        return false;
+    }
+    ask(Job::Paste(WAKER.with(|slot| slot.borrow().clone())));
+    true
+}
+
+/// Hands `text` to the App as a paste, as the terminal's bracketed paste
+/// would arrive: on the thread that runs an App it is that App's, routed
+/// to its focused element on its next turn; from any other thread it
+/// goes to whichever App drains next. A task that fetched text on a thread
+/// of its own pastes it this way; wake the App
+/// ([`crate::app::AppWaker::wake`]) when it may be idle.
+pub fn paste_text(text: &str) {
+    if RUNS_APP.with(Cell::get) {
+        PASTES_HERE.with(|pastes| pastes.borrow_mut().push(text.to_owned()));
+    } else {
+        PASTES
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(text.to_owned());
     }
 }
 
-/// The clipboard's text through the local paste command, when the local
-/// commands are on and one is available (CLP-001); `None` otherwise, so the
-/// caller keeps its own copy. The command is given two seconds, and a failure
-/// is logged, not returned.
-pub fn paste_local() -> Option<String> {
-    if !local_commands() {
-        return None;
-    }
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-    match crate::hooks::clipboard::local_paste(|| std::time::Instant::now() > deadline) {
-        Ok(text) => text,
-        Err(error) => {
-            log::debug!("Local clipboard paste failed: {error}");
-            None
-        }
-    }
+/// The text handed over since the last take, this thread's first and then
+/// every other thread's, in order; the App pastes it.
+pub(crate) fn take_pastes() -> Vec<String> {
+    let mut taken = PASTES_HERE.with(|pastes| std::mem::take(&mut *pastes.borrow_mut()));
+    taken.append(&mut PASTES.lock().unwrap_or_else(|e| e.into_inner()));
+    taken
 }
 
 /// The sequences requested since the last take, this thread's first and
@@ -172,7 +262,7 @@ mod tests {
         // process-wide part of the queue, so the requests made here are
         // looked for by content, and their absence after a take is what is
         // checked, not an empty queue.
-        let _app = enter_app_thread();
+        let _app = enter_app_thread(crate::app::AppWaker::new());
         let _ = take_pending();
         copy_to_terminal("hello");
         std::thread::spawn(|| copy_to_terminal("world"))
@@ -191,7 +281,7 @@ mod tests {
             "a take empties both queues of what was taken"
         );
         let other = std::thread::spawn(|| {
-            let _app = enter_app_thread();
+            let _app = enter_app_thread(crate::app::AppWaker::new());
             copy_to_terminal("mine");
             take_pending()
         })

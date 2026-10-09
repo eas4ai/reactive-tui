@@ -186,6 +186,11 @@ pub(crate) fn local_copy(text: &str, cancelled: impl Fn() -> bool) -> Result<(),
     }
 }
 
+/// Whether a local paste command is on the PATH for this desktop session.
+pub(crate) fn local_paste_available() -> bool {
+    ClipboardBackend::detect_for(Direction::Paste) != ClipboardBackend::Unavailable
+}
+
 /// Reads the clipboard through the local paste command (wl-paste, xsel,
 /// xclip, pbpaste or PowerShell) when one is on the PATH (CLP-001);
 /// `Ok(None)` with none, so the caller keeps what it has.
@@ -488,7 +493,9 @@ mod tests {
     }
 
     /// CLP-001: a text input's paste comes from the local paste command
-    /// when one is on the PATH, not from its own copy buffer alone.
+    /// when one is on the PATH, not from its own copy buffer alone: Ctrl+V
+    /// asks the clipboard's thread, which wakes the App with the text, and
+    /// the text arrives as a paste event.
     #[test]
     fn clp_001_a_text_inputs_paste_reads_the_local_command() {
         #[cfg(unix)]
@@ -498,11 +505,14 @@ mod tests {
         #[cfg(unix)]
         {
             use crate::component::Component;
-            use crate::event::types::{Event, KeyCode, KeyEvent, KeyModifiers};
+            use crate::event::types::{Event, KeyCode, KeyEvent, KeyModifiers, PasteEvent};
             use crate::widgets::input::{TextInput, TextInputProps, TextInputState};
+            use std::time::{Duration, Instant};
             let file = std::env::var("RTUI_CLIPBOARD_FIXTURE_FILE")
                 .expect("the fixture names its clipboard file");
             std::fs::write(&file, "from the local command").unwrap();
+            let waker = crate::app::AppWaker::new();
+            let _app = crate::clipboard::enter_app_thread(waker.clone());
             let mut input = TextInput::new(TextInputProps::default());
             let mut props = TextInputProps::default();
             let mut state = TextInputState {
@@ -513,8 +523,34 @@ mod tests {
                 Event::Key(KeyEvent::new(KeyCode::Char('v')).with_modifiers(KeyModifiers::ctrl()));
             input.handle_event(&paste, &mut props, &mut state);
             assert_eq!(
+                props.value, "",
+                "the App's thread does not wait for the command"
+            );
+            // A hang guard, not a timing check.
+            let deadline = Instant::now() + Duration::from_secs(20);
+            let texts = loop {
+                let texts = crate::clipboard::take_pastes();
+                if !texts.is_empty() {
+                    break texts;
+                }
+                assert!(Instant::now() < deadline, "no paste text arrived in 20 s");
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            assert_eq!(texts, vec!["from the local command".to_string()]);
+            assert!(waker.is_pending(), "the App is woken for the text");
+            for content in texts {
+                input.handle_event(
+                    &Event::Paste(PasteEvent {
+                        content,
+                        timestamp: Instant::now(),
+                    }),
+                    &mut props,
+                    &mut state,
+                );
+            }
+            assert_eq!(
                 props.value, "from the local command",
-                "Ctrl+V inserts what the local paste command returns"
+                "the paste event carries what the local paste command returned"
             );
         }
     }

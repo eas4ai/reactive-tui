@@ -77,6 +77,50 @@ fn clp_001_a_text_inputs_copy_writes_the_selection_as_osc_52() {
     );
 }
 
+/// CLP-001: text handed to the App from elsewhere, as the clipboard's
+/// thread hands it after a local paste, reaches the focused input as a
+/// paste on the App's next turn.
+#[test]
+#[serial_test::serial(clipboard)]
+fn clp_001_text_pasted_from_elsewhere_reaches_the_focused_input() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let handed = std::sync::Arc::new(AtomicBool::new(false));
+    let hand_over = {
+        let handed = handed.clone();
+        Box::new(move |frame: &Snapshot| {
+            if frame.text.contains("hello") && !handed.swap(true, Ordering::SeqCst) {
+                reactive_tui::clipboard::paste_text(" from elsewhere");
+                return true;
+            }
+            false
+        }) as FramePredicate
+    };
+    let frames = app_input::run_when_frame(
+        Root(input()),
+        (40, 5),
+        vec![
+            (
+                shown("hello"),
+                Some(Event::Key(KeyEvent::new(KeyCode::End))),
+            ),
+            // The step's key is a no-op at the end of the text; a step
+            // without an event ends the run.
+            (hand_over, Some(Event::Key(KeyEvent::new(KeyCode::End)))),
+            (shown("hello from elsewhere"), None),
+        ],
+    );
+    assert!(
+        frames
+            .last()
+            .is_some_and(|frame| frame.text.contains("hello from elsewhere")),
+        "the text handed over was pasted at the cursor:\n{}",
+        frames
+            .last()
+            .map(|frame| frame.text.clone())
+            .unwrap_or_default()
+    );
+}
+
 #[test]
 #[serial_test::serial(clipboard)]
 fn clp_001_a_frame_with_no_copy_carries_no_osc_52() {

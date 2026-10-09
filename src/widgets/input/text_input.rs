@@ -776,11 +776,14 @@ impl TextInput {
     }
 
     /// Paste: the local paste command's text when one is available
-    /// (CLP-001), else this control's own copy/cut buffer, which a machine
-    /// with no local command keeps.
+    /// (CLP-001), fetched on the clipboard's thread and arriving as a paste
+    /// event so the App never waits for the command; else this control's
+    /// own copy/cut buffer, which a machine with no local command keeps.
     fn paste_from_clipboard(&mut self, props: &TextInputProps, state: &mut TextInputState) {
-        let text = crate::clipboard::paste_local().or_else(|| self.clipboard_content.clone());
-        if let Some(text) = text {
+        if crate::clipboard::request_paste() {
+            return;
+        }
+        if let Some(text) = self.clipboard_content.clone() {
             let text = Self::pasted_text(props, &text);
             self.insert_text(&text, props, state);
         }
