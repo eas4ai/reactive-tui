@@ -181,6 +181,21 @@ Page Down move a tenth of the range, Home and End jump to the ends; a
 click on the track sets the value and a drag moves it. The screen reader
 hears a slider with its label, value, minimum, maximum and step.
 
+## Screen reader requests
+
+A control tells the screen reader which requests it takes, and the App
+delivers each to the control whose node advertises it (CTL-005). A text
+input takes SetValue and replaces its text with the request, filtered as
+typing is, and reports the change. A slider takes Increment and Decrement,
+one step each, and SetValue, snapped to its step and clamped to its range.
+A select takes SetValue and chooses the option whose value, else label, is
+the request; a select of several choices toggles that option and opens no
+list. A disabled control advertises nothing, and a request a node does not
+advertise changes nothing. A radio button is heard with its position in
+its group and the group's count, a disabled radio counted (CTL-006),
+whether the group is one `RadioButton` or radios built with
+`radio_button().group(name)`.
+
 ## Button
 
 `button()` builds an element with the secondary look (`bg-secondary
