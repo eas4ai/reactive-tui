@@ -1,7 +1,7 @@
 use super::*;
 use crate::event::{
     router::EventResult,
-    types::{Event, KeyCode, MouseEventKind},
+    types::{Event, MouseEventKind},
 };
 use crate::{
     component::{LayoutInfo, LifecycleEvent},

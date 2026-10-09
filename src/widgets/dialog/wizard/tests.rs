@@ -101,3 +101,38 @@ fn wizard_data_reaches_validator_and_completion_and_skip_is_optional() {
     dialog.options.steps[0].can_skip = true;
     assert!(dialog.skip_step());
 }
+
+/// KEY-001: the wizard moves to the next step on the key the active keymap
+/// binds to Confirm, and no longer on the key it replaced.
+#[test]
+#[serial_test::serial(keymap)]
+fn key_001_wizard_reads_its_keys_through_the_keymap() {
+    use crate::event::types::{KeyCode, KeyEvent};
+    use crate::keymap::{Action, KeyBinding, Keymap};
+    let mut keymap = Keymap::default();
+    keymap.rebind(Action::Confirm, [KeyBinding::new(KeyCode::F(2))]);
+    Keymap::set_active(keymap);
+    let mut dialog = WizardDialog::new(
+        DialogId::from_u32(1),
+        WizardDialogOptions {
+            steps: vec![
+                step("first", true),
+                step("second", true),
+                step("third", true),
+            ],
+            ..Default::default()
+        },
+    );
+    let rebound = dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::F(2))));
+    let after_rebound = dialog.current_step;
+    let old = dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::Enter)));
+    let after_old = dialog.current_step;
+    Keymap::set_active(Keymap::default());
+    assert!(matches!(rebound, DialogEventResult::Handled));
+    assert_eq!(
+        after_rebound, 1,
+        "the new Confirm key moves to the next step"
+    );
+    assert!(matches!(old, DialogEventResult::NotHandled));
+    assert_eq!(after_old, 1, "Enter, no longer Confirm, does nothing");
+}

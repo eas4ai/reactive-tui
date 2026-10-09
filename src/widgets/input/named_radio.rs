@@ -3,7 +3,7 @@
 use crate::component::{Component, Element, FocusProps, LifecycleEvent, Props};
 use crate::event::{
     router::EventResult,
-    types::{Event, FocusEventKind, KeyCode, MouseButton, MouseEventKind},
+    types::{Event, FocusEventKind, MouseButton, MouseEventKind},
 };
 use std::{
     any::Any,
@@ -243,11 +243,12 @@ impl Component for NamedRadio {
             return EventResult::Ignored;
         }
         let select = match event {
+            // The keys mean what the active keymap says (KEY-001).
             Event::Key(key) => {
                 state.focused
                     && matches!(
-                        key.code,
-                        KeyCode::Enter | KeyCode::Space | KeyCode::Char(' ')
+                        crate::keymap::Keymap::active().action(key),
+                        Some(crate::keymap::Action::Confirm | crate::keymap::Action::Activate)
                     )
             }
             Event::Mouse(mouse) => match mouse.kind {
@@ -321,5 +322,53 @@ mod tests {
         assert_eq!(groups.0.lock().unwrap().len(), 1);
         drop(replacement);
         assert!(groups.0.lock().unwrap().is_empty());
+    }
+
+    /// KEY-001: the radio is chosen on the key the active keymap binds to
+    /// Confirm, and no longer on the key it replaced.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_named_radio_reads_its_keys_through_the_keymap() {
+        use crate::event::types::{KeyCode, KeyEvent};
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Confirm, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut props = NamedRadioProps {
+            value: "one".into(),
+            label: None,
+            aria_label: None,
+            checked: false,
+            disabled: false,
+            group: None,
+            on_change: None,
+        };
+        let mut old_radio = NamedRadio::new(props.clone());
+        let mut new_radio = NamedRadio::new(props.clone());
+        let mut state = NamedRadioState {
+            focused: true,
+            hover: false,
+        };
+        let old = old_radio.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Enter)),
+            &mut props,
+            &mut state,
+        );
+        let rebound = new_radio.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::F(2))),
+            &mut props,
+            &mut state,
+        );
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(rebound, EventResult::Consumed);
+        assert!(
+            new_radio.selected.load(Ordering::Relaxed),
+            "the new Confirm key chooses the radio"
+        );
+        assert_eq!(old, EventResult::Ignored);
+        assert!(
+            !old_radio.selected.load(Ordering::Relaxed),
+            "Enter, no longer Confirm, does nothing"
+        );
     }
 }

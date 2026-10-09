@@ -1,6 +1,6 @@
 use crate::component::{Component, Element, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{KeyCode, KeyEvent, MouseEventKind};
+use crate::event::types::{KeyEvent, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use std::any::Any;
 use std::sync::Arc;
@@ -261,8 +261,11 @@ impl Checkbox {
         props: &mut CheckboxProps,
         _state: &mut CheckboxState,
     ) -> EventResult {
-        match event.code {
-            KeyCode::Char(' ') | KeyCode::Space | KeyCode::Enter => {
+        // The keys mean what the active keymap says (KEY-001).
+        let action = crate::keymap::Keymap::active().action(event);
+        use crate::keymap::Action;
+        match action {
+            Some(Action::Activate | Action::Confirm) => {
                 // Toggle checkbox
                 if props.indeterminate {
                     // If indeterminate, go to checked
@@ -324,9 +327,11 @@ impl Checkbox {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::types::KeyModifiers;
+    use crate::event::types::{KeyCode, KeyModifiers};
 
     #[test]
+    // Sends a default key: kept apart from the tests that rebind it (KEY-001).
+    #[serial_test::parallel(keymap)]
     fn test_checkbox_toggle() {
         let mut checkbox = Checkbox::new(CheckboxProps::default());
         let mut props = CheckboxProps::default();
@@ -378,6 +383,8 @@ mod tests {
     }
 
     #[test]
+    // Sends a default key: kept apart from the tests that rebind it (KEY-001).
+    #[serial_test::parallel(keymap)]
     fn test_checkbox_indeterminate() {
         let mut checkbox = Checkbox::new(CheckboxProps::default());
         let mut props = CheckboxProps {
@@ -421,5 +428,39 @@ mod tests {
         assert_eq!(result, EventResult::Consumed);
         assert!(props.checked);
         assert!(state.is_focused);
+    }
+
+    /// KEY-001: the checkbox toggles on the key the active keymap binds to
+    /// Activate, and no longer on the key it replaced.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_checkbox_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Activate, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut checkbox = Checkbox::new(CheckboxProps::default());
+        let mut props = CheckboxProps::default();
+        let mut state = CheckboxState {
+            is_focused: true,
+            is_hover: false,
+        };
+        let rebound = checkbox.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::F(2))),
+            &mut props,
+            &mut state,
+        );
+        let checked_by_rebound = props.checked;
+        let old = checkbox.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Char(' '))),
+            &mut props,
+            &mut state,
+        );
+        let checked_after_old = props.checked;
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(rebound, EventResult::Consumed);
+        assert!(checked_by_rebound, "the new Activate key toggles the box");
+        assert_eq!(old, EventResult::Ignored);
+        assert!(checked_after_old, "Space, no longer Activate, does nothing");
     }
 }

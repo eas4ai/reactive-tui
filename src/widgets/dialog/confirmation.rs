@@ -332,8 +332,15 @@ impl ConfirmationDialog {
 }
 
 impl ConfirmationButton {
-    fn matches_shortcut(&self, code: &KeyCode) -> bool {
-        match (&self.shortcut, code) {
+    /// Whether `key` presses this button's shortcut. A shortcut of Enter or
+    /// Escape means the Confirm or Cancel action of the active keymap, so a
+    /// rebind reaches the dialog's own buttons too (KEY-001); a letter is the
+    /// button's own, in either case.
+    pub(super) fn matches_shortcut(&self, key: &crate::event::types::KeyEvent) -> bool {
+        use crate::keymap::{Action, Keymap};
+        match (&self.shortcut, &key.code) {
+            (Some(KeyCode::Enter), _) => Keymap::active().is(key, Action::Confirm),
+            (Some(KeyCode::Escape), _) => Keymap::active().is(key, Action::Cancel),
             (Some(KeyCode::Char(shortcut)), KeyCode::Char(value)) => {
                 value.eq_ignore_ascii_case(shortcut)
             }
@@ -443,36 +450,48 @@ impl DialogComponent for ConfirmationDialog {
     fn handle_event(&mut self, event: &Event) -> DialogEventResult {
         match event {
             Event::Key(key_event) => {
-                if key_event.kind == crate::event::types::KeyEventKind::Release
-                    || key_event.modifiers.ctrl
-                    || key_event.modifiers.alt
-                    || key_event.modifiers.meta
-                {
+                if key_event.kind == crate::event::types::KeyEventKind::Release {
                     return DialogEventResult::NotHandled;
                 }
-                match key_event.code {
-                    KeyCode::Escape if self.options.escape_closable => {
+                // The keys mean what the active keymap says (KEY-001), with
+                // Shift held or not; a button's shortcut, such as `y` for
+                // Yes, is the dialog's own and is read with no Ctrl, Alt or
+                // Meta held.
+                let action = crate::keymap::Keymap::active().action_shifted(key_event);
+                use crate::keymap::Action;
+                match action {
+                    Some((Action::Cancel, _)) if self.options.escape_closable => {
                         DialogEventResult::Close(DialogResult::Cancelled)
                     }
-                    KeyCode::Enter => {
+                    Some((Action::Confirm, _)) => {
                         if let Some(button_id) = self.get_focused_button() {
                             self.handle_button_click(&button_id)
                         } else {
                             DialogEventResult::NotHandled
                         }
                     }
-                    KeyCode::Tab => {
+                    Some((Action::Next, _)) => {
                         self.focus_next_button();
                         DialogEventResult::StateChanged
                     }
-                    KeyCode::BackTab => {
+                    Some((Action::Previous, _)) => {
                         self.focus_previous_button();
                         DialogEventResult::StateChanged
                     }
+                    _ if key_event.modifiers.ctrl
+                        || key_event.modifiers.alt
+                        || key_event.modifiers.meta =>
+                    {
+                        DialogEventResult::NotHandled
+                    }
                     _ => {
-                        match self.options.buttons.entries().into_iter().find(|button| {
-                            button.enabled && button.matches_shortcut(&key_event.code)
-                        }) {
+                        match self
+                            .options
+                            .buttons
+                            .entries()
+                            .into_iter()
+                            .find(|button| button.enabled && button.matches_shortcut(key_event))
+                        {
                             Some(button) => self.handle_button_click(&button.id),
                             None => DialogEventResult::NotHandled,
                         }
@@ -673,5 +692,43 @@ impl Default for ConfirmationDialogOptions {
             on_button_click: None,
             on_close: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::types::KeyEvent;
+
+    /// KEY-001: the dialog moves its focus to the next button on the key
+    /// the active keymap binds to Next, and no longer on the key it
+    /// replaced.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_confirmation_dialog_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Next, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut dialog = ConfirmationDialog::new(DialogId::from_u32(1), Default::default());
+        let before = dialog.get_focused_button();
+        let rebound = dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::F(2))));
+        let after_rebound = dialog.get_focused_button();
+        let old = dialog.handle_event(&Event::Key(KeyEvent::new(KeyCode::Tab)));
+        let after_old = dialog.get_focused_button();
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(before.as_deref(), Some("ok"));
+        assert!(matches!(rebound, DialogEventResult::StateChanged));
+        assert_eq!(
+            after_rebound.as_deref(),
+            Some("cancel"),
+            "the new Next key moves the focus"
+        );
+        assert!(matches!(old, DialogEventResult::NotHandled));
+        assert_eq!(
+            after_old.as_deref(),
+            Some("cancel"),
+            "Tab, no longer Next, does nothing"
+        );
     }
 }

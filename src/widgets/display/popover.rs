@@ -1,7 +1,7 @@
 use super::overlay::same_callback;
 use crate::component::{Component, Element, LayoutType, Props};
 use crate::event::router::EventResult;
-use crate::event::types::{Event, KeyCode, MouseButton, MouseEventKind, Position};
+use crate::event::types::{Event, MouseButton, MouseEventKind, Position};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use taffy::geometry::Rect;
@@ -900,6 +900,7 @@ impl Default for PopoverBuilder {
 mod tests {
     use super::*;
     use crate::component::ElementType;
+    use crate::event::types::KeyCode;
 
     #[test]
     fn test_popover_creation() {
@@ -1101,6 +1102,8 @@ mod tests {
     }
 
     #[test]
+    // Sends a default key: kept apart from the tests that rebind it (KEY-001).
+    #[serial_test::parallel(keymap)]
     fn test_keyboard_navigation() {
         let mut popover = Popover::new();
         let props = PopoverProps {
@@ -1122,6 +1125,8 @@ mod tests {
     }
 
     #[test]
+    // Sends a default key: kept apart from the tests that rebind it (KEY-001).
+    #[serial_test::parallel(keymap)]
     fn escape_disabled_and_release_do_not_close() {
         let mut popover = Popover::new();
         popover.show();
@@ -1225,5 +1230,43 @@ mod tests {
         assert_eq!(props.max_width, Some(400));
         assert_eq!(props.min_height, Some(80));
         assert_eq!(props.max_height, Some(300));
+    }
+
+    /// KEY-001: the popover closes on the key the active keymap binds to
+    /// Cancel, and no longer on the key it replaced.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_popover_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Cancel, [KeyBinding::new(KeyCode::F(2))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut popover = Popover::new();
+        popover.show();
+        let mut props = PopoverProps {
+            close_on_escape: true,
+            ..Default::default()
+        };
+        let mut state = PopoverState::default();
+        let old = popover.handle_event(
+            &Event::Key(crate::event::types::KeyEvent::new(KeyCode::Escape)),
+            &mut props,
+            &mut state,
+        );
+        let visible_after_old = popover.is_visible();
+        let rebound = popover.handle_event(
+            &Event::Key(crate::event::types::KeyEvent::new(KeyCode::F(2))),
+            &mut props,
+            &mut state,
+        );
+        let visible_after_rebound = popover.is_visible();
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(old, EventResult::Ignored);
+        assert!(visible_after_old, "Escape, no longer Cancel, does nothing");
+        assert_eq!(rebound, EventResult::Consumed);
+        assert!(
+            !visible_after_rebound,
+            "the new Cancel key closes the popover"
+        );
     }
 }

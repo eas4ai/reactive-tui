@@ -395,14 +395,28 @@ impl Component for LiveAutocomplete {
                 if key.kind == crate::event::types::KeyEventKind::Release {
                     return EventResult::Ignored;
                 }
-                match key.code {
-                    KeyCode::Up if owner.navigate(false) => return EventResult::Consumed,
-                    KeyCode::Down if owner.navigate(true) => return EventResult::Consumed,
-                    KeyCode::Tab if owner.expanded.get() && owner.selected.get().is_some() => {
+                // Typing is not an action: a plain character goes on to the
+                // field as text whatever the keymap binds it to (KEY-001).
+                if matches!(key.code, KeyCode::Char(_))
+                    && !key.modifiers.ctrl
+                    && !key.modifiers.alt
+                    && !key.modifiers.meta
+                {
+                    return EventResult::Ignored;
+                }
+                // The other keys mean what the active keymap says (KEY-001).
+                let action = crate::keymap::Keymap::active().action(key);
+                use crate::keymap::Action;
+                match action {
+                    Some(Action::Up) if owner.navigate(false) => return EventResult::Consumed,
+                    Some(Action::Down) if owner.navigate(true) => return EventResult::Consumed,
+                    Some(Action::Next)
+                        if owner.expanded.get() && owner.selected.get().is_some() =>
+                    {
                         owner.submit();
                         return EventResult::Consumed;
                     }
-                    KeyCode::Escape if owner.expanded.get() => {
+                    Some(Action::Cancel) if owner.expanded.get() => {
                         owner.expanded.set(false);
                         owner.selected.set(None);
                         return EventResult::Consumed;

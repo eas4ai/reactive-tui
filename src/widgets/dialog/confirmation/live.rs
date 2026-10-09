@@ -205,14 +205,24 @@ impl Component for LiveConfirmation {
             let Event::Key(key) = event else {
                 return EventResult::Ignored;
             };
+            // Confirm, Cancel, Next and Previous, as the active keymap binds
+            // them (KEY-001) and with Shift held or not, are the modal's and
+            // its buttons'; a button's shortcut, such as `y` for Yes, is the
+            // dialog's own.
             if !visible.get()
                 || key.kind == crate::event::types::KeyEventKind::Release
                 || key.modifiers.ctrl
                 || key.modifiers.alt
                 || key.modifiers.meta
                 || matches!(
-                    key.code,
-                    KeyCode::Enter | KeyCode::Escape | KeyCode::Tab | KeyCode::BackTab
+                    crate::keymap::Keymap::active().action_shifted(key),
+                    Some((
+                        crate::keymap::Action::Confirm
+                            | crate::keymap::Action::Cancel
+                            | crate::keymap::Action::Next
+                            | crate::keymap::Action::Previous,
+                        _
+                    ))
                 )
             {
                 return EventResult::Ignored;
@@ -221,7 +231,7 @@ impl Component for LiveConfirmation {
                 .buttons
                 .entries()
                 .iter()
-                .find(|button| button.enabled && button.matches_shortcut(&key.code))
+                .find(|button| button.enabled && button.matches_shortcut(key))
             {
                 activate(&visible, &config, &button.id);
                 EventResult::Consumed
