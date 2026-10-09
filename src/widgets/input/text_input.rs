@@ -775,10 +775,24 @@ impl TextInput {
         self.delete_selection(state);
     }
 
-    /// Paste from this control's copy/cut buffer.
+    /// Paste: the local paste command's text when one is available
+    /// (CLP-001), else this control's own copy/cut buffer, which a machine
+    /// with no local command keeps.
     fn paste_from_clipboard(&mut self, props: &TextInputProps, state: &mut TextInputState) {
-        if let Some(text) = self.clipboard_content.clone() {
+        let text = crate::clipboard::paste_local().or_else(|| self.clipboard_content.clone());
+        if let Some(text) = text {
+            let text = Self::pasted_text(props, &text);
             self.insert_text(&text, props, state);
+        }
+    }
+
+    /// Pasted text as the field takes it: a multi-line field keeps the line
+    /// breaks as `\n`, a single-line field turns them into spaces.
+    fn pasted_text(props: &TextInputProps, content: &str) -> String {
+        if matches!(props.mode, InputMode::MultiLine { .. }) {
+            content.replace("\r\n", "\n").replace('\r', "\n")
+        } else {
+            content.replace(['\r', '\n'], " ")
         }
     }
 
@@ -1065,11 +1079,7 @@ impl Component for TextInput {
             Event::Key(key) if state.is_focused => self.handle_key_event(key, props, state),
             Event::Mouse(mouse) => self.handle_mouse_event(mouse, props, state),
             Event::Paste(paste) if state.is_focused => {
-                let text = if matches!(props.mode, InputMode::MultiLine { .. }) {
-                    paste.content.replace("\r\n", "\n").replace('\r', "\n")
-                } else {
-                    paste.content.replace(['\r', '\n'], " ")
-                };
+                let text = Self::pasted_text(props, &paste.content);
                 self.insert_text(&text, props, state);
                 EventResult::Consumed
             }
