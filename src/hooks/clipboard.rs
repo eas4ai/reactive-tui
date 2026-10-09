@@ -186,6 +186,16 @@ pub(crate) fn local_copy(text: &str, cancelled: impl Fn() -> bool) -> Result<(),
     }
 }
 
+/// Reads the clipboard through the local paste command (wl-paste, xsel,
+/// xclip, pbpaste or PowerShell) when one is on the PATH (CLP-001);
+/// `Ok(None)` with none, so the caller keeps what it has.
+pub(crate) fn local_paste(cancelled: impl Fn() -> bool) -> Result<Option<String>, String> {
+    match ClipboardBackend::detect_for(Direction::Paste) {
+        ClipboardBackend::Unavailable => Ok(None),
+        backend => backend.paste(cancelled).map(Some),
+    }
+}
+
 /// Clipboard state
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClipboardState {
@@ -475,6 +485,38 @@ mod tests {
             ClipboardBackend::Unavailable,
             "no Wayland display, no wl-copy"
         );
+    }
+
+    /// CLP-001: a text input's paste comes from the local paste command
+    /// when one is on the PATH, not from its own copy buffer alone.
+    #[test]
+    fn clp_001_a_text_inputs_paste_reads_the_local_command() {
+        #[cfg(unix)]
+        if run_with_clipboard_fixture("clp_001_a_text_inputs_paste_reads_the_local_command") {
+            return;
+        }
+        #[cfg(unix)]
+        {
+            use crate::component::Component;
+            use crate::event::types::{Event, KeyCode, KeyEvent, KeyModifiers};
+            use crate::widgets::input::{TextInput, TextInputProps, TextInputState};
+            let file = std::env::var("RTUI_CLIPBOARD_FIXTURE_FILE")
+                .expect("the fixture names its clipboard file");
+            std::fs::write(&file, "from the local command").unwrap();
+            let mut input = TextInput::new(TextInputProps::default());
+            let mut props = TextInputProps::default();
+            let mut state = TextInputState {
+                is_focused: true,
+                ..Default::default()
+            };
+            let paste =
+                Event::Key(KeyEvent::new(KeyCode::Char('v')).with_modifiers(KeyModifiers::ctrl()));
+            input.handle_event(&paste, &mut props, &mut state);
+            assert_eq!(
+                props.value, "from the local command",
+                "Ctrl+V inserts what the local paste command returns"
+            );
+        }
     }
 
     #[test]

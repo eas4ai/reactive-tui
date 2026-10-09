@@ -7,9 +7,11 @@
 //! and cut ask for it here; the App drains the requests on each turn of its
 //! loop and before each frame, and hands them to its backend. A request made
 //! on the thread that runs an App is that App's; one made on any other
-//! thread waits for whichever App drains next. When a local clipboard command is available (wl-copy, xsel, xclip,
-//! pbcopy or PowerShell) the copy runs it as well, so it keeps working in a
-//! terminal that ignores OSC 52.
+//! thread waits for whichever App drains next. When a local clipboard
+//! command is available (wl-copy, xsel, xclip, pbcopy or PowerShell) the
+//! copy runs it as well, so it keeps working in a terminal that ignores
+//! OSC 52, and a paste reads it ([`paste_local`]); the terminal's bracketed
+//! paste arrives as an event either way.
 
 use std::cell::{Cell, RefCell};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -115,6 +117,24 @@ pub fn copy(text: &str) {
         });
     if let Err(error) = spawned {
         log::debug!("Local clipboard copy could not start: {error}");
+    }
+}
+
+/// The clipboard's text through the local paste command, when the local
+/// commands are on and one is available (CLP-001); `None` otherwise, so the
+/// caller keeps its own copy. The command is given two seconds, and a failure
+/// is logged, not returned.
+pub fn paste_local() -> Option<String> {
+    if !local_commands() {
+        return None;
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    match crate::hooks::clipboard::local_paste(|| std::time::Instant::now() > deadline) {
+        Ok(text) => text,
+        Err(error) => {
+            log::debug!("Local clipboard paste failed: {error}");
+            None
+        }
     }
 }
 

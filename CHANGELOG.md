@@ -18,7 +18,8 @@ This file records user-visible changes to Reactive TUI. The project follows
   segments, and a tab bar with tabs out of view paints `»` and lists every
   tab on Shift+F10 (NAV-006). A copy from the clipboard hook or a text
   input reaches the terminal's clipboard through OSC 52, beside the local
-  command, so a copy over SSH lands on the user's machine (CLP-001). Keys
+  command, so a copy over SSH lands on the user's machine, and a text
+  input's paste reads the local command when there is one (CLP-001). Keys
   are named actions in one keymap every widget reads, which an application
   can rebind with `Keymap::rebind` and `App::set_keymap`, and a menu item
   that names an action takes its hint and its trigger from the binding

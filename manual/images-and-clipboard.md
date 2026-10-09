@@ -84,7 +84,10 @@ When a local clipboard command is available (wl-copy, xsel, xclip, pbcopy
 or PowerShell) the copy runs it as well, as an owned process with bounded
 output, so copying keeps working in a terminal that ignores OSC 52; the
 hook publishes that command's result into its state. A paste keeps coming
-from the terminal's bracketed paste or from the local command.
+from the terminal's bracketed paste or from the local command: a text
+input's Ctrl+V reads the local paste command when one is available
+(`reactive_tui::clipboard::paste_local`) and otherwise inserts its own last
+copy or cut.
 `reactive_tui::clipboard::copy_to_terminal(text)` makes the same request
 from anywhere: on the App's thread the request is that App's, and from a
 background thread, a timer or a task it waits for whichever App drains
