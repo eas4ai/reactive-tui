@@ -1086,6 +1086,10 @@ fn run_steps_built(
     timeout: Duration,
     build: impl FnOnce(AppBuilder) -> AppBuilder,
 ) -> Vec<Snapshot> {
+    // A test that copies must not reach the developer's clipboard: the
+    // terminal's sequence is what the tests observe, so the local clipboard
+    // tool stays off for every App the harness runs.
+    reactive_tui::clipboard::set_local_commands(false);
     let capture = Capture::default();
     let snapshots = Arc::new(Mutex::new(Vec::new()));
     let backend = InputBackend {

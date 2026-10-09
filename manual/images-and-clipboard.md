@@ -87,6 +87,9 @@ hook publishes that command's result into its state. A paste keeps coming
 from the terminal's bracketed paste or from the local command.
 `reactive_tui::clipboard::copy_to_terminal(text)` makes the same request
 from any component, on the App's thread.
+`reactive_tui::clipboard::set_local_commands(false)` turns the local tool
+off for the process, leaving the terminal's sequence; the test harness does
+that, so a test that copies never touches the developer's clipboard.
 
 ## Limits
 
