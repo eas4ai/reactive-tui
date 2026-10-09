@@ -154,6 +154,15 @@ impl App {
         crate::keymap::Keymap::set_active(keymap);
     }
 
+    /// Write the terminal sequences requested since the last turn, an OSC 52
+    /// clipboard request among them, ahead of the next frame (CLP-001).
+    fn flush_terminal_requests(&mut self) -> Result<()> {
+        for bytes in crate::clipboard::take_pending() {
+            self.backend.write_sequence(&bytes)?;
+        }
+        Ok(())
+    }
+
     /// Register a refresh callback owned by this App. Keep the returned token alive.
     /// Requests coalesce and run in registration order before a subsequent render.
     pub fn register_updater(
@@ -298,6 +307,7 @@ impl App {
             } else {
                 self.wake.wait(timeout);
             }
+            self.flush_terminal_requests()?;
         }
         self.running = false;
         Ok(())
@@ -696,6 +706,7 @@ impl App {
     }
 
     fn render_frame(&mut self) -> Result<()> {
+        self.flush_terminal_requests()?;
         let _scope = Scope::enter(&self.wake);
         let _hooks = self.hook_scope.enter(true);
         self.begin_frame();

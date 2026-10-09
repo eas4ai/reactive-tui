@@ -219,6 +219,9 @@ impl Backend for InputBackend {
     fn clear(&mut self) -> Result<()> {
         self.inner.backend_mut().clear()
     }
+    fn write_sequence(&mut self, bytes: &[u8]) -> Result<()> {
+        self.inner.backend_mut().write_sequence(bytes)
+    }
     fn size(&self) -> (u16, u16) {
         self.inner.backend().size()
     }
@@ -240,7 +243,13 @@ impl Backend for InputBackend {
                 backend.sync()?;
                 self.capture.0.lock().unwrap().clone()
             }
-            Inner::Debug(backend) => debug_output(backend),
+            // The debug backend paints into memory; the terminal sequences
+            // the App wrote since the last frame (CLP-001) lead its output.
+            Inner::Debug(backend) => {
+                let mut output = backend.take_terminal_sequences().concat();
+                output.extend(debug_output(backend));
+                output
+            }
         };
         let (width, height) = self.inner.backend().size();
         let mut parser = vt100::Parser::new(height, width, 0);

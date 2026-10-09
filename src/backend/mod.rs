@@ -87,6 +87,13 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Write `bytes`, a terminal sequence that paints no cell (an OSC 52
+    /// clipboard request, CLP-001), to the terminal before the next frame.
+    /// A backend with no terminal records it or drops it.
+    fn write_sequence(&mut self, _bytes: &[u8]) -> Result<()> {
+        Ok(())
+    }
+
     /// Geometry from the last acknowledged frame. Wrappers should forward this.
     fn painted_nodes(&self) -> Option<&[PaintedNode]> {
         None
@@ -497,6 +504,9 @@ pub struct DebugBackend {
     /// Lays out and paints frames on a stack of its own, as the SuprTUI
     /// renderer does, so a deep tree draws whatever the app thread's stack.
     paint: debug_frame::PaintThread,
+    /// The terminal sequences an App wrote through [`Backend::write_sequence`],
+    /// in order, for a test to read (CLP-001).
+    sequences: Vec<Vec<u8>>,
 }
 
 impl DebugBackend {
@@ -513,7 +523,18 @@ impl DebugBackend {
             graphemes: None,
             geometry: None,
             paint: debug_frame::PaintThread::default(),
+            sequences: Vec::new(),
         }
+    }
+
+    /// The terminal sequences the App wrote so far, in order (CLP-001).
+    pub fn terminal_sequences(&self) -> &[Vec<u8>] {
+        &self.sequences
+    }
+
+    /// Takes the terminal sequences the App wrote so far, in order (CLP-001).
+    pub fn take_terminal_sequences(&mut self) -> Vec<Vec<u8>> {
+        std::mem::take(&mut self.sequences)
     }
 
     /// Lay out and paint `element` into a cleared screen on the paint thread,
@@ -651,6 +672,10 @@ impl DebugBackend {
 }
 
 impl Backend for DebugBackend {
+    fn write_sequence(&mut self, bytes: &[u8]) -> Result<()> {
+        self.sequences.push(bytes.to_vec());
+        Ok(())
+    }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
         // The one copy per frame, as SuprTuiBackend makes: the paint thread
         // lays out and paints it, and drops it there.

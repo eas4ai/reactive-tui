@@ -706,7 +706,13 @@ impl TextInput {
             };
 
             if copy_start < text.len() && copy_end <= text.len() {
-                self.clipboard_content = Some(text[copy_start..copy_end].to_string());
+                let copied = &text[copy_start..copy_end];
+                self.clipboard_content = Some(copied.to_string());
+                // The terminal's clipboard and the local command (CLP-001);
+                // this control's own buffer keeps serving its paste.
+                if let Err(error) = crate::clipboard::copy(copied) {
+                    log::debug!("Local clipboard copy failed: {error}");
+                }
             }
         }
     }

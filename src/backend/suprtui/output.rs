@@ -71,6 +71,13 @@ impl<W: Write> CheckedOutput<W> {
             .and_then(|()| writer.flush())
     }
 
+    /// Write and flush a terminal sequence that paints no cell, such as an
+    /// OSC 52 clipboard request, ahead of the next frame (CLP-001).
+    pub(super) fn write_sequence(&mut self, bytes: &[u8]) -> io::Result<()> {
+        let mut writer = self.writer.borrow_mut();
+        writer.write_all(bytes).and_then(|()| writer.flush())
+    }
+
     pub(super) fn take_error(&mut self) -> Option<io::Error> {
         self.error.take()
     }

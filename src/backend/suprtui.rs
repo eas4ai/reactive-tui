@@ -119,6 +119,9 @@ enum Command {
         mpsc::Sender<Result<super::FrameLayout>>,
     ),
     Shutdown(Reply, Option<String>),
+    /// A terminal sequence that paints no cell, written and flushed at once,
+    /// ahead of the next frame (CLP-001).
+    Sequence(Vec<u8>),
     /// Reply once every earlier frame has been written and flushed.
     /// Reply whether the canvas pictures being made ready were written
     /// within the time given.
@@ -507,6 +510,12 @@ impl SuprTuiBackend {
 }
 
 impl Backend for SuprTuiBackend {
+    fn write_sequence(&mut self, bytes: &[u8]) -> Result<()> {
+        let commands = self.commands.as_ref().ok_or_else(worker_stopped)?;
+        commands
+            .send(Command::Sequence(bytes.to_vec()))
+            .map_err(|_| worker_stopped())
+    }
     fn image_output(&self) -> Option<ImageOutputOptions> {
         Some(self.images)
     }
@@ -999,6 +1008,14 @@ fn run_worker<W: Write>(
                 let _ = reply.send(outcome);
             }
             #[cfg(unix)]
+            Command::Sequence(bytes) => {
+                // Written ahead of the next frame; a failure is reported with
+                // the next present, sync or shutdown, as a flush failure is.
+                if let Err(error) = renderer.backend_mut().write_sequence(&bytes) {
+                    deferred = Some(error.into());
+                    force = true;
+                }
+            }
             Command::Suspend(reply) => {
                 let cleanup = renderer.backend_mut().finish_graphics(graphics.cleanup());
                 graphics = made_apart();

@@ -137,6 +137,32 @@ impl ClipboardBackend {
     }
 }
 
+/// Puts `text` on the clipboard through the terminal (OSC 52, CLP-001) and,
+/// when `backend` is a local command, through that command as well; a
+/// machine with no local command copies through the terminal alone and
+/// reports no error. The result is the local command's.
+fn copy_through(
+    backend: ClipboardBackend,
+    text: &str,
+    cancelled: impl Fn() -> bool,
+) -> Result<(), String> {
+    crate::clipboard::copy_to_terminal(text);
+    match backend {
+        ClipboardBackend::Unavailable => Ok(()),
+        backend => backend.copy(text, cancelled),
+    }
+}
+
+/// Runs the local clipboard command for `text` when one is available
+/// (CLP-001); with none, succeeds without copying, since the terminal's
+/// clipboard is written by the caller.
+pub(crate) fn local_copy(text: &str, cancelled: impl Fn() -> bool) -> Result<(), String> {
+    match ClipboardBackend::detect() {
+        ClipboardBackend::Unavailable => Ok(()),
+        backend => backend.copy(text, cancelled),
+    }
+}
+
 /// Clipboard state
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClipboardState {
@@ -211,7 +237,7 @@ pub fn use_clipboard(
 
     let copy = Arc::new(move |text: &str| {
         let backend = state_copy.get().backend;
-        let result = backend.copy(text, || !copy_owner.is_alive());
+        let result = copy_through(backend, text, || !copy_owner.is_alive());
         if result.is_err() {
             // Keep copied text and tool output out of logs. The full hook exposes
             // its error signal; the simple hook retains its void copy callback.
@@ -423,6 +449,52 @@ mod tests {
         }
         #[cfg(not(unix))]
         let _ = paste;
+    }
+
+    /// CLP-001: a copy through the hook asks the terminal for the clipboard
+    /// (OSC 52) and runs the local command as well.
+    #[test]
+    #[serial_test::serial(clipboard_requests)]
+    fn clp_001_a_copy_through_the_hook_writes_osc_52_and_runs_the_local_command() {
+        #[cfg(unix)]
+        if run_with_clipboard_fixture(
+            "clp_001_a_copy_through_the_hook_writes_osc_52_and_runs_the_local_command",
+        ) {
+            return;
+        }
+        let _ = crate::clipboard::take_pending();
+        let hooks = Hooks::new();
+        let (state, copy, paste) = use_clipboard(&hooks);
+        copy("hello");
+        assert_eq!(
+            crate::clipboard::take_pending(),
+            vec![crate::clipboard::osc52("hello")],
+            "the terminal is asked to set its clipboard"
+        );
+        #[cfg(unix)]
+        {
+            assert_eq!(state.get().backend, ClipboardBackend::Wayland);
+            assert_eq!(paste(), Some("hello".into()), "the local command ran too");
+            assert!(state.get().error.is_none());
+        }
+        #[cfg(not(unix))]
+        let _ = (state, paste);
+    }
+
+    /// CLP-001: with no local command, the copy still reaches the terminal
+    /// and reports no error.
+    #[test]
+    #[serial_test::serial(clipboard_requests)]
+    fn clp_001_a_copy_with_no_local_command_still_reaches_the_terminal() {
+        let _ = crate::clipboard::take_pending();
+        assert_eq!(
+            copy_through(ClipboardBackend::Unavailable, "hello", || false),
+            Ok(())
+        );
+        assert_eq!(
+            crate::clipboard::take_pending(),
+            vec![crate::clipboard::osc52("hello")]
+        );
     }
 
     #[test]

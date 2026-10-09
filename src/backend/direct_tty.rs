@@ -288,6 +288,12 @@ impl Backend for DirectTtyBackend {
     fn clear(&mut self) -> Result<()> {
         self.renderer.clear()
     }
+    fn write_sequence(&mut self, bytes: &[u8]) -> Result<()> {
+        if !self.active {
+            return Err(ReactiveError::invalid_state("direct TTY is shut down"));
+        }
+        self.tty()?.write(bytes).map(|_| ())
+    }
     fn present(&mut self) -> Result<()> {
         self.renderer.present()
     }
