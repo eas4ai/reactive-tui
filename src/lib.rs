@@ -74,6 +74,8 @@ pub mod event;
 pub mod ffi;
 /// React-style hooks for state and lifecycle management
 pub mod hooks;
+/// Named key actions and the keymap every widget reads its keys through
+pub mod keymap;
 /// CSS-like layout system with flexbox and grid support
 pub mod layout;
 /// Markdown rendering and parsing for terminal display
