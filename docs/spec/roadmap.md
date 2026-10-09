@@ -1914,3 +1914,35 @@ today's unguarded workflow as the failing example.
 Done when the workflow's run for the final commit is green on the three
 machines with every install guarded, every named requirement passes, and
 the adversary's findings are resolved or declined.
+
+## cht-040-hang-guard-under-load
+
+Requirements: BAR-001, BAR-010, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-011, BAR-012
+
+The backlog item cht-040-hang-guard-under-load (7b4532ae): the two CHT-040
+tests in tests/review_high.rs that draw a chart of ten million slots,
+`cht_040_ten_million_slots_columns_or_ticks_cost_what_one_value_costs` and
+`cht_040_a_count_of_usize_max_draws_its_one_value`, run the App through
+`app_input::run` with a step that waits for three settled frames inside the
+harness's 30-second hang guard. Under load the three frames do not arrive
+in time and both tests fail together, as they did twice on 2026-10-08 and
+once more on 2026-10-09 at load 20 under BAR-001, each time passing on the
+rerun. The frame-count step races the chart's own work the way the
+animation tests did before 0729629f. The developer approved taking this
+item after ci-setup-skips-installed-tools and before the study's widgets
+("confirmed and approved").
+
+Delivery: the two tests wait on what they need instead of a frame count: a
+frame whose plot shows the one value (a braille dot or a block glyph) and
+is not busy, through the harness's frame predicates, with the 60-second
+thread guard kept as a hang guard and CHT-040's cost assertions kept (at
+most 64 MiB of growth and two seconds for the draw of ten million slots),
+the time measured around the draw and not around the App's start-up and
+the harness's waits. Reproduced first with the review_high binary pinned
+to two CPUs under RUST_TEST_THREADS=12, where the frame-count step fails
+and the predicate step passes.
+
+Done when every named requirement passes, BAR-001 and BAR-010 among them
+with the two tests under the pinned-CPU reproduction passing, the workflow's
+run for the final commit is green on the three machines, and the adversary's
+findings are resolved or declined.
