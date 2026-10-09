@@ -43,6 +43,19 @@ impl RadioGroups {
         }
     }
 
+    /// The 1-based position of `member` among the live members of the
+    /// group `name`, in the order they joined, and the group's count; a
+    /// disabled member counts like any other (CTL-006).
+    fn position(&self, name: &str, member: &Arc<AtomicBool>) -> Option<(usize, usize)> {
+        let groups = self.0.lock().unwrap();
+        let members: Vec<Arc<AtomicBool>> =
+            groups.get(name)?.iter().filter_map(Weak::upgrade).collect();
+        let index = members
+            .iter()
+            .position(|other| Arc::ptr_eq(other, member))?;
+        Some((index + 1, members.len()))
+    }
+
     fn select(&self, name: &str, selected: &Arc<AtomicBool>) {
         let groups = self.0.lock().unwrap();
         if let Some(members) = groups.get(name) {
@@ -175,6 +188,16 @@ impl Component for NamedRadio {
             accessible.set_disabled();
         } else {
             accessible.set_clickable();
+        }
+        // Its place in its group and the group's count, as a `RadioButton`
+        // option tells them (CTL-006).
+        if let Some((position, count)) = self
+            .group
+            .as_deref()
+            .and_then(|group| self.groups.position(group, &self.selected))
+        {
+            accessible.inner.set_position_in_set(position);
+            accessible.inner.set_size_of_set(count);
         }
         // The same row as a `RadioButton` option: frame, dot, label, and
         // the hover fill (CTL-001).
@@ -322,6 +345,53 @@ mod tests {
         assert_eq!(groups.0.lock().unwrap().len(), 1);
         drop(replacement);
         assert!(groups.0.lock().unwrap().is_empty());
+    }
+
+    /// CTL-006: a radio built with a group name tells the screen reader
+    /// its position in that group and the group's count, and a disabled
+    /// radio counts.
+    #[test]
+    fn ctl_006_a_named_radio_tells_the_screen_reader_its_position_and_the_groups_count() {
+        let scope = ComponentScope::new(Arc::new(Scheduler::new()));
+        let _binding = scope.enter(true);
+        assert!(provide(Arc::new(RadioGroups::default())).is_ok());
+        let props = |value: &str, disabled: bool| NamedRadioProps {
+            value: value.into(),
+            label: None,
+            aria_label: None,
+            checked: false,
+            disabled,
+            group: Some("choice".into()),
+            on_change: None,
+        };
+        let first = NamedRadio::new(props("one", false));
+        let second = NamedRadio::new(props("two", false));
+        let third = NamedRadio::new(props("three", true));
+        let element = second.render(&props("two", false), &NamedRadioState::default());
+        let node = element
+            .metadata
+            .accessibility
+            .as_ref()
+            .expect("the radio's node");
+        assert_eq!(node.inner.position_in_set(), Some(2), "the second of three");
+        assert_eq!(node.inner.size_of_set(), Some(3), "a disabled radio counts");
+        let alone = NamedRadio::new(NamedRadioProps {
+            group: None,
+            ..props("four", false)
+        });
+        let node = alone
+            .render(
+                &NamedRadioProps {
+                    group: None,
+                    ..props("four", false)
+                },
+                &NamedRadioState::default(),
+            )
+            .metadata
+            .accessibility
+            .expect("the radio's node");
+        assert_eq!(node.inner.position_in_set(), None, "no group, no position");
+        drop((first, third));
     }
 
     /// KEY-001: the radio is chosen on the key the active keymap binds to
