@@ -185,9 +185,13 @@ class OfflineWait(unittest.TestCase):
 
 
 MATRIX_PIN = '"+$TOOLCHAIN"'
-INSTALL = 'rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt --component clippy'
+# Each install runs only when its pinned tool is missing, as the static check asks.
+INSTALL = ('if ! rustup toolchain list | grep -q "^$TOOLCHAIN"; then\n'
+           '  rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt --component clippy\n'
+           'fi')
+BARE_INSTALL = 'rustup toolchain install "$TOOLCHAIN" --profile minimal --component rustfmt --component clippy'
 FLOOR_STEP = {"if": "runner.os == 'Linux'",
-              "run": "rustup toolchain install 1.95.0 --profile minimal\n"
+              "run": "rustup toolchain list | grep -q '^1.95.0' || rustup toolchain install 1.95.0 --profile minimal\n"
                      "cargo +1.95.0 build --locked --all-targets\ncargo +1.95.0 test --locked --no-fail-fast"}
 PINS = ("1.95.0", "1.95.0", "1.95.0-x86_64-pc-windows-msvc")
 ABOVE = ("1.99.0", "1.99.0", "1.99.0-x86_64-pc-windows-msvc")
@@ -201,6 +205,7 @@ HOSTED_CONDITION = "github.event_name == 'pull_request'"
 
 def steps(pin=MATRIX_PIN, install=INSTALL, extra_runs=(), extra_steps=()):
     runs = [install,
+            f'[ "$(cargo {pin} deny --version 2>/dev/null)" = "cargo-deny 0.20.2" ] || '
             f"cargo {pin} install cargo-deny --version 0.20.2 --locked",
             f"cargo {pin} build --locked --all-targets",
             f"cargo {pin} test --locked --no-fail-fast",
@@ -238,8 +243,10 @@ def workflow(toolchains=PINS, extra_runs=(), extra_steps=(), pin=MATRIX_PIN,
     return {"jobs": jobs}
 
 
-def advisories(toolchain: "str | None" = "1.95.0", install='rustup toolchain install "$TOOLCHAIN" --profile minimal',
-               cargo='cargo "+$TOOLCHAIN" install cargo-audit --version 0.22.1 --locked',
+def advisories(toolchain: "str | None" = "1.95.0",
+               install='rustup toolchain list | grep -q "^$TOOLCHAIN" || rustup toolchain install "$TOOLCHAIN" --profile minimal',
+               cargo='cargo "+$TOOLCHAIN" audit --version 2>/dev/null | grep -q " 0.22.1$" || '
+                     'cargo "+$TOOLCHAIN" install cargo-audit --version 0.22.1 --locked',
                runs_on=("self-hosted", "rust-ci", "Linux", "X64"), condition="github.event_name == 'schedule'"):
     """The weekly job in the same shape: the Linux machine, TOOLCHAIN set on
     the job, a step that installs it and cargo calls through the pin."""
@@ -377,7 +384,8 @@ class StaticChecks(unittest.TestCase):
 
     def test_a_matrix_reference_in_the_call_counts_as_the_pin(self):
         self.assertEqual(self.violations(workflow(pin="+${{ matrix.toolchain }}", env=None,
-                                                  install="rustup toolchain install ${{ matrix.toolchain }}")), [])
+                                                  install="rustup toolchain list | grep -q '^${{ matrix.toolchain }}' || "
+                                                          "rustup toolchain install ${{ matrix.toolchain }}")), [])
 
     def test_a_missing_command_fails(self):
         wf = workflow()
@@ -417,8 +425,32 @@ class StaticChecks(unittest.TestCase):
         self.assertFalse(any("linux-x64" in v or "macos-arm64" in v for v in found), found)
 
     def test_an_install_of_another_release_fails(self):
-        found = self.violations(workflow(install="rustup toolchain install 1.96.0 --profile minimal"))
+        found = self.violations(workflow(install="rustup toolchain list | grep -q '^1.96.0' || rustup toolchain install 1.96.0 --profile minimal"))
         self.assertViolation(found, "installs 1.96.0, not its pin 1.95.0")
+
+    # Each install only when its tool is missing.
+
+    def test_a_toolchain_installed_without_a_list_check_fails(self):
+        found = self.violations(workflow(install=BARE_INSTALL))
+        self.assertViolation(found, "platform job installs its toolchain without checking `rustup toolchain list` first")
+
+    def test_a_tool_installed_without_a_version_check_fails(self):
+        wf = workflow()
+        for job in ("platform", "platform-hosted"):
+            wf["jobs"][job]["steps"][1]["run"] = 'cargo "+$TOOLCHAIN" install cargo-deny --version 0.20.2 --locked'
+        self.assertViolation(self.violations(wf), "platform job installs cargo-deny without checking `cargo deny --version` first")
+
+    def test_python_tools_installed_without_an_offline_try_fail(self):
+        found = self.violations(workflow(extra_runs=("uv pip install -r scripts/requirements-ci.txt",)))
+        self.assertViolation(found, "platform job installs its Python tools without an offline try first")
+        guarded = workflow(extra_runs=("uv pip install --offline -r scripts/requirements-ci.txt || "
+                                       "uv pip install -r scripts/requirements-ci.txt",))
+        self.assertEqual(self.violations(guarded), [])
+
+    def test_the_advisories_tool_installed_without_a_version_check_fails(self):
+        wf = workflow()
+        wf["jobs"]["advisories"] = advisories(cargo='cargo "+$TOOLCHAIN" install cargo-audit --version 0.22.1 --locked')
+        self.assertViolation(self.violations(wf), "advisories job installs cargo-audit without checking `cargo audit --version` first")
 
     def test_no_install_fails(self):
         found = self.violations(workflow(install="echo nothing installed"))
