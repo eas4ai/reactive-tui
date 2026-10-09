@@ -323,33 +323,80 @@ def platform_job_names(workflow: dict) -> list[str]:
     return names
 
 
-CARGO_INSTALL = re.compile(r"cargo\s+(?:\S+\s+)?install\s+cargo-([a-z-]+)\s+--version")
-UV_INSTALL = re.compile(r"uv\s+pip\s+install\b(?![^\n|]*--offline)")
+SEGMENTS = re.compile(r"(\|\||&&|;|\||\n)")
+CARGO_TOOL_INSTALL = re.compile(r"^cargo\s+(?:\S+\s+)?install\b(?=.*\bcargo-([a-z-]+)\b)")
+UV_INSTALL = re.compile(r"^uv\s+pip\s+install\b")
+OFFLINE = re.compile(r"^uv\s+pip\s+install\b.*--offline\b")
+
+
+def commands(run: str) -> list[tuple[str, str]]:
+    """A step's shell text as (joiner, command) pairs in order: the commands
+    split on newlines, `;`, `&&`, `||` and `|`, a backslash-newline joined to
+    its line, each with the joiner that precedes it."""
+    tokens = SEGMENTS.split(re.sub(r"\\\n", " ", run))
+    result = []
+    joiner = "\n"
+    for index, token in enumerate(tokens):
+        if index % 2:
+            joiner = token
+            continue
+        command = token.strip()
+        if command:
+            result.append((joiner, command))
+    return result
+
+
+def guarded(parts: list[tuple[str, str]], index: int, check: re.Pattern) -> bool:
+    """Whether the command at `index` runs only after `check` found its tool
+    wanting: it is the right side of `check || install`, the check being the
+    pipeline before the `||`, or it stands inside an `if ...; then ... fi`
+    whose condition runs the check."""
+    joiner, _ = parts[index]
+    if joiner == "||":
+        at = index - 1
+        while at >= 0:
+            if check.search(parts[at][1]):
+                return True
+            if parts[at][0] != "|":
+                break
+            at -= 1
+    opened = None
+    for at in range(index - 1, -1, -1):
+        command = parts[at][1]
+        if command == "fi":
+            return False
+        if command == "then":
+            opened = at
+            continue
+        if opened is not None and re.match(r"^(if|elif)\b", command):
+            return any(check.search(parts[k][1]) for k in range(at, opened))
+    return False
 
 
 def guard_violations(label: str, run: str) -> list[str]:
     """The installs a step runs without first finding the tool missing: a
-    `rustup toolchain install` with no `rustup toolchain list` check, a
-    `cargo install cargo-<tool>` with no `cargo-<tool> --version` check, or a
-    `uv pip install` with no `--offline` try before it. Such a step reaches
-    the network on every job, and a blip on the runner fails the job."""
+    `rustup toolchain install` not guarded by `rustup toolchain list`, a
+    `cargo install cargo-<tool>` not guarded by `cargo <tool> --version`, or
+    a `uv pip install` not guarded by an `--offline` try. A check that only
+    appears somewhere in the step does not guard the install; it has to be
+    the condition the install runs under. Such a step reaches the network on
+    every job, and a blip on the runner fails the job."""
     found = []
-    if wt.INSTALL.search(run) and not re.search(r"rustup\s+toolchain\s+list\b", run):
-        found.append(f"the {label} installs its toolchain without checking `rustup toolchain list` first, "
-                     "so every job reaches the network for it")
-    for match in CARGO_INSTALL.finditer(run):
-        tool = match.group(1)
-        if not re.search(rf"\b{re.escape(tool)}\s+--version\b", run[: match.start()]):
-            found.append(f"the {label} installs cargo-{tool} without checking `cargo {tool} --version` first, "
+    parts = commands(run)
+    for index, (_, command) in enumerate(parts):
+        if wt.INSTALL.search(command) and not guarded(parts, index, re.compile(r"rustup\s+toolchain\s+list\b")):
+            found.append(f"the {label} installs its toolchain without checking `rustup toolchain list` first, "
                          "so every job reaches the network for it")
-    offline = re.search(r"uv\s+pip\s+install\s+--offline\b", run)
-    for match in UV_INSTALL.finditer(run):
-        if offline is None or offline.start() > match.start():
+        match = CARGO_TOOL_INSTALL.match(command)
+        if match:
+            tool = match.group(1)
+            if not guarded(parts, index, re.compile(rf"\b{re.escape(tool)}\s+--version\b")):
+                found.append(f"the {label} installs cargo-{tool} without checking `cargo {tool} --version` first, "
+                             "so every job reaches the network for it")
+        if UV_INSTALL.match(command) and not OFFLINE.match(command) and not guarded(parts, index, OFFLINE):
             found.append(f"the {label} installs its Python tools without an offline try first, "
                          "so every job reaches the network for them")
-            break
     return found
-
 
 def static_violations(workflow: dict | None = None, attributes: str | None = None,
                       version: str | None = None) -> list[str]:
