@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: widget-defects
+Current: widget-behavior
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -1792,6 +1792,66 @@ their own commitments, as the developer asked with "all of the above".
 CHANGELOG.md records what changes for an application.
 
 Done when every named requirement passes; review-widgets has recorded a
+fail on the tree as it was at the start for each new requirement; the
+workflow's run for the final commit is green on the three machines; and
+the adversary's findings are resolved or declined.
+
+## widget-behavior
+
+Requirements: CMP-009, CTL-005, CTL-006, THM-006, NAV-006, CLP-001, KEY-001, KEY-002, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The eighth piece of the widget work: the behavior the widgets share, from
+the seven adoption changes docs/widget-study.md recorded on 2026-09-26
+(widget-study-adoption, e4c3ba73). On 2026-10-09 the developer chose to
+finish the study, the seven changes and the new widgets, and to "call it
+done unless we find defects"; after a note that the keymap, the builders'
+callbacks and the screen reader's actions are architecture the new widgets
+should be built on, he put this commitment before the new widgets. Each
+change was checked against the code at d88d16dc that morning. Three were
+already delivered by the commitments since the study: screen-reader names,
+positions and counts (CTL-004, NAV-004, DAT-004, OVL-004, CHT-036), the
+theme following the terminal's background on Unix and Windows (INP-011,
+INP-013), and the tab bar scrolling with the breadcrumb's ellipsis
+(NAV-003). What remained: no builder of the text input, the checkbox, the
+radio button, the select, the slider, the tabs or the accordion takes the
+callback its component takes; the App acts on Focus and Click only and
+every node advertises Click alone; radios report no position or count; a
+theme can be built only in code; the segments a breadcrumb's ellipsis hides
+cannot be reached and a tab bar lists nothing of what is out of view;
+nothing writes OSC 52, so a copy over SSH never reaches the user's machine;
+and 32 widget files match key codes of their own while a menu's hint is
+text kept apart from its keys. The developer confirmed the eight
+requirements on 2026-10-09 with the choices they carry: JSON theme files
+that extend only the built-in presets; Shift+F10 as the key of the tabs'
+overflow menu, since Right keeps scrolling under NAV-003; OSC 52 written
+before the next frame on both terminal backends with the local command
+allowed beside it; and a keymap of 24 named actions where typing wins over
+a plain-letter binding.
+
+Delivered here: `on_change` and `on_submit` on the builders (CMP-009);
+SetValue, Increment and Decrement delivered to the control whose node
+advertises them (CTL-005); a radio's position and count (CTL-006);
+`Theme::from_json`, `from_file` and `to_json` (THM-006); the breadcrumb's
+ellipsis as a stop with a menu of the hidden segments and the tab bar's
+overflow mark with a menu of every tab (NAV-006); OSC 52 on both terminal
+backends and a record of terminal sequences on the debug backend (CLP-001);
+the named actions, the active keymap every widget reads and the one text
+form of a binding that menu items take their hint and trigger from
+(KEY-001, KEY-002). The new mechanism widget-behavior
+(scripts/cairn/widget_behavior.py; tests named by requirement in
+tests/widget_behavior.rs and its modules under tests/widget_behavior, or
+among the library's unit tests where a module's private parts are needed)
+checks every new requirement on the Linux host. Every widget the keymap
+reaches counts as reworked, so the widget bar's checks and goldens run on
+all of them, and the tabs' goldens are regenerated where the overflow mark
+appears. The manual gains a section on theme files and one on key actions
+and rebinding, and the callbacks and the clipboard sequence in their
+widgets' chapters; CHANGELOG.md records what changes for an application.
+The new widgets follow as three commitments, the display pieces, the input
+pieces and the medium widgets, in the order the developer confirmed; the
+item widget-study-adoption stays open until the last of them.
+
+Done when every named requirement passes; widget-behavior has recorded a
 fail on the tree as it was at the start for each new requirement; the
 workflow's run for the final commit is green on the three machines; and
 the adversary's findings are resolved or declined.

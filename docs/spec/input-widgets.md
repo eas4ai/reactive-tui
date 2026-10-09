@@ -70,3 +70,15 @@ Status: Agreed 2026-09-30
 Falsifier: A control's accessibility node has no label although its props name a label, an `aria_label` or a placeholder, or its label is the visible label although an `aria_label` is set; a chosen radio's node is not marked selected, or its group's node has no orientation; a select's node has no label or does not report its expanded state, or an option's node lacks its label or its selected state; a slider's node lacks its value, minimum, maximum or step; a text input's error line has a role other than `Alert`; a disabled control's node is not marked disabled; or an action of a control can be taken by the pointer and by no key.
 Mechanism: input-widgets
 Status: Agreed 2026-09-30
+
+[CTL-005] A control MUST advertise to the screen reader each action it handles besides Focus and Click, and the App MUST deliver each advertised request to the control whose node advertises it: a text input advertises SetValue and on it MUST replace its text with the requested string, filtered as typing is, and report the change; a slider advertises Increment, Decrement and SetValue and MUST move one step on the first two and take a requested numeric value snapped to its step and clamped to its range, reporting the change; a select advertises SetValue and MUST choose the option whose value or label equals the request; a request a node does not advertise, or one aimed at a disabled control, MUST change nothing.
+Falsifier: A text input's node does not advertise SetValue, or a SetValue request of `abc` leaves another text or calls no `on_change`; a slider's node lacks Increment or Decrement, or an Increment leaves its value unchanged or moves it by other than one step, or a SetValue above the maximum leaves a value above it; a select's SetValue naming an option's value does not choose it; or a request on a disabled control changes it.
+Mechanism: widget-behavior
+Rationale: The App acts on Focus and Click only (src/app.rs:443-446) and every node advertises Click alone (src/accessibility/mod.rs:76), so a screen-reader user hears a slider's value and cannot set it (docs/widget-study.md, change 2).
+Status: Agreed 2026-10-09
+
+[CTL-006] The screen reader MUST be told each radio button's position in its group and the group's count, as it is told a tab's; a disabled radio counts.
+Falsifier: In a group of three radios of which the third is disabled, the second radio's node lacks position 2 or set size 3.
+Mechanism: widget-behavior
+Rationale: Tabs, accordion headers, breadcrumb segments and tree rows report their position and count (NAV-004, DAT-004); radios do not (src/widgets/input/radio_button.rs:241-250; docs/widget-study.md, change 3).
+Status: Agreed 2026-10-09
