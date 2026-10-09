@@ -10,5 +10,13 @@
 
 mod common;
 
+#[path = "widget_behavior/clipboard.rs"]
+mod clipboard;
+#[path = "widget_behavior/components.rs"]
+mod components;
+#[path = "widget_behavior/controls.rs"]
+mod controls;
+#[path = "widget_behavior/keymap.rs"]
+mod keymap;
 #[path = "widget_behavior/layout.rs"]
 mod layout;
