@@ -305,22 +305,25 @@ impl MenuRuntime for PopupRuntime {
                     self.activate(props);
                     return EventResult::Consumed;
                 }
-                match key.code {
-                    KeyCode::Up => self.menu.move_selection(-1),
-                    KeyCode::Down => self.menu.move_selection(1),
-                    KeyCode::PageUp => self
+                // The keys mean what the active keymap says (KEY-001).
+                use crate::keymap::Action;
+                let action = crate::keymap::Keymap::active().action(key);
+                match action {
+                    Some(Action::Up) => self.menu.move_selection(-1),
+                    Some(Action::Down) => self.menu.move_selection(1),
+                    Some(Action::PageUp) => self
                         .menu
                         .move_selection(-self.view.page_size(&self.menu.path)),
-                    KeyCode::PageDown => self
+                    Some(Action::PageDown) => self
                         .menu
                         .move_selection(self.view.page_size(&self.menu.path)),
-                    KeyCode::Home => {
+                    Some(Action::Home) => {
                         if let Some(last) = self.menu.path.last_mut() {
                             *last = usize::MAX;
                         }
                         self.menu.repair_selection();
                     }
-                    KeyCode::End => {
+                    Some(Action::End) => {
                         let depth = self.menu.path.len().saturating_sub(1);
                         if let Some(index) = list_at(&self.menu.items, &self.menu.path[..depth])
                             .iter()
@@ -330,17 +333,17 @@ impl MenuRuntime for PopupRuntime {
                             self.menu.path.push(index);
                         }
                     }
-                    KeyCode::Escape | KeyCode::Left if self.menu.path.len() > 1 => {
+                    Some(Action::Cancel | Action::Left) if self.menu.path.len() > 1 => {
                         self.menu.path.pop();
                     }
-                    KeyCode::Escape => self.close(props),
-                    KeyCode::Right
+                    Some(Action::Cancel) => self.close(props),
+                    Some(Action::Right)
                         if item_mut(&mut self.menu.items, &self.menu.path)
                             .is_some_and(|item| item.has_submenu()) =>
                     {
                         self.activate(props)
                     }
-                    KeyCode::Enter | KeyCode::Space | KeyCode::Char(' ') => self.activate(props),
+                    Some(Action::Confirm | Action::Activate) => self.activate(props),
                     _ => return EventResult::Ignored,
                 }
             }

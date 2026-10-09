@@ -300,15 +300,17 @@ impl Breadcrumb {
         .unwrap_or(0);
         // Home and End go to the first and the last segment, as without an
         // ellipsis; to the ellipsis only when no segment it shows is a stop.
-        let next = match event.code {
-            KeyCode::Left => current.saturating_sub(1),
-            KeyCode::Right => (current + 1).min(stops.len() - 1),
-            KeyCode::Home => stops.iter().position(Option::is_some).unwrap_or(0),
-            KeyCode::End => stops
+        // The keys mean what the active keymap says (KEY-001).
+        use crate::keymap::Action;
+        let next = match crate::keymap::Keymap::active().action(event) {
+            Some(Action::Left) => current.saturating_sub(1),
+            Some(Action::Right) => (current + 1).min(stops.len() - 1),
+            Some(Action::Home) => stops.iter().position(Option::is_some).unwrap_or(0),
+            Some(Action::End) => stops
                 .iter()
                 .rposition(Option::is_some)
                 .unwrap_or(stops.len() - 1),
-            KeyCode::Enter | KeyCode::Char(' ') => {
+            Some(Action::Confirm | Action::Activate) => {
                 match (&stops[current], ellipsis) {
                     (Some(id), _) => {
                         Self::activate_segment(id, props);

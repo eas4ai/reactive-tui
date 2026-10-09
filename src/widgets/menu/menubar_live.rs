@@ -281,46 +281,49 @@ impl MenuRuntime for MenuBarRuntime {
                     self.activate(props);
                     return EventResult::Consumed;
                 }
-                match key.code {
-                    KeyCode::Right if self.menu.path.len() == 1 => self.menu.move_selection(1),
-                    KeyCode::Left if self.menu.path.len() == 1 => self.menu.move_selection(-1),
-                    KeyCode::Left | KeyCode::Escape if self.menu.path.len() > 1 => {
+                // The keys mean what the active keymap says (KEY-001).
+                use crate::keymap::Action;
+                let action = crate::keymap::Keymap::active().action(key);
+                match action {
+                    Some(Action::Right) if self.menu.path.len() == 1 => self.menu.move_selection(1),
+                    Some(Action::Left) if self.menu.path.len() == 1 => self.menu.move_selection(-1),
+                    Some(Action::Left | Action::Cancel) if self.menu.path.len() > 1 => {
                         if self.menu.path.len() == 2 {
                             self.close(props);
                         } else {
                             self.menu.path.pop();
                         }
                     }
-                    KeyCode::Down
+                    Some(Action::Down)
                         if self.menu.path.len() == 1
                             && item_mut(&mut self.menu.items, &self.menu.path)
                                 .is_some_and(|item| item.has_submenu()) =>
                     {
                         self.activate(props)
                     }
-                    KeyCode::Down if self.menu.path.len() == 1 => return EventResult::Ignored,
-                    KeyCode::Down => self.menu.move_selection(1),
-                    KeyCode::Up => self.menu.move_selection(-1),
-                    KeyCode::PageUp => self
+                    Some(Action::Down) if self.menu.path.len() == 1 => return EventResult::Ignored,
+                    Some(Action::Down) => self.menu.move_selection(1),
+                    Some(Action::Up) => self.menu.move_selection(-1),
+                    Some(Action::PageUp) => self
                         .menu
                         .move_selection(-self.view.page_size(&self.menu.path)),
-                    KeyCode::PageDown => self
+                    Some(Action::PageDown) => self
                         .menu
                         .move_selection(self.view.page_size(&self.menu.path)),
-                    KeyCode::Right
+                    Some(Action::Right)
                         if item_mut(&mut self.menu.items, &self.menu.path)
                             .is_some_and(|item| item.has_submenu()) =>
                     {
                         self.activate(props)
                     }
-                    KeyCode::Enter | KeyCode::Space | KeyCode::Char(' ') => self.activate(props),
-                    KeyCode::Home => {
+                    Some(Action::Confirm | Action::Activate) => self.activate(props),
+                    Some(Action::Home) => {
                         if let Some(last) = self.menu.path.last_mut() {
                             *last = usize::MAX;
                         }
                         self.menu.repair_selection();
                     }
-                    KeyCode::End => {
+                    Some(Action::End) => {
                         let depth = self.menu.path.len().saturating_sub(1);
                         if let Some(index) = list_at(&self.menu.items, &self.menu.path[..depth])
                             .iter()

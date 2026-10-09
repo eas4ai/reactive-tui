@@ -1248,25 +1248,36 @@ impl Tabs {
                 else {
                     return EventResult::Ignored;
                 };
-                let next = match key.code {
-                    // Shift+F10 opens the menu of every tab (NAV-006).
-                    KeyCode::F(10) if key.modifiers.shift => {
+                // The keys mean what the active keymap says (KEY-001); the
+                // digits that pick a tab are the tabs' own.
+                use crate::keymap::Action;
+                let action = crate::keymap::Keymap::active().action(key);
+                let next = match action {
+                    // ContextMenu (Shift+F10) opens the menu of every tab (NAV-006).
+                    Some(Action::ContextMenu) => {
                         self.open_menu();
                         return EventResult::Consumed;
                     }
-                    KeyCode::Left | KeyCode::Up => self.find_next_enabled_tab(props, current, -1),
-                    KeyCode::Right | KeyCode::Down => self.find_next_enabled_tab(props, current, 1),
-                    KeyCode::Home => props.tabs.iter().position(|t| !t.disabled),
-                    KeyCode::End => props.tabs.iter().rposition(|t| !t.disabled),
-                    KeyCode::Enter | KeyCode::Char(' ') => {
+                    Some(Action::Left | Action::Up) => {
+                        self.find_next_enabled_tab(props, current, -1)
+                    }
+                    Some(Action::Right | Action::Down) => {
+                        self.find_next_enabled_tab(props, current, 1)
+                    }
+                    Some(Action::Home) => props.tabs.iter().position(|t| !t.disabled),
+                    Some(Action::End) => props.tabs.iter().rposition(|t| !t.disabled),
+                    Some(Action::Confirm | Action::Activate) => {
                         self.activate(current, props, state);
                         return EventResult::Consumed;
                     }
-                    KeyCode::Delete | KeyCode::Char('x') => {
+                    Some(Action::Delete) => {
                         self.close(current, props, state);
                         return EventResult::Consumed;
                     }
-                    KeyCode::Char(c @ '1'..='9') => {
+                    _ if matches!(key.code, KeyCode::Char('1'..='9')) => {
+                        let KeyCode::Char(c) = key.code else {
+                            return EventResult::Ignored;
+                        };
                         self.activate(c as usize - '1' as usize, props, state);
                         return EventResult::Consumed;
                     }

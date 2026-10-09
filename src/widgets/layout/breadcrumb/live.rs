@@ -665,7 +665,10 @@ impl Component for LiveBreadcrumb {
             // does not move under its menu.
             Event::Key(key)
                 if self.menu.get().is_some()
-                    && matches!(key.code, KeyCode::Left | KeyCode::Right) => {}
+                    && matches!(
+                        crate::keymap::Keymap::active().action(key),
+                        Some(crate::keymap::Action::Left | crate::keymap::Action::Right)
+                    ) => {}
             Event::Custom(event) if event.name == "reactive_tui.breadcrumb.ellipsis" => {
                 if self.geometry.lock().unwrap().ellipsis_at.is_none() {
                     return EventResult::Ignored;

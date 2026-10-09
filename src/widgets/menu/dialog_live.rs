@@ -515,7 +515,10 @@ impl MenuRuntime for DialogRuntime {
                 self.input.lock().unwrap().insert_text(&text);
             }
             Event::Key(key) if key.kind != KeyEventKind::Release => {
-                if key.code == KeyCode::Escape {
+                // The keys mean what the active keymap says (KEY-001).
+                use crate::keymap::Action;
+                let action = crate::keymap::Keymap::active().action(key);
+                if action == Some(Action::Cancel) {
                     if self.menu.path.len() > 1 {
                         self.menu.path.pop();
                     } else if props.config.close_on_escape {
@@ -533,22 +536,24 @@ impl MenuRuntime for DialogRuntime {
                         }
                         KeyCode::Space => state.insert_char(' '),
                         KeyCode::Backspace => state.delete_char(),
-                        KeyCode::Delete => {
-                            let cursor = state.input_boundary();
-                            state.move_cursor_right();
-                            if state.input_cursor != cursor {
-                                state.delete_char();
+                        _ => match action {
+                            Some(Action::Delete) => {
+                                let cursor = state.input_boundary();
+                                state.move_cursor_right();
+                                if state.input_cursor != cursor {
+                                    state.delete_char();
+                                }
                             }
-                        }
-                        KeyCode::Left => state.move_cursor_left(),
-                        KeyCode::Right => state.move_cursor_right(),
-                        KeyCode::Home => state.input_cursor = 0,
-                        KeyCode::End => state.input_cursor = state.input_text.len(),
-                        KeyCode::Enter => {
-                            drop(state);
-                            self.submit(props);
-                        }
-                        _ => return EventResult::Ignored,
+                            Some(Action::Left) => state.move_cursor_left(),
+                            Some(Action::Right) => state.move_cursor_right(),
+                            Some(Action::Home) => state.input_cursor = 0,
+                            Some(Action::End) => state.input_cursor = state.input_text.len(),
+                            Some(Action::Confirm) => {
+                                drop(state);
+                                self.submit(props);
+                            }
+                            _ => return EventResult::Ignored,
+                        },
                     }
                     return EventResult::Consumed;
                 }
@@ -557,22 +562,22 @@ impl MenuRuntime for DialogRuntime {
                     self.activate(props);
                     return EventResult::Consumed;
                 }
-                match key.code {
-                    KeyCode::PageUp => self
+                match action {
+                    Some(Action::PageUp) => self
                         .menu
                         .move_selection(-self.view.page_size(&self.menu.path)),
-                    KeyCode::PageDown => self
+                    Some(Action::PageDown) => self
                         .menu
                         .move_selection(self.view.page_size(&self.menu.path)),
-                    KeyCode::Up => self.menu.move_selection(-1),
-                    KeyCode::Down => self.menu.move_selection(1),
-                    KeyCode::Home => {
+                    Some(Action::Up) => self.menu.move_selection(-1),
+                    Some(Action::Down) => self.menu.move_selection(1),
+                    Some(Action::Home) => {
                         if let Some(last) = self.menu.path.last_mut() {
                             *last = usize::MAX;
                         }
                         self.menu.repair_selection();
                     }
-                    KeyCode::End => {
+                    Some(Action::End) => {
                         let depth = self.menu.path.len().saturating_sub(1);
                         if let Some(index) = list_at(&self.menu.items, &self.menu.path[..depth])
                             .iter()
@@ -582,17 +587,19 @@ impl MenuRuntime for DialogRuntime {
                             self.menu.path.push(index);
                         }
                     }
-                    KeyCode::Left if self.menu.path.len() > 1 => {
+                    Some(Action::Left) if self.menu.path.len() > 1 => {
                         self.menu.path.pop();
                     }
-                    KeyCode::Right
+                    Some(Action::Right)
                         if item_mut(&mut self.menu.items, &self.menu.path)
                             .is_some_and(|item| item.has_submenu()) =>
                     {
                         self.activate(props)
                     }
-                    KeyCode::Enter | KeyCode::Space | KeyCode::Char(' ') => self.activate(props),
-                    KeyCode::Tab if props.config.dialog_type == DialogMenuType::MultiSelection => {
+                    Some(Action::Confirm | Action::Activate) => self.activate(props),
+                    Some(Action::Next)
+                        if props.config.dialog_type == DialogMenuType::MultiSelection =>
+                    {
                         self.confirm(props)
                     }
                     _ => return EventResult::Ignored,
