@@ -447,6 +447,44 @@ class StaticChecks(unittest.TestCase):
                                        "uv pip install -r scripts/requirements-ci.txt",))
         self.assertEqual(self.violations(guarded), [])
 
+    # The check must guard the install, not merely appear somewhere in the step (adversary finding 1).
+
+    def test_a_version_check_after_the_install_or_on_another_command_does_not_guard_it(self):
+        wf = workflow()
+        for job in ("platform", "platform-hosted"):
+            wf["jobs"][job]["steps"][1]["run"] = ('cargo "+$TOOLCHAIN" install cargo-deny --locked --version 0.20.2\n'
+                                                  'cargo "+$TOOLCHAIN" deny --version')
+        self.assertViolation(self.violations(wf), "platform job installs cargo-deny without checking `cargo deny --version` first")
+        for job in ("platform", "platform-hosted"):
+            wf["jobs"][job]["steps"][1]["run"] = ('cargo "+$TOOLCHAIN" deny --version; '
+                                                  'cargo "+$TOOLCHAIN" install cargo-deny --locked --version 0.20.2')
+        self.assertViolation(self.violations(wf), "platform job installs cargo-deny without checking `cargo deny --version` first")
+
+    def test_an_online_install_before_the_offline_try_is_not_guarded(self):
+        found = self.violations(workflow(extra_runs=("uv pip install -r scripts/requirements-ci.txt; "
+                                                     "uv pip install --offline -r scripts/requirements-ci.txt",)))
+        self.assertViolation(found, "platform job installs its Python tools without an offline try first")
+        found = self.violations(workflow(extra_runs=("uv pip install --offline -r scripts/requirements-ci.txt\n"
+                                                     "uv pip install -r scripts/requirements-ci.txt",)))
+        self.assertViolation(found, "platform job installs its Python tools without an offline try first")
+
+    def test_a_toolchain_list_on_another_command_does_not_guard_the_install(self):
+        found = self.violations(workflow(install='rustup toolchain list; ' + BARE_INSTALL))
+        self.assertViolation(found, "platform job installs its toolchain without checking `rustup toolchain list` first")
+        found = self.violations(workflow(install=BARE_INSTALL + '\nrustup toolchain list'))
+        self.assertViolation(found, "platform job installs its toolchain without checking `rustup toolchain list` first")
+
+    def test_the_guards_in_their_two_shapes_pass(self):
+        if_then = ('if ! rustup toolchain list | grep -q "^$TOOLCHAIN" \\\n'
+                   '   || ! rustup component list --installed --toolchain "$TOOLCHAIN" | grep -q clippy; then\n'
+                   '  ' + BARE_INSTALL + '\nfi')
+        self.assertEqual(self.violations(workflow(install=if_then)), [])
+        wf = workflow()
+        for job in ("platform", "platform-hosted"):
+            wf["jobs"][job]["steps"][1]["run"] = ('if [ "$(cargo "+$TOOLCHAIN" deny --version 2>/dev/null)" != "cargo-deny 0.20.2" ]; then\n'
+                                                  '  cargo "+$TOOLCHAIN" install cargo-deny --locked --version 0.20.2\nfi')
+        self.assertEqual(self.violations(wf), [])
+
     def test_the_advisories_tool_installed_without_a_version_check_fails(self):
         wf = workflow()
         wf["jobs"]["advisories"] = advisories(cargo='cargo "+$TOOLCHAIN" install cargo-audit --version 0.22.1 --locked')
