@@ -32,6 +32,11 @@ fn hidden(needle: &'static str) -> FramePredicate {
     Box::new(move |frame: &Snapshot| !frame.text.contains(needle))
 }
 
+/// Types `c`, so that the App paints a frame after the step before it.
+fn typed(c: char) -> Option<Event> {
+    Some(Event::Key(KeyEvent::new(KeyCode::Char(c))))
+}
+
 /// Whether `needle` occurs in the bytes some frame of `frames` wrote.
 fn written(frames: &[Snapshot], needle: &[u8]) -> bool {
     frames.iter().any(|frame| {
@@ -56,7 +61,10 @@ fn clp_001_a_text_inputs_copy_writes_the_selection_as_osc_52() {
         vec![
             (shown("hello"), ctrl('a')),
             (shown("hello"), ctrl('c')),
-            (shown("hello"), None),
+            // The typed character replaces the selection, so the next frame
+            // is one the App painted after the copy.
+            (shown("hello"), typed('!')),
+            (hidden("hello"), None),
         ],
     );
     assert!(
@@ -78,9 +86,10 @@ fn clp_001_a_frame_with_no_copy_carries_no_osc_52() {
         vec![
             (
                 shown("hello"),
-                Some(Event::Key(KeyEvent::new(KeyCode::Left))),
+                Some(Event::Key(KeyEvent::new(KeyCode::End))),
             ),
-            (shown("hello"), None),
+            (shown("hello"), typed('!')),
+            (shown("hello!"), None),
         ],
     );
     assert!(

@@ -44,13 +44,24 @@ pub fn copy_to_terminal(text: &str) {
 }
 
 /// Puts `text` on the clipboard every way this process can: through the
-/// terminal (OSC 52) and, when a local clipboard command is available,
-/// through that command as well. The result is the local command's; a
-/// machine with no such command copies through the terminal alone and
-/// reports no error.
-pub fn copy(text: &str) -> Result<(), String> {
+/// terminal (OSC 52), asked for on this thread, and, when a local clipboard
+/// command is available, through that command as well, run on a thread of
+/// its own so the App's thread never waits for it (a clipboard tool that
+/// hands the text to a daemon can hold its pipes for seconds). A failure of
+/// the command is logged, not returned: the terminal has the text.
+pub fn copy(text: &str) {
     copy_to_terminal(text);
-    crate::hooks::clipboard::local_copy(text, || false)
+    let text = text.to_owned();
+    let spawned = std::thread::Builder::new()
+        .name("reactive-tui clipboard".into())
+        .spawn(move || {
+            if let Err(error) = crate::hooks::clipboard::local_copy(&text, || false) {
+                log::debug!("Local clipboard copy failed: {error}");
+            }
+        });
+    if let Err(error) = spawned {
+        log::debug!("Local clipboard copy could not start: {error}");
+    }
 }
 
 /// The sequences requested since the last take, in order; the App writes

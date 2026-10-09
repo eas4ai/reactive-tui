@@ -764,9 +764,7 @@ impl TextInput {
                 self.clipboard_content = Some(copied.to_string());
                 // The terminal's clipboard and the local command (CLP-001);
                 // this control's own buffer keeps serving its paste.
-                if let Err(error) = crate::clipboard::copy(copied) {
-                    log::debug!("Local clipboard copy failed: {error}");
-                }
+                crate::clipboard::copy(copied);
             }
         }
     }
