@@ -456,7 +456,9 @@ impl Table {
         // The keys mean what the active keymap says (KEY-001); Ctrl+A, the
         // select-all of a multi-select table, is the table's own.
         let event = crate::event::types::KeyEvent::new(key.clone()).with_modifiers(modifiers);
-        let action = crate::keymap::Keymap::active().action(&event);
+        let (action, shifted) = crate::keymap::Keymap::active()
+            .action_shifted(&event)
+            .map_or((None, false), |(action, shifted)| (Some(action), shifted));
         use crate::keymap::Action;
         let target = match action {
             Some(Action::Down) => Some(position.map_or(0, |index| (index + 1) % order.len())),
@@ -516,7 +518,7 @@ impl Table {
             _ => None,
         };
         if let Some(target) = target {
-            self.select_row(props, state, order[target], modifiers.shift);
+            self.select_row(props, state, order[target], shifted);
             EventResult::Consumed
         } else {
             EventResult::Ignored

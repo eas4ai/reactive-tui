@@ -9,7 +9,7 @@ use crate::{
     component::{ElementType, FocusProps, LayoutInfo, LayoutType, LifecycleEvent},
     event::{
         router::EventResult,
-        types::{KeyCode, KeyEventKind, MouseEventKind},
+        types::{KeyEventKind, MouseEventKind},
         Event,
     },
     layout::style::StyleBuilder,
@@ -600,20 +600,28 @@ impl Component for LiveChart {
                 });
                 EventResult::Consumed
             }
-            Event::Key(key)
-                if key.kind != KeyEventKind::Release
-                    && matches!(
-                        key.code,
-                        KeyCode::Left
-                            | KeyCode::Right
-                            | KeyCode::Up
-                            | KeyCode::Down
-                            | KeyCode::Home
-                            | KeyCode::End
-                            | KeyCode::Escape
-                    ) =>
-            {
-                if key.code == KeyCode::Escape {
+            Event::Key(key) if key.kind != KeyEventKind::Release => {
+                // The keys mean what the active keymap says (KEY-001); Shift
+                // is read as a variant of the key and changes nothing here.
+                let action = crate::keymap::Keymap::active()
+                    .action_shifted(key)
+                    .map(|(action, _)| action);
+                use crate::keymap::Action;
+                if !matches!(
+                    action,
+                    Some(
+                        Action::Left
+                            | Action::Right
+                            | Action::Up
+                            | Action::Down
+                            | Action::Home
+                            | Action::End
+                            | Action::Cancel
+                    )
+                ) {
+                    return EventResult::Ignored;
+                }
+                if action == Some(Action::Cancel) {
                     state.hovered_point = None;
                     state.tooltip = None;
                     return EventResult::Consumed;
@@ -622,7 +630,7 @@ impl Component for LiveChart {
                     props.config.chart_type,
                     ChartType::Pie | ChartType::Donut | ChartType::Sankey
                 );
-                if matches!(key.code, KeyCode::Up | KeyCode::Down) {
+                if matches!(action, Some(Action::Up | Action::Down)) {
                     if radial {
                         return EventResult::Ignored;
                     }
@@ -641,7 +649,7 @@ impl Component for LiveChart {
                     }
                     let (series, index) = state.hovered_point.unwrap_or((visible[0], 0));
                     let at = visible.iter().position(|s| *s == series).unwrap_or(0);
-                    let next = if key.code == KeyCode::Down {
+                    let next = if action == Some(Action::Down) {
                         (at + 1).min(visible.len() - 1)
                     } else {
                         at.saturating_sub(1)
@@ -678,10 +686,10 @@ impl Component for LiveChart {
                         .hovered_point
                         .and_then(|hovered| keys.iter().position(|key| *key == hovered));
                     let last = keys.len() - 1;
-                    let at = match key.code {
-                        KeyCode::Home => 0,
-                        KeyCode::End => last,
-                        KeyCode::Left => current.unwrap_or(1).saturating_sub(1),
+                    let at = match action {
+                        Some(Action::Home) => 0,
+                        Some(Action::End) => last,
+                        Some(Action::Left) => current.unwrap_or(1).saturating_sub(1),
                         _ => current.map_or(0, |i| (i + 1).min(last)),
                     };
                     state.hovered_point = Some(keys[at]);
@@ -727,10 +735,10 @@ impl Component for LiveChart {
                 let current = state
                     .hovered_point
                     .and_then(|(_, p)| order.iter().position(|i| *i == p));
-                let at = match key.code {
-                    KeyCode::Home => 0,
-                    KeyCode::End => last,
-                    KeyCode::Left => current.unwrap_or(1).saturating_sub(1),
+                let at = match action {
+                    Some(Action::Home) => 0,
+                    Some(Action::End) => last,
+                    Some(Action::Left) => current.unwrap_or(1).saturating_sub(1),
                     _ => current.map_or(0, |i| (i + 1).min(last)),
                 };
                 let index = order[at];
@@ -1649,5 +1657,49 @@ mod tests {
             "equal bit patterns compare equal across allocations"
         );
         assert!(key != other, "different values differ");
+    }
+
+    /// KEY-001: the chart reads its keys through the active keymap: after
+    /// `rebind(End, [e])`, `e` moves the selection to the last index and End
+    /// no longer does.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_chart_reads_its_keys_through_the_keymap() {
+        use crate::component::Component;
+        use crate::event::types::{KeyCode, KeyEvent};
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut props = LiveProps {
+            config: Arc::new(ChartProps {
+                chart_type: ChartType::Line,
+                series: vec![DataSeries::new(
+                    "s",
+                    (0..5).map(|i| DataPoint::new(i as f64)).collect(),
+                )],
+                animated: false,
+                ..Default::default()
+            }),
+            seed: ChartState::default(),
+        };
+        let mut state = ChartState::default();
+        let mut chart = LiveChart::new(props.clone());
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::End, [KeyBinding::new(KeyCode::Char('e'))]);
+        let _scope = Keymap::scoped(keymap);
+        let old = chart.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::End)),
+            &mut props,
+            &mut state,
+        );
+        let after_old = state.hovered_point;
+        let new = chart.handle_event(
+            &Event::Key(KeyEvent::new(KeyCode::Char('e'))),
+            &mut props,
+            &mut state,
+        );
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(old, EventResult::Ignored, "End is no longer End");
+        assert_eq!(after_old, None);
+        assert_eq!(new, EventResult::Consumed);
+        assert_eq!(state.hovered_point, Some((0, 4)));
     }
 }

@@ -9,6 +9,7 @@
 //! plain character as text, so a binding to a plain character reaches only
 //! widgets that take no text.
 
+use std::cell::RefCell;
 use std::fmt;
 use std::sync::{Arc, OnceLock, RwLock};
 
@@ -375,6 +376,26 @@ fn active_slot() -> &'static RwLock<Arc<Keymap>> {
     ACTIVE.get_or_init(|| RwLock::new(Arc::new(Keymap::default())))
 }
 
+thread_local! {
+    // A keymap scoped to this thread by [`Keymap::scoped`], read before the
+    // process-wide one: an App on a thread of its own, or a test that rebinds
+    // a key, leaves every other thread's keys alone.
+    static SCOPED: RefCell<Vec<Arc<Keymap>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Keeps a keymap active on the current thread until it is dropped
+/// ([`Keymap::scoped`]).
+#[must_use = "the keymap stays active only while the scope lives"]
+pub struct KeymapScope(());
+
+impl Drop for KeymapScope {
+    fn drop(&mut self) {
+        SCOPED.with(|scoped| {
+            scoped.borrow_mut().pop();
+        });
+    }
+}
+
 impl Keymap {
     /// A keymap with no binding at all.
     pub fn empty() -> Self {
@@ -473,9 +494,22 @@ impl Keymap {
             .any(|(a, key)| *a == action && key.matches(event))
     }
 
-    /// The keymap every widget reads.
+    /// The keymap every widget reads: the one scoped to this thread by
+    /// [`Keymap::scoped`] when there is one, else the process-wide one.
     pub fn active() -> Arc<Keymap> {
+        if let Some(scoped) = SCOPED.with(|scoped| scoped.borrow().last().cloned()) {
+            return scoped;
+        }
         Arc::clone(&active_slot().read().unwrap_or_else(|e| e.into_inner()))
+    }
+
+    /// Makes `keymap` the one the widgets on this thread read, until the
+    /// returned scope drops; other threads keep theirs. An App runs its
+    /// widgets on the thread that runs it, so a test that rebinds a key for
+    /// one App leaves the others alone.
+    pub fn scoped(keymap: Keymap) -> KeymapScope {
+        SCOPED.with(|scoped| scoped.borrow_mut().push(Arc::new(keymap)));
+        KeymapScope(())
     }
 
     /// Makes `keymap` the one every widget reads from the next event on;
@@ -679,6 +713,28 @@ mod tests {
         assert_eq!(*Keymap::active(), rebound);
         Keymap::set_active(Keymap::default());
         assert_eq!(*Keymap::active(), Keymap::default());
+    }
+
+    /// KEY-001: a scoped keymap is read on its thread only, and the default
+    /// returns when the scope drops.
+    #[test]
+    fn key_001_a_scoped_keymap_is_read_on_its_thread_and_drops_away() {
+        let mut rebound = Keymap::default();
+        rebound.rebind(Action::Confirm, [KeyBinding::new(KeyCode::F(2))]);
+        {
+            let _scope = Keymap::scoped(rebound.clone());
+            assert_eq!(*Keymap::active(), rebound);
+            let other = std::thread::spawn(|| Keymap::active().action(&press(KeyCode::Enter)));
+            assert_eq!(
+                other.join().unwrap(),
+                Some(Action::Confirm),
+                "another thread keeps the process-wide keymap"
+            );
+        }
+        assert_eq!(
+            Keymap::active().action(&press(KeyCode::Enter)),
+            Some(Action::Confirm)
+        );
     }
 
     /// KEY-002: the text form writes the modifiers in order, then the key's

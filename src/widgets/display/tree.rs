@@ -862,8 +862,13 @@ impl Tree {
             .and_then(|id| state.flat_nodes.iter().position(|n| n.id == id))
             .unwrap_or(0);
 
-        match key {
-            KeyCode::Up => {
+        // The keys mean what the active keymap says (KEY-001); Shift is read
+        // as a variant of the key. `=`, `*` and Ctrl+A are the tree's own.
+        let event = crate::event::types::KeyEvent::new(key.clone()).with_modifiers(modifiers);
+        let action = crate::keymap::Keymap::active().action_shifted(&event);
+        use crate::keymap::Action;
+        match action {
+            Some((Action::Up, shifted)) => {
                 let new_index = if current_index > 0 {
                     current_index - 1
                 } else {
@@ -871,19 +876,19 @@ impl Tree {
                 };
                 let node_id = state.flat_nodes.get(new_index).map(|n| n.id.clone());
                 if let Some(id) = node_id {
-                    self.select_node(props, state, &id, modifiers.shift);
+                    self.select_node(props, state, &id, shifted);
                 }
                 EventResult::Consumed
             }
-            KeyCode::Down => {
+            Some((Action::Down, shifted)) => {
                 let new_index = (current_index + 1) % state.flat_nodes.len();
                 let node_id = state.flat_nodes.get(new_index).map(|n| n.id.clone());
                 if let Some(id) = node_id {
-                    self.select_node(props, state, &id, modifiers.shift);
+                    self.select_node(props, state, &id, shifted);
                 }
                 EventResult::Consumed
             }
-            KeyCode::Left => {
+            Some((Action::Left, _)) => {
                 if let Some(selected_id) = state.selected_nodes.first().cloned() {
                     if state.expanded_nodes.contains(&selected_id) {
                         // Collapse current node
@@ -902,7 +907,7 @@ impl Tree {
                 }
                 EventResult::Consumed
             }
-            KeyCode::Right => {
+            Some((Action::Right, _)) => {
                 if let Some(selected_id) = state.selected_nodes.first().cloned() {
                     let node_info = state
                         .flat_nodes
@@ -932,21 +937,21 @@ impl Tree {
                 }
                 EventResult::Consumed
             }
-            KeyCode::Home => {
+            Some((Action::Home, shifted)) => {
                 let first_id = state.flat_nodes.first().map(|n| n.id.clone());
                 if let Some(id) = first_id {
-                    self.select_node(props, state, &id, modifiers.shift);
+                    self.select_node(props, state, &id, shifted);
                 }
                 EventResult::Consumed
             }
-            KeyCode::End => {
+            Some((Action::End, shifted)) => {
                 let last_id = state.flat_nodes.last().map(|n| n.id.clone());
                 if let Some(id) = last_id {
-                    self.select_node(props, state, &id, modifiers.shift);
+                    self.select_node(props, state, &id, shifted);
                 }
                 EventResult::Consumed
             }
-            KeyCode::Enter => {
+            Some((Action::Confirm, _)) => {
                 if let Some(selected_id) = state.selected_nodes.first().cloned() {
                     let node_expanded = state
                         .flat_nodes
@@ -966,7 +971,7 @@ impl Tree {
                 }
                 EventResult::Consumed
             }
-            KeyCode::Char(' ') => {
+            Some((Action::Activate, _)) => {
                 if let Some(selected_id) = state.selected_nodes.first().cloned() {
                     if props.checkable {
                         self.toggle_check(props, state, &selected_id);
@@ -976,19 +981,26 @@ impl Tree {
                 }
                 EventResult::Consumed
             }
-            KeyCode::Char('+') | KeyCode::Char('=') => {
+            Some((Action::Expand, _)) => {
                 if let Some(selected_id) = state.selected_nodes.first().cloned() {
                     self.toggle_expansion(props, state, &selected_id, true);
                 }
                 EventResult::Consumed
             }
-            KeyCode::Char('-') => {
+            Some((Action::Collapse, _)) => {
                 if let Some(selected_id) = state.selected_nodes.first().cloned() {
                     self.toggle_expansion(props, state, &selected_id, false);
                 }
                 EventResult::Consumed
             }
-            KeyCode::Char('*') => {
+            // `=`, the unshifted `+`, also expands: the tree's own key.
+            _ if key == KeyCode::Char('=') => {
+                if let Some(selected_id) = state.selected_nodes.first().cloned() {
+                    self.toggle_expansion(props, state, &selected_id, true);
+                }
+                EventResult::Consumed
+            }
+            _ if key == KeyCode::Char('*') => {
                 // Expand all at current level
                 if let Some(selected_id) = state.selected_nodes.first().cloned() {
                     let level = state
@@ -1001,7 +1013,7 @@ impl Tree {
                 }
                 EventResult::Consumed
             }
-            KeyCode::Char('a') if modifiers.ctrl => {
+            _ if key == KeyCode::Char('a') && modifiers.ctrl => {
                 if props.multi_select {
                     state.selected_nodes = state.flat_nodes.iter().map(|n| n.id.clone()).collect();
                     if let Some(callback) = state.callbacks.get().on_multi_select {
@@ -1492,6 +1504,41 @@ mod tests {
         let result = tree.handle_event(&focus_event, &mut props, &mut state);
         assert_eq!(result, EventResult::Consumed);
         assert!(state.focused);
+    }
+
+    /// KEY-001: the tree reads its keys through the active keymap: after
+    /// `rebind(Expand, [x])`, `x` expands the selected node and `+` no
+    /// longer does.
+    #[test]
+    #[serial_test::serial(keymap)]
+    fn key_001_tree_reads_its_keys_through_the_keymap() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let tree = Tree;
+        let props = create_test_props();
+        let mut state = TreeState::default();
+        state.flat_nodes = tree.flatten_tree(&props, &state);
+        tree.select_node(&props, &mut state, "folder1", false);
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Expand, [KeyBinding::new(KeyCode::Char('x'))]);
+        let _scope = Keymap::scoped(keymap);
+        let old = tree.handle_key_navigation(
+            KeyCode::Char('+'),
+            KeyModifiers::empty(),
+            &props,
+            &mut state,
+        );
+        let expanded_by_old = state.expanded_nodes.clone();
+        let new = tree.handle_key_navigation(
+            KeyCode::Char('x'),
+            KeyModifiers::empty(),
+            &props,
+            &mut state,
+        );
+        // The scope above restores the default keymap when it drops.
+        assert_eq!(old, EventResult::Ignored, "`+` is no longer Expand");
+        assert!(expanded_by_old.is_empty(), "{expanded_by_old:?}");
+        assert_eq!(new, EventResult::Consumed);
+        assert_eq!(state.expanded_nodes, vec!["folder1".to_string()]);
     }
 
     #[test]
