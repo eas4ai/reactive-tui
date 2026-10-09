@@ -322,7 +322,18 @@ impl crate::component::Component for ConfiguredTextInput {
         self.0.update(&props.widget_props(), state)
     }
     fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
-        self.0.render(&props.widget_props(), state)
+        let mut element = self.0.render(&props.widget_props(), state);
+        // A read-only field takes no SetValue, so it advertises none
+        // (CTL-005).
+        if props.readonly {
+            if let Some(node) = &mut element.metadata.accessibility {
+                node.inner.remove_action(accesskit::Action::SetValue);
+            }
+            if let Some(options) = &mut element.metadata.accessibility_options {
+                options.set_value_event = None;
+            }
+        }
+        element
     }
     fn layout(
         &mut self,
@@ -369,6 +380,9 @@ impl crate::component::Component for ConfiguredTextInput {
                         | KeyCode::BackTab
                 ),
                 Event::Paste(_) => false,
+                Event::Custom(event) => {
+                    event.name != crate::widgets::input::TEXT_INPUT_SET_VALUE_EVENT
+                }
                 _ => true,
             };
             if !allowed {

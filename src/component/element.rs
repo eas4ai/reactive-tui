@@ -15,7 +15,27 @@ pub(crate) struct AccessibilityOptions {
     pub clickable: bool,
     pub focus_event: Option<crate::event::CustomEvent>,
     pub click_event: Option<crate::event::CustomEvent>,
+    /// The events the element takes for the screen reader's requests
+    /// beyond Focus and Click (CTL-005). The App advertises SetValue,
+    /// Increment and Decrement on the element's node for each event set
+    /// here and delivers each such request to the element as its event. A
+    /// SetValue event arrives with the requested value in `data` as UTF-8
+    /// text: a string request as itself, a numeric one as `f64`'s
+    /// `Display` writes it, the shortest decimal that reads back as the
+    /// same number.
+    pub set_value_event: Option<crate::event::CustomEvent>,
+    pub increment_event: Option<crate::event::CustomEvent>,
+    pub decrement_event: Option<crate::event::CustomEvent>,
     pub label: Option<String>,
+}
+
+/// Whether two optional events have the same name and data.
+fn same_event(
+    a: &Option<crate::event::CustomEvent>,
+    b: &Option<crate::event::CustomEvent>,
+) -> bool {
+    a.as_ref().map(|event| (&event.name, &event.data))
+        == b.as_ref().map(|event| (&event.name, &event.data))
 }
 
 impl PartialEq for AccessibilityOptions {
@@ -26,22 +46,11 @@ impl PartialEq for AccessibilityOptions {
             && self.keyboard_only == other.keyboard_only
             && self.screen_reader_only == other.screen_reader_only
             && self.label == other.label
-            && self
-                .click_event
-                .as_ref()
-                .map(|event| (&event.name, &event.data))
-                == other
-                    .click_event
-                    .as_ref()
-                    .map(|event| (&event.name, &event.data))
-            && self
-                .focus_event
-                .as_ref()
-                .map(|event| (&event.name, &event.data))
-                == other
-                    .focus_event
-                    .as_ref()
-                    .map(|event| (&event.name, &event.data))
+            && same_event(&self.click_event, &other.click_event)
+            && same_event(&self.focus_event, &other.focus_event)
+            && same_event(&self.set_value_event, &other.set_value_event)
+            && same_event(&self.increment_event, &other.increment_event)
+            && same_event(&self.decrement_event, &other.decrement_event)
     }
 }
 

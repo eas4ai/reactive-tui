@@ -128,6 +128,10 @@ pub struct App {
     accessibility_snapshot: crate::accessibility::Snapshot,
     #[cfg(target_os = "linux")]
     accessibility_name: String,
+    /// The in-process screen reader the App publishes to and takes
+    /// requests from, beside the AT-SPI connection (CTL-005).
+    #[cfg(target_os = "linux")]
+    reader_channel: Option<crate::accessibility::ReaderChannel>,
     running: bool,
     debug: bool,
     last_frame_time: Instant,
@@ -424,8 +428,18 @@ impl App {
         }
     }
 
+    /// Whether anything reads the accessibility tree: the AT-SPI
+    /// connection or an in-process reader channel.
+    #[cfg(target_os = "linux")]
+    fn reads_accessibility(&self) -> bool {
+        self.accessibility.is_some() || self.reader_channel.is_some()
+    }
+
     #[cfg(target_os = "linux")]
     fn publish_accessibility(&mut self) -> Result<()> {
+        if let Some(channel) = &self.reader_channel {
+            channel.publish(&self.accessibility_snapshot.update);
+        }
         let Some(result) = self
             .accessibility
             .as_mut()
@@ -441,27 +455,21 @@ impl App {
     fn process_accessibility_actions(&mut self) -> Result<bool> {
         use crate::event::{
             types::{MouseButton, MouseEvent, MouseEventKind, Position},
-            Event,
+            CustomEvent, Event,
         };
-        let actions = match self
+        let mut actions = match self
             .accessibility
             .as_ref()
             .map(|connection| connection.actions())
         {
-            Some(result) => match self.resolve_accessibility(result)? {
-                Some(actions) => actions,
-                None => return Ok(false),
-            },
-            None => return Ok(false),
+            Some(result) => self.resolve_accessibility(result)?.unwrap_or_default(),
+            None => Vec::new(),
         };
+        if let Some(channel) = &self.reader_channel {
+            actions.extend(channel.take());
+        }
         let mut dirty = false;
         for action in actions {
-            if !matches!(
-                action.action,
-                accesskit::Action::Focus | accesskit::Action::Click
-            ) {
-                continue;
-            }
             let Some(target) = self
                 .accessibility_snapshot
                 .targets
@@ -470,9 +478,32 @@ impl App {
             else {
                 continue;
             };
-            if action.action == accesskit::Action::Click && !target.clickable {
-                continue;
-            }
+            // A request the target's node does not advertise changes
+            // nothing; a value request reaches the target as its own event,
+            // a SetValue carrying the requested value (CTL-005).
+            let fresh = |event: &CustomEvent, data: Vec<u8>| CustomEvent::new(&event.name, data);
+            let request = match action.action {
+                accesskit::Action::Focus => None,
+                accesskit::Action::Click if target.clickable => None,
+                accesskit::Action::SetValue => {
+                    let (Some(event), Some(value)) = (
+                        target.set_value_event.as_ref(),
+                        requested_value(action.data.as_ref()),
+                    ) else {
+                        continue;
+                    };
+                    Some(fresh(event, value.into_bytes()))
+                }
+                accesskit::Action::Increment => match &target.increment_event {
+                    Some(event) => Some(fresh(event, Vec::new())),
+                    None => continue,
+                },
+                accesskit::Action::Decrement => match &target.decrement_event {
+                    Some(event) => Some(fresh(event, Vec::new())),
+                    None => continue,
+                },
+                _ => continue,
+            };
             let notifications = crate::event::notifications::Dispatch::enter();
             self.router.set_focus(Some(target.owner));
             // Focus traps and disabled/removed nodes remain authoritative.
@@ -497,6 +528,9 @@ impl App {
                     .with_button(MouseButton::Left);
                     self.router.route_event(&Event::Mouse(event), target.node);
                 }
+            }
+            if let Some(event) = request {
+                self.router.route_event(&Event::Custom(event), target.node);
             }
             for notification in notifications.take() {
                 self.root.try_handle_event(&Event::Custom(notification))?;
@@ -760,7 +794,7 @@ impl App {
                 );
                 self.focus_manager.apply(&mut self.router, focus);
                 #[cfg(target_os = "linux")]
-                if self.accessibility.is_some() {
+                if self.reads_accessibility() {
                     self.accessibility_snapshot = self.event_tree.accessibility_snapshot(
                         &state_styled,
                         geometry,
@@ -931,6 +965,8 @@ pub struct AppBuilder {
     scheduler: Option<Arc<Scheduler>>,
     accessibility: Option<bool>,
     accessibility_name: String,
+    #[cfg(target_os = "linux")]
+    reader_channel: Option<crate::accessibility::ReaderChannel>,
     quit_key: Option<(
         crate::event::types::KeyCode,
         crate::event::types::KeyModifiers,
@@ -948,8 +984,23 @@ impl Default for AppBuilder {
             scheduler: None,
             accessibility: None,
             accessibility_name: "Reactive TUI".into(),
+            #[cfg(target_os = "linux")]
+            reader_channel: None,
             quit_key: None,
         }
+    }
+}
+
+/// The value a screen reader's SetValue request carries, as the App hands
+/// it to the control in its event's data (CTL-005): a string as itself, a
+/// number as `f64`'s `Display` writes it, the shortest decimal that reads
+/// back as the same number. A request with no value carries none.
+#[cfg(target_os = "linux")]
+fn requested_value(data: Option<&accesskit::ActionData>) -> Option<String> {
+    match data? {
+        accesskit::ActionData::Value(value) => Some(value.to_string()),
+        accesskit::ActionData::NumericValue(value) => Some(value.to_string()),
+        _ => None,
     }
 }
 
@@ -992,6 +1043,16 @@ impl AppBuilder {
     /// Name of this App in the screen reader's accessible window list.
     pub fn accessibility_name(mut self, name: impl Into<String>) -> Self {
         self.accessibility_name = name.into();
+        self
+    }
+
+    /// Publish the accessibility tree to `channel` and take its requests
+    /// as a screen reader's, beside the AT-SPI connection or without it:
+    /// an in-process screen reader, as tests use (CTL-005). Linux only, as
+    /// the screen-reader integration is.
+    #[cfg(target_os = "linux")]
+    pub fn screen_reader_channel(mut self, channel: crate::accessibility::ReaderChannel) -> Self {
+        self.reader_channel = Some(channel);
         self
     }
 
@@ -1076,6 +1137,10 @@ impl AppBuilder {
             &self.accessibility_name,
             wake.clone(),
         )?;
+        #[cfg(target_os = "linux")]
+        if let Some(channel) = &self.reader_channel {
+            channel.attach(wake.clone());
+        }
         Ok(App {
             backend,
             root,
@@ -1106,6 +1171,8 @@ impl AppBuilder {
             accessibility_snapshot: crate::accessibility::Snapshot::empty(&self.accessibility_name),
             #[cfg(target_os = "linux")]
             accessibility_name: self.accessibility_name,
+            #[cfg(target_os = "linux")]
+            reader_channel: self.reader_channel,
             running: false,
             debug: self.debug,
             last_frame_time: Instant::now(),

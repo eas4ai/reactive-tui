@@ -1,5 +1,5 @@
 use reactive_tui::{
-    app::{App, AppWaker, RootComponent},
+    app::{App, AppBuilder, AppWaker, RootComponent},
     backend::{Backend, DebugBackend, PaintedNode, SuprTuiBackend},
     component::{Element, ElementType},
     core::surface::Attr,
@@ -92,7 +92,15 @@ struct Step {
     idle: bool,
     /// Wait until the latest frame satisfies this.
     when: Option<FramePredicate>,
+    /// Sent in place of `event` once the step's frame comes: a screen
+    /// reader's request, queued on the App's reader channel. The run goes
+    /// on after it, as after an event.
+    request: Option<Request>,
 }
+
+/// A screen reader's request a step sends: it queues the request on the
+/// App's reader channel when called.
+type Request = Box<dyn FnOnce() + Send + Sync>;
 
 /// How many times in a row the App must ask for input without presenting a
 /// frame before it counts as idle. It presents what changed before it asks
@@ -351,7 +359,13 @@ impl Backend for InputBackend {
             *self.wait_returned.lock().unwrap() = Some(Instant::now());
             return Ok(None);
         }
+        let mut requested = false;
         let event = self.events.pop_front().and_then(|step| {
+            if let Some(request) = step.request {
+                request();
+                requested = true;
+                return None;
+            }
             if let Some((text, offset, wheel)) = step.pointer_text {
                 let snapshots = self.snapshots.lock().unwrap();
                 let screen = &snapshots.last().unwrap().screen;
@@ -389,7 +403,7 @@ impl Backend for InputBackend {
             }
             step.event
         });
-        if event.is_none() {
+        if event.is_none() && !requested {
             wake.request_stop();
         }
         *self.wait_returned.lock().unwrap() = Some(Instant::now());
@@ -429,11 +443,120 @@ pub fn run_when_frame(
                 painted: false,
                 idle: false,
                 when: Some(when),
+                request: None,
             })
             .collect(),
         None,
         HANG_GUARD,
     )
+}
+
+/// A screen reader's request in a `run_when_frame_reading` step: `action`,
+/// with `data`, on the first node of the App's latest published tree whose
+/// role is `role` and, when `label` is given, whose label it is.
+#[cfg(target_os = "linux")]
+#[allow(dead_code)]
+pub struct ReaderRequest {
+    pub role: reactive_tui::accessibility::Role,
+    pub label: Option<&'static str>,
+    pub action: accesskit::Action,
+    pub data: Option<accesskit::ActionData>,
+}
+
+/// What a `run_when_frame_reading` step sends once its frame comes.
+#[cfg(target_os = "linux")]
+#[allow(dead_code)]
+pub enum Input {
+    /// An input event, as `run_when_frame` sends.
+    Event(Event),
+    /// A screen reader's request, through the reader channel.
+    Request(ReaderRequest),
+}
+
+/// `run_when_frame` with an in-process screen reader: the App publishes its
+/// accessibility tree to `reader`, and a step's request is queued on it
+/// for the App, as a screen reader's action over AT-SPI is. A request names
+/// its node by role and label in the latest published tree; a step with no
+/// input stops the App, as in `run_when_frame`.
+#[cfg(target_os = "linux")]
+#[allow(dead_code)]
+pub fn run_when_frame_reading(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    reader: &reactive_tui::accessibility::ReaderChannel,
+    steps: Vec<(FramePredicate, Option<Input>)>,
+) -> Vec<Snapshot> {
+    let steps = steps
+        .into_iter()
+        .map(|(when, input)| {
+            let (event, request) = match input {
+                Some(Input::Event(event)) => (Some(event), None),
+                Some(Input::Request(request)) => {
+                    let reader = reader.clone();
+                    let send: Request = Box::new(move || send_request(&reader, request));
+                    (None, Some(send))
+                }
+                None => (None, None),
+            };
+            Step {
+                frame: 1,
+                text: Vec::new(),
+                absent: Vec::new(),
+                occurrences: 1,
+                event,
+                pointer_text: None,
+                cell: None,
+                output: None,
+                painted: false,
+                idle: false,
+                when: Some(when),
+                request,
+            }
+        })
+        .collect();
+    let channel = reader.clone();
+    run_steps_built(
+        root,
+        size,
+        steps,
+        Target::SuprTui(None),
+        HANG_GUARD,
+        move |app| app.screen_reader_channel(channel),
+    )
+}
+
+/// Queue `request` on `reader`, aimed at its node in the latest published
+/// tree.
+#[cfg(target_os = "linux")]
+fn send_request(reader: &reactive_tui::accessibility::ReaderChannel, request: ReaderRequest) {
+    let tree = reader
+        .tree()
+        .expect("the App published no accessibility tree before the request");
+    let node = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.role() == request.role
+                && request
+                    .label
+                    .is_none_or(|label| node.label() == Some(label))
+        })
+        .map(|(id, _)| *id)
+        .unwrap_or_else(|| {
+            panic!(
+                "no {:?} node named {:?} in the published tree",
+                request.role, request.label
+            )
+        });
+    assert!(
+        reader.request(accesskit::ActionRequest {
+            action: request.action,
+            target_tree: accesskit::TreeId::ROOT,
+            target_node: node,
+            data: request.data,
+        }),
+        "the reader channel is full"
+    );
 }
 
 /// How long an App run may take to reach every step before it fails instead
@@ -466,6 +589,7 @@ pub fn run(
                 painted: false,
                 idle: false,
                 when: None,
+                request: None,
             })
             .collect(),
     )
@@ -495,6 +619,7 @@ pub fn run_when_painted(
             painted: true,
             idle: false,
             when: None,
+            request: None,
         }]),
     )
 }
@@ -533,6 +658,7 @@ pub fn run_when_for(
                 painted: false,
                 idle: false,
                 when: None,
+                request: None,
             })
             .collect(),
         None,
@@ -563,6 +689,7 @@ pub fn run_when_all(
                 painted: false,
                 idle: false,
                 when: None,
+                request: None,
             })
             .collect(),
     )
@@ -590,6 +717,7 @@ pub fn run_until_hidden(
             painted: false,
             idle: false,
             when: None,
+            request: None,
         })
         .collect();
     steps.push_back(Step {
@@ -604,6 +732,7 @@ pub fn run_until_hidden(
         painted: false,
         idle: false,
         when: None,
+        request: None,
     });
     run_steps(root, size, steps)
 }
@@ -648,6 +777,7 @@ pub fn run_actions_until_hidden(
                 painted: false,
                 idle,
                 when: None,
+                request: None,
             }
         })
         .collect();
@@ -663,6 +793,7 @@ pub fn run_actions_until_hidden(
         painted: false,
         idle: false,
         when: None,
+        request: None,
     });
     run_steps(root, size, steps)
 }
@@ -691,6 +822,7 @@ pub fn run_visibility(
                 painted: false,
                 idle: false,
                 when: None,
+                request: None,
             })
             .collect(),
     )
@@ -719,6 +851,7 @@ pub fn run_when_seen(
             painted: false,
             idle: false,
             when: None,
+            request: None,
         }]),
     )
 }
@@ -754,6 +887,7 @@ pub fn run_when_cell(
                 painted: false,
                 idle: false,
                 when: None,
+                request: None,
             })
             .collect(),
     )
@@ -785,6 +919,7 @@ fn until(steps: Vec<Until>) -> VecDeque<Step> {
             painted: false,
             idle: true,
             when: None,
+            request: None,
         })
         .collect()
 }
@@ -847,6 +982,7 @@ pub fn run_on_debug(
                 painted: false,
                 idle: false,
                 when: None,
+                request: None,
             })
             .collect(),
         Target::Debug,
@@ -876,6 +1012,7 @@ pub fn run_when_painted_on_debug(
             painted: true,
             idle: false,
             when: None,
+            request: None,
         }]),
         Target::Debug,
         HANG_GUARD,
@@ -912,6 +1049,7 @@ pub fn run_when_output(
                 painted: false,
                 idle: false,
                 when: None,
+                request: None,
             })
             .collect(),
         Some(images),
@@ -934,6 +1072,19 @@ fn run_steps_on(
     steps: VecDeque<Step>,
     target: Target,
     timeout: Duration,
+) -> Vec<Snapshot> {
+    run_steps_built(root, size, steps, target, timeout, |app| app)
+}
+
+/// `run_steps_on` with `build` given the App's builder before the App is
+/// built, as for a screen reader's channel.
+fn run_steps_built(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: VecDeque<Step>,
+    target: Target,
+    timeout: Duration,
+    build: impl FnOnce(AppBuilder) -> AppBuilder,
 ) -> Vec<Snapshot> {
     let capture = Capture::default();
     let snapshots = Arc::new(Mutex::new(Vec::new()));
@@ -962,9 +1113,7 @@ fn run_steps_on(
         quiet_polls: 0,
         last_frame_at: Instant::now(),
     };
-    App::builder()
-        .backend(backend)
-        .root(root)
+    build(App::builder().backend(backend).root(root))
         .build()
         .unwrap()
         .run()
