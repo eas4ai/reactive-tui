@@ -91,8 +91,14 @@ pub(crate) fn render(props: &StatusBarProps, width: usize) -> Element {
 /// The text of a status bar of `width` cells: the three regions laid on one row,
 /// the center in the middle, cut when they do not fit. The order of the cuts is
 /// center, then right, then left. A cut region ends in `…` on the cut side: the
-/// center and the left on the right, the right on the left.
+/// center and the left on the right, the right on the left. The right region keeps
+/// at least its last cell and the left region its first, down to two cells (DIS-002);
+/// when the left region alone leaves no room, the right keeps one cell and the left
+/// takes the rest.
 pub fn fit(left: &str, center: &str, right: &str, width: usize) -> String {
+    if width == 0 {
+        return String::new();
+    }
     let mut left = left.to_string();
     let mut center = center.to_string();
     let mut right = right.to_string();
@@ -103,11 +109,15 @@ pub fn fit(left: &str, center: &str, right: &str, width: usize) -> String {
     }
     if lw + rw > width {
         center.clear();
-        if cells(&right) > width.saturating_sub(lw) {
-            right = cut_start(&right, width.saturating_sub(lw));
+        // The right region gets what the full left region leaves, but at least one
+        // cell so its last cell stays on the row.
+        let right_budget = width.saturating_sub(lw).max(1).min(rw);
+        if rw > right_budget {
+            right = cut_start(&right, right_budget);
         }
-        if cells(&left) + cells(&right) > width {
-            left = cut_end(&left, width.saturating_sub(cells(&right)));
+        let left_budget = width.saturating_sub(cells(&right));
+        if lw > left_budget {
+            left = cut_end(&left, left_budget);
         }
     }
     let (lw, cw, rw) = (cells(&left), cells(&center), cells(&right));
@@ -134,6 +144,9 @@ fn cut_end(text: &str, budget: usize) -> String {
     if budget == 0 {
         return String::new();
     }
+    if budget == 1 {
+        return lone_cell(text.chars().next());
+    }
     let mut out = String::new();
     let mut used = 0;
     for ch in text.chars() {
@@ -156,6 +169,9 @@ fn cut_start(text: &str, budget: usize) -> String {
     if budget == 0 {
         return String::new();
     }
+    if budget == 1 {
+        return lone_cell(text.chars().last());
+    }
     let mut kept: Vec<char> = Vec::new();
     let mut used = 0;
     for ch in text.chars().rev() {
@@ -169,6 +185,15 @@ fn cut_start(text: &str, budget: usize) -> String {
     let mut out = String::from('…');
     out.extend(kept.into_iter().rev());
     out
+}
+
+/// The one cell a region keeps when it gets one cell: its end glyph, or `…` when
+/// that glyph is not one cell wide.
+fn lone_cell(ch: Option<char>) -> String {
+    match ch {
+        Some(ch) if ch.width() == Some(1) => ch.to_string(),
+        _ => "…".to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -189,6 +214,39 @@ mod tests {
         assert!(text.ends_with('R'), "the right region keeps its last cell");
         assert!(text.contains('…'), "the cut shows an ellipsis");
         assert!(!text.contains('C'), "the center goes first");
+    }
+
+    #[test]
+    fn dis_002_status_bar_keeps_both_ends_at_width_40() {
+        let text = fit(&"L".repeat(60), &"C".repeat(60), &"R".repeat(60), 40);
+        assert_eq!(cells(&text), 40, "the bar fills its width");
+        assert!(
+            text.starts_with('L'),
+            "the left region keeps its first cell"
+        );
+        assert!(text.ends_with('R'), "the right region keeps its last cell");
+        assert!(text.contains('…'), "the cut shows an ellipsis");
+        assert!(!text.contains('C'), "the center goes first");
+    }
+
+    #[test]
+    fn dis_002_status_bar_keeps_both_ends_at_width_10() {
+        let text = fit(&"L".repeat(60), &"C".repeat(60), &"R".repeat(60), 10);
+        assert_eq!(cells(&text), 10, "the bar fills its width");
+        assert!(
+            text.starts_with('L'),
+            "the left region keeps its first cell"
+        );
+        assert!(text.ends_with('R'), "the right region keeps its last cell");
+        assert!(text.contains('…'), "the cut shows an ellipsis");
+    }
+
+    #[test]
+    fn dis_002_status_bar_at_width_2_is_its_left_cell_then_its_right_cell() {
+        assert_eq!(
+            fit(&"L".repeat(60), &"C".repeat(60), &"R".repeat(60), 2),
+            "LR"
+        );
     }
 
     #[test]

@@ -18,12 +18,13 @@ pub fn kbd(text: impl Into<String>) -> KbdBuilder {
         props: KbdProps {
             text: text.into(),
             classes: Vec::new(),
+            action: None,
         },
     }
 }
 
 /// Create a key hint for an action: the active keymap's first binding for it, read
-/// when the hint is built.
+/// at each render, so a rebind shows at the next render (DIS-003).
 pub fn kbd_action(action: Action) -> KbdBuilder {
     KbdBuilder {
         props: KbdProps::for_action(action),

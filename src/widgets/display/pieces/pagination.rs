@@ -5,7 +5,7 @@
 //! step one page; a click or Confirm chooses a page and reports it. An
 //! ellipsis opens a menu of the pages it hides.
 
-use std::{any::Any, sync::Arc};
+use std::{any::Any, ops::Range, sync::Arc};
 
 use crate::accessibility::{AriaCurrent, Node, Role};
 use crate::builder::core::{div, span};
@@ -28,8 +28,10 @@ pub(crate) enum Entry {
     /// A page, 1-based.
     Page(usize),
     /// An ellipsis for the pages it hides. `trailing` is true when the run
-    /// comes after the current page, false when it comes before.
-    Hidden { trailing: bool, pages: Vec<usize> },
+    /// comes after the current page, false when it comes before. The pages
+    /// stay a range, so a bar of millions of pages builds no list of the
+    /// hidden ones until their menu opens (DIS-003).
+    Hidden { trailing: bool, pages: Range<usize> },
 }
 
 /// Where the keyboard stands on the bar: on the current page, or on the
@@ -61,14 +63,14 @@ pub(crate) fn entries(pages: usize, current: usize, visible: usize) -> Vec<Entry
     if start > 2 {
         out.push(Entry::Hidden {
             trailing: false,
-            pages: (2..start).collect(),
+            pages: 2..start,
         });
     }
     out.extend((start..=end).map(Entry::Page));
     if end < pages - 1 {
         out.push(Entry::Hidden {
             trailing: true,
-            pages: (end + 1..pages).collect(),
+            pages: end + 1..pages,
         });
     }
     out.push(Entry::Page(pages));
@@ -406,10 +408,7 @@ impl Pagination {
                     .build()
                     .with_focus(not_focusable())];
                 if open {
-                    let items = pages
-                        .iter()
-                        .map(|number| MenuItem::new(number.to_string(), format!("Page {number}")))
-                        .collect();
+                    let items = hidden_menu_items(pages.clone());
                     let page_signal = self.page.clone();
                     let menu = self.menu.clone();
                     let on_change = props.on_change.clone();
@@ -442,6 +441,13 @@ impl Pagination {
     }
 }
 
+/// The menu items of a run of hidden pages, built when its menu opens.
+fn hidden_menu_items(pages: Range<usize>) -> Vec<MenuItem> {
+    pages
+        .map(|number| MenuItem::new(number.to_string(), format!("Page {number}")))
+        .collect()
+}
+
 /// A one-cell gap between two items of the bar.
 fn gap() -> Element {
     span().text(" ").build()
@@ -459,6 +465,7 @@ fn not_focusable() -> FocusProps {
 mod tests {
     use super::*;
     use crate::accessibility::Role;
+    use std::time::{Duration, Instant};
 
     fn text_of(entries: &[Entry]) -> String {
         entries
@@ -494,7 +501,7 @@ mod tests {
             hidden[1],
             Entry::Hidden {
                 trailing: false,
-                pages: vec![2, 3],
+                pages: 2..4,
             }
         );
         assert_eq!(hidden[3], Entry::Page(5));
@@ -502,9 +509,36 @@ mod tests {
             hidden[5],
             Entry::Hidden {
                 trailing: true,
-                pages: (7..20).collect(),
+                pages: 7..20,
             }
         );
+    }
+
+    #[test]
+    fn dis_003_ten_million_pages_build_a_handful_of_entries_at_once() {
+        let started = Instant::now();
+        let bar = entries(10_000_000, 5, 5);
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "the bar took {:?} to build",
+            started.elapsed()
+        );
+        assert_eq!(text_of(&bar), "1 … 4 5 6 … 10000000");
+        assert_eq!(
+            bar[5],
+            Entry::Hidden {
+                trailing: true,
+                pages: 7..10_000_000,
+            }
+        );
+    }
+
+    #[test]
+    fn dis_003_the_popup_of_a_small_run_lists_exactly_its_pages() {
+        let items = hidden_menu_items(2..4);
+        let ids: Vec<&str> = items.iter().map(|item| item.id.as_str()).collect();
+        assert_eq!(ids, ["2", "3"]);
+        assert_eq!(items[0].text, "Page 2");
     }
 
     #[test]

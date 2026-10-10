@@ -545,6 +545,42 @@ fn dis_002_a_status_bar_that_overflows_cuts_its_center_then_its_right() {
     );
 }
 
+/// DIS-002: a status bar of 40 cells whose three regions are 60 cells each still
+/// keeps its left region's first cell and its right region's last cell.
+#[test]
+fn dis_002_a_status_bar_of_40_cells_keeps_its_first_and_last_cell() {
+    let frame = shown(
+        boxed(
+            40,
+            3,
+            status_bar()
+                .left("L".repeat(60))
+                .center("C".repeat(60))
+                .right("R".repeat(60))
+                .build(),
+        ),
+        (240, 60),
+        "LLLL",
+    );
+    let row = row_cells(&frame, row_with(&frame, "L"));
+    let text: String = row[..40].concat();
+    assert!(
+        text.starts_with('L'),
+        "DIS-002: the left region keeps its first cell at 40 cells:\n{}",
+        frame.text
+    );
+    assert!(
+        text.ends_with('R'),
+        "DIS-002: the right region keeps its last cell at 40 cells:\n{}",
+        frame.text
+    );
+    assert!(
+        text.contains('…'),
+        "DIS-002: the overflowing bar paints an ellipsis at 40 cells:\n{}",
+        frame.text
+    );
+}
+
 /// DIS-003: a badge hides at a count of zero, shows `99+` above 99 and a dot
 /// badge shows `●`.
 #[test]
@@ -582,28 +618,73 @@ fn dis_003_a_badge_hides_at_zero_caps_at_99_and_shows_a_dot() {
     );
 }
 
-/// DIS-003: a key hint for Copy shows `Ctrl+C` under the default keymap and
-/// `F3` once Copy is rebound to F3 in a scoped keymap.
+/// A root that rebinds Copy to F3 when it is sent F9, and that the App renders again
+/// when it is sent F8. The App presents no frame for a key it ignores, so F9 only
+/// rebinds; F8 is handled by the root, so the App presents the frame after it.
+struct Rebind(Element);
+impl RootComponent for Rebind {
+    fn render(&self) -> Element {
+        self.0.clone()
+    }
+    fn wake_driven(&self) -> bool {
+        true
+    }
+    fn try_handle_event(
+        &mut self,
+        event: &reactive_tui::event::types::Event,
+    ) -> reactive_tui::error::Result<reactive_tui::event::router::EventResult> {
+        use reactive_tui::event::{router::EventResult, types::Event};
+        Ok(match event {
+            Event::Key(key) if key.code == KeyCode::F(9) => {
+                let mut keymap = Keymap::default();
+                keymap.rebind(Action::Copy, [KeyBinding::new(KeyCode::F(3))]);
+                Keymap::set_active(keymap);
+                EventResult::Ignored
+            }
+            Event::Key(key) if key.code == KeyCode::F(8) => EventResult::Handled,
+            _ => EventResult::Ignored,
+        })
+    }
+}
+
+/// Restores the default keymap when it drops, also when the test fails.
+struct DefaultKeymap;
+impl Drop for DefaultKeymap {
+    fn drop(&mut self) {
+        Keymap::set_active(Keymap::default());
+    }
+}
+
+/// DIS-003: a key hint built from Copy shows `Ctrl+C` under the default keymap, and
+/// one built once shows `F3` at the next render after Copy is rebound to F3 while
+/// the App runs.
 #[test]
+#[serial_test::serial(keymap)]
 fn dis_003_a_key_hint_for_an_action_follows_the_keymap() {
-    let default_hint = shown(
-        boxed(40, 1, kbd_action(Action::Copy).build()),
+    let _restore = DefaultKeymap;
+    let frames = app_input::run_until(
+        Rebind(page(boxed(40, 1, kbd_action(Action::Copy).build()))),
         (80, 12),
-        "Ctrl+C",
+        vec![
+            Until {
+                text: "Ctrl+C",
+                cell: None,
+                event: app_input::key(KeyCode::F(9)),
+            },
+            Until {
+                text: "Ctrl+C",
+                cell: None,
+                event: app_input::key(KeyCode::F(8)),
+            },
+            Until {
+                text: "F3",
+                cell: None,
+                event: None,
+            },
+        ],
+        WAIT,
     );
-    assert!(
-        default_hint.text.contains("Ctrl+C"),
-        "DIS-003: Copy shows Ctrl+C under the default keymap:\n{}",
-        default_hint.text
-    );
-    let mut keymap = Keymap::default();
-    keymap.rebind(Action::Copy, [KeyBinding::new(KeyCode::F(3))]);
-    let _scope = Keymap::scoped(keymap);
-    let rebound = shown(
-        boxed(40, 1, kbd_action(Action::Copy).build()),
-        (80, 12),
-        "F3",
-    );
+    let rebound = last(&frames);
     assert!(
         rebound.text.contains("F3") && !rebound.text.contains("Ctrl+C"),
         "DIS-003: a rebind of Copy to F3 shows F3 at the next render:\n{}",
@@ -923,6 +1004,65 @@ fn dis_003_a_shimmer_stays_plain_under_reduced_motion() {
             .count(),
         "DIS-003: a shimmer under reduced motion does not paint its text plain"
     );
+}
+
+/// DIS-002, DIS-003: a shimmer whose text holds a combining accent and a
+/// two-cell emoji keeps every cluster whole and the same width on every
+/// frame of a sweep, so no cell is lost and nothing widens while it moves.
+#[test]
+#[serial_test::serial(theme)]
+fn dis_003_a_shimmer_keeps_every_cluster_whole_across_a_sweep() {
+    let text = "Cafe\u{301} \u{1F44D}\u{1F3FD} ready";
+    // The row the static shimmer paints is what every frame of the sweep
+    // must match: the same cells, the same width.
+    let still = shown(
+        builder::shimmer(text).animated(false).build(),
+        (80, 24),
+        "ready",
+    );
+    let expected = still
+        .text
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .trim_end()
+        .to_owned();
+    // The first frame that paints the shimmer's row, then 40 frames: about
+    // four seconds of ticks, two full sweeps of the band.
+    let rows = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = rows.clone();
+    let on_frame: FramePredicate = Box::new(move |s| {
+        let row = s
+            .text
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .trim_end()
+            .to_owned();
+        if row.is_empty() {
+            return false;
+        }
+        let mut seen = seen.lock().unwrap();
+        seen.push(row);
+        seen.len() >= 40
+    });
+    app_input::run_when_frame(
+        Control(page(builder::shimmer(text).build())),
+        (80, 24),
+        vec![(on_frame, None)],
+    );
+    let rows = rows.lock().unwrap();
+    assert!(
+        rows.len() >= 40,
+        "the shimmer painted {} frames",
+        rows.len()
+    );
+    for (index, row) in rows.iter().enumerate() {
+        assert_eq!(
+            row, &expected,
+            "DIS-003: frame {index} of the sweep lost or split a cluster of the shimmer's text"
+        );
+    }
 }
 
 /// DIS-003: a skeleton pulses between `border` and `surface`.
