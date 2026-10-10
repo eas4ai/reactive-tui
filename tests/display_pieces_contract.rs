@@ -1006,6 +1006,65 @@ fn dis_003_a_shimmer_stays_plain_under_reduced_motion() {
     );
 }
 
+/// DIS-002, DIS-003: a shimmer whose text holds a combining accent and a
+/// two-cell emoji keeps every cluster whole and the same width on every
+/// frame of a sweep, so no cell is lost and nothing widens while it moves.
+#[test]
+#[serial_test::serial(theme)]
+fn dis_003_a_shimmer_keeps_every_cluster_whole_across_a_sweep() {
+    let text = "Cafe\u{301} \u{1F44D}\u{1F3FD} ready";
+    // The row the static shimmer paints is what every frame of the sweep
+    // must match: the same cells, the same width.
+    let still = shown(
+        builder::shimmer(text).animated(false).build(),
+        (80, 24),
+        "ready",
+    );
+    let expected = still
+        .text
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .trim_end()
+        .to_owned();
+    // The first frame that paints the shimmer's row, then 40 frames: about
+    // four seconds of ticks, two full sweeps of the band.
+    let rows = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = rows.clone();
+    let on_frame: FramePredicate = Box::new(move |s| {
+        let row = s
+            .text
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .trim_end()
+            .to_owned();
+        if row.is_empty() {
+            return false;
+        }
+        let mut seen = seen.lock().unwrap();
+        seen.push(row);
+        seen.len() >= 40
+    });
+    app_input::run_when_frame(
+        Control(page(builder::shimmer(text).build())),
+        (80, 24),
+        vec![(on_frame, None)],
+    );
+    let rows = rows.lock().unwrap();
+    assert!(
+        rows.len() >= 40,
+        "the shimmer painted {} frames",
+        rows.len()
+    );
+    for (index, row) in rows.iter().enumerate() {
+        assert_eq!(
+            row, &expected,
+            "DIS-003: frame {index} of the sweep lost or split a cluster of the shimmer's text"
+        );
+    }
+}
+
 /// DIS-003: a skeleton pulses between `border` and `surface`.
 #[test]
 #[serial_test::serial(theme)]
