@@ -442,6 +442,7 @@ fn tabs_builder_close_removes_panels_without_a_parent_callback() {
 fn tabs_badge_icon_tooltip_and_variants_reach_frames() {
     use reactive_tui::{
         event::types::{Event, MouseEvent, MouseEventKind, Position},
+        widgets::display::pieces::icon::Icon,
         widgets::layout::{TabBadge, TabBadgeVariant, TabSize, TabVariant},
     };
     for size in [(32, 8), (60, 14)] {
@@ -469,7 +470,9 @@ fn tabs_badge_icon_tooltip_and_variants_reach_frames() {
                 let initial = run(Control(make()), size, vec![(1, None)]);
                 let (x, y) = cell_of(&initial[0].text, "Title");
                 assert!(initial[0].text.contains("界"));
-                assert!(initial[0].text.contains("✗5"));
+                // The badge mark is the catalog's Error glyph (`×` on Unicode terminals).
+                let badge = format!("{}5", Icon::Error.glyph());
+                assert!(initial[0].text.contains(&badge), "{}", initial[0].text);
                 let hover = Some(Event::Mouse(MouseEvent::new(
                     MouseEventKind::Move,
                     Position::cell(x, y),

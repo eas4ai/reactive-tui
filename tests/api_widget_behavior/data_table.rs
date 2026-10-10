@@ -377,15 +377,34 @@ fn data_table_query_and_page_changes_reset_the_visible_row_window() {
         props.pagination.enabled = true;
         props.show_pagination = true;
         props.virtual_scroll.scroll_offset = 0;
-        let mut wheel = MouseEvent::new(MouseEventKind::Wheel, Position::cell(2, 2));
-        wheel.wheel = Some(WheelEvent {
-            delta: WheelDelta::Lines { x: 0.0, y: 3.0 },
-            phase: WheelPhase::Changed,
-        });
+        let wheel = || {
+            let mut wheel = MouseEvent::new(MouseEventKind::Wheel, Position::cell(2, 2));
+            wheel.wheel = Some(WheelEvent {
+                delta: WheelDelta::Lines { x: 0.0, y: 3.0 },
+                phase: WheelPhase::Changed,
+            });
+            Some(Event::Mouse(wheel))
+        };
+        // The page row is the pagination bar (`‹ 1 2 3 ›`): find page 2 in it.
+        let before = run(
+            Control(Element::typed::<DataTable>(props.clone())),
+            size,
+            vec![(2, wheel()), (3, None)],
+        );
+        let text = &before.last().unwrap().text;
+        let (y, bar) = text
+            .lines()
+            .enumerate()
+            .find(|(_, line)| line.contains('‹'))
+            .expect("the pagination bar is painted");
+        let x = bar
+            .chars()
+            .position(|c| c == '2')
+            .expect("page 2 is painted");
         let frames = run(
             Control(Element::typed::<DataTable>(props)),
             size,
-            vec![(2, Some(Event::Mouse(wheel))), (3, click(6, 4)), (4, None)],
+            vec![(2, wheel()), (3, click(x as u16, y as u16)), (4, None)],
         );
         assert!(
             frames.last().unwrap().text.contains("Row05"),
@@ -649,7 +668,12 @@ fn data_table_replaces_filters_from_new_props_and_keeps_disabled_controls_inert(
             vec![(2, click(6, 1)), (2, key(KeyCode::End)), (2, None)],
         );
         assert!(pages.lock().unwrap().is_empty());
-        assert!(frames.last().unwrap().text.contains("(0)"));
+        // With no rows the pagination bar still paints its one page.
+        assert!(
+            frames.last().unwrap().text.contains("‹ 1 ›"),
+            "{}",
+            frames.last().unwrap().text
+        );
     }
 }
 

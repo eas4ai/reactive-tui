@@ -1186,7 +1186,11 @@ fn menu_separators_paint_distinct_rules_and_keep_navigation_on_items() {
             ],
             "END",
         );
-        for glyph in ["─", "━", "═", "╌", "·"] {
+        // The separator table's rules: each one is painted, and none repeats another.
+        let rules = ["─", "━", "═", "╌", "┄"];
+        let distinct = rules.iter().collect::<std::collections::HashSet<_>>();
+        assert_eq!(distinct.len(), rules.len());
+        for glyph in rules {
             assert!(
                 frames.iter().any(|frame| frame.text.contains(glyph)),
                 "missing {glyph}"
