@@ -1168,7 +1168,7 @@ impl Look {
                     size: Extent::CellWidth {
                         times: 1.0 / 72.0_f32.to_radians().sin(),
                     },
-                    fill: lit.then(|| "error".to_owned()),
+                    fill: lit.then(|| "warning".to_owned()),
                     border: (!lit).then(|| frame_line(focused)),
                 }
             })
