@@ -6,14 +6,13 @@ Widget catalog · a line of the page under the overlay
                                                                                 
                                                                                 
                                                                                 
-                          ┌──────────────────────────┐                          
-                          │ WizardDialog            ✕│                          
-                          │ Step 1 of 2              │                          
-                          │ ████████████▒▒▒▒▒▒▒▒▒▒▒▒ │                          
-                          │ Compose                  │                          
-                          │ Choose widgets           │                          
-                          │           Cancel   Next  │                          
-                          └──────────────────────────┘                          
+                            ┌──────────────────────┐                            
+                            │ WizardDialog        ✕│                            
+                            │ ● Compose──○ Capture │                            
+                            │ Compose              │                            
+                            │ Choose widgets       │                            
+                            │       Cancel   Next  │                            
+                            └──────────────────────┘                            
                                                                                 
                                                                                 
                                                                                 
@@ -22,4 +21,5 @@ Widget catalog · a line of the page under the overlay
                                                                                 
                                                                                 
                                                                                 
-colors: e70f85badfcea4be
+                                                                                
+colors: 432e4a442cc81e4d

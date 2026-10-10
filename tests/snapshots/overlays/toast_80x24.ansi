@@ -1,8 +1,8 @@
 Widget catalog · a line of the page under the overlay                           
-                                                       ┌──────────────────────┐ 
-                                                       │                     ✕│ 
-                                                       │ Toast: capture saved │ 
-                                                       └──────────────────────┘ 
+                                                     ┌────────────────────────┐ 
+                                                     │                       ✕│ 
+                                                     │ ✓ Toast: capture saved │ 
+                                                     └────────────────────────┘ 
                                                                                 
                                                                                 
                                                                                 
@@ -22,4 +22,4 @@ Widget catalog · a line of the page under the overlay
                                                                                 
                                                                                 
                                                                                 
-colors: 6419ee309f816ffa
+colors: 148957e8e9af6b16
