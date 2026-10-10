@@ -2679,3 +2679,615 @@ mod adoption {
         }
     }
 }
+
+// ===== bar =====
+
+mod bar {
+    use super::*;
+    use common::app_input::key;
+    use reactive_tui::event::types::{Event, KeyCode, ResizeEvent};
+    use reactive_tui::widgets::display::pieces::{alert::AlertKind, icon::Icon};
+
+    fn last(frames: &[Snapshot]) -> &Snapshot {
+        frames.last().expect("a frame")
+    }
+
+    fn until(steps: Vec<(&'static str, Option<Event>)>) -> Vec<Until> {
+        steps
+            .into_iter()
+            .map(|(text, event)| Until {
+                text,
+                cell: None,
+                event,
+            })
+            .collect()
+    }
+
+    /// The page line every piece is shown with, so a frame is waited for.
+    fn with_footer(piece: Element) -> Element {
+        builder::div()
+            .class("flex-col w-full h-full")
+            .child(piece)
+            .child(Element::text("Footer line"))
+            .build()
+    }
+
+    /// Every display piece as the catalog builds it, each with its text.
+    fn pieces() -> Vec<(&'static str, Element)> {
+        vec![
+            ("icon", builder::icon(Icon::Error).build()),
+            ("spinner", builder::spinner().label("Saving").build()),
+            ("separator", separator().label("Options").build()),
+            ("badge", badge().kind(BadgeKind::Warning).count(120).build()),
+            (
+                "tag",
+                tag("done").kind(BadgeKind::Success).outline().build(),
+            ),
+            ("key hint", kbd_action(Action::Copy).build()),
+            (
+                "empty",
+                builder::empty()
+                    .icon(Icon::Search)
+                    .title("No results")
+                    .description("Try another search term.")
+                    .action("Clear search", || {})
+                    .build(),
+            ),
+            ("skeleton", builder::skeleton().rows(3).build()),
+            ("shimmer", builder::shimmer("Loading the table").build()),
+            (
+                "status bar",
+                status_bar()
+                    .left("Ready")
+                    .center("Saved")
+                    .right("Ln 4")
+                    .build(),
+            ),
+            (
+                "description list",
+                description_list()
+                    .pair("Name", "Ada")
+                    .pair("Role", "Engineer")
+                    .bordered()
+                    .build(),
+            ),
+            (
+                "alert",
+                builder::alert(AlertKind::Error)
+                    .title("Disk full")
+                    .message("Free 2 GB.")
+                    .closable(true)
+                    .build(),
+            ),
+            (
+                "link",
+                builder::link("Docs", "https://example.com/docs").build(),
+            ),
+            (
+                "pagination",
+                builder::pagination()
+                    .pages(20)
+                    .current(5)
+                    .visible_pages(5)
+                    .build(),
+            ),
+            (
+                "stepper",
+                builder::stepper()
+                    .step("Compose")
+                    .step("Capture")
+                    .step("Review")
+                    .current(1)
+                    .build(),
+            ),
+        ]
+    }
+
+    /// The probe roles a cell's painted color is not, as strings, for the
+    /// first few cells that paint one (a stand-in for the layout family's
+    /// `foreign`, over the piece roles).
+    fn foreign_piece_colors(frame: &Snapshot) -> Vec<String> {
+        let (rows, columns) = frame.screen.size();
+        let mut found = Vec::new();
+        for row in 0..rows {
+            for column in 0..columns {
+                let cell = frame.screen.cell(row, column).unwrap();
+                if cell.is_wide_continuation() {
+                    continue;
+                }
+                let mut parts = vec![("background", cell.bgcolor())];
+                if !cell.contents().trim().is_empty() {
+                    parts.push(("glyph", cell.fgcolor()));
+                }
+                for (part, color) in parts {
+                    let known = piece_rgb(color)
+                        .is_some_and(|rgb| (0..PIECE_ROLES.len()).any(|i| piece_color(i) == rgb));
+                    if !known {
+                        found.push(format!(
+                            "{part} {color:?} at ({column}, {row}) {:?}",
+                            cell.contents()
+                        ));
+                    }
+                }
+            }
+        }
+        found
+    }
+
+    /// The number of cells in `row` whose background is `color`.
+    fn cells_on(frame: &Snapshot, row: u16, color: Rgb) -> usize {
+        let (_, columns) = frame.screen.size();
+        (0..columns)
+            .filter(|column| bg_at(frame, *column, row) == Some(color))
+            .count()
+    }
+
+    /// The frame work of the animating pieces, as the frame budget reads it.
+    fn animating_pieces() -> Element {
+        builder::div()
+            .class("flex-col w-full h-full")
+            .child(builder::spinner().label("Working").build())
+            .child(builder::skeleton().rows(20).build())
+            .child(builder::shimmer("Loading the table").build())
+            .build()
+    }
+
+    fn load_average() -> String {
+        std::fs::read_to_string("/proc/loadavg")
+            .ok()
+            .and_then(|text| text.split_whitespace().next().map(str::to_owned))
+            .unwrap_or_else(|| "unknown".to_string())
+    }
+
+    /// `max_work_ms` over 12 frames, as the charts family measures it.
+    fn max_work_ms(root: impl RootComponent + 'static, size: (u16, u16)) -> (f64, String) {
+        let out = app_input::run_on_debug(root, size, vec![(12, None)]);
+        assert!(
+            out.len() >= 12,
+            "harness painted {} of 12 frames",
+            out.len()
+        );
+        let split: Vec<String> = out
+            .iter()
+            .map(|f| format!("{:.2}/{:.2}", f.work_ms, f.present_ms))
+            .collect();
+        (
+            out.iter().map(|f| f.work_ms).fold(0.0, f64::max),
+            split.join(" "),
+        )
+    }
+
+    fn frame_budget(root: impl RootComponent + 'static, size: (u16, u16)) -> (f64, String) {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| max_work_ms(root, size))) {
+            Ok(measured) => measured,
+            Err(_) => panic!(
+                "fewer than 12 frames painted inside the harness's {:?} hang guard at {size:?} at load average {}",
+                app_input::HANG_GUARD,
+                load_average()
+            ),
+        }
+    }
+
+    /// BAR-003: every cell a display piece paints takes its color from the
+    /// active theme's roles.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn bar_003_a_display_piece_takes_every_color_from_the_active_theme() {
+        let _theme = PieceTheme::set(piece_probe());
+        let mut wrong = Vec::new();
+        for (name, piece) in pieces() {
+            let frame = shown(with_footer(piece), (80, 24), "Footer line");
+            let foreign = foreign_piece_colors(&frame);
+            if !foreign.is_empty() {
+                wrong.push(format!(
+                    "{name}: {}\n{}",
+                    foreign
+                        .iter()
+                        .take(5)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join("; "),
+                    frame.text
+                ));
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "BAR-003: a display piece paints a color the theme does not define:\n{}",
+            wrong.join("\n")
+        );
+    }
+
+    /// BAR-003: the row-shaped pieces follow a resize of their box: a
+    /// separator's rule and a status bar's surface reach the new last column.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn bar_003_a_display_piece_follows_a_resize() {
+        let _theme = PieceTheme::set(piece_probe());
+        let root = builder::div()
+            .class("flex-col w-full h-full")
+            .child(separator().build())
+            .child(status_bar().left("Ready").build())
+            .build();
+        let frames = app_input::run_until(
+            Control(page(root)),
+            (80, 24),
+            until(vec![
+                ("Ready", Some(Event::Resize(ResizeEvent::new(160, 48)))),
+                ("Ready", None),
+            ]),
+            WAIT,
+        );
+        let before = frames
+            .iter()
+            .rev()
+            .find(|frame| frame.screen.size().1 == 80)
+            .expect("a frame at 80 columns");
+        let after = last(&frames);
+        for (frame, last_column) in [(before, 79u16), (after, 159u16)] {
+            let width = frame.screen.size().1;
+            let (_, rule_row) = piece_find(frame, "─")
+                .unwrap_or_else(|| panic!("no rule painted:\n{}", frame.text));
+            assert_eq!(
+                glyph(frame, last_column, rule_row),
+                "─",
+                "BAR-003: the separator does not reach column {last_column} at {width} columns:\n{}",
+                frame.text
+            );
+            let bar = row_with(frame, "Ready");
+            assert_eq!(
+                bg_at(frame, last_column, bar),
+                Some(piece_role("surface")),
+                "BAR-003: the status bar does not reach column {last_column} at {width} columns:\n{}",
+                frame.text
+            );
+        }
+    }
+
+    /// BAR-003: every pointer action of a display piece has a key: the alert's
+    /// close mark, an empty state's action, the pagination's page and its
+    /// ellipsis, a stepper's step and a link.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn bar_003_every_pointer_action_of_a_display_piece_has_a_key() {
+        // The alert's close mark: Tab reaches it, Enter closes it.
+        let closed = Arc::new(Mutex::new(0));
+        let count = closed.clone();
+        app_input::run_until_hidden(
+            Control(page(
+                builder::alert(AlertKind::Warning)
+                    .title("Disk full")
+                    .closable(true)
+                    .on_close(move || *count.lock().unwrap() += 1)
+                    .build(),
+            )),
+            (80, 10),
+            vec![
+                ("Disk full", key(KeyCode::Tab)),
+                ("Disk full", key(KeyCode::Enter)),
+            ],
+            "Disk full",
+        );
+        assert_eq!(
+            *closed.lock().unwrap(),
+            1,
+            "BAR-003: the alert's close mark has no key"
+        );
+
+        // An empty state's action: Tab reaches it, Enter runs it.
+        let ran = Arc::new(Mutex::new(0));
+        let count = ran.clone();
+        app_input::run_until(
+            Control(page(
+                builder::empty()
+                    .title("No files")
+                    .description("Create one")
+                    .action("Add", move || *count.lock().unwrap() += 1)
+                    .build(),
+            )),
+            (80, 10),
+            until(vec![
+                ("No files", key(KeyCode::Tab)),
+                ("Add", key(KeyCode::Enter)),
+            ]),
+            WAIT,
+        );
+        assert_eq!(
+            *ran.lock().unwrap(),
+            1,
+            "BAR-003: the empty state's action has no key"
+        );
+
+        // A link: Enter opens it.
+        let opened = Arc::new(Mutex::new(0));
+        let count = opened.clone();
+        app_input::run_until(
+            Control(page(
+                builder::link("Docs", "https://example.com/docs")
+                    .on_open(move |_url| *count.lock().unwrap() += 1)
+                    .build()
+                    .auto_focus(),
+            )),
+            (80, 10),
+            until(vec![("Docs", key(KeyCode::Enter))]),
+            WAIT,
+        );
+        assert_eq!(*opened.lock().unwrap(), 1, "BAR-003: the link has no key");
+
+        // The pagination bar: Right moves to page 6 and Enter chooses it.
+        let chosen = Arc::new(Mutex::new(Vec::new()));
+        let record = chosen.clone();
+        app_input::run_until(
+            Control(page(
+                builder::pagination()
+                    .pages(20)
+                    .current(5)
+                    .visible_pages(5)
+                    .on_change(move |index| record.lock().unwrap().push(index))
+                    .build()
+                    .auto_focus(),
+            )),
+            (80, 30),
+            until(vec![
+                ("20", key(KeyCode::Right)),
+                ("20", key(KeyCode::Enter)),
+            ]),
+            WAIT,
+        );
+        assert_eq!(
+            *chosen.lock().unwrap(),
+            vec![6],
+            "BAR-003: the pagination bar's page has no key"
+        );
+
+        // Its trailing ellipsis: Down reaches it and Enter opens the hidden pages.
+        let frames = app_input::run_until(
+            Control(page(
+                builder::pagination()
+                    .pages(20)
+                    .current(5)
+                    .build()
+                    .auto_focus(),
+            )),
+            (80, 30),
+            until(vec![
+                ("20", key(KeyCode::Down)),
+                ("20", key(KeyCode::Enter)),
+                ("Page 7", None),
+            ]),
+            WAIT,
+        );
+        assert!(
+            last(&frames).text.contains("Page 19"),
+            "BAR-003: the ellipsis has no key that opens its pages:\n{}",
+            last(&frames).text
+        );
+
+        // A stepper's step: Right moves the focus to Review and Enter chooses it.
+        let stepped = Arc::new(Mutex::new(Vec::new()));
+        let record = stepped.clone();
+        app_input::run_until(
+            Control(page(
+                builder::stepper()
+                    .step("Compose")
+                    .step("Capture")
+                    .step("Review")
+                    .current(2)
+                    .on_change(move |step| record.lock().unwrap().push(step))
+                    .build()
+                    .auto_focus(),
+            )),
+            (80, 6),
+            until(vec![
+                ("Review", key(KeyCode::Right)),
+                ("Review", key(KeyCode::Enter)),
+            ]),
+            WAIT,
+        );
+        assert_eq!(
+            *stepped.lock().unwrap(),
+            vec![3],
+            "BAR-003: the stepper's step has no key"
+        );
+    }
+
+    /// BAR-005: animating display pieces keep per-frame work under 16.6 ms
+    /// at 700 by 200. As the charts family, the budget is read on the
+    /// optimized build; the debug build only checks that frames paint.
+    #[test]
+    fn bar_005_animating_display_pieces_stay_under_the_frame_budget_at_700_by_200() {
+        if cfg!(debug_assertions) {
+            eprintln!("SKIP: the frame budget is measured on the optimized build");
+            let frames = app_input::run(Control(animating_pieces()), (80, 24), vec![(2, None)]);
+            assert!(frames.len() >= 2);
+            return;
+        }
+        let size = (700u16, 200u16);
+        let (ms, split) = frame_budget(Control(animating_pieces()), size);
+        eprintln!("display pieces work/present ms per frame at 700x200: {split}");
+        assert!(
+            ms < 16.6,
+            "per-frame work {ms:.2} ms exceeds 16.6 ms at 700x200 at load average {} (work/present ms per frame: {split})",
+            load_average()
+        );
+    }
+
+    /// DIS-001: an empty state's title is in `foreground` and its description
+    /// in `text-muted`.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_001_an_empty_state_paints_its_title_in_foreground_and_its_description_in_text_muted() {
+        let _theme = PieceTheme::set(piece_probe());
+        let frame = shown(
+            builder::empty()
+                .title("No results")
+                .description("Try another search term.")
+                .build(),
+            (80, 24),
+            "Try another",
+        );
+        assert_eq!(
+            piece_colors(&frame, "No results").0,
+            Some(piece_role("foreground"))
+        );
+        assert_eq!(
+            piece_colors(&frame, "Try another").0,
+            Some(piece_role("text-muted"))
+        );
+    }
+
+    /// DIS-001: an icon paints its glyph in `text-muted` unless its classes
+    /// name another color, and the class color wins.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_001_an_icon_paints_its_glyph_in_text_muted_unless_a_class_names_a_color() {
+        let _theme = PieceTheme::set(piece_probe());
+        let glyph_text = Icon::Error.glyph();
+        let plain = shown(builder::icon(Icon::Error).build(), (80, 24), "");
+        assert_eq!(
+            piece_colors(&plain, glyph_text).0,
+            Some(piece_role("text-muted"))
+        );
+        let named = shown(
+            builder::icon(Icon::Error).class("text-error").build(),
+            (80, 24),
+            "",
+        );
+        assert_eq!(
+            piece_colors(&named, glyph_text).0,
+            Some(piece_role("error"))
+        );
+    }
+
+    /// DIS-002: a description list's bordered box fills the 100-cell box it
+    /// sits in, a tag takes the width of its text, and an icon takes the
+    /// width of its glyph.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_002_a_description_list_fills_its_box_and_a_tag_and_an_icon_take_their_content_width() {
+        let _theme = PieceTheme::set(piece_probe());
+        let glyph_text = Icon::Error.glyph();
+        let frame = shown(
+            piece_box(
+                100,
+                12,
+                builder::div()
+                    .class("flex-col w-full")
+                    .child(description_list().pair("Name", "Ada").bordered().build())
+                    .child(
+                        builder::div()
+                            .class("flex-row")
+                            .child(tag("done").kind(BadgeKind::Success).build())
+                            .child(builder::icon(Icon::Error).class("bg-error").build())
+                            .build(),
+                    )
+                    .build(),
+            ),
+            (240, 60),
+            "Ada",
+        );
+        let top = row_with(&frame, "┌");
+        let (_, columns) = frame.screen.size();
+        assert_eq!(
+            glyph(&frame, 99, top),
+            "┐",
+            "DIS-002: the bordered description list does not reach the box's last cell ({columns} columns):\n{}",
+            frame.text
+        );
+        let tag_row = row_with(&frame, "done");
+        assert_eq!(
+            cells_on(&frame, tag_row, piece_role("success")),
+            6,
+            "DIS-002: a tag paints more cells than its text ` done `:\n{}",
+            frame.text
+        );
+        let icon_row = row_with(&frame, glyph_text);
+        assert_eq!(
+            cells_on(&frame, icon_row, piece_role("error")),
+            1,
+            "DIS-002: an icon paints more cells than its glyph:\n{}",
+            frame.text
+        );
+    }
+
+    /// DIS-002: an empty state fills the 100-cell box it sits in, so its
+    /// centered title starts at column 45 (the 10-cell title centered).
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_002_an_empty_state_fills_the_width_its_box_allots() {
+        let _theme = PieceTheme::set(piece_probe());
+        let frame = shown(
+            piece_box(
+                100,
+                8,
+                builder::empty()
+                    .title("No results")
+                    .description("Try another search term.")
+                    .build(),
+            ),
+            (240, 60),
+            "No results",
+        );
+        let (column, _) = piece_find(&frame, "No results").expect("the title is painted");
+        assert_eq!(
+            column, 45,
+            "DIS-002: the empty state does not fill the 100-cell box, so its title is not centered:\n{}",
+            frame.text
+        );
+    }
+
+    /// DIS-002: a vertical separator and a vertical stepper fill the height
+    /// of the 20-row box they sit in.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_002_a_vertical_separator_and_stepper_fill_the_height_of_their_box() {
+        let _theme = PieceTheme::set(piece_probe());
+        let frame = shown(
+            piece_box(
+                40,
+                20,
+                builder::div()
+                    .class("flex-row h-full gap-1")
+                    .child(separator().vertical().build())
+                    .child(Element::text("Beside the rule"))
+                    .build(),
+            ),
+            (240, 60),
+            "Beside the rule",
+        );
+        let rules = (0..20u16)
+            .filter(|row| row_cells(&frame, *row).iter().any(|cell| cell == "│"))
+            .count();
+        assert_eq!(
+            rules, 20,
+            "DIS-002: the vertical separator paints {rules} rows of the 20-row box:\n{}",
+            frame.text
+        );
+        let frame = shown(
+            piece_box(
+                40,
+                20,
+                builder::div()
+                    .class("flex-row h-full")
+                    .child(
+                        builder::stepper()
+                            .step("Compose")
+                            .step("Review")
+                            .current(0)
+                            .vertical(true)
+                            .class("bg-surface")
+                            .build(),
+                    )
+                    .build(),
+            ),
+            (240, 60),
+            "Compose",
+        );
+        assert_eq!(
+            bg_at(&frame, 0, 19),
+            Some(piece_role("surface")),
+            "DIS-002: the vertical stepper does not reach the box's last row:\n{}",
+            frame.text
+        );
+    }
+}

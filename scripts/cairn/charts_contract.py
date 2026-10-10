@@ -108,6 +108,11 @@ WIDGET_CODE = {
     "input": (("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/specialized.rs",
                "src/builder/core.rs"),
               r"(?:TextInput|Checkbox|RadioButton|Select|Slider)Builder"),
+    # The display pieces: the icon, spinner, separator, badge, tag, key hint,
+    # empty state, skeleton, shimmer, status bar, description list, alert,
+    # link, pagination bar and stepper, and their builders (display-widgets.md).
+    "pieces": (("src/widgets/display/pieces", "src/builder/widgets/pieces"),
+               r"\w*(?:Icon|Spinner|Separator|Badge|Tag|Kbd|Empty|Skeleton|Shimmer|StatusBar|DescriptionList|Alert|Link|Pagination|Stepper)Builder"),
     # The layout family: the tabs, the accordion, the breadcrumb, the scroll
     # view and the stack, and their builders (layout-widgets.md).
     "layout": (("src/widgets/layout", "src/builder/widgets/layout.rs", "src/builder/widgets/accordion.rs",
@@ -267,7 +272,8 @@ def main() -> int:
         overlays = cargo_test_filtered("overlays_contract", "bar_005_", release=True)
         layout = cargo_test_filtered("layout_widgets_contract", "bar_005_", release=True)
         data = cargo_test_filtered("data_widgets_contract", "bar_005_", release=True)
-        results["BAR-005"] = (ok and canvas[0] and overlays[0] and layout[0] and data[0],
+        pieces = cargo_test_filtered("display_pieces_contract", "bar_005_", release=True)
+        results["BAR-005"] = (ok and canvas[0] and overlays[0] and layout[0] and data[0] and pieces[0],
                               f"charts and image: {why}; canvas: {canvas[1]}; overlays: {overlays[1]}; "
                               f"layout widgets: {layout[1]}; data widgets: {data[1]}")
     if group == "widget-bar":
@@ -282,6 +288,7 @@ def main() -> int:
             ("layout", cargo_test_filtered("layout_widgets_contract", "bar_003_")),
             ("data", cargo_test_filtered("data_widgets_contract", "bar_003_")),
             ("input widgets", cargo_test_filtered("input_widgets_contract", "bar_003_")),
+            ("display pieces", cargo_test_filtered("display_pieces_contract", "bar_003_")),
         ):
             if not passed:
                 problems.append(f"{name}: {reason}")
@@ -289,7 +296,7 @@ def main() -> int:
             literals = color_literals(code)
             if literals:
                 problems.append(f"{len(literals)} hard-coded colors in {family} code: {', '.join(literals[:4])}")
-        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus, overlays, input, layout and data widgets: {why}")
+        results["BAR-003"] = (not problems, "; ".join(problems) or f"charts, image, canvas, menus, overlays, input, layout, data widgets and display pieces: {why}")
     return finish(results)
 
 

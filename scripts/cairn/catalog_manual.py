@@ -3,9 +3,11 @@
 builder methods exist in the code. Scope: the chart family (line, area,
 scatter, bar, candlestick), the image widget, reworked to draw its block
 fallback through the renderer's blitters, the graphics canvas
-(src/graphics, manual/wgpu-graphics.md), and the menu family (the menu bar,
+(src/graphics, manual/wgpu-graphics.md), the menu family (the menu bar,
 the context menu, the popup menu and the dialog menu: src/widgets/menu,
-src/builder/widgets/menu.rs, manual/menus.md).
+src/builder/widgets/menu.rs, manual/menus.md) and the display pieces
+(src/builder/widgets/pieces, the "Display pieces" section of
+manual/display-widgets.md).
 
 Both files are read by their structure, not by substring. A catalog page is
 a CatalogPage listed in ALL that selected_page maps to a function; a chart
@@ -586,17 +588,70 @@ def input_docs_problems() -> list[str]:
     return problems
 
 
+PIECES_CODE = ("src/builder/widgets/pieces",)
+# The sixteen headings of the "Display pieces" section: the fifteen pieces
+# and the icon catalog.
+PIECE_HEADINGS = ("Icon", "Spinner", "Separator", "Badge", "Tag", "Key hint", "Empty state", "Skeleton",
+                  "Shimmer", "Status bar", "Description list", "Alert", "Link", "Pagination", "Stepper",
+                  "Icon catalog")
+# Calls a section may write in its code without being builder methods.
+PLAIN_CALLS = {"Some", "Ok", "Err", "vec", "format"}
+FREE_CALL = re.compile(r"(?:\bbuilder::|(?<![\w.:]))([a-z_][a-z0-9_]*)\(")
+
+
+def pieces_docs_problems() -> list[str]:
+    """The display pieces: the catalog's page is titled "Display pieces" and
+    listed in ALL; the manual's "Display pieces" section has a heading for
+    each piece and the icon catalog; and every builder call a piece's
+    section cites (`.method(` on a builder, `builder::name(` or a bare
+    `name(` in code) is a pub fn of a builder in src/builder/widgets/pieces."""
+    problems = []
+    _, prose, pages = catalog_pages()
+    if "DisplayPieces" not in pages:
+        problems.append("catalog lists no Display pieces page")
+    if not re.search(r'Self::DisplayPieces\s*=>\s*"Display pieces"', prose):
+        problems.append('catalog has no page titled "Display pieces"')
+    sources = {f: strip_test_modules(f.read_text(errors="replace")) for f in rust_sources(*PIECES_CODE)}
+    impl_pool: set[str] = set()
+    free_pool: set[str] = set()
+    for text in sources.values():
+        for fns in impl_methods(text).values():
+            impl_pool |= fns
+        free_pool |= set(re.findall(r"^pub fn\s+([a-z_][a-z0-9_]*)", text, re.M))
+    manual = DISPLAY_MANUAL.read_text(errors="replace") if DISPLAY_MANUAL.exists() else ""
+    section_text = section(manual, "Display pieces")
+    if section_text is None:
+        return problems + ["manual has no Display pieces section"]
+    titles = [title for _, title in headings(section_text)]
+    for heading in PIECE_HEADINGS:
+        if heading not in titles:
+            problems.append(f"manual's Display pieces section has no {heading} heading")
+    for heading in PIECE_HEADINGS:
+        text = section(section_text, heading)
+        if text is None:
+            continue
+        pieces = citations(text)
+        for name in {n for piece in pieces[:-1] for n in FREE_CALL.findall(piece)} - PLAIN_CALLS:
+            if name not in free_pool:
+                problems.append(f"manual's {heading} section cites {name}() which is not a builder fn in {PIECES_CODE[0]}")
+        for piece in pieces:
+            for name in METHOD_CALL.findall(piece):
+                if name not in impl_pool:
+                    problems.append(f"manual's {heading} section cites .{name}() which is not a pub fn on a piece builder")
+    return problems
+
+
 def main() -> int:
     problems = (chart_docs_problems() + image_docs_problems() + canvas_docs_problems() + menu_docs_problems()
                 + overlay_docs_problems() + input_docs_problems() + layout_docs_problems()
-                + data_docs_problems())
+                + data_docs_problems() + pieces_docs_problems())
     if problems:
         print("BAR-006 violated:")
         for p in problems:
             print("  " + p)
         return 1
     print("BAR-006 holds for the chart family, the image widget, the graphics canvas, the menus, the overlays, "
-          "the input, layout and data widgets")
+          "the input, layout, data widgets and display pieces")
     return 0
 
 
