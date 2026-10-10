@@ -81,7 +81,8 @@ bar has no separate Prev and Next buttons. Left and Right move a page, Home
 and End go to the first and the last page, and Confirm or a click chooses a
 page. An ellipsis `…` opens a popup menu of the pages it hides, and a choice
 there moves the table to that page. The filter and column panels and the
-export buttons keep their behavior.
+export buttons keep their behavior. `.on_page_change(f)` is called with
+the 0-based page each time the page changes.
 
 ## Tree
 
