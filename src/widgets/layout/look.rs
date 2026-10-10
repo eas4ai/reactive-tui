@@ -32,15 +32,3 @@ pub const TOOLTIP: &str = "bg-surface text-foreground";
 pub const TRACK: &str = "text-border";
 /// A scroll bar's thumb.
 pub const THUMB: &str = "text-muted";
-
-/// The classes of a tab's badge by its kind.
-pub fn badge(variant: &super::tabs::TabBadgeVariant) -> &'static str {
-    use super::tabs::TabBadgeVariant::*;
-    match variant {
-        Default => MUTED,
-        Success => "text-success",
-        Warning => "text-warning",
-        Error => "text-error",
-        Info => "text-info",
-    }
-}

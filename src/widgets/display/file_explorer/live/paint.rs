@@ -104,7 +104,11 @@ impl Explorer {
         let hovered = self.hover.as_ref() == Some(path);
         // Each piece has its measured width, so its spaces are kept; the
         // details give way before the name when the row is narrow.
-        let label = format!("{} {}", row.entry.icon, safe_text(&row.entry.name));
+        // The mark comes from the catalog at each paint, open while the tree
+        // shows the folder expanded (DIS-005).
+        let open = self.config.view_mode == ViewMode::Tree && self.expanded.contains(path);
+        let mark = FileEntry::mark(&row.entry.file_type, open).glyph();
+        let label = format!("{mark} {}", safe_text(&row.entry.name));
         let mut pieces = vec![ElementBuilder::new(ElementType::Text(label.clone()))
             .styles(
                 StyleBuilder::new()

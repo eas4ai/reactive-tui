@@ -4,6 +4,7 @@ use crate::{
     builder::ElementBuilder,
     component::{Element, ElementType, LayoutInfo, LayoutType},
     layout::style::{Direction, StyleBuilder},
+    widgets::display::pieces::{separator_glyph, SeparatorStyle},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -84,18 +85,17 @@ impl MenuView {
             .map(|(path, _)| path.clone())
     }
     fn separator(&self, options: &RowOptions<'_>, kind: &MenuSeparator, path: &[usize]) -> Element {
-        let glyph = match (kind, options.horizontal) {
-            (MenuSeparator::None | MenuSeparator::Space, _) => " ",
-            (MenuSeparator::Line, false) => "─",
-            (MenuSeparator::Line, true) => "│",
-            (MenuSeparator::ThickLine, false) => "━",
-            (MenuSeparator::ThickLine, true) => "┃",
-            (MenuSeparator::DoubleLine, false) => "═",
-            (MenuSeparator::DoubleLine, true) => "║",
-            (MenuSeparator::Dashed, false) => "╌",
-            (MenuSeparator::Dashed, true) => "╎",
-            (MenuSeparator::Dotted, _) => "·",
+        // The line's glyph comes from the separator piece's table (DIS-006);
+        // a menu bar's separator runs down, a panel's across.
+        let style = match kind {
+            MenuSeparator::None | MenuSeparator::Space => None,
+            MenuSeparator::Line => Some(SeparatorStyle::Line),
+            MenuSeparator::ThickLine => Some(SeparatorStyle::Thick),
+            MenuSeparator::DoubleLine => Some(SeparatorStyle::Double),
+            MenuSeparator::Dashed => Some(SeparatorStyle::Dashed),
+            MenuSeparator::Dotted => Some(SeparatorStyle::Dotted),
         };
+        let glyph = style.map_or(' ', |style| separator_glyph(style, options.horizontal));
         let depth = path.len().saturating_sub(1);
         let width = if options.horizontal {
             1
@@ -113,7 +113,7 @@ impl MenuView {
                 .height_px(1.0)
                 .flex_shrink(0.0)
                 .overflow_hidden(),
-            vec![Element::text(glyph.repeat(width)).with_class("whitespace-pre")],
+            vec![Element::text(glyph.to_string().repeat(width)).with_class("whitespace-pre")],
         )
         .with_class(&options.style.separator_classes)
         .with_key(format!("separator:{path:?}"))

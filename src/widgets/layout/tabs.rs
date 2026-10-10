@@ -5,6 +5,9 @@ use crate::event::router::EventResult;
 use crate::event::types::{FocusEventKind, KeyCode, MouseEventKind};
 use crate::event::{Event, MouseEvent};
 use crate::reactive::ThreadSafeSignal;
+use crate::widgets::display::pieces::badge::{
+    self as badge_piece, BadgeContent, BadgeKind, BadgeProps,
+};
 use crate::widgets::menu::{MenuItem, MenuItemType, PopupMenu, RelativePlacement};
 use std::any::Any;
 use std::collections::HashSet;
@@ -67,7 +70,8 @@ pub enum TabKeyboardActivation {
     Manual,
 }
 
-/// Tab badge visual variants
+/// Tab badge kinds. Each one is a kind of the badge display piece
+/// ([`BadgeKind`]): its text color and its mark come from that piece.
 #[derive(Clone, Debug, PartialEq)]
 pub enum TabBadgeVariant {
     /// Default badge style
@@ -104,6 +108,27 @@ impl TabBadge {
     pub fn with_variant(mut self, variant: TabBadgeVariant) -> Self {
         self.variant = variant;
         self
+    }
+
+    /// The props of the badge display piece that paints this badge
+    /// (DIS-006): an outline badge of the variant's kind with its kind's
+    /// mark, so it paints ` {mark}{text}` in the kind's text role (NAV-001).
+    pub(crate) fn props(&self) -> BadgeProps {
+        let kind = match self.variant {
+            TabBadgeVariant::Default => BadgeKind::Default,
+            TabBadgeVariant::Success => BadgeKind::Success,
+            TabBadgeVariant::Warning => BadgeKind::Warning,
+            TabBadgeVariant::Error => BadgeKind::Error,
+            TabBadgeVariant::Info => BadgeKind::Info,
+        };
+        BadgeProps {
+            kind,
+            content: BadgeContent::Text(self.text.clone()),
+            outline: true,
+            mark: true,
+            classes: vec!["shrink-0 whitespace-pre".to_owned()],
+            ..BadgeProps::default()
+        }
     }
 }
 
@@ -976,18 +1001,10 @@ impl Component for Tabs {
             }
             label.push_str(&tab.label);
             let mut children = vec![piece(label, text)];
-            if let Some(badge) = &tab.badge {
-                let mark = match badge.variant {
-                    TabBadgeVariant::Default => "●",
-                    TabBadgeVariant::Success => "✓",
-                    TabBadgeVariant::Warning => "⚠",
-                    TabBadgeVariant::Error => "✗",
-                    TabBadgeVariant::Info => "ⓘ",
-                };
-                children.push(piece(
-                    format!(" {mark}{}", badge.text),
-                    look::badge(&badge.variant),
-                ));
+            // The badge is the badge display piece (DIS-006).
+            let badge = tab.badge.as_ref().map(TabBadge::props);
+            if let Some(badge) = &badge {
+                children.push(badge_piece::badge(badge));
             }
             if (props.closable || tab.closable) && !props.disabled && !tab.disabled {
                 let mut semantic = Node::new(Role::Button);
@@ -1007,6 +1024,10 @@ impl Component for Tabs {
             let enabled = !props.disabled && !tab.disabled;
             let mut semantic = Node::new(Role::Tab);
             semantic.set_label(&tab.label);
+            // The screen reader hears the badge with the tab it follows (DIS-004).
+            if let Some(badge) = &badge {
+                badge_piece::describe(badge, &mut semantic);
+            }
             semantic.set_selected(selected);
             semantic.inner.set_position_in_set(index + 1);
             semantic.inner.set_size_of_set(props.tabs.len());
@@ -1530,7 +1551,11 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(texts, vec!["Test".to_string(), " ✗5".to_string()]); // Error badge
+        let badge = format!(
+            " {}5",
+            crate::widgets::display::pieces::icon::Icon::Error.glyph()
+        );
+        assert_eq!(texts, vec!["Test".to_string(), badge]); // Error badge
         assert!(
             header.children[1]
                 .class
@@ -1538,6 +1563,22 @@ mod tests {
                 .is_some_and(|class| class.contains("text-error")),
             "the badge takes its kind's text role"
         );
+    }
+
+    #[test]
+    fn dis_004_a_tab_badge_joins_the_tabs_description() {
+        let tab = Tab::new("Inbox", Element::text("Mail"))
+            .with_badge(TabBadge::new("3").with_variant(TabBadgeVariant::Info));
+        let props = TabsProps {
+            tabs: vec![tab],
+            ..Default::default()
+        };
+        let element = Tabs::new(props.clone()).render(&props, &TabsState::default());
+        let header = &element.children[0].children[0].children[0];
+        let node = header.metadata.accessibility.as_ref().expect("a tab node");
+        assert_eq!(node.role(), Role::Tab);
+        assert_eq!(node.inner.label(), Some("Inbox"));
+        assert_eq!(node.inner.description(), Some("3"));
     }
 
     #[test]

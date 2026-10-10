@@ -9,6 +9,7 @@ use super::{
 use crate::component::Element;
 use crate::core::geometry::Rect;
 use crate::event::types::Event;
+use crate::widgets::display::pieces::alert::AlertKind;
 use std::any::Any;
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,15 +33,25 @@ pub enum ToastType {
 }
 
 impl ToastType {
+    /// The alert kind whose table gives this toast its fill and its icon
+    /// (DIS-006), or `None` for a custom toast.
+    pub(crate) fn kind(&self) -> Option<AlertKind> {
+        match self {
+            Self::Info => Some(AlertKind::Info),
+            Self::Success => Some(AlertKind::Success),
+            Self::Warning => Some(AlertKind::Warning),
+            Self::Error => Some(AlertKind::Error),
+            Self::Custom(_) => None,
+        }
+    }
+
     /// The classes the toast is painted with (OVL-001): the fill of its
-    /// kind with that fill's text role, or its own classes when custom.
+    /// kind with that fill's text role, from the alert's table, or its own
+    /// classes when custom.
     pub fn classes(&self) -> &str {
         match self {
-            Self::Info => "bg-info text-info-foreground",
-            Self::Success => "bg-success text-success-foreground",
-            Self::Warning => "bg-warning text-warning-foreground",
-            Self::Error => "bg-error text-error-foreground",
             Self::Custom(classes) => classes,
+            kind => kind.kind().map_or("", AlertKind::fill),
         }
     }
 
@@ -56,11 +67,12 @@ impl ToastType {
     }
 
     /// What the screen reader is told: a warning or an error is an alert,
-    /// the rest a status.
+    /// the rest a status, as the alert's table says.
     pub fn role(&self) -> crate::accessibility::Role {
-        match self {
-            Self::Warning | Self::Error => crate::accessibility::Role::Alert,
-            _ => crate::accessibility::Role::Status,
+        if self.kind().is_some_and(AlertKind::is_alert) {
+            crate::accessibility::Role::Alert
+        } else {
+            crate::accessibility::Role::Status
         }
     }
 }

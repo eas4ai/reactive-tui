@@ -3,8 +3,9 @@ use crate::{
     component::{Component, LayoutInfo, Props},
     event::router::EventResult,
     reactive::ThreadSafeSignal,
-    widgets::display::modal::{
-        ModalAnimation, ModalButton, ModalButtonAction, ModalProps, ModalSize,
+    widgets::display::{
+        modal::{ModalAnimation, ModalButton, ModalButtonAction, ModalProps, ModalSize},
+        pieces::icon::Icon,
     },
 };
 
@@ -132,12 +133,14 @@ impl Component for LiveConfirmation {
                 ),
             })
             .collect();
+        // The kind glyphs come from the icon catalog (DIS-005); the catalog
+        // has no question mark, so a question keeps `?`.
         let icon = match options.icon.as_ref() {
             Some(ConfirmationIcon::Question) => "?",
-            Some(ConfirmationIcon::Warning) => "!",
-            Some(ConfirmationIcon::Error) => "×",
-            Some(ConfirmationIcon::Info) => "i",
-            Some(ConfirmationIcon::Success) => "✓",
+            Some(ConfirmationIcon::Warning) => Icon::Warning.glyph(),
+            Some(ConfirmationIcon::Error) => Icon::Error.glyph(),
+            Some(ConfirmationIcon::Info) => Icon::Info.glyph(),
+            Some(ConfirmationIcon::Success) => Icon::Success.glyph(),
             Some(ConfirmationIcon::Custom(icon)) => icon,
             _ => "",
         };
