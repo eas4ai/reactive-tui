@@ -1998,9 +1998,15 @@ mod adoption {
         );
         let table_row = row_with(&table, ellipsis);
         let bar_row = row_with(&bar, ellipsis);
+        // The bar's own width: the table's row adds the row count after it.
+        let bar_width = (0..80)
+            .rev()
+            .find(|column| glyph(&bar, *column, bar_row) != " ")
+            .map(|column| column + 1)
+            .unwrap_or(80);
         assert_eq!(
-            cells(&table, 0, table_row, 80),
-            cells(&bar, 0, bar_row, 80),
+            cells(&table, 0, table_row, bar_width),
+            cells(&bar, 0, bar_row, bar_width),
             "DIS-006: the table's page row differs from the pagination bar's:\n{}\n{}",
             table.text,
             bar.text

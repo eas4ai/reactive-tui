@@ -358,11 +358,11 @@ impl LiveDataTable {
         .max(1);
         let shared = shared.clone();
         let callback = props.on_page_change.clone();
-        builder::pagination()
+        let bar = builder::pagination()
             .pages(pages)
             .current(model.page + 1)
             .aria_label("Table pages")
-            .class("shrink-0")
+            .class("shrink-0 w-fit")
             .on_change(move |chosen| {
                 let page = chosen.saturating_sub(1);
                 let changed = {
@@ -380,7 +380,12 @@ impl LiveDataTable {
                     }
                 }
             })
-            .build()
+            .build();
+        let count_text =
+            Element::text(format!(" ({count})")).with_class(format!("shrink-0 {}", look::MUTED));
+        Element::layout(LayoutType::Flex)
+            .with_class("flex-row shrink-0 w-full")
+            .with_children(vec![bar, count_text])
             .with_key("pagination")
     }
 
