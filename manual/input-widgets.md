@@ -59,6 +59,20 @@ their parent allots (CTL-002): a `w-N` class on the builder, or `width`
 on the props, sets that width instead. A checkbox, a radio and a button
 are as wide as their box or padding and their label need.
 
+The five pieces that follow (number input, code input, rating, switch and
+form) take the same roles (CTL-007): a field's and a code cell's frame in
+`border` with `ring` while focused, digits and the number in `foreground`
+on `input`, the step buttons `[-]` and `[+]` on `secondary` with
+`secondary-foreground` text, lit rating stars in `text-warning`, a switch's
+thumb in `primary`, a form's required marks in `text-error` and its
+descriptions in `text-muted`. A piece shows focus, hover and disabled by
+color alone, as the controls above do. Widths (CTL-008): a number input
+fills its parent's width, its field taking what its two buttons leave,
+unless `width` or a `w-N` or `w-full` class sets it; a code input is as
+wide as its digit cells and the gaps between groups; a rating is as wide
+as its stars; a switch is as wide as its box and its label; a form fills
+the width its parent allots.
+
 ## Pixel looks
 
 Where the terminal takes Kitty graphics or Sixel and the crate is built
@@ -181,6 +195,140 @@ Page Down move a tenth of the range, Home and End jump to the ends; a
 click on the track sets the value and a drag moves it. The screen reader
 hears a slider with its label, value, minimum, maximum and step.
 
+## Number input
+
+`NumberInput` holds a number between a `[-]` and a `[+]` button, moved by a
+step and kept inside an optional range. Build it with `number_input()`
+(`.value()`, `.min()`, `.max()`, `.range()`, `.step()`, `.aria_label()`,
+`.disabled()`, `.width()`, `.class()`, `.on_change(f)` with the new value,
+`.on_submit(f)` with the value on Confirm) or with `NumberInputProps`
+(`value`, `min`, `max`, `step`, `aria_label`, `disabled`, `width`). The
+value shows the step's decimals: step 1 gives `2`, step 0.5 gives `2.0`.
+
+It paints one row with no gap: `[−][2.5     ][+]`. The field's two end
+cells are `border`, `ring` while it holds the focus, and its value is
+`foreground` on `input`, with the cursor cell as a text input has it. The
+buttons are three cells each, `Icon::Minus` and `Icon::Plus` on `secondary`
+with `secondary-foreground` text. A button that cannot step further is
+`text-muted`, and both are `text-muted` while the input is disabled.
+
+Typing takes digits, `.` and `-` as a text input in its numeric mode does.
+Backspace, Delete, Left and Right edit the text. Up and Down step by one
+step, Page Up and Page Down by ten steps, and Home and End go to `min` and
+`max` when they are set. A click on `[-]` or `[+]` steps, and the mouse
+wheel over the piece steps (wheel up adds one step). A step never passes
+`min` or `max`. When the focus leaves, the typed text is read, clamped into
+the range and written in the step's decimals. Each change calls `on_change`
+with the value. A disabled number input takes nothing.
+
+The screen reader hears a spin button, named by its label or `aria_label`,
+with its value, minimum, maximum and step. It advertises Increment,
+Decrement and SetValue and acts on them as a slider does.
+
+## Code input
+
+`CodeInput` holds a one-time code or a verification number as a row of digit
+cells, `length` cells (6 by default), with a gap after each `group` digits.
+Build it with `code_input()` (`.length()`, `.group()`, `.value()`,
+`.masked()`, `.label()`, `.aria_label()`, `.disabled()`, `.class()`,
+`.on_change(f)` with the code after each change, `.on_complete(f)` with
+the code) or with `CodeInputProps` (`length`, `group`, `value`, `masked`,
+`label`, `aria_label`, `disabled`).
+
+Each digit cell is three cells, `[1]`, on `input`. An empty cell shows `_`
+in `text-muted`, a filled cell its digit in `foreground`, and a masked
+filled cell `Icon::Dot` in `foreground`. Each cell's brackets are `border`,
+and the current cell's brackets (the first empty cell, or the last cell
+when all are filled) are `ring` while the input has the focus. With
+`.group(3)` and the value `123`, it reads `[1][2][3] [_][_][_]`. Its width
+is three cells per digit plus one for each gap between groups.
+
+A digit fills the current cell. Backspace clears the last filled cell, and
+any other character is ignored. A paste replaces the whole code: its digits
+fill the cells in order from the first cell, its other characters are
+dropped, and any cells it does not reach stay empty. Filling the last cell
+calls `on_complete` with the code, and so does Confirm when every cell is
+filled. Each change calls `on_change`. A click gives the input the focus.
+
+The screen reader hears one text input, or a password input when it is
+masked, labelled with `aria_label`, else `label`, else `Code`, and its
+length, as `Code, 6 digits`. Its value is its digits, or bullets when it is
+masked. It advertises SetValue and takes the requested string as a paste.
+
+## Rating
+
+`Rating` sets a whole number from 0 to `max` as a row of stars, one cell
+each. Build it with `rating()` (`.value()`, `.max()`, `.aria_label()`,
+`.disabled()`, `.class()`, `.on_change(f)` with the new value) or with
+`RatingProps` (`value`, `max`, `aria_label`, `disabled`). `max` is 5 unless
+set.
+
+The first `value` stars are `Icon::Star` (`★`, `*` in ASCII) in
+`text-warning`, and the rest are `Icon::StarOutline` (`☆`, `-` in ASCII) in
+`border`, in `ring` while the rating holds the focus. A disabled rating
+paints every star in `text-muted`. Three of five reads `★★★☆☆`.
+
+Left and Down lower the value by one, and Right and Up raise it, clamped to
+0 through `max`. Home sets 0 and End sets `max`. A digit from 0 to 9 sets
+the value, clamped to `max`. A click on star n sets the value to n. Each
+change calls `on_change`.
+
+The screen reader hears a slider with its label or `aria_label`, a numeric
+value, a minimum of 0, a maximum of `max`, a step of 1, and the value text
+`n of m`. It advertises Increment, Decrement and SetValue and acts on them
+as a slider does.
+
+## Switch
+
+`Switch` is an on-off control with a label. Build it with `switch()`
+(`.checked()`, `.label()`, `.aria_label()`, `.disabled()`, `.class()`,
+`.on_change(f)` with the new state) or with `SwitchProps` (`checked`,
+`label`, `aria_label`, `disabled`).
+
+It paints `[ ●] Label` when on and `[● ] Label` when off. The box is four
+cells: the two brackets in `border` (`ring` while focused), the thumb
+`Icon::Dot` in `primary` when on or in `text-muted` when off, and a space
+in the other cell. The label is `foreground`, or `text-muted` while the
+switch is disabled. The row under the pointer is `hover`.
+
+Activate and Confirm toggle it, and so does a click anywhere on the row.
+Each toggle calls `on_change` with the new state. A disabled switch takes
+nothing.
+
+The screen reader hears a switch, named by its label or `aria_label`, and
+whether it is on or off.
+
+## Form
+
+`Form` lays out labelled controls as rows. Build it with `form()`
+(`.field()`, `.labels_above()`, `.label_width()`, `.aria_label()`,
+`.class()`) or with `FormProps` (`fields`, `labels`, `label_width`,
+`aria_label`). Each field is a `FormField`, built with `FormField::new(label,
+control)`, then `.required()` to mark it with `*` and `.description(text)`
+to add a line under its control. The labels stand beside the controls by
+default (`FormLabels::Beside`), and `.labels_above()` puts them above.
+
+Beside the controls, the label column is as wide as the widest label. It
+is one cell wider when any field is required, and the `*` follows the label
+with no space, as in `Name*`. `.label_width()` sets the column width
+instead. Each row is the label, one cell of gap, then the control, which
+fills the rest. A description stands on its own row under its control,
+starting at the control's first column, in `text-muted`. When the width
+allotted to the form is less than the label column, one cell, and ten
+cells of control, the labels go above whatever the setting. Above the
+controls, each label is on its own row, the control fills the row below
+it, and the description sits under the control at the form's first column.
+Labels are `foreground` and the required mark is `text-error`.
+
+Next and Previous move the focus through the fields in their order, and
+each control takes its own keys and clicks. The form has no callbacks of its
+own: each control reports through its own `on_change`.
+
+The screen reader hears the form as a form, named by `aria_label` when it is
+set. Each control is named by its label and described by its description,
+and a required control is marked required. A disabled control takes no
+keys and is heard as disabled.
+
 ## Screen reader requests
 
 A control tells the screen reader which requests it takes, and the App
@@ -195,6 +343,13 @@ advertise changes nothing. A radio button is heard with its position in
 its group and the group's count, a disabled radio counted (CTL-006),
 whether the group is one `RadioButton` or radios built with
 `radio_button().group(name)`.
+
+The five pieces take the requests the screen reader makes (CTL-010). A
+number input takes Increment and Decrement, one step each, and SetValue,
+snapped to its step and clamped to its range, as a slider does. A rating
+takes Increment, Decrement and SetValue on the same terms as a slider, and
+a code input takes SetValue as a paste, its digits filling the cells in
+order. A disabled piece advertises nothing, as the controls above do.
 
 ## Button
 
@@ -222,6 +377,13 @@ reader hears it as a button.
 - The list panel of a select and of suggestions: [`src/widgets/input/panel.rs`](../src/widgets/input/panel.rs)
 - Text input implementation: [`src/widgets/input/text_input.rs`](../src/widgets/input/text_input.rs)
 - Select implementation: [`src/widgets/input/select.rs`](../src/widgets/input/select.rs)
+- Number input: [`src/widgets/input/number_input.rs`](../src/widgets/input/number_input.rs), builder [`src/builder/widgets/input/number_input.rs`](../src/builder/widgets/input/number_input.rs)
+- Code input: [`src/widgets/input/code_input.rs`](../src/widgets/input/code_input.rs), builder [`src/builder/widgets/input/code_input.rs`](../src/builder/widgets/input/code_input.rs)
+- Rating: [`src/widgets/input/rating.rs`](../src/widgets/input/rating.rs), builder [`src/builder/widgets/input/rating.rs`](../src/builder/widgets/input/rating.rs)
+- Switch: [`src/widgets/input/switch.rs`](../src/widgets/input/switch.rs), builder [`src/builder/widgets/input/switch.rs`](../src/builder/widgets/input/switch.rs)
+- Form: [`src/widgets/input/form.rs`](../src/widgets/input/form.rs), builder [`src/builder/widgets/input/form.rs`](../src/builder/widgets/input/form.rs)
+- Input builders: [`src/builder/widgets/input.rs`](../src/builder/widgets/input.rs)
+- Goldens: [`tests/input_widgets_goldens.rs`](../tests/input_widgets_goldens.rs), [`tests/snapshots/input_widgets`](../tests/snapshots/input_widgets)
 - The button builders: [`src/builder/core.rs`](../src/builder/core.rs)
 - Contract tests: [`tests/input_widgets_contract.rs`](../tests/input_widgets_contract.rs)
 - Input widget tests: [`tests/api_widget_behavior/input.rs`](../tests/api_widget_behavior/input.rs)

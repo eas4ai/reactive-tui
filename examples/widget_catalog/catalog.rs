@@ -9,11 +9,12 @@ use reactive_tui::builder::widgets::pieces::{
 use reactive_tui::{
     app::{RootComponent, RootUpdate},
     builder::{
-        action_item, alert, button, checkbox, checkbox_item, confirmation_dialog, context_menu,
-        data_table, div, empty, file_explorer, icon, image, link, menu_item, menubar, pagination,
-        path_breadcrumb, popover, primary_button, progress_bar, progress_dialog, radio_button,
-        radio_item, scroll_view, select, separator, shimmer, simple_accordion, skeleton, slider,
-        spinner, stack, stepper, submenu_item, tabs, text_input, toast, tree, wizard,
+        action_item, alert, button, checkbox, checkbox_item, code_input, confirmation_dialog,
+        context_menu, data_table, div, empty, file_explorer, form, icon, image, link, menu_item,
+        menubar, number_input, pagination, path_breadcrumb, popover, primary_button, progress_bar,
+        progress_dialog, radio_button, radio_item, rating, scroll_view, select, separator, shimmer,
+        simple_accordion, skeleton, slider, spinner, stack, stepper, submenu_item, switch, tabs,
+        text_input, toast, tree, wizard,
     },
     component::Element,
     core::geometry::Rect,
@@ -37,6 +38,7 @@ use reactive_tui::{
             DonutChartBuilder, LineChartBuilder, PieChartBuilder, RadarChartBuilder,
             SankeyChartBuilder, SankeyLink, ScatterChartBuilder, SizeClass,
         },
+        input::FormField,
         menu::{DialogMenuBuilder, MenuItem},
         DialogMenu, TerminalProps, TerminalWidget,
     },
@@ -456,6 +458,43 @@ impl Catalog {
                     .class("flex-row gap-1")
                     .child(primary_button("Save", || {}))
                     .child(button().text("Cancel").on_click(|| {}).build())
+                    .build(),
+            ))
+            .child(Self::card(
+                "NumberInput",
+                number_input()
+                    .value(2.5)
+                    .range(0.0, 10.0)
+                    .step(0.5)
+                    .aria_label("Volume")
+                    .build(),
+            ))
+            .child(Self::card(
+                "CodeInput",
+                code_input()
+                    .length(6)
+                    .group(3)
+                    .value("123")
+                    .label("Code")
+                    .build(),
+            ))
+            .child(Self::card(
+                "Rating",
+                rating().value(3).max(5).aria_label("Quality").build(),
+            ))
+            .child(Self::card(
+                "Switch",
+                switch().checked(true).label("Capture-ready").build(),
+            ))
+            .child(Self::card(
+                "Form",
+                form()
+                    .aria_label("Account")
+                    .field(FormField::new("Name", text_input().value("Ada").build()).required())
+                    .field(
+                        FormField::new("Email", text_input().build()).description("Work address"),
+                    )
+                    .field(FormField::new("Notifications", switch().build()))
                     .build(),
             ))
             .build()
