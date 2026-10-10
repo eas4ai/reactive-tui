@@ -171,6 +171,11 @@ fn at(frame: &Snapshot, needle: &str) -> (u16, u16) {
     find(frame, needle).unwrap_or_else(|| panic!("{needle:?} is not painted:\n{}", frame.text))
 }
 
+/// The last frame of `frames`.
+fn last(frames: &[Snapshot]) -> &Snapshot {
+    frames.last().expect("a frame")
+}
+
 /// The glyph in the cell at (column, row).
 fn glyph(frame: &Snapshot, column: u16, row: u16) -> String {
     frame
@@ -194,6 +199,14 @@ fn bg(frame: &Snapshot, column: u16, row: u16) -> Option<Rgb> {
         .screen
         .cell(row, column)
         .and_then(|cell| rgb(cell.bgcolor()))
+}
+
+/// The glyph color and the background of the cell where `needle` starts.
+fn colors(frame: &Snapshot, needle: &str) -> (Option<Rgb>, Option<Rgb>) {
+    let (column, row) =
+        find(frame, needle).unwrap_or_else(|| panic!("{needle:?} is not painted:\n{}", frame.text));
+    let cell = frame.screen.cell(row, column).unwrap();
+    (rgb(cell.fgcolor()), rgb(cell.bgcolor()))
 }
 
 /// The number of cells in `row` whose background is `color`.
@@ -310,111 +323,6 @@ use reactive_tui::{
     widgets::display::pieces::badge::BadgeKind,
 };
 
-const PIECE_ROLES: [&str; 25] = [
-    "background",
-    "surface",
-    "foreground",
-    "text-muted",
-    "border",
-    "input",
-    "ring",
-    "hover",
-    "selection",
-    "selection-foreground",
-    "primary",
-    "primary-foreground",
-    "secondary",
-    "secondary-foreground",
-    "error",
-    "error-foreground",
-    "warning",
-    "warning-foreground",
-    "success",
-    "success-foreground",
-    "info",
-    "info-foreground",
-    "accent",
-    "accent-foreground",
-    "overlay",
-];
-
-fn piece_color(index: usize) -> Rgb {
-    [
-        30 + 8 * index as u8,
-        200 - 6 * index as u8,
-        90 + 5 * index as u8,
-    ]
-}
-
-fn piece_role(name: &str) -> Rgb {
-    piece_color(
-        PIECE_ROLES
-            .iter()
-            .position(|role| *role == name)
-            .unwrap_or_else(|| panic!("{name} is not a role of the probe theme")),
-    )
-}
-
-/// A theme whose roles all differ, so a cell's color names its role.
-fn piece_probe() -> Theme {
-    let mut variables = ThemeVariables::new();
-    for (index, name) in PIECE_ROLES.iter().enumerate() {
-        let [r, g, b] = piece_color(index);
-        variables = variables.set(
-            Theme::color_variable(name),
-            format!("#{r:02x}{g:02x}{b:02x}"),
-        );
-    }
-    Theme::new("probe").with_variables(variables)
-}
-
-/// Makes `theme` the active theme until it is dropped.
-struct PieceTheme(std::sync::Arc<Theme>);
-impl PieceTheme {
-    fn set(theme: Theme) -> Self {
-        let before = Theme::active();
-        Theme::set_active(theme);
-        Self(before)
-    }
-}
-impl Drop for PieceTheme {
-    fn drop(&mut self) {
-        Theme::set_active((*self.0).clone());
-    }
-}
-
-fn piece_rgb(color: vt100::Color) -> Option<Rgb> {
-    match color {
-        vt100::Color::Rgb(r, g, b) => Some([r, g, b]),
-        _ => None,
-    }
-}
-
-/// The cell where `needle` starts, as (column, row).
-fn piece_find(frame: &Snapshot, needle: &str) -> Option<(u16, u16)> {
-    let (rows, columns) = frame.screen.size();
-    let glyphs: Vec<String> = needle.chars().map(String::from).collect();
-    let length = glyphs.len() as u16;
-    (0..rows)
-        .flat_map(|row| (0..=columns.saturating_sub(length)).map(move |column| (column, row)))
-        .find(|(column, row)| {
-            glyphs.iter().enumerate().all(|(offset, glyph)| {
-                frame
-                    .screen
-                    .cell(*row, column + offset as u16)
-                    .is_some_and(|cell| cell.contents() == *glyph)
-            })
-        })
-}
-
-/// The glyph color and the background of the cell where `needle` starts.
-fn piece_colors(frame: &Snapshot, needle: &str) -> (Option<Rgb>, Option<Rgb>) {
-    let (column, row) = piece_find(frame, needle)
-        .unwrap_or_else(|| panic!("{needle:?} is not painted:\n{}", frame.text));
-    let cell = frame.screen.cell(row, column).unwrap();
-    (piece_rgb(cell.fgcolor()), piece_rgb(cell.bgcolor()))
-}
-
 /// The contents of the cells of `row`, one string per column.
 fn row_cells(frame: &Snapshot, row: u16) -> Vec<String> {
     let (_, columns) = frame.screen.size();
@@ -431,22 +339,9 @@ fn row_cells(frame: &Snapshot, row: u16) -> Vec<String> {
 
 /// The row where the first cell of `glyph` is painted.
 fn row_with(frame: &Snapshot, glyph: &str) -> u16 {
-    piece_find(frame, glyph)
+    find(frame, glyph)
         .map(|(_, row)| row)
         .unwrap_or_else(|| panic!("{glyph:?} is not painted:\n{}", frame.text))
-}
-
-/// The background of the cell at `column` of `row`.
-fn bg_at(frame: &Snapshot, column: u16, row: u16) -> Option<Rgb> {
-    piece_rgb(frame.screen.cell(row, column).unwrap().bgcolor())
-}
-
-/// A page of the pieces in a box of `width` by `height` cells.
-fn piece_box(width: u16, height: u16, child: Element) -> Element {
-    builder::div()
-        .class(&format!("flex-col w-{width} h-{height}"))
-        .child(child)
-        .build()
 }
 
 /// DIS-001: a separator's line and label, a badge's fill and a tag's outline
@@ -454,7 +349,7 @@ fn piece_box(width: u16, height: u16, child: Element) -> Element {
 #[test]
 #[serial_test::serial(theme)]
 fn dis_001_separator_badge_tag_and_key_hint_paint_by_role() {
-    let _theme = PieceTheme::set(piece_probe());
+    let _theme = Active::set(probe());
     let frame = shown(
         builder::div()
             .class("flex-col w-full")
@@ -474,59 +369,44 @@ fn dis_001_separator_badge_tag_and_key_hint_paint_by_role() {
         "Results",
     );
     assert_eq!(
-        piece_colors(&frame, "─"),
-        (Some(piece_role("border")), Some(piece_role("background"))),
+        colors(&frame, "─"),
+        (Some(role("border")), Some(role("background"))),
         "DIS-001: the separator line is painted in border:\n{}",
         frame.text
     );
     assert_eq!(
-        piece_colors(&frame, "Results"),
-        (
-            Some(piece_role("text-muted")),
-            Some(piece_role("background"))
-        ),
+        colors(&frame, "Results"),
+        (Some(role("text-muted")), Some(role("background"))),
         "DIS-001: the separator label is painted in text-muted:\n{}",
         frame.text
     );
     assert_eq!(
-        piece_colors(&frame, " 3 "),
-        (
-            Some(piece_role("secondary-foreground")),
-            Some(piece_role("secondary"))
-        ),
+        colors(&frame, " 3 "),
+        (Some(role("secondary-foreground")), Some(role("secondary"))),
         "DIS-001: a default badge is on secondary:\n{}",
         frame.text
     );
     assert_eq!(
-        piece_colors(&frame, " 5 "),
-        (
-            Some(piece_role("error-foreground")),
-            Some(piece_role("error"))
-        ),
+        colors(&frame, " 5 "),
+        (Some(role("error-foreground")), Some(role("error"))),
         "DIS-001: an error badge is on error:\n{}",
         frame.text
     );
     assert_eq!(
-        piece_colors(&frame, "[ bug ]").0,
-        Some(piece_role("info")),
+        colors(&frame, "[ bug ]").0,
+        Some(role("info")),
         "DIS-001: an outline tag's text is in text-info:\n{}",
         frame.text
     );
     assert_eq!(
-        piece_colors(&frame, " done "),
-        (
-            Some(piece_role("secondary-foreground")),
-            Some(piece_role("secondary"))
-        ),
+        colors(&frame, " done "),
+        (Some(role("secondary-foreground")), Some(role("secondary"))),
         "DIS-001: a default tag is filled on secondary:\n{}",
         frame.text
     );
     assert_eq!(
-        piece_colors(&frame, "Ctrl+S"),
-        (
-            Some(piece_role("secondary-foreground")),
-            Some(piece_role("secondary"))
-        ),
+        colors(&frame, "Ctrl+S"),
+        (Some(role("secondary-foreground")), Some(role("secondary"))),
         "DIS-001: a key hint is on secondary:\n{}",
         frame.text
     );
@@ -537,7 +417,7 @@ fn dis_001_separator_badge_tag_and_key_hint_paint_by_role() {
 #[test]
 #[serial_test::serial(theme)]
 fn dis_001_status_bar_and_description_list_paint_by_role() {
-    let _theme = PieceTheme::set(piece_probe());
+    let _theme = Active::set(probe());
     let frame = shown(
         builder::div()
             .class("flex-col w-full")
@@ -548,23 +428,20 @@ fn dis_001_status_bar_and_description_list_paint_by_role() {
         "Ln 4",
     );
     assert_eq!(
-        piece_colors(&frame, "Ready"),
-        (Some(piece_role("foreground")), Some(piece_role("surface"))),
+        colors(&frame, "Ready"),
+        (Some(role("foreground")), Some(role("surface"))),
         "DIS-001: the status bar is foreground on surface:\n{}",
         frame.text
     );
     assert_eq!(
-        piece_colors(&frame, "Name"),
-        (
-            Some(piece_role("text-muted")),
-            Some(piece_role("background"))
-        ),
+        colors(&frame, "Name"),
+        (Some(role("text-muted")), Some(role("background"))),
         "DIS-001: a description label is text-muted:\n{}",
         frame.text
     );
     assert_eq!(
-        piece_colors(&frame, "Ada").0,
-        Some(piece_role("foreground")),
+        colors(&frame, "Ada").0,
+        Some(role("foreground")),
         "DIS-001: a description value is foreground:\n{}",
         frame.text
     );
@@ -575,9 +452,9 @@ fn dis_001_status_bar_and_description_list_paint_by_role() {
 #[test]
 #[serial_test::serial(theme)]
 fn dis_002_pieces_fill_or_take_the_width_their_classes_ask_for() {
-    let _theme = PieceTheme::set(piece_probe());
+    let _theme = Active::set(probe());
     let frame = shown(
-        piece_box(
+        boxed(
             100,
             8,
             builder::div()
@@ -615,13 +492,13 @@ fn dis_002_pieces_fill_or_take_the_width_their_classes_ask_for() {
     );
     let bar = row_with(&frame, "Ready");
     assert_eq!(
-        bg_at(&frame, 99, bar),
-        Some(piece_role("surface")),
+        bg(&frame, 99, bar),
+        Some(role("surface")),
         "DIS-002: the status bar reaches the box's last cell"
     );
     assert_ne!(
-        bg_at(&frame, 100, bar),
-        Some(piece_role("surface")),
+        bg(&frame, 100, bar),
+        Some(role("surface")),
         "DIS-002: the status bar stops at the box's last cell"
     );
 }
@@ -632,7 +509,7 @@ fn dis_002_pieces_fill_or_take_the_width_their_classes_ask_for() {
 #[test]
 fn dis_002_a_status_bar_that_overflows_cuts_its_center_then_its_right() {
     let frame = shown(
-        piece_box(
+        boxed(
             100,
             3,
             status_bar()
@@ -710,7 +587,7 @@ fn dis_003_a_badge_hides_at_zero_caps_at_99_and_shows_a_dot() {
 #[test]
 fn dis_003_a_key_hint_for_an_action_follows_the_keymap() {
     let default_hint = shown(
-        piece_box(40, 1, kbd_action(Action::Copy).build()),
+        boxed(40, 1, kbd_action(Action::Copy).build()),
         (80, 12),
         "Ctrl+C",
     );
@@ -723,7 +600,7 @@ fn dis_003_a_key_hint_for_an_action_follows_the_keymap() {
     keymap.rebind(Action::Copy, [KeyBinding::new(KeyCode::F(3))]);
     let _scope = Keymap::scoped(keymap);
     let rebound = shown(
-        piece_box(40, 1, kbd_action(Action::Copy).build()),
+        boxed(40, 1, kbd_action(Action::Copy).build()),
         (80, 12),
         "F3",
     );
@@ -739,9 +616,9 @@ fn dis_003_a_key_hint_for_an_action_follows_the_keymap() {
 #[test]
 #[serial_test::serial(theme)]
 fn dis_001_a_bordered_description_list_draws_its_box_in_border_across_its_width() {
-    let _theme = PieceTheme::set(piece_probe());
+    let _theme = Active::set(probe());
     let frame = shown(
-        piece_box(
+        boxed(
             100,
             6,
             description_list()
@@ -755,10 +632,10 @@ fn dis_001_a_bordered_description_list_draws_its_box_in_border_across_its_width(
     );
     let top = row_with(&frame, "┌");
     let cells = row_cells(&frame, top);
-    let corner = piece_find(&frame, "┌").expect("the box corner is painted");
+    let corner = find(&frame, "┌").expect("the box corner is painted");
     assert_eq!(
-        piece_colors(&frame, "┌").0,
-        Some(piece_role("border")),
+        colors(&frame, "┌").0,
+        Some(role("border")),
         "DIS-001: the box is painted in border:\n{}",
         frame.text
     );
@@ -1177,122 +1054,14 @@ fn dis_004_a_skeleton_s_parent_is_busy_while_it_shows() {
 
 mod interactive {
     use super::*;
-    use reactive_tui::event::types::{Event, KeyCode};
-    use reactive_tui::theme::{Theme, ThemeVariables};
+    use common::app_input::key;
+    use reactive_tui::event::types::Event;
     use reactive_tui::widgets::display::pieces::{alert::AlertKind, icon::Icon};
-    use std::sync::{Arc, Mutex};
-
-    type Rgb = [u8; 3];
-
-    const ROLES: [&str; 25] = [
-        "background",
-        "surface",
-        "foreground",
-        "text-muted",
-        "border",
-        "input",
-        "ring",
-        "hover",
-        "selection",
-        "selection-foreground",
-        "primary",
-        "primary-foreground",
-        "secondary",
-        "secondary-foreground",
-        "error",
-        "error-foreground",
-        "warning",
-        "warning-foreground",
-        "success",
-        "success-foreground",
-        "info",
-        "info-foreground",
-        "accent",
-        "accent-foreground",
-        "overlay",
-    ];
-
-    fn probe_color(index: usize) -> Rgb {
-        [
-            30 + 8 * index as u8,
-            200 - 6 * index as u8,
-            90 + 5 * index as u8,
-        ]
-    }
-
-    fn role(name: &str) -> Rgb {
-        probe_color(
-            ROLES
-                .iter()
-                .position(|role| *role == name)
-                .unwrap_or_else(|| panic!("{name} is not a role of the probe theme")),
-        )
-    }
-
-    /// A theme whose roles all differ, so a cell's color names its role.
-    fn probe() -> Theme {
-        let mut variables = ThemeVariables::new();
-        for (index, name) in ROLES.iter().enumerate() {
-            let [r, g, b] = probe_color(index);
-            variables = variables.set(
-                Theme::color_variable(name),
-                format!("#{r:02x}{g:02x}{b:02x}"),
-            );
-        }
-        Theme::new("probe").with_variables(variables)
-    }
-
-    /// Makes `theme` the active theme until it is dropped.
-    struct Active(Arc<Theme>);
-    impl Active {
-        fn set(theme: Theme) -> Self {
-            let before = Theme::active();
-            Theme::set_active(theme);
-            Self(before)
-        }
-    }
-    impl Drop for Active {
-        fn drop(&mut self) {
-            Theme::set_active((*self.0).clone());
-        }
-    }
-
-    fn rgb(color: vt100::Color) -> Option<Rgb> {
-        match color {
-            vt100::Color::Rgb(r, g, b) => Some([r, g, b]),
-            _ => None,
-        }
-    }
-
-    /// The cell where `needle` starts, as (column, row).
-    fn at(frame: &Snapshot, needle: &str) -> (u16, u16) {
-        let (rows, columns) = frame.screen.size();
-        let glyphs: Vec<String> = needle.chars().map(String::from).collect();
-        (0..rows)
-            .flat_map(|row| {
-                (0..=columns.saturating_sub(glyphs.len() as u16)).map(move |c| (c, row))
-            })
-            .find(|(column, row)| {
-                glyphs.iter().enumerate().all(|(offset, glyph)| {
-                    frame
-                        .screen
-                        .cell(*row, column + offset as u16)
-                        .is_some_and(|cell| cell.contents() == *glyph)
-                })
-            })
-            .unwrap_or_else(|| panic!("{needle:?} is not painted:\n{}", frame.text))
-    }
 
     /// The glyph color and the background of the cell at (column, row).
     fn cell_colors(frame: &Snapshot, column: u16, row: u16) -> (Option<Rgb>, Option<Rgb>) {
         let cell = frame.screen.cell(row, column).unwrap();
         (rgb(cell.fgcolor()), rgb(cell.bgcolor()))
-    }
-
-    /// The glyph color and the background of the cell where `needle` starts.
-    fn colors(frame: &Snapshot, needle: &str) -> (Option<Rgb>, Option<Rgb>) {
-        let (column, row) = at(frame, needle);
-        cell_colors(frame, column, row)
     }
 
     /// Runs `root` at `size` through `steps`: each step waits until its text
@@ -1321,14 +1090,6 @@ mod interactive {
             });
         }
         app_input::run_until(Control(page(root)), size, until, WAIT)
-    }
-
-    fn last(frames: &[Snapshot]) -> &Snapshot {
-        frames.last().expect("a frame")
-    }
-
-    fn key(code: KeyCode) -> Option<Event> {
-        app_input::key(code)
     }
 
     /// The text of a frame with every run of spaces made one space.
@@ -1759,116 +1520,13 @@ mod link {
 
     use super::*;
     use common::app_input::{click, key};
-    use reactive_tui::{
-        event::types::KeyCode,
-        theme::{Theme, ThemeVariables},
-        widgets::display::pieces::{Link, LinkProps},
-    };
-    use std::sync::{Arc, Mutex};
-
-    type Rgb = [u8; 3];
+    use reactive_tui::widgets::display::pieces::{Link, LinkProps};
 
     const URL: &str = "https://example.com/docs";
-
-    const ROLES: [&str; 25] = [
-        "background",
-        "surface",
-        "foreground",
-        "text-muted",
-        "border",
-        "input",
-        "ring",
-        "hover",
-        "selection",
-        "selection-foreground",
-        "primary",
-        "primary-foreground",
-        "secondary",
-        "secondary-foreground",
-        "error",
-        "error-foreground",
-        "warning",
-        "warning-foreground",
-        "success",
-        "success-foreground",
-        "info",
-        "info-foreground",
-        "accent",
-        "accent-foreground",
-        "overlay",
-    ];
-
-    fn probe_color(index: usize) -> Rgb {
-        [
-            30 + 8 * index as u8,
-            200 - 6 * index as u8,
-            90 + 5 * index as u8,
-        ]
-    }
-
-    fn role(name: &str) -> Rgb {
-        probe_color(
-            ROLES
-                .iter()
-                .position(|role| *role == name)
-                .unwrap_or_else(|| panic!("{name} is not a role of the probe theme")),
-        )
-    }
-
-    /// A theme whose roles all differ, so a cell's color names its role.
-    fn probe() -> Theme {
-        let mut variables = ThemeVariables::new();
-        for (index, name) in ROLES.iter().enumerate() {
-            let [r, g, b] = probe_color(index);
-            variables = variables.set(
-                Theme::color_variable(name),
-                format!("#{r:02x}{g:02x}{b:02x}"),
-            );
-        }
-        Theme::new("probe").with_variables(variables)
-    }
-
-    /// Makes `theme` the active theme until it is dropped, also when the
-    /// test fails in between.
-    struct Active(Arc<Theme>);
-    impl Active {
-        fn set(theme: Theme) -> Self {
-            let before = Theme::active();
-            Theme::set_active(theme);
-            Self(before)
-        }
-    }
-    impl Drop for Active {
-        fn drop(&mut self) {
-            Theme::set_active((*self.0).clone());
-        }
-    }
-
-    /// The cell where `needle` starts, as (column, row).
-    fn at(frame: &Snapshot, needle: &str) -> (u16, u16) {
-        let (rows, columns) = frame.screen.size();
-        let glyphs: Vec<String> = needle.chars().map(String::from).collect();
-        let length = glyphs.len() as u16;
-        (0..rows)
-            .flat_map(|row| (0..=columns.saturating_sub(length)).map(move |column| (column, row)))
-            .find(|(column, row)| {
-                glyphs.iter().enumerate().all(|(offset, glyph)| {
-                    frame
-                        .screen
-                        .cell(*row, column + offset as u16)
-                        .is_some_and(|cell| cell.contents() == *glyph)
-                })
-            })
-            .unwrap_or_else(|| panic!("{needle:?} is not painted:\n{}", frame.text))
-    }
 
     /// The glyph color, the background and whether it is underlined, of
     /// each cell of `needle` where it is painted.
     fn looks(frame: &Snapshot, needle: &str) -> Vec<(Option<Rgb>, Option<Rgb>, bool)> {
-        let rgb = |color| match color {
-            vt100::Color::Rgb(r, g, b) => Some([r, g, b]),
-            _ => None,
-        };
         let (column, row) = at(frame, needle);
         (0..needle.chars().count() as u16)
             .map(|offset| {
@@ -2208,7 +1866,6 @@ mod adoption {
             menu::{MenuItem, MenuSeparator, PopupMenu, PopupMenuProps, PopupPlacement},
         },
     };
-    use std::sync::{Arc, Mutex};
 
     /// Every glyph of the separator's table, in both directions.
     fn separator_table() -> Vec<char> {
@@ -2685,12 +2342,8 @@ mod adoption {
 mod bar {
     use super::*;
     use common::app_input::key;
-    use reactive_tui::event::types::{Event, KeyCode, ResizeEvent};
+    use reactive_tui::event::types::{Event, ResizeEvent};
     use reactive_tui::widgets::display::pieces::{alert::AlertKind, icon::Icon};
-
-    fn last(frames: &[Snapshot]) -> &Snapshot {
-        frames.last().expect("a frame")
-    }
 
     fn until(steps: Vec<(&'static str, Option<Event>)>) -> Vec<Until> {
         steps
@@ -2800,8 +2453,8 @@ mod bar {
                     parts.push(("glyph", cell.fgcolor()));
                 }
                 for (part, color) in parts {
-                    let known = piece_rgb(color)
-                        .is_some_and(|rgb| (0..PIECE_ROLES.len()).any(|i| piece_color(i) == rgb));
+                    let known = rgb(color)
+                        .is_some_and(|rgb| (0..ROLES.len()).any(|i| probe_color(i) == rgb));
                     if !known {
                         found.push(format!(
                             "{part} {color:?} at ({column}, {row}) {:?}",
@@ -2818,7 +2471,7 @@ mod bar {
     fn cells_on(frame: &Snapshot, row: u16, color: Rgb) -> usize {
         let (_, columns) = frame.screen.size();
         (0..columns)
-            .filter(|column| bg_at(frame, *column, row) == Some(color))
+            .filter(|column| bg(frame, *column, row) == Some(color))
             .count()
     }
 
@@ -2873,7 +2526,7 @@ mod bar {
     #[test]
     #[serial_test::serial(theme)]
     fn bar_003_a_display_piece_takes_every_color_from_the_active_theme() {
-        let _theme = PieceTheme::set(piece_probe());
+        let _theme = Active::set(probe());
         let mut wrong = Vec::new();
         for (name, piece) in pieces() {
             let frame = shown(with_footer(piece), (80, 24), "Footer line");
@@ -2903,7 +2556,7 @@ mod bar {
     #[test]
     #[serial_test::serial(theme)]
     fn bar_003_a_display_piece_follows_a_resize() {
-        let _theme = PieceTheme::set(piece_probe());
+        let _theme = Active::set(probe());
         let root = builder::div()
             .class("flex-col w-full h-full")
             .child(separator().build())
@@ -2926,8 +2579,8 @@ mod bar {
         let after = last(&frames);
         for (frame, last_column) in [(before, 79u16), (after, 159u16)] {
             let width = frame.screen.size().1;
-            let (_, rule_row) = piece_find(frame, "─")
-                .unwrap_or_else(|| panic!("no rule painted:\n{}", frame.text));
+            let (_, rule_row) =
+                find(frame, "─").unwrap_or_else(|| panic!("no rule painted:\n{}", frame.text));
             assert_eq!(
                 glyph(frame, last_column, rule_row),
                 "─",
@@ -2936,8 +2589,8 @@ mod bar {
             );
             let bar = row_with(frame, "Ready");
             assert_eq!(
-                bg_at(frame, last_column, bar),
-                Some(piece_role("surface")),
+                bg(frame, last_column, bar),
+                Some(role("surface")),
                 "BAR-003: the status bar does not reach column {last_column} at {width} columns:\n{}",
                 frame.text
             );
@@ -3117,7 +2770,7 @@ mod bar {
     #[test]
     #[serial_test::serial(theme)]
     fn dis_001_an_empty_state_paints_its_title_in_foreground_and_its_description_in_text_muted() {
-        let _theme = PieceTheme::set(piece_probe());
+        let _theme = Active::set(probe());
         let frame = shown(
             builder::empty()
                 .title("No results")
@@ -3126,14 +2779,8 @@ mod bar {
             (80, 24),
             "Try another",
         );
-        assert_eq!(
-            piece_colors(&frame, "No results").0,
-            Some(piece_role("foreground"))
-        );
-        assert_eq!(
-            piece_colors(&frame, "Try another").0,
-            Some(piece_role("text-muted"))
-        );
+        assert_eq!(colors(&frame, "No results").0, Some(role("foreground")));
+        assert_eq!(colors(&frame, "Try another").0, Some(role("text-muted")));
     }
 
     /// DIS-001: an icon paints its glyph in `text-muted` unless its classes
@@ -3141,22 +2788,16 @@ mod bar {
     #[test]
     #[serial_test::serial(theme)]
     fn dis_001_an_icon_paints_its_glyph_in_text_muted_unless_a_class_names_a_color() {
-        let _theme = PieceTheme::set(piece_probe());
+        let _theme = Active::set(probe());
         let glyph_text = Icon::Error.glyph();
         let plain = shown(builder::icon(Icon::Error).build(), (80, 24), "");
-        assert_eq!(
-            piece_colors(&plain, glyph_text).0,
-            Some(piece_role("text-muted"))
-        );
+        assert_eq!(colors(&plain, glyph_text).0, Some(role("text-muted")));
         let named = shown(
             builder::icon(Icon::Error).class("text-error").build(),
             (80, 24),
             "",
         );
-        assert_eq!(
-            piece_colors(&named, glyph_text).0,
-            Some(piece_role("error"))
-        );
+        assert_eq!(colors(&named, glyph_text).0, Some(role("error")));
     }
 
     /// DIS-002: a description list's bordered box fills the 100-cell box it
@@ -3165,10 +2806,10 @@ mod bar {
     #[test]
     #[serial_test::serial(theme)]
     fn dis_002_a_description_list_fills_its_box_and_a_tag_and_an_icon_take_their_content_width() {
-        let _theme = PieceTheme::set(piece_probe());
+        let _theme = Active::set(probe());
         let glyph_text = Icon::Error.glyph();
         let frame = shown(
-            piece_box(
+            boxed(
                 100,
                 12,
                 builder::div()
@@ -3196,14 +2837,14 @@ mod bar {
         );
         let tag_row = row_with(&frame, "done");
         assert_eq!(
-            cells_on(&frame, tag_row, piece_role("success")),
+            cells_on(&frame, tag_row, role("success")),
             6,
             "DIS-002: a tag paints more cells than its text ` done `:\n{}",
             frame.text
         );
         let icon_row = row_with(&frame, glyph_text);
         assert_eq!(
-            cells_on(&frame, icon_row, piece_role("error")),
+            cells_on(&frame, icon_row, role("error")),
             1,
             "DIS-002: an icon paints more cells than its glyph:\n{}",
             frame.text
@@ -3215,9 +2856,9 @@ mod bar {
     #[test]
     #[serial_test::serial(theme)]
     fn dis_002_an_empty_state_fills_the_width_its_box_allots() {
-        let _theme = PieceTheme::set(piece_probe());
+        let _theme = Active::set(probe());
         let frame = shown(
-            piece_box(
+            boxed(
                 100,
                 8,
                 builder::empty()
@@ -3228,7 +2869,7 @@ mod bar {
             (240, 60),
             "No results",
         );
-        let (column, _) = piece_find(&frame, "No results").expect("the title is painted");
+        let (column, _) = find(&frame, "No results").expect("the title is painted");
         assert_eq!(
             column, 45,
             "DIS-002: the empty state does not fill the 100-cell box, so its title is not centered:\n{}",
@@ -3241,9 +2882,9 @@ mod bar {
     #[test]
     #[serial_test::serial(theme)]
     fn dis_002_a_vertical_separator_and_stepper_fill_the_height_of_their_box() {
-        let _theme = PieceTheme::set(piece_probe());
+        let _theme = Active::set(probe());
         let frame = shown(
-            piece_box(
+            boxed(
                 40,
                 20,
                 builder::div()
@@ -3264,7 +2905,7 @@ mod bar {
             frame.text
         );
         let frame = shown(
-            piece_box(
+            boxed(
                 40,
                 20,
                 builder::div()
@@ -3284,8 +2925,8 @@ mod bar {
             "Compose",
         );
         assert_eq!(
-            bg_at(&frame, 0, 19),
-            Some(piece_role("surface")),
+            bg(&frame, 0, 19),
+            Some(role("surface")),
             "DIS-002: the vertical stepper does not reach the box's last row:\n{}",
             frame.text
         );
