@@ -304,7 +304,14 @@ impl Component for CodeInput {
         } else {
             accessible.inner.add_action(accesskit::Action::SetValue);
         }
-        accessible.set_value(digits);
+        // A masked code gives the reader one bullet per digit, as the
+        // password text field does, so a one-time code is neither spoken nor
+        // read off the accessibility bus (CTL-010).
+        accessible.set_value(if props.masked {
+            "•".repeat(digits.chars().count())
+        } else {
+            digits.to_string()
+        });
 
         let mut element = look::row(&pieces, "")
             .with_accessibility(accessible)
@@ -611,6 +618,7 @@ mod tests {
 
         let masked = CodeInputProps {
             masked: true,
+            value: "12".to_owned(),
             aria_label: Some("One-time code".to_owned()),
             ..Default::default()
         };
@@ -619,6 +627,11 @@ mod tests {
         assert_eq!(
             node(&element).inner.label(),
             Some("One-time code, 6 digits")
+        );
+        assert_eq!(
+            node(&element).inner.value(),
+            Some("••"),
+            "a masked code gives bullets, one per digit, not the digits"
         );
 
         let disabled = CodeInputProps {

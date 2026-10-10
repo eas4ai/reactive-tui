@@ -1851,7 +1851,12 @@ mod reader {
             vec![(painted("[_]"), None)],
         );
         let tree = published(&reader);
-        named(&tree, Role::PasswordInput, "Code, 6 digits");
+        let masked = named(&tree, Role::PasswordInput, "Code, 6 digits");
+        assert_eq!(
+            masked.value(),
+            Some("•••"),
+            "CTL-010: a masked code gives bullets, not its digits"
+        );
 
         let reader = ReaderChannel::new();
         let frames = run(
