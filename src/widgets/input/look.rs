@@ -1,13 +1,17 @@
-//! The look every control shares (docs/spec/input-widgets.md, CTL-001):
-//! the classes that name each part's role, and the rows of colored text
-//! pieces the controls are drawn with. A control shows focus, hover and
-//! disabled by these colors alone; it adds no glyph and changes no text.
+//! The look every control shares (docs/spec/input-widgets.md, CTL-001, and
+//! CTL-007 for the number input, the code input, the rating, the switch and
+//! the form): the classes that name each part's role, and the rows of
+//! colored text pieces the controls are drawn with. A control shows focus,
+//! hover and disabled by these colors alone; it adds no glyph and changes no
+//! text.
 
 use crate::component::{Element, LayoutType};
 
-/// A field: the row of cells a text input or a select shows its value in.
+/// A field: the row of cells a text input, a select or a number input
+/// shows its value in, and a code input's digit cells.
 pub const FIELD: &str = "bg-input text-foreground";
-/// A field's placeholder, a select's caret, a text input's line numbers.
+/// A field's placeholder, a select's caret, a text input's line numbers, a
+/// code input's empty cell.
 pub const MUTED: &str = "bg-input text-muted";
 /// A disabled field: its text in `text-muted`.
 pub const FIELD_DISABLED: &str = "bg-input text-muted";
@@ -22,7 +26,8 @@ pub const MUTED_PICTURE: &str = "text-muted";
 pub const FRAME: &str = "text-border";
 /// The frame while its control holds the focus.
 pub const FRAME_FOCUSED: &str = "text-ring";
-/// A field's frame, on the field's fill.
+/// A field's frame, on the field's fill: also each code input cell's `[`
+/// and `]`.
 pub const FIELD_FRAME: &str = "bg-input text-border";
 /// A field's frame while the control holds the focus.
 pub const FIELD_FRAME_FOCUSED: &str = "bg-input text-ring";
@@ -31,18 +36,18 @@ pub const FIELD_FRAME_INVALID: &str = "bg-input text-error";
 /// A blank run of a field drawn with pixels: it holds no glyph, so the
 /// field's picture shows there (PIX-004); never joined with the text.
 pub const FIELD_PAD: &str = "field-pad";
-/// The text input's cursor cell: the field reversed.
+/// The cursor cell of a text input or a number input: the field reversed.
 pub const CURSOR: &str = "bg-foreground text-input";
 /// The text input's selection.
 pub const SELECTION: &str = "bg-selection text-selection-foreground";
 /// A checked or mixed box's mark, a chosen radio's dot, a slider's filled
-/// part, a chosen option's mark.
+/// part, a chosen option's mark, a switch's thumb while it is on.
 pub const MARK: &str = "text-primary";
-/// A switch's thumb while it is off: `text-muted`, as its label when disabled.
+/// A switch's thumb while it is off (CTL-007).
 pub const MARK_OFF: &str = "text-muted";
 /// A control's label and text.
 pub const LABEL: &str = "text-foreground";
-/// A disabled control's label and text.
+/// A disabled control's label and text, and a disabled rating's stars.
 pub const LABEL_DISABLED: &str = "text-muted";
 /// A form field's required mark, after its label (CTL-007).
 pub const REQUIRED_MARK: &str = "text-error";
@@ -54,19 +59,21 @@ pub const TRACK: &str = "text-border";
 pub const THUMB: &str = "text-foreground";
 /// A slider's thumb while the slider holds the focus.
 pub const THUMB_FOCUSED: &str = "text-ring";
-/// A lit star of a rating.
+/// A lit star of a rating (CTL-007).
 pub const RATING_LIT: &str = "text-warning";
 /// An unlit star of a rating.
 pub const RATING_UNLIT: &str = "text-border";
-/// An unlit star of a rating while it holds the focus.
+/// An unlit star of a rating while the rating holds the focus.
 pub const RATING_UNLIT_FOCUSED: &str = "text-ring";
-/// A stepper's button cells, `[-]` and `[+]`: `secondary` with the glyph
-/// in `secondary-foreground` (CTL-007).
+/// A number input's button cells, `[-]` and `[+]`: `secondary` with the
+/// glyph in `secondary-foreground` (CTL-007).
 pub const STEPPER: &str = "bg-secondary text-secondary-foreground";
-/// A stepper that cannot step further, or a disabled one: its glyph in
-/// `text-muted` on `secondary`.
+/// A number input's button that cannot step further, and both buttons
+/// while the number input is disabled: the glyph in `text-muted` on
+/// `secondary`.
 pub const STEPPER_MUTED: &str = "bg-secondary text-muted";
-/// The row of a checkbox, a radio or a select's option under the pointer.
+/// The row of a checkbox, a radio, a select's option or a switch under the
+/// pointer.
 pub const HOVER: &str = "bg-hover";
 /// A select's open list: a panel in `surface` with a border in `border`.
 pub const PANEL: &str = "bg-surface text-foreground";

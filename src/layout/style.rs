@@ -1600,8 +1600,14 @@ impl StyleBuilder {
             .get("sr-only")
             .is_some_and(|value| value.as_deref() == Some("true"))
         {
+            // Screen-reader-only text takes no cell: its size is zero, and so
+            // is its minimum, which the one-row floor every text node gets
+            // would otherwise raise, giving a text input's hidden runs a row
+            // of their own in a column (CTL-008).
             self.style.size.width = Dimension::length(0.0);
             self.style.size.height = Dimension::length(0.0);
+            self.style.min_size.width = Dimension::length(0.0);
+            self.style.min_size.height = Dimension::length(0.0);
         }
         // Wire grid templates to equal tracks when counts are set. A track
         // is `minmax(0, 1fr)`: it takes its share of the container whatever

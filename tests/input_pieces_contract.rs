@@ -222,14 +222,6 @@ fn shown_after(
     app_input::run_until(Control(page(root)), size, until, WAIT)
 }
 
-/// The first frame that paints `needle`.
-fn first_with<'a>(frames: &'a [Snapshot], needle: &str) -> &'a Snapshot {
-    frames
-        .iter()
-        .find(|frame| find(frame, needle).is_some())
-        .unwrap_or_else(|| panic!("no frame paints {needle:?}"))
-}
-
 fn last(frames: &[Snapshot]) -> &Snapshot {
     frames.last().expect("a frame")
 }
@@ -605,7 +597,7 @@ fn ctl_007_a_rating_paints_lit_and_unlit_stars_by_role() {
     for (column, row) in lit {
         assert_eq!(
             cell_colors(&frame, column, row).0,
-            Some(role("text-warning")),
+            Some(role("warning")),
             "a lit star is text-warning:\n{}",
             frame.text
         );
@@ -631,7 +623,7 @@ fn ctl_007_a_rating_paints_lit_and_unlit_stars_by_role() {
     for (column, row) in showing(&frame, Icon::Star.glyph()) {
         assert_eq!(
             cell_colors(&frame, column, row).0,
-            Some(role("text-warning")),
+            Some(role("warning")),
             "a lit star stays text-warning while focused:\n{}",
             frame.text
         );
@@ -775,7 +767,7 @@ fn ctl_007_a_form_paints_labels_marks_and_descriptions_by_role() {
     );
     assert_eq!(
         cell_colors(&frame, column + 4, row).0,
-        Some(role("text-error")),
+        Some(role("error")),
         "the required mark is text-error:\n{}",
         frame.text
     );
@@ -1482,18 +1474,23 @@ fn ctl_009_a_switch_toggles_on_space_enter_and_click_and_not_when_disabled() {
 #[serial_test::serial(theme)]
 fn ctl_009_a_forms_fields_take_the_focus_in_order() {
     let _theme = Active::set(probe());
-    let frames = shown_after(
+    let form = || {
         builder::form()
             .field(FormField::new(
                 "Name",
                 builder::text_input().build().auto_focus(),
             ))
             .field(FormField::new("Email", builder::text_input().build()))
-            .build(),
+            .build()
+    };
+    // The settled frame before the Tab: the first frame a run presents is
+    // painted before the App gives any control its auto focus.
+    let before = &shown(form(), (80, 8), "Name");
+    let frames = shown_after(
+        form(),
         (80, 8),
         vec![("Name", key(KeyCode::Tab)), ("Email", None)],
     );
-    let before = &frames[0];
     let after = last(&frames);
     let (_, name_row) = at(before, "Name");
     let name_field = column_on(before, name_row, "[");
@@ -1709,7 +1706,7 @@ mod reader {
     }
 
     /// The node with `id` in `tree`.
-    fn by_id<'a>(tree: &'a TreeUpdate, id: NodeId) -> Option<&'a Node> {
+    fn by_id(tree: &TreeUpdate, id: NodeId) -> Option<&Node> {
         tree.nodes
             .iter()
             .find(|(node_id, _)| *node_id == id)

@@ -87,6 +87,11 @@ pub struct Form {
 }
 
 impl Form {
+    /// Create a form from its props
+    pub fn new(_props: FormProps) -> Self {
+        Self { viewport: None }
+    }
+
     /// The width of the label column: the widest label, plus one cell for
     /// the required mark when a field is required, or the props' width.
     fn label_column(props: &FormProps) -> usize {
@@ -118,8 +123,8 @@ impl Component for Form {
     type Props = FormProps;
     type State = ();
 
-    fn new(_props: Self::Props) -> Self {
-        Self { viewport: None }
+    fn new(props: Self::Props) -> Self {
+        Form::new(props)
     }
 
     fn layout(
