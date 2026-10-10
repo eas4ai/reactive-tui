@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pixel-looks: PIX-001 to PIX-006 (docs/spec/pixel-looks.md) through
+"""pixel-looks: PIX-001 to PIX-007 (docs/spec/pixel-looks.md) through
 tests/pixel_looks.rs, built with wgpu-graphics. A widget's or element's look is
 one pixel picture over its rectangle where the terminal takes Kitty graphics
 or Sixel, drawn around its text, kept and sent only when it changes, hidden
@@ -13,8 +13,9 @@ a screenshot of the catalog's Input page in which a label cell's background
 equals the picture pixel beside it; without them that part is unverified and
 the requirement has no verdict.
 
-PIX-003 to PIX-005 also ask that every reference picture the tests name is
-checked in and tracked, that the test file writes a reference only under
+PIX-003 to PIX-005 and PIX-007 (the number input's buttons, the code input's
+cells, the rating's stars and the switch's pill) also ask that every reference
+picture the tests name is checked in and tracked, that the test file writes a reference only under
 REGENERATE=1 (BAR-004's rule), and that an altered reference fails the
 comparison.
 
@@ -49,6 +50,7 @@ REFERENCES = {
     "PIX-003": "pix_003_",
     "PIX-004": "pix_004_",
     "PIX-005": "pix_005_",
+    "PIX-007": "pix_007_",
 }
 
 

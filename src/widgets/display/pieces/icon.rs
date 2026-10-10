@@ -53,6 +53,10 @@ pub enum Icon {
     Ellipsis,
     /// The first frame of a spinner that shows work in progress.
     Spinner,
+    /// A lit star, such as a rating's chosen step.
+    Star,
+    /// An unlit star, such as a rating's step not chosen.
+    StarOutline,
 }
 
 /// A table that gives a Nerd Font glyph for an icon, or `None` for an icon the
@@ -95,6 +99,8 @@ impl Icon {
         Icon::Minus,
         Icon::Ellipsis,
         Icon::Spinner,
+        Icon::Star,
+        Icon::StarOutline,
     ];
 
     /// The single-width Unicode glyph for this icon. Used where the terminal
@@ -123,6 +129,8 @@ impl Icon {
             Icon::Minus => "−",
             Icon::Ellipsis => "…",
             Icon::Spinner => "⠋",
+            Icon::Star => "★",
+            Icon::StarOutline => "☆",
         }
     }
 
@@ -152,6 +160,8 @@ impl Icon {
             Icon::Minus => "-",
             Icon::Ellipsis => "~",
             Icon::Spinner => "|",
+            Icon::Star => "*",
+            Icon::StarOutline => "-",
         }
     }
 
@@ -195,6 +205,8 @@ impl Icon {
             Icon::Minus => "Minus",
             Icon::Ellipsis => "Ellipsis",
             Icon::Spinner => "Loading",
+            Icon::Star => "Star",
+            Icon::StarOutline => "Star outline",
         }
     }
 }
@@ -218,7 +230,7 @@ mod tests {
 
     #[test]
     fn dis_005_every_icon_has_a_one_cell_unicode_glyph_and_a_one_byte_ascii_fallback() {
-        assert_eq!(Icon::ALL.len(), 22, "the catalog names twenty-two icons");
+        assert_eq!(Icon::ALL.len(), 24, "the catalog names twenty-four icons");
         for &icon in Icon::ALL {
             let unicode = icon.unicode();
             assert_eq!(

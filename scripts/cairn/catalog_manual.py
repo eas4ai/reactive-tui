@@ -403,9 +403,14 @@ INPUT_WIDGETS = (
     ("Select", r"(?<![\w.])select\(\)", "Select"),
     ("Slider", r"(?<![\w.])slider\(\)", "Slider"),
     ("Button", r"\bprimary_button\(", "Button"),
+    ("NumberInput", r"\bnumber_input\(\)", "Number input"),
+    ("CodeInput", r"\bcode_input\(\)", "Code input"),
+    ("Rating", r"(?<![\w.])rating\(\)", "Rating"),
+    ("Switch", r"(?<![\w.])switch\(\)", "Switch"),
+    ("Form", r"(?<![\w.])form\(\)", "Form"),
 )
-INPUT_CODE = ("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/specialized.rs",
-              "src/builder/core.rs")
+INPUT_CODE = ("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/widgets/input",
+              "src/builder/specialized.rs", "src/builder/core.rs")
 
 
 LAYOUT_MANUAL = ROOT / "manual/layout-widgets.md"
