@@ -78,7 +78,7 @@ the width its parent allots.
 Where the terminal takes Kitty graphics or Sixel and the crate is built
 with `wgpu-graphics`, each control draws its look as one pixel picture
 over the cells it paints, around its text (`docs/spec/pixel-looks.md`,
-PIX-001 to PIX-005). Everywhere else, with `REACTIVE_TUI_CANVAS=blocks`,
+PIX-001 to PIX-007). Everywhere else, with `REACTIVE_TUI_CANVAS=blocks`,
 or with a process-wide `GraphicsOptions` whose output is blocks, it draws
 the cell look above, byte for byte. The picture is drawn on the drawing
 thread the canvases share, kept across frames and sent again only when
@@ -113,6 +113,27 @@ look's glyphs.
   [Layout, style, and themes](layout-style-and-themes.md#rounded-boxes-with-pixels)),
   a two-pixel ring in `ring` while focused, the fill at 90 percent under
   the pointer and at half when disabled.
+- A number input's field is drawn as a text input's. Each of its buttons
+  is a square of the cell height less two pixels with rounded corners in
+  `secondary`, bearing a minus or a plus two pixels wide in
+  `secondary-foreground`, in place of `[−]` and `[+]`; a button that
+  cannot step, and both while the number input is disabled, are drawn at
+  half. The value and the cursor stay cells.
+- A code input's digit cell is a square of the cell height less two
+  pixels with rounded corners in `input`, bordered one pixel in `border`,
+  two pixels in `ring` for the current cell while the code input holds
+  the focus, in place of `[` and `]`. The digit, `_` or dot stays cell
+  text in the middle cell, which the square's color fills.
+- A rating draws a five-pointed star of the cell height less two pixels
+  in each of its cells, filled `warning` when lit and outlined one pixel
+  in `border` (`ring` while focused) when not, in place of `★` and `☆`;
+  a disabled rating is drawn at half.
+- A switch's box is a pill of the cell height less two pixels tall over
+  its four cells. On, it is filled `primary` with a round thumb in
+  `primary-foreground` at its right end; off, it is `input` bordered one
+  pixel in `border` with the thumb in `foreground` at its left end. While
+  the switch holds the focus the pill is bordered in `ring`, and a
+  disabled switch is drawn at half. The label stays cell text.
 
 `cargo test --features wgpu-graphics --test pixel_looks` draws each
 control on a Kitty host and compares its picture with the reference under

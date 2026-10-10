@@ -1,4 +1,4 @@
-//! pixel-looks mechanism: PIX-001 to PIX-006 (docs/spec/pixel-looks.md). Built
+//! pixel-looks mechanism: PIX-001 to PIX-007 (docs/spec/pixel-looks.md). Built
 //! with `wgpu-graphics`.
 //!
 //! A widget's or element's look is one pixel picture over its rectangle where
@@ -1460,8 +1460,9 @@ fn pix_001_a_hovered_or_disabled_buttons_label_cells_match_the_picture_beside_th
 }
 
 // ---------------------------------------------------------------------------
-// Reference pictures (PIX-003 to PIX-005): a look's picture on a Kitty host
-// against tests/snapshots/pixel-looks/<name>.png, within GFX-002's tolerance.
+// Reference pictures (PIX-003 to PIX-005, PIX-007): a look's picture on a
+// Kitty host against tests/snapshots/pixel-looks/<name>.png, within GFX-002's
+// tolerance.
 
 /// `tests/snapshots/pixel-looks`, or `pixel-looks` under
 /// `REACTIVE_TUI_SNAPSHOTS`: the pixel-looks check points that at a copy with
@@ -1485,12 +1486,16 @@ static SOFTWARE: Mutex<()> = Mutex::new(());
 
 /// A reference case: the element, its box, the events before the picture
 /// that counts, and which picture of the run that is (0 for the first).
+/// A `whole` case is a piece whose parts are looks of their own (PIX-007):
+/// what counts is every look's last picture, each placed at its cells over
+/// the case's box, once the run sent that many pictures.
 struct Case {
     name: &'static str,
     element: Element,
     box_size: (u16, u16),
     script: Script,
     picture: usize,
+    whole: bool,
 }
 
 fn case(name: &'static str, width: u16, height: u16, element: Element) -> Case {
@@ -1500,7 +1505,16 @@ fn case(name: &'static str, width: u16, height: u16, element: Element) -> Case {
         box_size: (width, height),
         script: silent(),
         picture: 0,
+        whole: false,
     }
+}
+
+/// The case as a piece of `looks` looks: its picture is every look's last
+/// picture placed over the box, once the `looks` first pictures are sent.
+fn whole(mut case: Case, looks: usize) -> Case {
+    case.whole = true;
+    case.picture = looks.saturating_sub(1);
+    case
 }
 
 /// The case with the pointer over cell (x, y) once the first picture is
@@ -1520,18 +1534,21 @@ fn hovered(mut case: Case, x: u16, y: u16) -> Case {
 }
 
 /// The case with the focus given to its first control by a Tab once the
-/// first picture is sent; the second picture counts.
+/// picture that counted is sent (the first, or every look's first in a
+/// `whole` case); the picture after it counts, the one look the focus
+/// changes.
 fn focused(mut case: Case) -> Case {
     let sent = Mutex::new(false);
+    let before = case.picture + 1;
     case.script = Box::new(move |_, pictures| {
         let mut sent = sent.lock().unwrap();
-        if !*sent && pictures >= 1 {
+        if !*sent && pictures >= before {
             *sent = true;
             return Some(key(KeyCode::Tab));
         }
         None
     });
-    case.picture = 1;
+    case.picture = before;
     case
 }
 
@@ -1567,6 +1584,9 @@ fn capture(case: Case) -> Result<Captured, String> {
     );
     reactive_tui::widgets::display::charts::set_graphics_options(GraphicsOptions::default());
     let name = case.name;
+    if case.whole {
+        return composed(name, &run, case.picture + 1, case.box_size);
+    }
     let Some(picture) = run.pictures().into_iter().nth(case.picture) else {
         return Err(format!(
             "{name}: picture {} was not sent ({} pictures in {} frames)",
@@ -1581,6 +1601,70 @@ fn capture(case: Case) -> Result<Captured, String> {
     Ok(Captured {
         name,
         frame: picture.frame(),
+        path: reference_path(name),
+    })
+}
+
+/// A `whole` case's picture: once `count` pictures were sent, every look's
+/// last picture placed at the cells its placement names over a picture of
+/// the box, transparent where no look is; or why there is none.
+fn composed(
+    name: &'static str,
+    run: &Run,
+    count: usize,
+    box_size: (u16, u16),
+) -> Result<Captured, String> {
+    let pictures = run.pictures();
+    if pictures.len() < count {
+        return Err(format!(
+            "{name}: {} pictures of {count} were sent in {} frames",
+            pictures.len(),
+            run.frames.len()
+        ));
+    }
+    // The last picture of each image: a look keeps its image across
+    // frames and sends it again when it changes (PIX-002).
+    let mut last: Vec<Picture> = Vec::new();
+    for picture in pictures {
+        match last
+            .iter_mut()
+            .find(|seen| seen.id.is_some() && seen.id == picture.id)
+        {
+            Some(seen) => *seen = picture,
+            None => last.push(picture),
+        }
+    }
+    let (cell_w, cell_h) = (u32::from(CELL.0), u32::from(CELL.1));
+    let (width, height) = (
+        u32::from(box_size.0) * cell_w,
+        u32::from(box_size.1) * cell_h,
+    );
+    let mut pixels = vec![[0u8; 4]; (width * height) as usize];
+    for picture in &last {
+        let (row, column, rows, columns) = picture.rect();
+        if picture.size != (columns as u32 * cell_w, rows as u32 * cell_h)
+            || picture.pixels.len() != (picture.size.0 * picture.size.1) as usize
+        {
+            return Err(format!(
+                "{name}: a picture of {:?} pixels over {columns} by {rows} cells is not one pixel per screen pixel",
+                picture.size
+            ));
+        }
+        let (left, top) = (column as u32 * cell_w, row as u32 * cell_h);
+        if left + picture.size.0 > width || top + picture.size.1 > height {
+            return Err(format!(
+                "{name}: a picture at row {row}, column {column} lies outside the {box_size:?} box"
+            ));
+        }
+        for y in 0..picture.size.1 {
+            for x in 0..picture.size.0 {
+                pixels[((top + y) * width + left + x) as usize] = picture.pixel(x, y);
+            }
+        }
+    }
+    Ok(Captured {
+        name,
+        frame: GraphicsFrame::from_rgba(width, height, pixels).expect("a picture of the box"),
         path: reference_path(name),
     })
 }
@@ -2174,6 +2258,230 @@ fn pix_005_no_track_glyph_remains() {
     if let Some(found) = glyph_in(&screen, 0..2, &['═', '─', '●', '█', '░', '▒', '▌'])
     {
         panic!("PIX-005: a track glyph of the cell look remains with pixels: {found}");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PIX-007: the number input, the code input, the rating and the switch.
+
+/// The looks a number input draws: its two buttons and its field.
+const NUMBER_INPUT_LOOKS: usize = 3;
+/// The looks a six-digit code input draws: one per digit cell.
+const CODE_INPUT_LOOKS: usize = 6;
+
+/// A number input from 0 to 10 in steps of 0.5 at `value`.
+fn number_input(value: f64) -> Element {
+    builder::number_input()
+        .value(value)
+        .range(0.0, 10.0)
+        .step(0.5)
+        .build()
+}
+
+/// A code input of six digits with `123` typed.
+fn code_input(masked: bool) -> Element {
+    builder::code_input()
+        .length(6)
+        .value("123")
+        .masked(masked)
+        .build()
+}
+
+/// A rating of five stars at 3.
+fn rating(disabled: bool) -> Element {
+    builder::rating().max(5).value(3).disabled(disabled).build()
+}
+
+/// A switch labelled `Wi-Fi`.
+fn switch(on: bool) -> Element {
+    builder::switch().checked(on).label("Wi-Fi").build()
+}
+
+#[test]
+fn pix_007_number_inputs_code_inputs_ratings_and_switches_match_their_reference_pictures() {
+    assert_references(
+        "PIX-007",
+        vec![
+            whole(
+                case("number_input_2_5", 30, 1, number_input(2.5)),
+                NUMBER_INPUT_LOOKS,
+            ),
+            whole(
+                case("number_input_max", 30, 1, number_input(10.0)),
+                NUMBER_INPUT_LOOKS,
+            ),
+            focused(whole(
+                case("number_input_focused", 30, 1, number_input(2.5)),
+                NUMBER_INPUT_LOOKS,
+            )),
+            whole(
+                case(
+                    "number_input_disabled",
+                    30,
+                    1,
+                    builder::number_input()
+                        .value(2.5)
+                        .range(0.0, 10.0)
+                        .step(0.5)
+                        .disabled(true)
+                        .build(),
+                ),
+                NUMBER_INPUT_LOOKS,
+            ),
+            whole(
+                case("code_input_three", 18, 1, code_input(false)),
+                CODE_INPUT_LOOKS,
+            ),
+            focused(whole(
+                case("code_input_focused", 18, 1, code_input(false)),
+                CODE_INPUT_LOOKS,
+            )),
+            whole(
+                case("code_input_masked", 18, 1, code_input(true)),
+                CODE_INPUT_LOOKS,
+            ),
+            case("rating_3", 30, 1, rating(false)),
+            focused(case("rating_3_focused", 30, 1, rating(false))),
+            case("rating_disabled", 30, 1, rating(true)),
+            case("switch_on", 30, 1, switch(true)),
+            case("switch_off", 30, 1, switch(false)),
+            focused(case("switch_on_focused", 30, 1, switch(true))),
+            case(
+                "switch_disabled",
+                30,
+                1,
+                builder::switch()
+                    .checked(true)
+                    .label("Wi-Fi")
+                    .disabled(true)
+                    .build(),
+            ),
+        ],
+    );
+}
+
+/// The four pieces stacked, each in a box of its own: a number input, a
+/// code input, a rating and a switch; with pixels they send this many
+/// pictures.
+fn pieces_page() -> (Element, usize) {
+    let page = div()
+        .class("flex-col w-40")
+        .child(sized(30, 1, number_input(2.5)))
+        .child(sized(18, 1, code_input(false)))
+        .child(sized(30, 1, rating(false)))
+        .child(sized(30, 1, switch(true)))
+        .build();
+    (page, NUMBER_INPUT_LOOKS + CODE_INPUT_LOOKS + 2)
+}
+
+#[test]
+fn pix_007_no_cell_glyph_remains() {
+    let (page, looks) = pieces_page();
+    let run = run(
+        page,
+        SIZE,
+        kitty(),
+        silent(),
+        pictures_or_frames(looks, 2, 90),
+        true,
+    );
+    assert!(
+        run.pictures().len() >= looks,
+        "PIX-007: the pieces sent their {looks} pictures, got {}",
+        run.pictures().len()
+    );
+    let screen = run.screen(run.frames.len() - 1);
+    if let Some(found) = glyph_in(&screen, 0..4, &['[', ']', '+', '−', '★', '☆', '●']) {
+        panic!("PIX-007: a glyph of the cell look remains with pixels: {found}");
+    }
+    // The number input's value and the code input's digits and `_` stay
+    // cell text: each digit in the middle cell of its three.
+    assert!(
+        columns_of(&screen, 0, "2.5").is_some(),
+        "PIX-007: the number input's value is cell text: {:?}",
+        screen.contents()
+    );
+    let digits: String = (0..6)
+        .map(|digit| cell_text(&screen, 1, 3 * digit + 1))
+        .collect();
+    assert_eq!(
+        digits,
+        "123___",
+        "PIX-007: the code input's digits and `_` are cell text in their middle cells: {:?}",
+        screen.contents()
+    );
+    assert!(
+        columns_of(&screen, 3, "Wi-Fi").is_some(),
+        "PIX-007: the switch's label is cell text: {:?}",
+        screen.contents()
+    );
+}
+
+#[test]
+fn pix_007_a_focused_piece_has_its_ring() {
+    let ring = role("ring");
+    for (name, element, looks) in [
+        ("a number input", number_input(2.5), NUMBER_INPUT_LOOKS),
+        ("a code input", code_input(false), CODE_INPUT_LOOKS),
+        ("a rating", rating(false), 1),
+        ("a switch that is off", switch(false), 1),
+        ("a switch that is on", switch(true), 1),
+    ] {
+        // The Tab comes once every look sent its first picture; what the
+        // focus changes is sent after those.
+        let sent = Mutex::new(false);
+        let script: Script = Box::new(move |_, pictures| {
+            let mut sent = sent.lock().unwrap();
+            if !*sent && pictures >= looks {
+                *sent = true;
+                return Some(key(KeyCode::Tab));
+            }
+            None
+        });
+        let run = run(
+            sized(30, 1, element),
+            SIZE,
+            kitty(),
+            script,
+            pictures_or_frames(looks + 1, 2, 90),
+            true,
+        );
+        let after: Vec<Picture> = run.pictures().into_iter().skip(looks).collect();
+        assert!(
+            !after.is_empty(),
+            "PIX-007: {name} sent no picture when it took the focus ({} pictures in {} frames)",
+            run.pictures().len(),
+            run.frames.len()
+        );
+        assert!(
+            after
+                .iter()
+                .any(|picture| picture.pixels.iter().any(|p| p[3] > 0 && near(*p, ring, 2))),
+            "PIX-007: the picture of {name} with the focus holds the `ring` color"
+        );
+    }
+}
+
+#[test]
+fn pix_007_without_pixels_the_pieces_keep_their_cell_looks() {
+    let (page, _) = pieces_page();
+    let run = run(page, SIZE, no_pixels(), silent(), after_frames(6), true);
+    assert!(
+        run.pictures().is_empty(),
+        "PIX-007: without pixels no picture is sent"
+    );
+    let screen = run.screen(run.frames.len() - 1);
+    for (row, text) in [
+        (0, "[−][2.5"),
+        (1, "[1][2][3][_][_][_]"),
+        (2, "★★★☆☆"),
+        (3, "[ ●] Wi-Fi"),
+    ] {
+        assert!(
+            columns_of(&screen, row, text).is_some(),
+            "PIX-007: without pixels row {row} shows the cell look {text:?}: {:?}",
+            screen.contents()
+        );
     }
 }
 

@@ -5,12 +5,14 @@
 //!
 //! A [`Look`] names what the picture holds: a fill in a theme role with
 //! rounded corners, a border and a ring along the edge, and the shapes a
-//! control adds (a check mark, a dot, a track, a thumb). The painter builds
-//! the scene for the rectangle's size in pixels (PIX-001), keeps one drawing
-//! slot and one image per look across frames in [`Looks`], and draws a look
-//! again only when what drew it changed (PIX-002). An element gets a look
+//! control adds (a check mark, a dot, a track, a thumb, a star). The
+//! painter builds the scene for the rectangle's size in pixels (PIX-001),
+//! keeps one drawing slot and one image per look across frames in
+//! [`Looks`], and draws a look again only when what drew it changed
+//! (PIX-002). An element gets a look
 //! from its `rounded-*`, `border` and `ring-*` classes with a background
-//! role (PIX-003), or from the control that paints it (PIX-004, PIX-005).
+//! role (PIX-003), or from the control that paints it (PIX-004, PIX-005,
+//! PIX-007).
 
 use super::worker::{Job, Picture, Want};
 use super::{
@@ -138,6 +140,42 @@ pub enum Shape {
         radius: Extent,
         /// The role it is filled with.
         fill: String,
+        /// Its border inside its edge, if any: a switch's pill (PIX-007).
+        border: Option<Line>,
+    },
+    /// A round thumb of `diameter` in a round end of the bar from `from` to
+    /// `to` cells across, `height` tall, on row `row`: centered on that
+    /// end's arc, at `to` when `at_end` and at `from` otherwise, so it lies
+    /// as far from the bar's end as from its top and bottom (a switch's
+    /// thumb, PIX-007).
+    Thumb {
+        /// Where the bar starts, in cells across.
+        from: f32,
+        /// Where it ends, in cells across.
+        to: f32,
+        /// The row the bar's middle lies on, in cells down.
+        row: f32,
+        /// The bar's height.
+        height: Extent,
+        /// The thumb's diameter.
+        diameter: Extent,
+        /// Whether the thumb is at the bar's end (`to`) or its start.
+        at_end: bool,
+        /// The role it is filled with.
+        fill: String,
+    },
+    /// A five-pointed star centered at `center`, `size` across its points,
+    /// one point up: a closed path of ten points, its inner corners at
+    /// 0.382 of its outer radius (a rating's star, PIX-007).
+    Star {
+        /// The star's center, in cells.
+        center: (f32, f32),
+        /// The diameter of the circle through its points.
+        size: Extent,
+        /// The role it is filled with, if any.
+        fill: Option<String>,
+        /// Its outline, if any.
+        border: Option<Line>,
     },
     /// A check mark centered at `center`, `size` wide, `width` thick.
     Check {
@@ -161,6 +199,39 @@ pub enum Shape {
         /// The role it is drawn in.
         role: String,
     },
+    /// A plus centered at `center`: two dashes crossed, each `size` long
+    /// and `width` thick, drawn as one stroke so a translucent plus is
+    /// even where they cross (a number input's `+`, PIX-007).
+    Plus {
+        /// The plus's center, in cells.
+        center: (f32, f32),
+        /// The length of each dash.
+        size: Extent,
+        /// Its stroke.
+        width: Extent,
+        /// The role it is drawn in.
+        role: String,
+    },
+}
+
+/// The inner corners of a five-pointed star lie at this part of its outer
+/// radius (PIX-007).
+const STAR_INNER: f32 = 0.382;
+
+/// The ten corners of a five-pointed star centered on (`cx`, `cy`) with
+/// outer radius `outer`, one point straight up, clockwise on screen.
+fn star_points(cx: f32, cy: f32, outer: f32) -> Vec<(f32, f32)> {
+    (0..10)
+        .map(|corner| {
+            let radius = if corner % 2 == 0 {
+                outer
+            } else {
+                outer * STAR_INNER
+            };
+            let angle = (-90.0 + 36.0 * corner as f32).to_radians();
+            (cx + radius * angle.cos(), cy + radius * angle.sin())
+        })
+        .collect()
 }
 
 /// What a look's picture holds.
@@ -416,21 +487,84 @@ impl Shape {
                 height,
                 radius,
                 fill,
+                border,
             } => {
                 let (x0, x1) = (from * cw, to * cw);
                 let h = px(height).round();
                 let y = row * ch - h / 2.0;
                 if x1 > x0 {
+                    let r = px(radius).min(h / 2.0).min((x1 - x0) / 2.0);
                     scene.fill(
-                        &Path::rounded_rect(
-                            x0,
-                            y,
-                            x1 - x0,
-                            h,
-                            px(radius).min(h / 2.0).min((x1 - x0) / 2.0),
-                        ),
+                        &Path::rounded_rect(x0, y, x1 - x0, h, r),
                         &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
                     );
+                    // The border lies inside the edge, as a box's does.
+                    if let Some(line) = border {
+                        let width = line_px(line);
+                        if x1 - x0 > width && h > width {
+                            scene.stroke(
+                                &Path::rounded_rect(
+                                    x0 + width / 2.0,
+                                    y + width / 2.0,
+                                    x1 - x0 - width,
+                                    h - width,
+                                    (r - width / 2.0).max(0.0),
+                                ),
+                                &Stroke::new(width),
+                                &Paint::solid(Color::token(line.role.as_str())).opacity(opacity),
+                            );
+                        }
+                    }
+                }
+            }
+            Shape::Thumb {
+                from,
+                to,
+                row,
+                height,
+                diameter,
+                at_end,
+                fill,
+            } => {
+                // The center of the bar's round end: half the bar's height
+                // in from that end, on the bar's middle.
+                let cap = px(height).round() / 2.0;
+                let cx = if *at_end {
+                    to * cw - cap
+                } else {
+                    from * cw + cap
+                };
+                let r = px(diameter) / 2.0;
+                scene.fill(
+                    &Path::ellipse(cx, row * ch, r, r),
+                    &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
+                );
+            }
+            Shape::Star {
+                center,
+                size,
+                fill,
+                border,
+            } => {
+                let (cx, cy) = at(*center);
+                let outer = px(size) / 2.0;
+                if let Some(fill) = fill {
+                    scene.fill(
+                        &Path::polygon(&star_points(cx, cy, outer)),
+                        &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
+                    );
+                }
+                // The outline is drawn on a star smaller by half its width,
+                // with round corners, so its points reach the filled star's.
+                if let Some(line) = border {
+                    let width = line_px(line);
+                    if outer > width / 2.0 {
+                        scene.stroke(
+                            &Path::polygon(&star_points(cx, cy, outer - width / 2.0)),
+                            &Stroke::new(width).join(super::LineJoin::Round),
+                            &Paint::solid(Color::token(line.role.as_str())).opacity(opacity),
+                        );
+                    }
                 }
             }
             Shape::Check {
@@ -465,6 +599,29 @@ impl Shape {
                 let path = super::PathBuilder::new()
                     .move_to(cx - s * 0.4, cy)
                     .line_to(cx + s * 0.4, cy)
+                    .build();
+                scene.stroke(
+                    &path,
+                    &Stroke::new(px(width).round()).cap(super::LineCap::Round),
+                    &Paint::solid(Color::token(role.as_str())).opacity(opacity),
+                );
+            }
+            Shape::Plus {
+                center,
+                size,
+                width,
+                role,
+            } => {
+                let (cx, cy) = at(*center);
+                let s = px(size);
+                // Both dashes in one path, stroked once: a stroke's pieces
+                // are filled as their union, so where they cross is drawn
+                // once.
+                let path = super::PathBuilder::new()
+                    .move_to(cx - s * 0.4, cy)
+                    .line_to(cx + s * 0.4, cy)
+                    .move_to(cx, cy - s * 0.4)
+                    .line_to(cx, cy + s * 0.4)
                     .build();
                 scene.stroke(
                     &path,
@@ -846,6 +1003,7 @@ impl Look {
                     height: Extent::Px(4.0),
                     radius: Extent::Px(2.0),
                     fill: "border".to_owned(),
+                    border: None,
                 },
                 Shape::Bar {
                     from,
@@ -854,6 +1012,7 @@ impl Look {
                     height: Extent::Px(4.0),
                     radius: Extent::Px(2.0),
                     fill: "primary".to_owned(),
+                    border: None,
                 },
                 Shape::Circle {
                     center: (at, 0.5),
@@ -899,6 +1058,7 @@ impl Look {
             height: Extent::Scaled(height),
             radius: Extent::Scaled(height / 2.0),
             fill: fill.to_owned(),
+            border: None,
         };
         let mut shapes = vec![bar(0.0, cells, "border")];
         shapes.extend(
@@ -908,6 +1068,154 @@ impl Look {
         );
         Self {
             shapes,
+            ..Self::default()
+        }
+    }
+
+    /// One of a number input's buttons over the three cells of `[-]` or
+    /// `[+]`: a square of the cell height less two pixels with a radius of
+    /// two in `secondary`, bearing a minus, or a plus when `plus`, two
+    /// pixels wide in `secondary-foreground`; at half when it cannot step
+    /// or the number input is disabled (PIX-007).
+    pub fn spin_button(plus: bool, can_step: bool, disabled: bool) -> Self {
+        let center = (1.5, 0.5);
+        // The mark is the checkbox's dash: sized with the square, its
+        // stroke two pixels.
+        let size = Extent::CellLess {
+            less: 2.0,
+            times: 8.0 / 14.0,
+        };
+        let width = Extent::Px(2.0);
+        let role = "secondary-foreground".to_owned();
+        let mark = if plus {
+            Shape::Plus {
+                center,
+                size,
+                width,
+                role,
+            }
+        } else {
+            Shape::Dash {
+                center,
+                size,
+                width,
+                role,
+            }
+        };
+        Self {
+            shapes: vec![
+                Shape::Box {
+                    center,
+                    size: Extent::CELL_LESS_TWO,
+                    radius: Extent::Px(2.0),
+                    fill: Some("secondary".to_owned()),
+                    border: None,
+                },
+                mark,
+            ],
+            opacity: if disabled || !can_step { 0.5 } else { 1.0 },
+            ..Self::default()
+        }
+    }
+
+    /// A code input's digit cell over its three cells: a square of the
+    /// cell height less two pixels with a radius of two in `input`, with a
+    /// border one pixel wide in `border`, two in `ring` when it is the
+    /// current cell of a focused code input; at half when disabled. Its
+    /// digit, `_` or dot stays cell text in the middle cell (PIX-007).
+    pub fn code_cell(current: bool, focused: bool, disabled: bool) -> Self {
+        let border = if current && focused {
+            Line::new(2.0, "ring")
+        } else {
+            Line::new(1.0, "border")
+        };
+        Self {
+            shapes: vec![Shape::Box {
+                center: (1.5, 0.5),
+                size: Extent::CELL_LESS_TWO,
+                radius: Extent::Px(2.0),
+                fill: Some("input".to_owned()),
+                border: Some(border),
+            }],
+            opacity: if disabled { 0.5 } else { 1.0 },
+            ..Self::default()
+        }
+    }
+
+    /// A rating over `max` cells: one five-pointed star of the cell height
+    /// less two pixels per cell, filled `warning` for the first `value`,
+    /// outlined one pixel in `border` (`ring` while focused) for the rest;
+    /// at half when disabled (PIX-007).
+    pub fn rating(max: usize, value: usize, focused: bool, disabled: bool) -> Self {
+        let shapes = (0..max)
+            .map(|index| {
+                let lit = index < value;
+                Shape::Star {
+                    center: (index as f32 + 0.5, 0.5),
+                    size: Extent::CELL_LESS_TWO,
+                    fill: lit.then(|| "warning".to_owned()),
+                    border: (!lit).then(|| frame_line(focused)),
+                }
+            })
+            .collect();
+        Self {
+            shapes,
+            opacity: if disabled { 0.5 } else { 1.0 },
+            ..Self::default()
+        }
+    }
+
+    /// A switch's box over its four cells: a pill of the cell height less
+    /// two pixels tall with a radius of half its height, from half a cell
+    /// in to half a cell from the end. On, it is filled `primary` with a
+    /// thumb of the cell height less six pixels in `primary-foreground` at
+    /// its right end; off, it is `input` bordered one pixel in `border`
+    /// with the thumb in `foreground` at its left end. While the switch
+    /// holds the focus the pill is bordered one pixel in `ring`, on or off;
+    /// a disabled switch is drawn at half (PIX-007).
+    pub fn switch(on: bool, focused: bool, disabled: bool) -> Self {
+        let (from, to, row) = (0.5, 3.5, 0.5);
+        let height = Extent::CELL_LESS_TWO;
+        let border = if focused {
+            Some(Line::new(1.0, "ring"))
+        } else if on {
+            None
+        } else {
+            Some(Line::new(1.0, "border"))
+        };
+        Self {
+            shapes: vec![
+                Shape::Bar {
+                    from,
+                    to,
+                    row,
+                    height,
+                    radius: Extent::CellLess {
+                        less: 2.0,
+                        times: 0.5,
+                    },
+                    fill: if on { "primary" } else { "input" }.to_owned(),
+                    border,
+                },
+                Shape::Thumb {
+                    from,
+                    to,
+                    row,
+                    height,
+                    diameter: Extent::CellLess {
+                        less: 6.0,
+                        times: 1.0,
+                    },
+                    at_end: on,
+                    fill: if on {
+                        "primary-foreground"
+                    } else {
+                        "foreground"
+                    }
+                    .to_owned(),
+                },
+            ],
+            opacity: if disabled { 0.5 } else { 1.0 },
             ..Self::default()
         }
     }

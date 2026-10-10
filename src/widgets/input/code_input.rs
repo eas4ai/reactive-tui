@@ -236,6 +236,56 @@ impl CodeInput {
             _ => EventResult::Ignored,
         }
     }
+
+    /// The row of digit cells where the terminal takes pixels (PIX-007):
+    /// each cell a picture over its three cells, its outer two holding no
+    /// glyph and its middle one the digit, `_` or dot as cell text. The
+    /// cell is `input` under the picture, its flat color until the picture
+    /// is ready and the color its middle cell takes; the text names no
+    /// background of its own.
+    #[cfg(feature = "wgpu-graphics")]
+    fn pictured_cells(
+        props: &CodeInputProps,
+        digits: &str,
+        current: usize,
+        focused: bool,
+    ) -> Element {
+        use crate::component::LayoutType;
+        let digit_class = if props.disabled {
+            look::MUTED_PICTURE
+        } else {
+            look::FIELD_PICTURE
+        };
+        let mut children = Vec::new();
+        for index in 0..props.length {
+            if index > 0
+                && props
+                    .group
+                    .is_some_and(|group| group > 0 && index % group == 0)
+            {
+                children.extend(look::pieces(&[(" ", look::LABEL)]));
+            }
+            let (glyph, class) = match digits.chars().nth(index) {
+                Some(_) if props.masked => (Icon::Dot.glyph().to_owned(), digit_class),
+                Some(digit) => (digit.to_string(), digit_class),
+                None => ("_".to_owned(), look::MUTED_PICTURE),
+            };
+            let mut cell = Element::layout(LayoutType::Flex)
+                .class("flex flex-row h-1 w-3 shrink-0 bg-input")
+                .children(vec![
+                    look::blank(1),
+                    Element::text(glyph).class(format!("shrink-0 whitespace-pre {class}")),
+                    look::blank(1),
+                ]);
+            cell.metadata.look = Some(Arc::new(crate::graphics::look::Look::code_cell(
+                index == current,
+                focused,
+                props.disabled,
+            )));
+            children.push(cell);
+        }
+        look::row_of(children, "")
+    }
 }
 
 impl Component for CodeInput {
@@ -287,6 +337,16 @@ impl Component for CodeInput {
             .iter()
             .map(|(text, class)| (text.as_str(), *class))
             .collect();
+        // With pixels each digit cell is a picture over its three cells and
+        // no `[` or `]`: a square in `input`, bordered in `border`, in
+        // `ring` for the current cell while focused; the digit, `_` or dot
+        // stays cell text in its middle cell (PIX-007).
+        #[cfg(feature = "wgpu-graphics")]
+        let pictured =
+            look::pixels().then(|| Self::pictured_cells(props, &digits, current, focused));
+        #[cfg(not(feature = "wgpu-graphics"))]
+        let pictured: Option<Element> = None;
+        let row = pictured.unwrap_or_else(|| look::row(&pieces, ""));
 
         let name = props
             .aria_label
@@ -313,7 +373,7 @@ impl Component for CodeInput {
             digits.to_string()
         });
 
-        let mut element = look::row(&pieces, "")
+        let mut element = row
             .with_accessibility(accessible)
             .with_focus(FocusProps::input())
             .disabled(props.disabled);

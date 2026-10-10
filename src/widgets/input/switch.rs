@@ -175,7 +175,26 @@ impl Component for Switch {
         } else {
             ""
         };
-        let row = look::row(&pieces, hover);
+        // With pixels the box is a picture over its four cells and no
+        // glyph: a pill in `primary` with its thumb at the right when on,
+        // in `input` bordered with its thumb at the left when off (PIX-007).
+        #[cfg(feature = "wgpu-graphics")]
+        let pixel_box = look::pixels().then(|| {
+            look::spacer(
+                4,
+                crate::graphics::look::Look::switch(props.checked, focused, props.disabled),
+            )
+        });
+        #[cfg(not(feature = "wgpu-graphics"))]
+        let pixel_box: Option<Element> = None;
+        let row = match pixel_box {
+            Some(pixel_box) => {
+                let mut children = vec![pixel_box];
+                children.extend(look::pieces(&label_pieces));
+                look::row_of(children, hover)
+            }
+            None => look::row(&pieces, hover),
+        };
 
         use crate::accessibility::{Node, Role, Toggled};
         let mut accessible = Node::new(Role::Switch);

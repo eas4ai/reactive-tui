@@ -263,6 +263,66 @@ impl NumberInput {
             .map_or(DEFAULT_WIDTH, |bounds| bounds.content_size().0 as usize)
     }
 
+    /// The field where the terminal takes pixels, drawn as a text input's
+    /// field is (PIX-004, PIX-007): a picture in `input` over its `field`
+    /// cells and its two frame cells, whose frame cells and the blank run
+    /// after the text hold no glyph, so the picture shows there. The text
+    /// and the cursor stay cells; the text names no background, so it takes
+    /// the picture's fill under it, and is `text-muted` when disabled.
+    #[cfg(feature = "wgpu-graphics")]
+    fn pictured_field(
+        props: &NumberInputProps,
+        chars: &[char],
+        offset: usize,
+        cursor: Option<usize>,
+        field: usize,
+        focused: bool,
+    ) -> Element {
+        let text = if props.disabled {
+            look::MUTED_PICTURE
+        } else {
+            look::FIELD_PICTURE
+        };
+        // Runs of one style: the text, the cursor cell, and the blank run
+        // after the text, which never joins the text before it.
+        let mut runs: Vec<(String, &'static str)> = Vec::new();
+        for index in 0..field {
+            let at = offset + index;
+            let (glyph, style) = match chars.get(at).copied() {
+                glyph if cursor == Some(at) => (glyph.unwrap_or(' '), look::CURSOR),
+                Some(glyph) => (glyph, text),
+                None => (' ', look::FIELD_PAD),
+            };
+            match runs.last_mut() {
+                Some((run, last)) if *last == style => run.push(glyph),
+                _ => runs.push((glyph.to_string(), style)),
+            }
+        }
+        let mut children = vec![look::blank(1)];
+        children.extend(runs.into_iter().map(|(run, style)| {
+            if style == look::FIELD_PAD {
+                look::blank(run.chars().count())
+            } else {
+                Element::text(run).class(format!("shrink-0 whitespace-pre {style}"))
+            }
+        }));
+        children.push(look::blank(1));
+        // `input` under the field: its flat color until its first picture
+        // is ready, and what the picture's fill is drawn in.
+        let mut element = Element::layout(crate::component::LayoutType::Flex)
+            .class(format!(
+                "flex flex-row h-1 shrink-0 w-{} bg-input",
+                field + 2
+            ))
+            .children(children);
+        element.metadata.look = Some(Arc::new(crate::graphics::look::Look::field(
+            focused,
+            false,
+            props.disabled,
+        )));
+        element
+    }
+
     /// Calls `on_change` with `value`.
     fn report(&self, value: f64) {
         if let Some(callback) = &self.on_change {
@@ -593,26 +653,50 @@ impl Component for NumberInput {
         } else {
             look::STEPPER
         };
-        let mut pieces: Vec<(String, &'static str)> = Vec::new();
-        pieces.push((format!("[{}]", Icon::Minus.glyph()), minus_look));
-        pieces.push(("[".to_owned(), frame));
-        for index in 0..field {
-            let at = offset + index;
-            let glyph = chars.get(at).copied().unwrap_or(' ');
-            let style = if cursor == Some(at) {
-                look::CURSOR
-            } else {
-                field_look
-            };
-            pieces.push((glyph.to_string(), style));
-        }
-        pieces.push(("]".to_owned(), frame));
-        pieces.push((format!("[{}]", Icon::Plus.glyph()), plus_look));
-        let refs: Vec<(&str, &str)> = pieces
-            .iter()
-            .map(|(text, style)| (text.as_str(), *style))
-            .collect();
-        let children = look::pieces(&refs);
+        // With pixels each button is a picture over its three cells and
+        // the field a picture over its own, as a text input's (PIX-007).
+        #[cfg(feature = "wgpu-graphics")]
+        let pictured = look::pixels().then(|| {
+            use crate::graphics::look::Look;
+            vec![
+                look::spacer(
+                    3,
+                    Look::spin_button(false, props.can_step(value, false), props.disabled),
+                ),
+                Self::pictured_field(props, &chars, offset, cursor, field, focused),
+                look::spacer(
+                    3,
+                    Look::spin_button(true, props.can_step(value, true), props.disabled),
+                ),
+            ]
+        });
+        #[cfg(not(feature = "wgpu-graphics"))]
+        let pictured: Option<Vec<Element>> = None;
+        let children = match pictured {
+            Some(children) => children,
+            None => {
+                let mut pieces: Vec<(String, &'static str)> = Vec::new();
+                pieces.push((format!("[{}]", Icon::Minus.glyph()), minus_look));
+                pieces.push(("[".to_owned(), frame));
+                for index in 0..field {
+                    let at = offset + index;
+                    let glyph = chars.get(at).copied().unwrap_or(' ');
+                    let style = if cursor == Some(at) {
+                        look::CURSOR
+                    } else {
+                        field_look
+                    };
+                    pieces.push((glyph.to_string(), style));
+                }
+                pieces.push(("]".to_owned(), frame));
+                pieces.push((format!("[{}]", Icon::Plus.glyph()), plus_look));
+                let refs: Vec<(&str, &str)> = pieces
+                    .iter()
+                    .map(|(text, style)| (text.as_str(), *style))
+                    .collect();
+                look::pieces(&refs)
+            }
+        };
 
         let mut accessible = Node::new(Role::SpinButton);
         if let Some(label) = &props.aria_label {
