@@ -1091,3 +1091,556 @@ fn dis_003_a_skeleton_stands_still_in_border_under_reduced_motion() {
         "DIS-003: a skeleton under reduced motion is not in border"
     );
 }
+
+// ===== empty, alert, pagination, stepper =====
+
+mod interactive {
+    use super::*;
+    use reactive_tui::event::types::{Event, KeyCode};
+    use reactive_tui::theme::{Theme, ThemeVariables};
+    use reactive_tui::widgets::display::pieces::{alert::AlertKind, icon::Icon};
+    use std::sync::{Arc, Mutex};
+
+    type Rgb = [u8; 3];
+
+    const ROLES: [&str; 25] = [
+        "background",
+        "surface",
+        "foreground",
+        "text-muted",
+        "border",
+        "input",
+        "ring",
+        "hover",
+        "selection",
+        "selection-foreground",
+        "primary",
+        "primary-foreground",
+        "secondary",
+        "secondary-foreground",
+        "error",
+        "error-foreground",
+        "warning",
+        "warning-foreground",
+        "success",
+        "success-foreground",
+        "info",
+        "info-foreground",
+        "accent",
+        "accent-foreground",
+        "overlay",
+    ];
+
+    fn probe_color(index: usize) -> Rgb {
+        [
+            30 + 8 * index as u8,
+            200 - 6 * index as u8,
+            90 + 5 * index as u8,
+        ]
+    }
+
+    fn role(name: &str) -> Rgb {
+        probe_color(
+            ROLES
+                .iter()
+                .position(|role| *role == name)
+                .unwrap_or_else(|| panic!("{name} is not a role of the probe theme")),
+        )
+    }
+
+    /// A theme whose roles all differ, so a cell's color names its role.
+    fn probe() -> Theme {
+        let mut variables = ThemeVariables::new();
+        for (index, name) in ROLES.iter().enumerate() {
+            let [r, g, b] = probe_color(index);
+            variables = variables.set(
+                Theme::color_variable(name),
+                format!("#{r:02x}{g:02x}{b:02x}"),
+            );
+        }
+        Theme::new("probe").with_variables(variables)
+    }
+
+    /// Makes `theme` the active theme until it is dropped.
+    struct Active(Arc<Theme>);
+    impl Active {
+        fn set(theme: Theme) -> Self {
+            let before = Theme::active();
+            Theme::set_active(theme);
+            Self(before)
+        }
+    }
+    impl Drop for Active {
+        fn drop(&mut self) {
+            Theme::set_active((*self.0).clone());
+        }
+    }
+
+    fn rgb(color: vt100::Color) -> Option<Rgb> {
+        match color {
+            vt100::Color::Rgb(r, g, b) => Some([r, g, b]),
+            _ => None,
+        }
+    }
+
+    /// The cell where `needle` starts, as (column, row).
+    fn at(frame: &Snapshot, needle: &str) -> (u16, u16) {
+        let (rows, columns) = frame.screen.size();
+        let glyphs: Vec<String> = needle.chars().map(String::from).collect();
+        (0..rows)
+            .flat_map(|row| {
+                (0..=columns.saturating_sub(glyphs.len() as u16)).map(move |c| (c, row))
+            })
+            .find(|(column, row)| {
+                glyphs.iter().enumerate().all(|(offset, glyph)| {
+                    frame
+                        .screen
+                        .cell(*row, column + offset as u16)
+                        .is_some_and(|cell| cell.contents() == *glyph)
+                })
+            })
+            .unwrap_or_else(|| panic!("{needle:?} is not painted:\n{}", frame.text))
+    }
+
+    /// The glyph color and the background of the cell at (column, row).
+    fn cell_colors(frame: &Snapshot, column: u16, row: u16) -> (Option<Rgb>, Option<Rgb>) {
+        let cell = frame.screen.cell(row, column).unwrap();
+        (rgb(cell.fgcolor()), rgb(cell.bgcolor()))
+    }
+
+    /// The glyph color and the background of the cell where `needle` starts.
+    fn colors(frame: &Snapshot, needle: &str) -> (Option<Rgb>, Option<Rgb>) {
+        let (column, row) = at(frame, needle);
+        cell_colors(frame, column, row)
+    }
+
+    /// Runs `root` at `size` through `steps`: each step waits until its text
+    /// is painted and the App is idle, then sends its event.
+    /// A last step that only observes, so the final frame shows the effect
+    /// of the step before it.
+    fn run(
+        root: Element,
+        size: (u16, u16),
+        steps: Vec<(&'static str, Option<Event>)>,
+    ) -> Vec<Snapshot> {
+        let observe = steps.last().map(|(text, _)| *text);
+        let mut until: Vec<Until> = steps
+            .into_iter()
+            .map(|(text, event)| Until {
+                text,
+                cell: None,
+                event,
+            })
+            .collect();
+        if let Some(text) = observe {
+            until.push(Until {
+                text,
+                cell: None,
+                event: None,
+            });
+        }
+        app_input::run_until(Control(page(root)), size, until, WAIT)
+    }
+
+    fn last(frames: &[Snapshot]) -> &Snapshot {
+        frames.last().expect("a frame")
+    }
+
+    fn key(code: KeyCode) -> Option<Event> {
+        app_input::key(code)
+    }
+
+    /// The text of a frame with every run of spaces made one space.
+    fn collapsed(text: &str) -> String {
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    /// A box of `width` cells and 5 rows on the page, with `child` in it.
+    fn boxed(width: u16, child: Element) -> Element {
+        builder::div()
+            .class(&format!("flex-col w-{width} h-5 bg-background"))
+            .child(child)
+            .build()
+    }
+
+    /// The arrows and the ellipsis as the catalog paints them (DIS-005).
+    fn arrows() -> (&'static str, &'static str, &'static str) {
+        (
+            Icon::ChevronLeft.glyph(),
+            Icon::ChevronRight.glyph(),
+            Icon::Ellipsis.glyph(),
+        )
+    }
+
+    // ---------------------------------------------------------- DIS-001
+
+    /// DIS-001: an alert's bar and icon take its kind's color, its title
+    /// `foreground`, its message `text-muted`, and its row `surface`.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_001_an_alert_paints_its_bar_by_kind_and_its_text_by_role() {
+        let _theme = Active::set(probe());
+        for (kind, color) in [
+            (AlertKind::Default, "text-muted"),
+            (AlertKind::Info, "info"),
+            (AlertKind::Success, "success"),
+            (AlertKind::Warning, "warning"),
+            (AlertKind::Error, "error"),
+        ] {
+            let frame = super::shown(
+                builder::alert(kind)
+                    .title("Disk full")
+                    .message("Free some space")
+                    .build(),
+                (80, 10),
+                "Free some space",
+            );
+            assert_eq!(
+                colors(&frame, "▌").0,
+                Some(role(color)),
+                "DIS-001: the bar of a {kind:?} alert:\n{}",
+                frame.text
+            );
+            assert_eq!(
+                colors(&frame, "Disk full"),
+                (Some(role("foreground")), Some(role("surface"))),
+                "DIS-001: the title of a {kind:?} alert:\n{}",
+                frame.text
+            );
+            assert_eq!(
+                colors(&frame, "Free some space").0,
+                Some(role("text-muted")),
+                "DIS-001: the message of a {kind:?} alert:\n{}",
+                frame.text
+            );
+        }
+    }
+
+    /// DIS-001: the stepper paints passed steps `success`, the current step
+    /// `foreground` and the rest `text-muted`.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_001_a_stepper_paints_passed_current_and_coming_steps_by_role() {
+        let _theme = Active::set(probe());
+        let frame = super::shown(
+            builder::stepper()
+                .step("Compose")
+                .step("Capture")
+                .step("Review")
+                .current(2)
+                .build(),
+            (80, 6),
+            "Capture",
+        );
+        assert_eq!(
+            colors(&frame, Icon::Check.glyph()).0,
+            Some(role("success")),
+            "DIS-001: a passed step:\n{}",
+            frame.text
+        );
+        assert_eq!(
+            colors(&frame, Icon::Dot.glyph()).0,
+            Some(role("foreground"))
+        );
+        assert_eq!(
+            colors(&frame, Icon::Circle.glyph()).0,
+            Some(role("text-muted"))
+        );
+    }
+
+    /// DIS-001: the pagination bar's current page is `primary` with
+    /// `primary-foreground` text, and its other pages are `foreground`.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_001_a_pagination_bar_paints_its_current_page_on_primary() {
+        let _theme = Active::set(probe());
+        let frame = super::shown(
+            builder::pagination().pages(20).current(5).build(),
+            (80, 6),
+            "5",
+        );
+        assert_eq!(
+            colors(&frame, "5"),
+            (Some(role("primary-foreground")), Some(role("primary"))),
+            "DIS-001: the current page:\n{}",
+            frame.text
+        );
+        assert_eq!(colors(&frame, "4").0, Some(role("foreground")));
+    }
+
+    // ---------------------------------------------------------- DIS-002
+
+    /// DIS-002: an alert fills the box it sits in, and a `w-40` class sets 40
+    /// cells instead.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_002_an_alert_fills_its_box_and_a_width_class_sets_it() {
+        let _theme = Active::set(probe());
+        let filled = super::shown(
+            boxed(
+                100,
+                builder::alert(AlertKind::Info).title("Disk full").build(),
+            ),
+            (120, 12),
+            "Disk full",
+        );
+        let (_, row) = at(&filled, "Disk full");
+        assert_eq!(
+            cell_colors(&filled, 99, row).1,
+            Some(role("surface")),
+            "DIS-002: the alert stops short of its box:\n{}",
+            filled.text
+        );
+        let sized = super::shown(
+            boxed(
+                100,
+                builder::alert(AlertKind::Info)
+                    .title("Disk full")
+                    .class("w-40")
+                    .build(),
+            ),
+            (120, 12),
+            "Disk full",
+        );
+        let (_, row) = at(&sized, "Disk full");
+        assert_eq!(cell_colors(&sized, 39, row).1, Some(role("surface")));
+        assert_ne!(
+            cell_colors(&sized, 40, row).1,
+            Some(role("surface")),
+            "DIS-002: `w-40` paints wider than 40 cells:\n{}",
+            sized.text
+        );
+    }
+
+    /// DIS-002: a pagination bar and a horizontal stepper fill the width
+    /// their box allots.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_002_a_pagination_bar_and_a_stepper_fill_their_width() {
+        let _theme = Active::set(probe());
+        let bar = super::shown(
+            boxed(
+                100,
+                builder::pagination()
+                    .pages(20)
+                    .current(5)
+                    .class("bg-surface")
+                    .build(),
+            ),
+            (120, 12),
+            "5",
+        );
+        let (_, row) = at(&bar, "5");
+        assert_eq!(cell_colors(&bar, 99, row).1, Some(role("surface")));
+        let steps = super::shown(
+            boxed(
+                100,
+                builder::stepper()
+                    .step("Compose")
+                    .step("Capture")
+                    .current(1)
+                    .class("bg-surface")
+                    .build(),
+            ),
+            (120, 12),
+            "Capture",
+        );
+        let (_, row) = at(&steps, "Capture");
+        assert_eq!(cell_colors(&steps, 99, row).1, Some(role("surface")));
+    }
+
+    // ---------------------------------------------------------- DIS-003
+
+    /// DIS-003: the bar shows the ends and the window around the current
+    /// page, with an ellipsis for each hidden run, and Right, End and a
+    /// click move the page.
+    #[test]
+    fn dis_003_the_pagination_bar_shows_its_window_and_moves_by_keys() {
+        let (left, right, ellipsis) = arrows();
+        // The first frame is the bar at page 5; the last one follows End.
+        let frames = run(
+            builder::pagination()
+                .pages(20)
+                .current(5)
+                .build()
+                .auto_focus(),
+            (80, 10),
+            vec![
+                (ellipsis, key(KeyCode::Right)),
+                (ellipsis, key(KeyCode::End)),
+            ],
+        );
+        let text = collapsed(&last(&frames).text);
+        assert!(
+            text.contains(&format!("{left} 1 {ellipsis} 17 18 19 20 {right}")),
+            "DIS-003: End does not move to 20:\n{}",
+            last(&frames).text
+        );
+        let first = collapsed(&frames[0].text);
+        assert!(
+            first.contains(&format!("{left} 1 {ellipsis} 4 5 6 {ellipsis} 20 {right}")),
+            "DIS-003: the bar at page 5 is not `1 … 4 5 6 … 20`:\n{}",
+            frames[0].text
+        );
+    }
+
+    /// DIS-003: Right moves the page to 6, and Confirm reports 6 through
+    /// `on_change`.
+    #[test]
+    fn dis_003_confirm_on_the_moved_page_reports_it_through_on_change() {
+        let (_, _, ellipsis) = arrows();
+        let reported = Arc::new(Mutex::new(Vec::new()));
+        let record = reported.clone();
+        let bar = builder::pagination()
+            .pages(20)
+            .current(5)
+            .on_change(move |page| record.lock().unwrap().push(page))
+            .build()
+            .auto_focus();
+        let frames = run(
+            bar,
+            (80, 10),
+            vec![
+                (ellipsis, key(KeyCode::Right)),
+                (ellipsis, key(KeyCode::Enter)),
+            ],
+        );
+        assert_eq!(*reported.lock().unwrap(), vec![6]);
+        assert!(
+            collapsed(&last(&frames).text).contains("5 6 7"),
+            "DIS-003: Right does not show page 6 as the window's middle:\n{}",
+            last(&frames).text
+        );
+    }
+
+    /// DIS-003: Confirm on an ellipsis opens a menu of the pages it hides.
+    #[test]
+    fn dis_003_confirm_on_an_ellipsis_opens_a_menu_of_the_hidden_pages() {
+        let (_, _, ellipsis) = arrows();
+        let frames = run(
+            builder::pagination()
+                .pages(20)
+                .current(5)
+                .build()
+                .auto_focus(),
+            (80, 30),
+            vec![
+                (ellipsis, key(KeyCode::Down)),
+                (ellipsis, key(KeyCode::Enter)),
+                ("Page 7", None),
+            ],
+        );
+        assert!(
+            last(&frames).text.contains("Page 19"),
+            "DIS-003: the trailing ellipsis opens no menu of the pages it hides:\n{}",
+            last(&frames).text
+        );
+    }
+
+    /// DIS-003: a stepper marks the passed step `✓`, the current `●` and the
+    /// rest `○`, and with `on_change` set Right moves the focus and Confirm
+    /// reports the focused step.
+    #[test]
+    fn dis_003_a_stepper_marks_its_steps_and_reports_the_focused_one() {
+        let (check, dot, circle) = (Icon::Check.glyph(), Icon::Dot.glyph(), Icon::Circle.glyph());
+        let reported = Arc::new(Mutex::new(Vec::new()));
+        let record = reported.clone();
+        let steps = builder::stepper()
+            .step("Compose")
+            .step("Capture")
+            .step("Review")
+            .current(2)
+            .on_change(move |step| record.lock().unwrap().push(step))
+            .build()
+            .auto_focus();
+        let frames = run(
+            steps,
+            (80, 6),
+            vec![(circle, key(KeyCode::Right)), (circle, key(KeyCode::Enter))],
+        );
+        let marks = collapsed(&frames[0].text);
+        let (a, b, c) = (
+            marks.find(check).expect("the passed mark"),
+            marks.find(dot).expect("the current mark"),
+            marks.find(circle).expect("the coming mark"),
+        );
+        assert!(
+            a < b && b < c,
+            "DIS-003: the marks are out of order:\n{marks}"
+        );
+        assert_eq!(*reported.lock().unwrap(), vec![3]);
+    }
+
+    /// DIS-003: the alert's `[×]` closes it on Confirm and reports `on_close`.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_003_the_alert_close_mark_closes_it_on_confirm() {
+        let _theme = Active::set(probe());
+        let closed = Arc::new(Mutex::new(0));
+        let count = closed.clone();
+        let frames = app_input::run_until_hidden(
+            Control(page(
+                builder::alert(AlertKind::Warning)
+                    .title("Disk full")
+                    .closable(true)
+                    .on_close(move || *count.lock().unwrap() += 1)
+                    .build(),
+            )),
+            (80, 10),
+            vec![
+                ("Disk full", key(KeyCode::Tab)),
+                ("Disk full", key(KeyCode::Enter)),
+            ],
+            "Disk full",
+        );
+        assert_eq!(*closed.lock().unwrap(), 1);
+        assert!(!last(&frames).text.contains("Disk full"));
+    }
+
+    /// DIS-003: an empty state's action runs on Confirm.
+    #[test]
+    fn dis_003_an_empty_states_action_runs_on_confirm() {
+        let ran = Arc::new(Mutex::new(0));
+        let count = ran.clone();
+        let state = builder::empty()
+            .title("No files")
+            .description("Create one")
+            .action("Add", move || *count.lock().unwrap() += 1)
+            .build();
+        run(
+            state,
+            (80, 10),
+            vec![
+                ("No files", key(KeyCode::Tab)),
+                ("Add", key(KeyCode::Enter)),
+            ],
+        );
+        assert_eq!(*ran.lock().unwrap(), 1);
+    }
+
+    // ---------------------------------------------------------- DIS-005
+
+    /// DIS-005: the stepper's marks and the alert's kind icons are the
+    /// catalog's glyphs, one cell each.
+    #[test]
+    fn dis_005_the_pieces_paint_their_marks_from_the_catalog() {
+        for icon in [
+            Icon::Check,
+            Icon::Dot,
+            Icon::Circle,
+            Icon::Ellipsis,
+            Icon::ChevronLeft,
+            Icon::ChevronRight,
+            Icon::Info,
+            Icon::Warning,
+            Icon::Error,
+            Icon::Success,
+        ] {
+            assert_eq!(
+                unicode_width::UnicodeWidthStr::width(icon.unicode()),
+                1,
+                "DIS-005: {icon:?} is not one cell"
+            );
+        }
+    }
+}
