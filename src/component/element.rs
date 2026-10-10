@@ -80,6 +80,10 @@ pub struct ElementMetadata {
     /// A prepared cell grid this element paints in one step.
     pub(crate) cells: Option<Arc<crate::layout::paint_tree::cells::CellGrid>>,
     pub(crate) text_cursor: Option<TextCursor>,
+    /// The URL this element's text links to, for a terminal that takes
+    /// OSC 8 hyperlinks; its descendants' text links to it too, unless one
+    /// sets its own.
+    pub(crate) hyperlink: Option<Arc<str>>,
     /// Autofocus descendants and restore on removal without trapping Tab.
     pub(crate) focus_scope: bool,
     pub(crate) factory: Option<ElementFactory>,
@@ -139,6 +143,7 @@ impl PartialEq for ElementMetadata {
             && self.image_fallback == other.image_fallback
             && self.same_canvas(other)
             && self.text_cursor == other.text_cursor
+            && self.hyperlink == other.hyperlink
             && self.focus_scope == other.focus_scope
             && self.component_instances == other.component_instances
             && self.accessibility == other.accessibility
@@ -461,6 +466,17 @@ impl Element {
     /// Set focus properties for declarative focus management
     pub fn with_focus(mut self, focus: super::focus::FocusProps) -> Self {
         self.focus = Some(focus);
+        self
+    }
+
+    /// Link this element's text to `url`, and its descendants' text unless
+    /// one sets its own: where the terminal takes OSC 8 hyperlinks the text
+    /// is written between `ESC ] 8 ; ; <url> ESC \` and `ESC ] 8 ; ; ESC \`,
+    /// so the terminal's own click opens it. Elsewhere the text is plain.
+    /// The URL must be printable ASCII without spaces (percent-encode the
+    /// rest) and at most 512 bytes; another URL is not written.
+    pub fn with_hyperlink(mut self, url: impl Into<Arc<str>>) -> Self {
+        self.metadata.hyperlink = Some(url.into());
         self
     }
 

@@ -8,6 +8,9 @@ pub(crate) struct PaintSpec {
     pub images: Vec<Option<std::sync::Arc<crate::widgets::display::image::paint::ImagePaint>>>,
     pub image_fallbacks: Vec<Option<u32>>,
     pub cursors: Vec<Option<super::element::TextCursor>>,
+    /// The URL each element's text links to: its own, else its nearest
+    /// ancestor's.
+    pub links: Vec<Option<std::sync::Arc<str>>>,
     pub cells: Vec<Option<std::sync::Arc<crate::layout::paint_tree::cells::CellGrid>>>,
     /// The canvas each element shows; it takes no part in layout.
     #[cfg(feature = "wgpu-graphics")]
@@ -38,6 +41,7 @@ pub(crate) fn resolve_viewport_styles(
 }
 
 pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<PaintSpec> {
+    #[allow(clippy::too_many_arguments)]
     fn collect(
         element: &Element,
         styles: &mut Vec<crate::layout::style::StyleBuilder>,
@@ -46,20 +50,39 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         fallback: Option<u32>,
         cursors: &mut Vec<Option<super::element::TextCursor>>,
         cells: &mut Vec<Option<std::sync::Arc<crate::layout::paint_tree::cells::CellGrid>>>,
+        links: &mut Links,
     ) -> crate::error::Result<()> {
         let fallback = element.metadata.image_fallback.or(fallback);
         images.push(element.metadata.image.clone());
         fallbacks.push(fallback);
         cursors.push(element.metadata.text_cursor);
         cells.push(element.metadata.cells.clone());
+        // An element without a link of its own links to its parent's URL.
+        let link = element
+            .metadata
+            .hyperlink
+            .clone()
+            .or_else(|| links.inherited.clone());
+        links.found.push(link.clone());
+        let outer = std::mem::replace(&mut links.inherited, link);
         styles.push(match &element.metadata.paint_style {
             Some(style) => style.restore()?,
             None => element_style(element)?,
         });
         for child in &element.children {
-            collect(child, styles, images, fallbacks, fallback, cursors, cells)?;
+            collect(
+                child, styles, images, fallbacks, fallback, cursors, cells, links,
+            )?;
         }
+        links.inherited = outer;
         Ok(())
+    }
+    /// The URL each element's text links to, in the order `collect` visits
+    /// them, and the URL of the element being visited.
+    #[derive(Default)]
+    struct Links {
+        found: Vec<Option<std::sync::Arc<str>>>,
+        inherited: Option<std::sync::Arc<str>>,
     }
     /// The canvases of `element` and its descendants, in the order
     /// `collect` visits them.
@@ -115,6 +138,7 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
     let mut image_fallbacks = Vec::new();
     let mut cursors = Vec::new();
     let mut cells = Vec::new();
+    let mut links = Links::default();
     collect(
         element,
         &mut styles,
@@ -123,6 +147,7 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         None,
         &mut cursors,
         &mut cells,
+        &mut links,
     )?;
     #[cfg(feature = "wgpu-graphics")]
     let looks_and_ids = {
@@ -137,6 +162,7 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
         image_fallbacks,
         cursors,
         cells,
+        links: links.found,
         #[cfg(feature = "wgpu-graphics")]
         canvases: {
             let mut found = Vec::new();

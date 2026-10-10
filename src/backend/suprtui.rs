@@ -99,6 +99,8 @@ struct Acknowledged {
 struct FrameOptions {
     full_redraw: bool,
     debug_overlay: bool,
+    /// The terminal takes OSC 8 hyperlinks (DIS-003).
+    hyperlinks: bool,
 }
 
 enum Command {
@@ -223,6 +225,9 @@ impl SuprTuiBackend {
         };
         let mut backend = Self::start(width, height, io::stdout(), session, images)?;
         backend.raw_mode = Some(raw_mode);
+        backend.set_hyperlinks(crate::platform::hyperlinks_from_term(
+            &std::env::var("TERM").unwrap_or_default(),
+        ));
         Ok(backend)
     }
 
@@ -263,6 +268,23 @@ impl SuprTuiBackend {
 
     pub(crate) fn set_full_redraw(&mut self, enabled: bool) {
         self.options.full_redraw = enabled;
+    }
+
+    /// Say whether the terminal takes OSC 8 hyperlinks. With them, the text
+    /// of an element given a URL ([`Element::with_hyperlink`]) is written
+    /// between `ESC ] 8 ; ; <url> ESC \` and `ESC ] 8 ; ; ESC \`, so the
+    /// terminal's own click opens it; without them it is written plain. The
+    /// next presented frame is written whole when the setting changes.
+    /// A backend on the terminal reads it from the environment; a backend
+    /// on an owned writer starts without them.
+    pub fn set_hyperlinks(&mut self, enabled: bool) {
+        self.options.hyperlinks = enabled;
+    }
+
+    /// Whether the terminal takes OSC 8 hyperlinks; see
+    /// [`SuprTuiBackend::set_hyperlinks`].
+    pub fn hyperlinks(&self) -> bool {
+        self.options.hyperlinks
     }
 
     fn start<W: Write + Send + 'static>(
@@ -844,6 +866,12 @@ fn run_worker<W: Write>(
                     if size != dimensions {
                         renderer = make_renderer(size)?;
                         dimensions = size;
+                        force = true;
+                    }
+                    // Cells already on screen are written again with or
+                    // without their hyperlinks (DIS-003).
+                    if renderer.hyperlinks_supported() != options.hyperlinks {
+                        renderer.set_hyperlinks_supported(options.hyperlinks);
                         force = true;
                     }
                     let geometry = match spec {

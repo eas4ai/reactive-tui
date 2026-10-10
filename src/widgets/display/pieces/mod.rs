@@ -20,6 +20,7 @@ pub mod stepper;
 pub use badge::{BadgeContent, BadgeKind, BadgeProps, TagProps};
 pub use description_list::{DescriptionLayout, DescriptionListProps};
 pub use kbd::KbdProps;
+pub use link::{Link, LinkProps, LinkState};
 pub use separator::{glyph as separator_glyph, SeparatorProps, SeparatorStyle};
 pub use shimmer::Shimmer;
 pub use skeleton::Skeleton;

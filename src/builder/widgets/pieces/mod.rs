@@ -19,6 +19,7 @@ pub mod stepper;
 pub use alert::{alert, AlertBuilder};
 pub use empty::{empty, EmptyBuilder};
 pub use icon::{icon, IconBuilder};
+pub use link::{link, LinkBuilder};
 pub use pagination::{pagination, PaginationBuilder};
 pub use shimmer::{shimmer, ShimmerBuilder};
 pub use skeleton::{skeleton, SkeletonBuilder};

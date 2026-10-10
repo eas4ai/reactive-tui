@@ -507,6 +507,11 @@ pub struct DebugBackend {
     /// The terminal sequences an App wrote through [`Backend::write_sequence`],
     /// in order, for a test to read (CLP-001).
     sequences: Vec<Vec<u8>>,
+    /// The presented frame's linked cells, by row-major index in ascending
+    /// order, with the URL each links to (DIS-003).
+    links: Vec<(usize, std::sync::Arc<str>)>,
+    /// Whether the backend reports that its terminal takes OSC 8 hyperlinks.
+    hyperlinks: bool,
 }
 
 impl DebugBackend {
@@ -524,7 +529,41 @@ impl DebugBackend {
             geometry: None,
             paint: debug_frame::PaintThread::default(),
             sequences: Vec::new(),
+            links: Vec::new(),
+            hyperlinks: false,
         }
+    }
+
+    /// Say whether this backend reports a terminal that takes OSC 8
+    /// hyperlinks; it starts without them. With them, [`DebugBackend::cell_link`]
+    /// gives the URL each linked cell is written with, as a terminal with
+    /// them is sent `ESC ] 8 ; ; <url> ESC \` before a linked run of text and
+    /// `ESC ] 8 ; ; ESC \` after it (DIS-003).
+    pub fn set_hyperlinks(&mut self, enabled: bool) {
+        self.hyperlinks = enabled;
+    }
+
+    /// Whether this backend reports a terminal that takes OSC 8 hyperlinks;
+    /// see [`DebugBackend::set_hyperlinks`].
+    pub fn hyperlinks(&self) -> bool {
+        self.hyperlinks
+    }
+
+    /// The URL the presented cell at position (x, y) is written as a link
+    /// to: `None` for a cell without a link, outside the screen, before a
+    /// frame painted through the SuprTUI painter has been presented, or
+    /// while the backend reports no hyperlinks, since a terminal without
+    /// them is sent none (DIS-003).
+    pub fn cell_link(&self, x: usize, y: usize) -> Option<&str> {
+        let (w, h) = self.virtual_screen.dims();
+        if !self.hyperlinks || x >= w || y >= h {
+            return None;
+        }
+        let index = y * w + x;
+        self.links
+            .binary_search_by_key(&index, |(cell, _)| *cell)
+            .ok()
+            .map(|found| &*self.links[found].1)
     }
 
     /// The terminal sequences the App wrote so far, in order (CLP-001).
@@ -642,6 +681,7 @@ impl DebugBackend {
         self.pending_frame = None;
         self.graphemes = None;
         self.geometry = None;
+        self.links.clear();
         self.virtual_screen.clear(Rgba {
             r: 0.0,
             g: 0.0,
@@ -665,6 +705,7 @@ impl DebugBackend {
         self.pending_frame = None;
         self.graphemes = None;
         self.geometry = None;
+        self.links.clear();
         self.virtual_screen = surface;
         self.size = (width as u16, height as u16);
         Ok(())
@@ -722,6 +763,7 @@ impl Backend for DebugBackend {
         self.pending_frame = None;
         self.graphemes = None;
         self.geometry = None;
+        self.links.clear();
         // Store patches for debugging
         self.patch_history.push(patches.to_vec());
 
@@ -770,6 +812,7 @@ impl Backend for DebugBackend {
             // The canvas that reuses them lives on the paint thread.
             self.paint.post(move || debug_frame::recycle(surface, text));
             self.geometry = Some(frame.geometry);
+            self.links = frame.links;
         }
         self.frame_count += 1;
 
@@ -798,6 +841,7 @@ impl Backend for DebugBackend {
         self.pending_frame = None;
         self.graphemes = None;
         self.geometry = None;
+        self.links.clear();
         use crate::render::tree::{element_to_render_node, RenderTree};
 
         let mut tree = RenderTree::new();
