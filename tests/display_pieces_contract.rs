@@ -18,7 +18,10 @@ use reactive_tui::{
     builder,
     component::Element,
     theme::{Theme, ThemeVariables},
-    widgets::display::pieces::icon::{SPINNER_ASCII_FRAMES, SPINNER_FRAMES},
+    widgets::display::{
+        charts::report_glyph_support,
+        pieces::icon::{SPINNER_ASCII_FRAMES, SPINNER_FRAMES},
+    },
 };
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -246,6 +249,7 @@ fn has_wide_glyph(text: &str) -> bool {
 /// DIS-005: the file explorer's file and folder marks come from the icon
 /// catalog, single-width glyphs with an ASCII fallback, not emoji.
 #[test]
+#[serial_test::serial(theme)]
 fn dis_005_the_file_explorer_paints_no_emoji_for_files_and_folders() {
     let manual = manual_dir();
     let frame = shown(
@@ -569,7 +573,9 @@ fn dis_001_status_bar_and_description_list_paint_by_role() {
 /// DIS-002: a separator and a status bar fill the width their box allots, a
 /// `w-40` separator paints 40 cells, and a badge or key hint takes its content's width.
 #[test]
+#[serial_test::serial(theme)]
 fn dis_002_pieces_fill_or_take_the_width_their_classes_ask_for() {
+    let _theme = PieceTheme::set(piece_probe());
     let frame = shown(
         piece_box(
             100,
@@ -1092,6 +1098,81 @@ fn dis_003_a_skeleton_stands_still_in_border_under_reduced_motion() {
     );
 }
 
+/// Sets the probe that marks the terminal as reporting no Unicode, and
+/// restores the terminal's report when it drops.
+struct AsciiTerminal;
+
+impl AsciiTerminal {
+    fn set() -> Self {
+        report_glyph_support(false);
+        Self
+    }
+}
+
+impl Drop for AsciiTerminal {
+    fn drop(&mut self) {
+        report_glyph_support(true);
+    }
+}
+
+/// DIS-003: where the terminal reports no Unicode, a spinner paints the
+/// ASCII frames and never a braille frame.
+#[test]
+#[serial_test::serial(theme)]
+fn dis_003_a_spinner_paints_ascii_frames_where_the_terminal_reports_no_unicode() {
+    let _terminal = AsciiTerminal::set();
+    let frame = shown(
+        builder::spinner().label("Saving").build(),
+        (80, 24),
+        "Saving",
+    );
+    let glyph = spinner_glyph(&frame, "Saving");
+    assert!(
+        ["|", "/", "-", "\\"].contains(&glyph.as_str()),
+        "DIS-003: the spinner paints {glyph:?} where the terminal reports no Unicode:\n{}",
+        frame.text
+    );
+    assert!(
+        !SPINNER_FRAMES.contains(&glyph.as_str()),
+        "DIS-003: the spinner paints a braille frame where the terminal reports no Unicode"
+    );
+}
+
+/// DIS-004: a skeleton shows nothing of its own, and the group that holds it
+/// carries `busy` in the tree the App publishes while the skeleton shows.
+#[cfg(target_os = "linux")]
+#[test]
+fn dis_004_a_skeleton_s_parent_is_busy_while_it_shows() {
+    use reactive_tui::accessibility::{Node as AccessNode, ReaderChannel, Role};
+    let mut group = AccessNode::new(Role::Group);
+    group.set_label("Report");
+    let root = builder::div()
+        .class("flex-col w-full")
+        .child(builder::skeleton().rows(2).animated(false).build())
+        .build()
+        .with_accessibility(group);
+    let reader = ReaderChannel::new();
+    let _ = app_input::run_when_frame_reading(
+        Control(page(root)),
+        (80, 24),
+        &reader,
+        vec![(Box::new(|_: &Snapshot| true), None)],
+    );
+    let tree = reader
+        .tree()
+        .expect("DIS-004: the App published no accessibility tree");
+    let report = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some("Report"))
+        .map(|(_, node)| node)
+        .expect("DIS-004: the group's node is missing from the tree");
+    assert!(
+        report.is_busy(),
+        "DIS-004: the parent of a showing skeleton is not busy"
+    );
+}
+
 // ===== empty, alert, pagination, stepper =====
 
 mod interactive {
@@ -1455,6 +1536,7 @@ mod interactive {
     /// page, with an ellipsis for each hidden run, and Right, End and a
     /// click move the page.
     #[test]
+    #[serial_test::serial(theme)]
     fn dis_003_the_pagination_bar_shows_its_window_and_moves_by_keys() {
         let (left, right, ellipsis) = arrows();
         // The first frame is the bar at page 5; the last one follows End.
@@ -1484,9 +1566,28 @@ mod interactive {
         );
     }
 
+    /// DIS-003: the bar at page 5 of 20 with five visible reads
+    /// `‹ 1 … 4 5 6 … 20 ›`, as the falsifier spells it.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_003_the_pagination_bar_at_page_5_of_20_reads_as_the_spec_spells_it() {
+        let frames = run(
+            builder::pagination().pages(20).current(5).build(),
+            (80, 10),
+            vec![("20", None)],
+        );
+        let text = collapsed(&last(&frames).text);
+        assert!(
+            text.contains("‹ 1 … 4 5 6 … 20 ›"),
+            "DIS-003: the bar at page 5 of 20 is not `‹ 1 … 4 5 6 … 20 ›`:\n{}",
+            last(&frames).text
+        );
+    }
+
     /// DIS-003: Right moves the page to 6, and Confirm reports 6 through
     /// `on_change`.
     #[test]
+    #[serial_test::serial(theme)]
     fn dis_003_confirm_on_the_moved_page_reports_it_through_on_change() {
         let (_, _, ellipsis) = arrows();
         let reported = Arc::new(Mutex::new(Vec::new()));
@@ -1515,6 +1616,7 @@ mod interactive {
 
     /// DIS-003: Confirm on an ellipsis opens a menu of the pages it hides.
     #[test]
+    #[serial_test::serial(theme)]
     fn dis_003_confirm_on_an_ellipsis_opens_a_menu_of_the_hidden_pages() {
         let (_, _, ellipsis) = arrows();
         let frames = run(
@@ -1541,6 +1643,7 @@ mod interactive {
     /// rest `○`, and with `on_change` set Right moves the focus and Confirm
     /// reports the focused step.
     #[test]
+    #[serial_test::serial(theme)]
     fn dis_003_a_stepper_marks_its_steps_and_reports_the_focused_one() {
         let (check, dot, circle) = (Icon::Check.glyph(), Icon::Dot.glyph(), Icon::Circle.glyph());
         let reported = Arc::new(Mutex::new(Vec::new()));
@@ -1623,6 +1726,7 @@ mod interactive {
     /// DIS-005: the stepper's marks and the alert's kind icons are the
     /// catalog's glyphs, one cell each.
     #[test]
+    #[serial_test::serial(theme)]
     fn dis_005_the_pieces_paint_their_marks_from_the_catalog() {
         for icon in [
             Icon::Check,

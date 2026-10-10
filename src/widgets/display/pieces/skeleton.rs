@@ -71,7 +71,11 @@ impl Component for Skeleton {
             classes.push("w-full".to_string());
         }
         classes.push(props.class.clone());
-        div().class(&classes.join(" ")).children(children).build()
+        div()
+            .class(&classes.join(" "))
+            .children(children)
+            .build()
+            .with_busy_parent()
     }
 
     fn on_lifecycle(&mut self, event: LifecycleEvent, _state: &mut Self::State) {

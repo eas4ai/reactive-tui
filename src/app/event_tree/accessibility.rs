@@ -19,6 +19,8 @@ struct Frame<'a> {
     snapshot: Snapshot,
     screen_reader_only: bool,
     text_runs: HashMap<accesskit::NodeId, usize>,
+    /// Whether a shown child asked its parent to carry `busy` (DIS-004).
+    child_busy: bool,
 }
 
 impl EventTree {
@@ -40,6 +42,7 @@ impl EventTree {
             snapshot: Snapshot::empty(name),
             screen_reader_only: false,
             text_runs: HashMap::new(),
+            child_busy: false,
         };
         let children = frame.visit(element, Vec::new(), 0, None, false, false);
         frame.snapshot.update.nodes[0].1.set_children(children);
@@ -88,15 +91,25 @@ impl Frame<'_> {
                 .as_ref()
                 .map_or(interactive, |focus| focus.focusable);
         let owner = if focusable { event_id } else { owner };
+        let saved_child_busy = std::mem::take(&mut self.child_busy);
         let mut children = Vec::new();
         for (index, child) in element.children.iter().enumerate() {
             children.extend(self.visit(child, path.clone(), index, owner, disabled, hidden));
         }
+        let child_busy = std::mem::replace(&mut self.child_busy, saved_child_busy);
         self.screen_reader_only = ancestor_reader_only;
+        // A shown element with `busy_parent` asks its nearest node-carrying
+        // ancestor to carry `busy`.
+        if !hidden && bounds.is_some() && options.is_some_and(|options| options.busy_parent) {
+            self.child_busy = true;
+        }
         if hidden || (bounds.is_none() && children.is_empty() && !screen_reader_only) {
+            // This element publishes no node, so a busy request passes on.
+            self.child_busy |= child_busy;
             return Vec::new();
         }
         let Some(event_id) = event_id else {
+            self.child_busy |= child_busy;
             return children;
         };
         let id = accesskit::NodeId(event_id.serial() as u64 + 1);
@@ -121,6 +134,9 @@ impl Frame<'_> {
         }
         if disabled {
             node.set_disabled();
+        }
+        if child_busy {
+            node.set_busy();
         }
         let clickable = !disabled
             && (interactive
@@ -213,6 +229,73 @@ mod tests {
         component::Component,
         widgets::input::{InputMode, TextInput, TextInputProps},
     };
+
+    #[test]
+    fn dis_004_a_skeleton_marks_its_parent_busy_in_the_published_tree() {
+        use crate::{
+            accessibility::Node,
+            builder::{div, skeleton},
+            component::runtime::ComponentRuntime,
+            reactive::{component_scope::ComponentScope, scheduler::Scheduler},
+        };
+        use std::sync::Arc;
+        let mut group = Node::new(Role::Group);
+        group.set_label("Report");
+        let scope = ComponentScope::new(Arc::new(Scheduler::new()));
+        let _binding = scope.enter(true);
+        let mut runtime = ComponentRuntime::default();
+        // The skeleton's render runs when the tree resolves.
+        let element = runtime
+            .resolve(
+                div()
+                    .child(skeleton().rows(2).build())
+                    .build()
+                    .with_accessibility(group),
+            )
+            .unwrap();
+        // Every element in pre-order gets bounds, so the skeleton shows.
+        let geometry: Vec<PaintedNode> = (0..10)
+            .map(|element_index| PaintedNode {
+                element_index,
+                bounds: Bounds {
+                    x: 0.0,
+                    y: element_index as f32,
+                    width: 30.0,
+                    height: 1.0,
+                },
+            })
+            .collect();
+        let mut events = EventTree::default();
+        let mut router = EventRouter::new();
+        events.sync(&element, &geometry, None, None, &mut router);
+        let snapshot = events.accessibility_snapshot(&element, &geometry, &router, "test");
+        let report = snapshot
+            .update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Report"))
+            .map(|(_, node)| node)
+            .expect("the group must publish its node");
+        assert!(report.is_busy());
+        let busy: Vec<_> = snapshot
+            .update
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.is_busy())
+            .collect();
+        assert_eq!(busy.len(), 1, "only the parent carries busy");
+        // The first node is the window's root, which is not part of the skeleton.
+        for (_, node) in snapshot.update.nodes.iter().skip(1) {
+            if node.label() != Some("Report") {
+                assert!(
+                    matches!(node.role(), Role::GenericContainer | Role::Unknown),
+                    "the skeleton must not publish a node of its own"
+                );
+            }
+        }
+        runtime.clear();
+        scope.close();
+    }
 
     #[test]
     fn popover_click_action_preserves_typed_input_semantics() {

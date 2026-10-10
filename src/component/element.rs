@@ -27,6 +27,9 @@ pub(crate) struct AccessibilityOptions {
     pub increment_event: Option<crate::event::CustomEvent>,
     pub decrement_event: Option<crate::event::CustomEvent>,
     pub label: Option<String>,
+    /// While this element is shown, the nearest ancestor that has a node in
+    /// the published tree carries `busy` (DIS-004).
+    pub busy_parent: bool,
 }
 
 /// Whether two optional events have the same name and data.
@@ -46,6 +49,7 @@ impl PartialEq for AccessibilityOptions {
             && self.keyboard_only == other.keyboard_only
             && self.screen_reader_only == other.screen_reader_only
             && self.label == other.label
+            && self.busy_parent == other.busy_parent
             && same_event(&self.click_event, &other.click_event)
             && same_event(&self.focus_event, &other.focus_event)
             && same_event(&self.set_value_event, &other.set_value_event)
@@ -280,6 +284,16 @@ impl Element {
         if let Some(options) = &mut self.metadata.accessibility_options {
             options.label = None;
         }
+        self
+    }
+
+    /// Mark the nearest ancestor with a node busy while this element shows,
+    /// so the screen reader waits for the content that replaces it (DIS-004).
+    pub fn with_busy_parent(mut self) -> Self {
+        self.metadata
+            .accessibility_options
+            .get_or_insert_default()
+            .busy_parent = true;
         self
     }
 

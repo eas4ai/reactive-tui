@@ -6,7 +6,7 @@
 
 use std::{any::Any, sync::Arc};
 
-use crate::accessibility::{Node, Role};
+use crate::accessibility::{AriaCurrent, Node, Role};
 use crate::builder::core::{div, span};
 use crate::component::{same_callback, Component, Element, FocusProps, Props};
 use crate::event::{
@@ -135,7 +135,7 @@ impl Component for Stepper {
             node.inner.set_position_in_set(number);
             node.inner.set_size_of_set(count);
             if number == current {
-                node.inner.set_aria_current(accesskit::AriaCurrent::Step);
+                node.set_current(AriaCurrent::Step);
             }
             let mut step = if props.vertical {
                 span()

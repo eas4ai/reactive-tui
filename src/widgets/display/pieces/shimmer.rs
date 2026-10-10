@@ -93,7 +93,11 @@ impl Component for Shimmer {
                     .build()
             })
             .collect::<Vec<_>>();
-        span().class(&props.class).children(children).build()
+        span()
+            .class(&props.class)
+            .children(children)
+            .build()
+            .with_busy_parent()
     }
 
     fn on_lifecycle(&mut self, event: LifecycleEvent, _state: &mut Self::State) {

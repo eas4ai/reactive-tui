@@ -4,7 +4,7 @@
 //! Other terminal and screen-reader pairs are unverified. Node labels may differ
 //! from painted text; state and focus must be published alongside the label.
 
-pub use accesskit::{Live, Role, Toggled};
+pub use accesskit::{AriaCurrent, Live, Role, Toggled};
 
 pub(crate) mod style;
 pub(crate) mod text;
@@ -88,6 +88,10 @@ impl Node {
     /// Whether [`Node::set_busy`] marked the content as still being prepared.
     pub fn is_busy(&self) -> bool {
         self.inner.is_busy()
+    }
+    /// Mark the node the current one of its set, as `aria-current` does.
+    pub fn set_current(&mut self, current: AriaCurrent) {
+        self.inner.set_aria_current(current);
     }
 }
 

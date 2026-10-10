@@ -133,7 +133,7 @@ pub fn follow(props: &BadgeProps, owner: Element) -> Element {
             Some(node) => append_description(node, text),
             None => {
                 let mut node = Node::new(Role::Group);
-                node.inner.set_description(text.to_string());
+                node.set_description(text.to_string());
                 wrapper_node = Some(node);
             }
         }
@@ -154,8 +154,7 @@ fn append_description(node: &mut Node, text: &str) {
         Some(existing) if !existing.is_empty() => format!("{existing} {text}"),
         _ => text.to_string(),
     };
-    // The node's own setter also marks the node busy, which a badge does not do.
-    node.inner.set_description(joined);
+    node.set_description(joined);
 }
 
 /// The props of a tag (DIS-001, DIS-004).
