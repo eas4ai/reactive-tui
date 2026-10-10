@@ -2008,3 +2008,72 @@ fail on the tree as it was at the start; the workflow's run for the final
 commit is green on the three machines; and the adversary's findings are
 resolved or declined. The input pieces (form, number input, code input,
 rating, switch) are the next commitment.
+
+## display-pieces-2
+
+Carries display-pieces, superseded on 2026-10-10 after the developer ruled
+that DIS-006's toast falsifier compares the shared table entries (the
+catalog icon and the color role) rather than the painted icon color, so
+the toast keeps OVL-001's filled look. The work, the gates and the
+mechanism bindings carry over; nothing else changed.
+
+
+Requirements: DIS-001, DIS-002, DIS-003, DIS-004, DIS-005, DIS-006, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The first of the three commitments that build the widgets
+docs/widget-study.md shortlists, in the order the developer confirmed on
+2026-10-09 ("Make the widgets first", then the display pieces, the input
+pieces and the medium widgets, the code editor left out unless asked):
+the fifteen display pieces. Read on 2026-10-10: none exists as a widget,
+and the stand-ins disagree: the tabs carry their own badge, the data table
+its own page bar, the wizard a "Step N of M" line, the menus six separator
+styles and the Markdown renderer a 28-cell rule, the toast four kinds with
+no inline form, and three widgets three different glyph tables for the
+same kinds, one of them emoji. The link's target reaches no terminal
+though the platform can write OSC 8.
+
+The commitment brings the icon catalog (`Icon`), the spinner, the
+separator, the badge and the tag, the key hint, the empty state, the
+skeleton and the shimmer, the status bar, the description list, the inline
+alert, the link, the pagination bar and the stepper (`widgets::display`,
+with a builder for each under `builder::`) to the widget bar (BAR-003 to
+BAR-006) on the color roles of theme.md and the keymap of keymap.md: every
+color from a role and one look from props or builder, with focus, hover
+and disabled by color alone (DIS-001); the row-shaped pieces filling their
+parent's width, the inline ones their content's, and a status bar that
+cuts with `…` center first (DIS-002); the spinner's, shimmer's and
+skeleton's frames and their stillness under reduced motion, the badge's
+hidden zero and `99+`, the pagination bar's page math, keys and popup of
+hidden pages, the stepper's marks and keys, the link's callback and its
+OSC 8 through the renderer to a terminal that reports hyperlinks, the
+alert's close and the empty state's buttons, and a key hint that follows
+the active keymap (DIS-003); what each piece tells the screen reader, the
+spinner once and not per frame, the skeleton and shimmer through their
+parent's `busy` (DIS-004); one icon catalog of twenty names with an ASCII
+fallback and an optional Nerd Font set, drawn by every named widget in
+place of its own glyphs and emoji (DIS-005); and the tabs, the data table,
+the wizard, the menus, the Markdown renderer and the toast drawing the
+shared pieces in place of their own copies (DIS-006). Goldens at 80 by 24
+and 400 by 100 for each piece in tests/display_pieces_goldens.rs; a page
+"Display pieces" in the widget catalog; a heading of its own for each
+piece in manual/display-widgets.md; the widget-bar, goldens, frame-budget
+and catalog-manual checks learn the family (the spinner, shimmer and
+skeleton animate, so the frame-budget check measures them). The mechanism
+display-pieces (scripts/cairn/display_pieces.py over
+tests/display_pieces_contract.rs and the crate's `dis_004_` and `dis_005_`
+unit tests) is declared here, with the file explorer's emoji (DIS-005) and
+the wizard's own step line (DIS-006) as its failing examples on the tree
+before the work. Adoption changes the looks of widgets already Done, so
+their goldens will no longer match: before a golden of a tab, the data
+table, the wizard, a menu, a Markdown rule, the toast, the file explorer or
+the confirmation dialog is regenerated, the developer sees a before-and-
+after screenshot of that widget from the private display and says so, and
+the new snapshot is accepted only then. The coding goes to Haiku 5.5
+subagents for jobs under 100k tokens of context and Opus 5.5 above, as the
+developer asked on 2026-10-09.
+
+Done when every named requirement passes; display-pieces has recorded a
+fail on the tree as it was at the start; the workflow's run for the final
+commit is green on the three machines; and the adversary's findings are
+resolved or declined. The input pieces (form, number input, code input,
+rating, switch) are the next commitment.
