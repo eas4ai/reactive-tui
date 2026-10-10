@@ -23,6 +23,8 @@ pub enum Icon {
     Check,
     /// A plain marker for a list item or a status.
     Dot,
+    /// An open circle, such as a step not reached yet.
+    Circle,
     /// An arrow that points up, such as a sort order.
     ChevronUp,
     /// An arrow that points down, such as an expanded order.
@@ -76,6 +78,7 @@ impl Icon {
         Icon::Close,
         Icon::Check,
         Icon::Dot,
+        Icon::Circle,
         Icon::ChevronUp,
         Icon::ChevronDown,
         Icon::ChevronLeft,
@@ -102,6 +105,7 @@ impl Icon {
             Icon::Close => "×",
             Icon::Check => "✓",
             Icon::Dot => "●",
+            Icon::Circle => "○",
             Icon::ChevronUp => "▲",
             Icon::ChevronDown => "▼",
             Icon::ChevronLeft => "◂",
@@ -129,6 +133,7 @@ impl Icon {
             Icon::Close => "x",
             Icon::Check => "v",
             Icon::Dot => "*",
+            Icon::Circle => "o",
             Icon::ChevronUp => "^",
             Icon::ChevronDown => "v",
             Icon::ChevronLeft => "<",
@@ -171,6 +176,7 @@ impl Icon {
             Icon::Close => "Close",
             Icon::Check => "Check",
             Icon::Dot => "Dot",
+            Icon::Circle => "Circle",
             Icon::ChevronUp => "Chevron up",
             Icon::ChevronDown => "Chevron down",
             Icon::ChevronLeft => "Chevron left",
@@ -206,7 +212,7 @@ mod tests {
 
     #[test]
     fn dis_005_every_icon_has_a_one_cell_unicode_glyph_and_a_one_byte_ascii_fallback() {
-        assert_eq!(Icon::ALL.len(), 20, "the catalog names twenty icons");
+        assert_eq!(Icon::ALL.len(), 21, "the catalog names twenty-one icons");
         for &icon in Icon::ALL {
             let unicode = icon.unicode();
             assert_eq!(
