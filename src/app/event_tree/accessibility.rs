@@ -21,9 +21,15 @@ struct Frame<'a> {
     text_runs: HashMap<accesskit::NodeId, usize>,
     /// Whether a shown child asked its parent to carry `busy` (DIS-004).
     child_busy: bool,
-    /// The first node published under each marked form part, in the order
-    /// the parts finish visiting (CTL-010).
+    /// The node of each marked form part, in the order the parts finish
+    /// visiting (CTL-010).
     field_parts: Vec<(FieldPart, accesskit::NodeId)>,
+    /// How many marked form parts are being visited now.
+    open_parts: usize,
+    /// While a form part is being visited: each node published for an
+    /// element that carries a node of its own or a text, with the element's
+    /// place in pre-order (CTL-010).
+    part_nodes: Vec<(usize, accesskit::NodeId)>,
 }
 
 impl EventTree {
@@ -47,6 +53,8 @@ impl EventTree {
             text_runs: HashMap::new(),
             child_busy: false,
             field_parts: Vec::new(),
+            open_parts: 0,
+            part_nodes: Vec::new(),
         };
         let children = frame.visit(element, Vec::new(), 0, None, false, false);
         frame.snapshot.update.nodes[0].1.set_children(children);
@@ -64,21 +72,34 @@ impl Frame<'_> {
         disabled: bool,
         hidden: bool,
     ) -> Vec<accesskit::NodeId> {
-        let first_node = self.snapshot.update.nodes.len();
         let parts = self.field_parts.len();
+        let part_nodes = self.part_nodes.len();
         let options = element.metadata.accessibility_options.as_deref();
         let field_part = options.and_then(|options| options.field_part);
         let field_row = options.and_then(|options| options.field_row);
+        self.open_parts += usize::from(field_part.is_some());
         let ids = self.visit_node(element, path, index, owner, disabled, hidden);
-        // The first node the subtree published is the part's node: its
-        // deepest-first first node, as the screen reader's link needs.
-        if let (Some(part), Some((id, _))) =
-            (field_part, self.snapshot.update.nodes.get(first_node))
-        {
-            self.field_parts.push((part, *id));
+        if let Some(part) = field_part {
+            self.open_parts -= 1;
+            // The part's node is the first element under the part, in
+            // pre-order, that carries a node of its own or a text: the
+            // control's own node, not a text run inside it, and the label's
+            // text, not the row that holds it.
+            if let Some((_, id)) = self.part_nodes[part_nodes..]
+                .iter()
+                .min_by_key(|(order, _)| *order)
+            {
+                self.field_parts.push((part, *id));
+            }
+            if self.open_parts == 0 {
+                self.part_nodes.clear();
+            }
         }
         if let Some(row) = field_row {
             self.link_field_row(parts, row.required);
+            // A row's parts are its own: a row around it links its control
+            // to the parts it holds, not to these.
+            self.field_parts.truncate(parts);
         }
         ids
     }
@@ -129,6 +150,7 @@ impl Frame<'_> {
     ) -> Vec<accesskit::NodeId> {
         Slot::append(&mut path, element, index);
         let event_id = self.tree.nodes.get(&path).copied();
+        let order = self.index;
         let bounds = self
             .geometry
             .get(&self.index)
@@ -284,6 +306,12 @@ impl Frame<'_> {
             self.text_runs.insert(id, node.character_lengths().len());
         }
         node.set_children(children);
+        if self.open_parts > 0
+            && (element.metadata.accessibility.is_some()
+                || matches!(element.element_type, ElementType::Text(_)))
+        {
+            self.part_nodes.push((order, id));
+        }
         self.snapshot.update.nodes.push((id, node));
         vec![id]
     }
@@ -416,6 +444,78 @@ mod tests {
         assert_eq!(control.labelled_by(), &[label]);
         assert_eq!(control.described_by(), &[description]);
         assert!(control.is_required());
+    }
+
+    #[test]
+    fn ctl_010_a_field_rows_link_names_the_controls_own_node_and_the_labels_text() {
+        use crate::{
+            accessibility::Node,
+            component::{FieldPart, FieldRow, LayoutType},
+        };
+        // As the form builds a row: the label is a row of the label's text
+        // and the required mark; the control part wraps a control whose own
+        // node holds a text of its own, as a text input's runs are.
+        let label = Element::layout(LayoutType::Flex)
+            .children(vec![Element::text("Name"), Element::text("*")])
+            .with_field_part(FieldPart::Label);
+        let control = Element::layout(LayoutType::Flex)
+            .with_child(
+                Element::layout(LayoutType::Flex)
+                    .with_child(Element::text("Ada"))
+                    .with_accessibility(Node::new(Role::TextInput)),
+            )
+            .with_field_part(FieldPart::Control);
+        let description = Element::text("Work address").with_field_part(FieldPart::Description);
+        let row = Element::layout(LayoutType::Flex)
+            .children(vec![label, control, description])
+            .with_field_row(FieldRow { required: false });
+        let element = Element::layout(LayoutType::Flex).with_child(row);
+        // Every element in pre-order gets bounds, so each one publishes.
+        let geometry: Vec<PaintedNode> = (0..9)
+            .map(|element_index| PaintedNode {
+                element_index,
+                bounds: Bounds {
+                    x: 0.0,
+                    y: element_index as f32,
+                    width: 30.0,
+                    height: 1.0,
+                },
+            })
+            .collect();
+        let mut events = EventTree::default();
+        let mut router = EventRouter::new();
+        events.sync(&element, &geometry, None, None, &mut router);
+        let snapshot = events.accessibility_snapshot(&element, &geometry, &router, "test");
+        let id_of = |label: &str| {
+            snapshot
+                .update
+                .nodes
+                .iter()
+                .find(|(_, node)| node.label() == Some(label))
+                .map(|(id, _)| *id)
+                .unwrap_or_else(|| panic!("{label} publishes a node"))
+        };
+        let (name, description) = (id_of("Name"), id_of("Work address"));
+        let (_, control) = snapshot
+            .update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.role() == Role::TextInput)
+            .expect("the control publishes its node");
+        assert_eq!(
+            control.labelled_by(),
+            &[name],
+            "the control's own node is labelled by the label's text"
+        );
+        assert_eq!(control.described_by(), &[description]);
+        assert!(!control.is_required());
+        let linked = snapshot
+            .update
+            .nodes
+            .iter()
+            .filter(|(_, node)| !node.labelled_by().is_empty())
+            .count();
+        assert_eq!(linked, 1, "only the control's own node is linked");
     }
 
     #[test]

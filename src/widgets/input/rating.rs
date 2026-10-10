@@ -59,6 +59,14 @@ pub struct Rating {
 }
 
 impl Rating {
+    /// Create a rating from its props, with no callback
+    pub fn new(_props: RatingProps) -> Self {
+        Self {
+            viewport: None,
+            on_change: None,
+        }
+    }
+
     /// Set the callback called with the new value on each change
     pub fn with_on_change(mut self, f: impl Fn(usize) + Send + Sync + 'static) -> Self {
         self.on_change = Some(Arc::new(f));
@@ -104,11 +112,8 @@ impl Component for Rating {
     type Props = RatingProps;
     type State = RatingState;
 
-    fn new(_props: Self::Props) -> Self {
-        Self {
-            viewport: None,
-            on_change: None,
-        }
+    fn new(props: Self::Props) -> Self {
+        Rating::new(props)
     }
 
     fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {

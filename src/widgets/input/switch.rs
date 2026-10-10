@@ -96,6 +96,14 @@ pub struct Switch {
 }
 
 impl Switch {
+    /// Create a switch from its props, with no callback
+    pub fn new(_props: SwitchProps) -> Self {
+        Self {
+            state: SwitchState::default(),
+            on_change: None,
+        }
+    }
+
     /// Set the callback called with the new on or off state on each toggle
     ///
     /// # Arguments
@@ -119,11 +127,8 @@ impl Component for Switch {
     type Props = SwitchProps;
     type State = SwitchState;
 
-    fn new(_props: Self::Props) -> Self {
-        Self {
-            state: SwitchState::default(),
-            on_change: None,
-        }
+    fn new(props: Self::Props) -> Self {
+        Switch::new(props)
     }
 
     fn update(&mut self, _props: &Self::Props, state: &mut Self::State) -> bool {

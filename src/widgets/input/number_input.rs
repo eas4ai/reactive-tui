@@ -111,6 +111,16 @@ impl NumberInputProps {
         format!("{:.*}", self.decimals(), self.clamp(value))
     }
 
+    /// `value` snapped to the nearest step and clamped into the range, as
+    /// `Slider::snap` takes a value: the steps count from `min`, or from 0
+    /// when there is no least value (CTL-005, CTL-010).
+    fn snap(&self, value: f64) -> f64 {
+        let step = self.step();
+        let origin = self.min.unwrap_or(0.0);
+        let snapped = origin + ((value - origin) / step).round() * step;
+        self.clamp(if snapped.is_finite() { snapped } else { value })
+    }
+
     /// Whether a step up (`up`) or down from `value` moves it.
     fn can_step(&self, value: f64, up: bool) -> bool {
         if up {
@@ -130,6 +140,9 @@ pub struct NumberInputState {
     pub typed: Option<String>,
     /// The cursor's place in `typed`, in characters
     pub cursor: usize,
+    /// The number `on_change` last reported from the typed text; none
+    /// while the value shown is the last one reported
+    pub reported: Option<f64>,
 }
 
 /// Builder for the NumberInput props: the value, the range, the step and
@@ -250,28 +263,54 @@ impl NumberInput {
             .map_or(DEFAULT_WIDTH, |bounds| bounds.content_size().0 as usize)
     }
 
-    /// Sets `value` as the new value, clamped, and reports it when it is a
-    /// change of the value shown.
-    fn change(&self, value: f64, props: &mut NumberInputProps) {
+    /// Calls `on_change` with `value`.
+    fn report(&self, value: f64) {
+        if let Some(callback) = &self.on_change {
+            callback(value);
+        }
+    }
+
+    /// The value `on_change` last reported: the number last reported from
+    /// the typed text, else the value shown.
+    fn last_reported(props: &NumberInputProps, state: &NumberInputState) -> f64 {
+        state.reported.unwrap_or_else(|| props.clamp(props.value))
+    }
+
+    /// Sets `value` as the new value, clamped, and reports it when it
+    /// differs from the value last reported (CTL-009).
+    fn change(&self, value: f64, props: &mut NumberInputProps, state: &mut NumberInputState) {
         let value = props.clamp(value);
-        let shown = props.clamp(props.value);
+        let reported = Self::last_reported(props, state);
+        state.reported = None;
         props.value = value;
-        if value != shown {
-            if let Some(callback) = &self.on_change {
-                callback(value);
-            }
+        if value != reported {
+            self.report(value);
+        }
+    }
+
+    /// Reports the number the typed text reads as, when it reads as one and
+    /// differs from the value last reported: each typed change of the
+    /// number is a change of the value (CTL-009). The number is reported as
+    /// typed; the range clamps it when the text is committed.
+    fn report_typed(&self, props: &NumberInputProps, state: &mut NumberInputState) {
+        let Some(typed) = state.typed.as_deref().and_then(parse) else {
+            return;
+        };
+        if typed != Self::last_reported(props, state) {
+            state.reported = Some(typed);
+            self.report(typed);
         }
     }
 
     /// Commits the typed text: a text that reads as a number becomes the
     /// value, clamped into the range; any other text leaves the value as it
-    /// was (CTL-009).
+    /// was. Either way the value is reported when it differs from the
+    /// number last reported from the typed text (CTL-009).
     fn settle(&self, props: &mut NumberInputProps, state: &mut NumberInputState) {
         if let Some(text) = state.typed.take() {
             state.cursor = 0;
-            if let Some(parsed) = text.trim().parse::<f64>().ok().filter(|v| v.is_finite()) {
-                self.change(parsed, props);
-            }
+            let value = parse(&text).unwrap_or(props.value);
+            self.change(value, props, state);
         }
     }
 
@@ -284,7 +323,7 @@ impl NumberInput {
     ) -> EventResult {
         self.settle(props, state);
         let from = props.clamp(props.value);
-        self.change(from + steps * props.step(), props);
+        self.change(from + steps * props.step(), props, state);
         EventResult::Consumed
     }
 
@@ -298,7 +337,7 @@ impl NumberInput {
     ) -> EventResult {
         self.settle(props, state);
         if let Some(to) = to {
-            self.change(to, props);
+            self.change(to, props, state);
         }
         EventResult::Consumed
     }
@@ -368,6 +407,7 @@ impl NumberInput {
                 if let Some(text) = state.typed.as_mut() {
                     remove_char(text, cursor);
                 }
+                self.report_typed(props, state);
                 return EventResult::Consumed;
             }
             _ => {}
@@ -382,6 +422,7 @@ impl NumberInput {
                         remove_char(text, cursor);
                     }
                 }
+                self.report_typed(props, state);
                 EventResult::Consumed
             }
             KeyCode::Char(c) if !event.modifiers.ctrl && !event.modifiers.alt && takes_typed(c) => {
@@ -391,6 +432,7 @@ impl NumberInput {
                     insert_char(text, cursor, c);
                 }
                 state.cursor += 1;
+                self.report_typed(props, state);
                 EventResult::Consumed
             }
             _ => EventResult::Ignored,
@@ -434,9 +476,9 @@ impl NumberInput {
     }
 
     /// Takes the screen reader's request (CTL-010): Increment and Decrement
-    /// step as the Up and Down keys do; SetValue takes the requested number,
-    /// clamped into the range. A SetValue that names no finite number
-    /// changes nothing.
+    /// step as the Up and Down keys do; SetValue takes the requested number
+    /// snapped to the step and clamped into the range, as a slider takes it
+    /// (CTL-005). A SetValue that names no finite number changes nothing.
     fn handle_request(
         &self,
         event: &CustomEvent,
@@ -447,21 +489,25 @@ impl NumberInput {
             INCREMENT_EVENT => self.step(props, state, 1.0),
             DECREMENT_EVENT => self.step(props, state, -1.0),
             SET_VALUE_EVENT => {
-                let requested = std::str::from_utf8(&event.data)
-                    .ok()
-                    .and_then(|text| text.trim().parse::<f64>().ok())
-                    .filter(|value| value.is_finite());
-                let Some(requested) = requested else {
+                let Some(requested) = std::str::from_utf8(&event.data).ok().and_then(parse) else {
                     return EventResult::Ignored;
                 };
                 state.typed = None;
                 state.cursor = 0;
-                self.change(requested, props);
+                self.change(props.snap(requested), props, state);
                 EventResult::Consumed
             }
             _ => EventResult::Ignored,
         }
     }
+}
+
+/// The finite number `text` reads as, if it reads as one.
+fn parse(text: &str) -> Option<f64> {
+    text.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|value| value.is_finite())
 }
 
 /// Whether typing `c` puts it in the field: digits, `.` and `-`, as a text
@@ -731,6 +777,91 @@ mod tests {
         );
         input.handle_event(&key(KeyCode::Enter), &mut props, &mut state);
         assert_eq!(*submitted.lock().unwrap(), vec![10.0]);
+    }
+
+    fn lost() -> Event {
+        Event::Focus(crate::event::types::FocusEvent {
+            kind: FocusEventKind::Lost,
+            timestamp: std::time::Instant::now(),
+        })
+    }
+
+    /// A number input of `range_props(value)` that logs each value
+    /// `on_change` reports.
+    fn logged(value: f64) -> (NumberInput, Arc<Mutex<Vec<f64>>>) {
+        let log: Arc<Mutex<Vec<f64>>> = Arc::default();
+        let sink = log.clone();
+        let input = NumberInput::new(range_props(value))
+            .with_on_change(move |value| sink.lock().unwrap().push(value));
+        (input, log)
+    }
+
+    /// CTL-009: each typed keystroke that changes the number the text reads
+    /// as reports it, and the clamp when the focus leaves reports again
+    /// when it changes the value.
+    #[test]
+    fn ctl_009_a_typed_change_of_the_number_is_reported() {
+        let (mut input, log) = logged(0.0);
+        let mut props = range_props(0.0);
+        let mut state = focused();
+        // "0.0" to "0." to "0" to "": no other number, then no number.
+        for _ in 0..3 {
+            input.handle_event(&key(KeyCode::Backspace), &mut props, &mut state);
+        }
+        assert!(log.lock().unwrap().is_empty(), "0. and 0 are still 0");
+        input.handle_event(&key(KeyCode::Char('4')), &mut props, &mut state);
+        input.handle_event(&key(KeyCode::Char('2')), &mut props, &mut state);
+        input.handle_event(&key(KeyCode::Char('x')), &mut props, &mut state);
+        assert_eq!(*log.lock().unwrap(), vec![4.0, 42.0], "4, then 42");
+        input.handle_event(&lost(), &mut props, &mut state);
+        assert_eq!(props.value, 10.0);
+        assert_eq!(
+            *log.lock().unwrap(),
+            vec![4.0, 42.0, 10.0],
+            "the clamp to 10 is a change from the 42 reported"
+        );
+    }
+
+    /// CTL-009: a typed text that reads as no number when the focus leaves
+    /// keeps the value, and reports it when a typed number was reported in
+    /// between.
+    #[test]
+    fn ctl_009_a_typed_text_that_is_no_number_reports_the_value_kept() {
+        let (mut input, log) = logged(0.0);
+        let mut props = range_props(0.0);
+        let mut state = focused();
+        for _ in 0..3 {
+            input.handle_event(&key(KeyCode::Backspace), &mut props, &mut state);
+        }
+        input.handle_event(&key(KeyCode::Char('7')), &mut props, &mut state);
+        input.handle_event(&key(KeyCode::Backspace), &mut props, &mut state);
+        input.handle_event(&lost(), &mut props, &mut state);
+        assert_eq!(props.value, 0.0, "the empty text keeps the value");
+        assert_eq!(*log.lock().unwrap(), vec![7.0, 0.0]);
+    }
+
+    /// CTL-010: a SetValue snaps the requested number to the step and
+    /// clamps it into the range, as a slider takes it (CTL-005).
+    #[test]
+    fn ctl_010_a_set_value_request_snaps_to_the_step() {
+        let (mut input, log) = logged(2.0);
+        let mut props = range_props(2.0);
+        let mut state = NumberInputState::default();
+        for (requested, expected) in [("2.3", 2.5), ("2.2", 2.0), ("-3", 0.0), ("9.9", 10.0)] {
+            let set = CustomEvent::new(SET_VALUE_EVENT, requested.as_bytes().to_vec());
+            input.handle_event(&Event::Custom(set), &mut props, &mut state);
+            assert_eq!(props.value, expected, "SetValue of {requested}");
+        }
+        assert_eq!(*log.lock().unwrap(), vec![2.5, 2.0, 0.0, 10.0]);
+
+        // With no least value the steps count from 0.
+        let mut props = NumberInputProps {
+            step: 0.25,
+            ..Default::default()
+        };
+        let set = CustomEvent::new(SET_VALUE_EVENT, b"1.3".to_vec());
+        input.handle_event(&Event::Custom(set), &mut props, &mut state);
+        assert_eq!(props.value, 1.25);
     }
 
     /// CTL-009: a disabled number input takes nothing.

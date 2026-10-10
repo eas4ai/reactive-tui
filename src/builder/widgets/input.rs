@@ -1,7 +1,8 @@
 //! Input widget builders
 //!
 //! This module provides builders for various input components including text inputs,
-//! checkboxes, radio buttons, select dropdowns, and sliders.
+//! checkboxes, radio buttons, select dropdowns, sliders, number inputs, code
+//! inputs, ratings, switches and forms.
 
 use super::super::specialized::{RadioButtonBuilder, SliderBuilder};
 use crate::component::{same_callback, Element};

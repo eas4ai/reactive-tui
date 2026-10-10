@@ -1,6 +1,6 @@
 //! The rating builder (CTL-007 to CTL-010), `builder::rating()`.
 
-use crate::component::{Component, Element, same_callback};
+use crate::component::{same_callback, Component, Element};
 use crate::widgets::input::{Rating, RatingProps, RatingState};
 use std::sync::Arc;
 

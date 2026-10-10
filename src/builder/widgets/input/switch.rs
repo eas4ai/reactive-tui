@@ -1,6 +1,6 @@
 //! The switch builder (CTL-007 to CTL-010): `builder::switch()`.
 
-use crate::component::{Element, same_callback};
+use crate::component::{same_callback, Element};
 use std::sync::Arc;
 
 /// Builder for Switch components

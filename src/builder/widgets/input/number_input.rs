@@ -4,7 +4,7 @@
 //! (CMP-008, CMP-009).
 
 use super::Callback;
-use crate::component::{Component, Element, same_callback};
+use crate::component::{same_callback, Component, Element};
 use crate::event::router::EventResult;
 use crate::widgets::input::{NumberInput, NumberInputProps, NumberInputState};
 use std::sync::Arc;
