@@ -2,6 +2,7 @@
 // viewport is 56 columns: a wizard with Cancel, Back and Finish needs a
 // box of 26 cells for its buttons to stay on one row.
 use super::{app_input, Control};
+use reactive_tui::widgets::display::pieces::icon::Icon;
 use reactive_tui::{
     component::Element,
     core::geometry::Rect,
@@ -198,10 +199,15 @@ fn wizard_builder_enforces_can_proceed_and_initial_step() {
             ],
             "BUILDER",
         );
+        // The stepper paints the current step (LOCKED) after the dot and the
+        // passed step (FIRST) after the check, so FIRST is shown as passed.
+        let (dot, check) = (Icon::Dot.glyph(), Icon::Check.glyph());
         assert!(frames
             .iter()
-            .any(|frame| frame.text.contains("Step 2 of 2")));
-        assert!(!frames.iter().any(|frame| frame.text.contains("FIRST")));
+            .any(|frame| frame.text.contains(&format!("{dot} LOCKED"))));
+        assert!(frames
+            .iter()
+            .any(|frame| frame.text.contains(&format!("{check} FIRST"))));
     }
 }
 
@@ -496,7 +502,9 @@ fn wizard_reorder_retains_active_id_and_uses_updated_data_and_callback() {
         );
         assert!(frames.iter().any(|frame| frame.text.contains("UPDATED")
             && frame.text.contains("CONTENT-SECOND")
-            && frame.text.contains("Step 1 of 2")));
+            && frame
+                .text
+                .contains(&format!("{} SECOND", Icon::Dot.glyph()))));
         assert_eq!(*results.lock().unwrap(), [(true, "Ada".into())]);
     }
 }

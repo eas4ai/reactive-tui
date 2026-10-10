@@ -1088,15 +1088,15 @@ fn toast_public_and_builder_routes_paint_then_expire_without_input() {
 
 #[test]
 fn toast_positions_use_measured_message_size_without_stealing_background_input() {
-    // The box is 9 cells wide (SAVED, its padding and its border) and keeps
-    // one cell from the edge; S is two cells inside the box.
+    // The box is 11 cells wide (the icon and a space, SAVED, its padding and
+    // its border) and keeps one cell from the edge; S is four cells inside the box.
     for size in [(48, 14), (60, 20)] {
         for (position, x, y) in [
-            ("top-left", 3, 2),
-            ("top-center", (size.0 - 9) / 2 + 2, 2),
+            ("top-left", 5, 2),
+            ("top-center", (size.0 - 11) / 2 + 4, 2),
             ("top-right", size.0 - 8, 2),
-            ("bottom-left", 3, size.1 - 3),
-            ("bottom-center", (size.0 - 9) / 2 + 2, size.1 - 3),
+            ("bottom-left", 5, size.1 - 3),
+            ("bottom-center", (size.0 - 11) / 2 + 4, size.1 - 3),
             ("bottom-right", size.0 - 8, size.1 - 3),
         ] {
             let toast = builder::toast()
