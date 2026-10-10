@@ -346,7 +346,10 @@ impl Component for CodeInput {
             look::pixels().then(|| Self::pictured_cells(props, &digits, current, focused));
         #[cfg(not(feature = "wgpu-graphics"))]
         let pictured: Option<Element> = None;
-        let row = pictured.unwrap_or_else(|| look::row(&pieces, ""));
+        let row = match pictured {
+            Some(row) => row,
+            None => look::row(&pieces, ""),
+        };
 
         let name = props
             .aria_label
