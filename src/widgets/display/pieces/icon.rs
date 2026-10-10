@@ -58,6 +58,14 @@ pub type NerdFontTable = fn(Icon) -> Option<&'static str>;
 /// The application's Nerd Font set, if it gave one (see [`set_nerd_font`]).
 static NERD_FONT: RwLock<Option<NerdFontTable>> = RwLock::new(None);
 
+/// The frames of [`Icon::Spinner`] where the terminal takes Unicode: the
+/// braille dots, one cell each, turning in a circle.
+pub const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/// The frames of [`Icon::Spinner`] where the terminal reports no Unicode:
+/// the one-byte ASCII fallback, turning in the same order.
+pub const SPINNER_ASCII_FRAMES: &[&str] = &["|", "/", "-", "\\"];
+
 impl Icon {
     /// Every icon of the catalog, in declaration order.
     pub const ALL: &'static [Icon] = &[

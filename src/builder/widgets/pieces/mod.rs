@@ -17,3 +17,6 @@ pub mod status_bar;
 pub mod stepper;
 
 pub use icon::{icon, IconBuilder};
+pub use shimmer::{shimmer, ShimmerBuilder};
+pub use skeleton::{skeleton, SkeletonBuilder};
+pub use spinner::{spinner, SpinnerBuilder};

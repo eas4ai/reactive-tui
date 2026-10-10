@@ -21,4 +21,7 @@ pub use badge::{BadgeContent, BadgeKind, BadgeProps, TagProps};
 pub use description_list::{DescriptionLayout, DescriptionListProps};
 pub use kbd::KbdProps;
 pub use separator::{glyph as separator_glyph, SeparatorProps, SeparatorStyle};
+pub use shimmer::Shimmer;
+pub use skeleton::Skeleton;
+pub use spinner::Spinner;
 pub use status_bar::StatusBarProps;
