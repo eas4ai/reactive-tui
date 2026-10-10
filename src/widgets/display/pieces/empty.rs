@@ -22,7 +22,7 @@ pub struct EmptyAction {
 
 /// The settings of an empty state. Callbacks are left out of equality, so a
 /// rebuild that changes only a callback keeps the mounted state (CMP-008).
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct EmptyProps {
     /// The icon above the title, from the catalog (DIS-005).
     pub icon: Option<Icon>,
@@ -34,6 +34,20 @@ pub struct EmptyProps {
     pub actions: Vec<EmptyAction>,
     /// Classes added to the element, after its own.
     pub class: String,
+}
+
+impl Default for EmptyProps {
+    /// The builder's defaults, so props and builder paint the same state
+    /// (DIS-001): the catalog's `Info` mark, no text and no actions.
+    fn default() -> Self {
+        Self {
+            icon: Some(Icon::Info),
+            title: String::new(),
+            description: String::new(),
+            actions: Vec::new(),
+            class: String::new(),
+        }
+    }
 }
 
 impl PartialEq for EmptyProps {
@@ -59,7 +73,7 @@ impl Props for EmptyProps {
 
 /// An empty state. It keeps no state of its own; its buttons run the
 /// application's callbacks.
-pub(crate) struct Empty;
+pub struct Empty;
 
 impl Component for Empty {
     type Props = EmptyProps;

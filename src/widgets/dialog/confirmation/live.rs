@@ -133,10 +133,9 @@ impl Component for LiveConfirmation {
                 ),
             })
             .collect();
-        // The kind glyphs come from the icon catalog (DIS-005); the catalog
-        // has no question mark, so a question keeps `?`.
+        // The kind glyphs come from the icon catalog (DIS-005).
         let icon = match options.icon.as_ref() {
-            Some(ConfirmationIcon::Question) => "?",
+            Some(ConfirmationIcon::Question) => Icon::Question.glyph(),
             Some(ConfirmationIcon::Warning) => Icon::Warning.glyph(),
             Some(ConfirmationIcon::Error) => Icon::Error.glyph(),
             Some(ConfirmationIcon::Info) => Icon::Info.glyph(),
