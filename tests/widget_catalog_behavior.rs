@@ -285,7 +285,7 @@ fn page_navigation_wraps_in_both_directions() {
     assert_eq!(catalog.page(), CatalogPage::Overview);
 
     catalog.try_handle_event(&key(KeyCode::Up)).unwrap();
-    assert_eq!(catalog.page(), CatalogPage::System);
+    assert_eq!(catalog.page(), CatalogPage::DisplayPieces);
 
     catalog.try_handle_event(&key(KeyCode::Down)).unwrap();
     assert_eq!(catalog.page(), CatalogPage::Overview);
@@ -298,6 +298,8 @@ fn number_keys_jump_to_the_displayed_page() {
     assert_eq!(catalog.page(), CatalogPage::Motion);
     catalog.try_handle_event(&key(KeyCode::Char('5'))).unwrap();
     assert_eq!(catalog.page(), CatalogPage::Charts);
+    catalog.try_handle_event(&key(KeyCode::Char('0'))).unwrap();
+    assert_eq!(catalog.page(), CatalogPage::DisplayPieces);
 }
 
 #[test]
@@ -337,6 +339,7 @@ fn catalog_exposes_the_complete_page_order() {
             CatalogPage::Media,
             CatalogPage::Motion,
             CatalogPage::System,
+            CatalogPage::DisplayPieces,
         ]
     );
 }

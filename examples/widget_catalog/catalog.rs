@@ -1,12 +1,19 @@
 use reactive_tui::builder::specialized::WizardStep;
+use reactive_tui::builder::widgets::pieces::{
+    badge::{badge, tag},
+    description_list::description_list,
+    kbd::{kbd, kbd_action},
+    separator::separator as piece_separator,
+    status_bar::status_bar,
+};
 use reactive_tui::{
     app::{RootComponent, RootUpdate},
     builder::{
-        action_item, button, checkbox, checkbox_item, confirmation_dialog, context_menu,
-        data_table, div, file_explorer, image, menu_item, menubar, path_breadcrumb, popover,
-        primary_button, progress_bar, progress_dialog, radio_button, radio_item, scroll_view,
-        select, separator, simple_accordion, slider, stack, submenu_item, tabs, text_input, toast,
-        tree, wizard,
+        action_item, alert, button, checkbox, checkbox_item, confirmation_dialog, context_menu,
+        data_table, div, empty, file_explorer, icon, image, link, menu_item, menubar, pagination,
+        path_breadcrumb, popover, primary_button, progress_bar, progress_dialog, radio_button,
+        radio_item, scroll_view, select, separator, shimmer, simple_accordion, skeleton, slider,
+        spinner, stack, stepper, submenu_item, tabs, text_input, toast, tree, wizard,
     },
     component::Element,
     core::geometry::Rect,
@@ -14,6 +21,7 @@ use reactive_tui::{
         router::EventResult,
         types::{Event, KeyCode, KeyEventKind},
     },
+    keymap::Action,
     theme::{self, Theme},
     widgets::{
         dialog::{
@@ -22,6 +30,7 @@ use reactive_tui::{
         },
         display::{
             image::ImageDisplayMode,
+            pieces::{alert::AlertKind, badge::BadgeKind, icon::Icon},
             table::{Table, TableColumn, TableProps, TableRow},
             tree::TreeNode,
             AreaChartBuilder, BarChartBuilder, BarGrowth, CandlestickChartBuilder,
@@ -121,10 +130,11 @@ pub enum CatalogPage {
     Media,
     Motion,
     System,
+    DisplayPieces,
 }
 
 impl CatalogPage {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Overview,
         Self::Input,
         Self::Layout,
@@ -134,6 +144,7 @@ impl CatalogPage {
         Self::Media,
         Self::Motion,
         Self::System,
+        Self::DisplayPieces,
     ];
 
     pub const fn title(self) -> &'static str {
@@ -147,6 +158,23 @@ impl CatalogPage {
             Self::Media => "Media",
             Self::Motion => "Motion",
             Self::System => "System widgets",
+            Self::DisplayPieces => "Display pieces",
+        }
+    }
+
+    /// The key that shows the page: 1 to 9, then 0 for the tenth page.
+    pub const fn number(self) -> char {
+        match self {
+            Self::Overview => '1',
+            Self::Input => '2',
+            Self::Layout => '3',
+            Self::Data => '4',
+            Self::Charts => '5',
+            Self::MenusDialogs => '6',
+            Self::Media => '7',
+            Self::Motion => '8',
+            Self::System => '9',
+            Self::DisplayPieces => '0',
         }
     }
 
@@ -161,6 +189,7 @@ impl CatalogPage {
             Self::Media => 6,
             Self::Motion => 7,
             Self::System => 8,
+            Self::DisplayPieces => 9,
         }
     }
 
@@ -268,28 +297,28 @@ impl Catalog {
     fn footer_text(&self) -> &'static str {
         match (self.navigation_layout(), self.page) {
             (NavigationLayout::Compact, CatalogPage::MenusDialogs) => {
-                "1–9 page · F2 demo · F3 theme · Ctrl+Q quit"
+                "1–0 page · F2 demo · F3 theme · Ctrl+Q quit"
             }
-            (NavigationLayout::Compact, _) => "1–9 page · F3 theme · Ctrl+Q quit",
+            (NavigationLayout::Compact, _) => "1–0 page · F3 theme · Ctrl+Q quit",
             (_, CatalogPage::MenusDialogs) => {
-                "↑↓/←→ page · 1–9 jump · F1/F2 demo · F3 theme · Tab interact · Ctrl+Q / Ctrl+C / Esc quit"
+                "↑↓/←→ page · 1–0 jump · F1/F2 demo · F3 theme · Tab interact · Ctrl+Q / Ctrl+C / Esc quit"
             }
-            (_, _) => "↑↓/←→ page · 1–9 jump · F3 theme · Tab interact · Ctrl+Q / Ctrl+C / Esc quit",
+            (_, _) => "↑↓/←→ page · 1–0 jump · F3 theme · Tab interact · Ctrl+Q / Ctrl+C / Esc quit",
         }
     }
 
     fn page_for_number(ch: char) -> Option<CatalogPage> {
-        ch.to_digit(10)
-            .and_then(|number| number.checked_sub(1))
-            .and_then(|index| CatalogPage::ALL.get(index as usize).copied())
+        CatalogPage::ALL
+            .iter()
+            .copied()
+            .find(|page| page.number() == ch)
     }
 
     fn navigation(&self) -> Element {
         let compact = self.navigation_layout() == NavigationLayout::Compact;
         let entries = CatalogPage::ALL
             .iter()
-            .enumerate()
-            .map(|(index, page)| {
+            .map(|page| {
                 let marker = if *page == self.page { "▶" } else { " " };
                 div()
                     .class(if compact {
@@ -303,9 +332,9 @@ impl Catalog {
                         "text-muted"
                     })
                     .text(&if compact {
-                        format!("{marker}[{}]", index + 1)
+                        format!("{marker}[{}]", page.number())
                     } else {
-                        format!("{marker}[{}] {}", index + 1, page.title())
+                        format!("{marker}[{}] {}", page.number(), page.title())
                     })
                     .build()
             })
@@ -1141,6 +1170,144 @@ impl Catalog {
             .build()
     }
 
+    /// Every display piece once, in labelled cards: the icon catalog, the
+    /// spinner, the separators, the badges, the tags, the key hints, the
+    /// empty state, the skeleton, the shimmer, the status bar, the
+    /// description lists, the alerts, the link, the pagination bar and the
+    /// stepper.
+    fn display_pieces_page(&self) -> Element {
+        let row = |children: Vec<Element>| {
+            div()
+                .class("w-full flex-row gap-1 whitespace-normal")
+                .children(children)
+                .build()
+        };
+        let icons = row(Icon::ALL
+            .iter()
+            .map(|icon_name| icon(*icon_name).build())
+            .collect());
+        let separators = div()
+            .class("w-full flex-col gap-1")
+            .child(piece_separator().build())
+            .child(piece_separator().label("Options").build())
+            .child(
+                div()
+                    .class("h-3")
+                    .child(piece_separator().vertical().build())
+                    .build(),
+            )
+            .build();
+        let badges = row(vec![
+            badge().kind(BadgeKind::Info).count(3).build(),
+            badge().kind(BadgeKind::Success).count(12).build(),
+            badge().kind(BadgeKind::Warning).count(120).build(),
+            badge().kind(BadgeKind::Error).dot().build(),
+        ]);
+        let tags = row(vec![
+            tag("done").kind(BadgeKind::Success).build(),
+            tag("beta").kind(BadgeKind::Info).outline().build(),
+            tag("draft").outline().build(),
+        ]);
+        let keys = row(vec![
+            kbd("Ctrl+S").build(),
+            kbd_action(Action::Copy).build(),
+        ]);
+        let empty_state = empty()
+            .icon(Icon::Search)
+            .title("No results")
+            .description("Try another search term.")
+            .action("Clear search", || {})
+            .action("Show all", || {})
+            .build();
+        let skeleton_rows = skeleton().rows(3).build();
+        let shimmer_text = shimmer("Loading the table").build();
+        let status = status_bar()
+            .left("Ready")
+            .center("Saved 2 s ago")
+            .right("Ln 4, Col 12")
+            .build();
+        let description = div()
+            .class("w-full flex-col gap-1")
+            .child(
+                description_list()
+                    .pair("Name", "Ada")
+                    .pair("Role", "Engineer")
+                    .build(),
+            )
+            .child(
+                description_list()
+                    .pair("Name", "Ada")
+                    .pair("Role", "Engineer")
+                    .vertical()
+                    .bordered()
+                    .build(),
+            )
+            .build();
+        let alerts = div()
+            .class("w-full flex-col gap-1")
+            .children(
+                [
+                    AlertKind::Default,
+                    AlertKind::Info,
+                    AlertKind::Success,
+                    AlertKind::Warning,
+                    AlertKind::Error,
+                ]
+                .into_iter()
+                .map(|kind| {
+                    alert(kind)
+                        .title("Backup")
+                        .message("The nightly copy finished.")
+                        .closable(true)
+                        .build()
+                })
+                .collect(),
+            )
+            .build();
+        let link_row = row(vec![
+            link("Reactive TUI docs", "https://example.com/docs").build()
+        ]);
+        let pages = pagination()
+            .pages(20)
+            .current(5)
+            .visible_pages(5)
+            .on_change(|_page| {})
+            .build();
+        let steps_row = stepper()
+            .step("Account")
+            .step("Review")
+            .step("Done")
+            .current(1)
+            .on_change(|_step| {})
+            .build();
+        let steps_column = stepper()
+            .step("Account")
+            .step("Review")
+            .step("Done")
+            .current(1)
+            .vertical(true)
+            .build();
+        let spinner_row = row(vec![spinner().label("Saving").build()]);
+        div()
+            .class(Self::card_grid_class(self.width))
+            .child(Self::card("Icon catalog", icons))
+            .child(Self::card("Spinner", spinner_row))
+            .child(Self::card("Separator", separators))
+            .child(Self::card("Badge", badges))
+            .child(Self::card("Tag", tags))
+            .child(Self::card("Key hint", keys))
+            .child(Self::card("Empty state", empty_state))
+            .child(Self::card("Skeleton", skeleton_rows))
+            .child(Self::card("Shimmer", shimmer_text))
+            .child(Self::card("Status bar", status))
+            .child(Self::card("Description list", description))
+            .child(Self::card("Alert", alerts))
+            .child(Self::card("Link", link_row))
+            .child(Self::card("Pagination", pages))
+            .child(Self::card("Stepper", row(vec![steps_row, steps_column])))
+            .build()
+    }
+
     fn selected_page(&self) -> Element {
         match self.page {
             CatalogPage::Overview => self.overview_page(),
@@ -1152,6 +1319,7 @@ impl Catalog {
             CatalogPage::Media => self.media_page(),
             CatalogPage::Motion => self.motion_page(),
             CatalogPage::System => self.system_page(),
+            CatalogPage::DisplayPieces => self.display_pieces_page(),
         }
     }
 

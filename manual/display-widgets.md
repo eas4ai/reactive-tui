@@ -379,6 +379,236 @@ Data changes animate from the shown values to the new ones over
 runs once when data first appears with `.animated(true)`; the
 `reduced-motion` class skips both.
 
+## Display pieces
+
+The display pieces are small widgets for one thing each: an icon, a spinner,
+a separator, a badge, a tag, a key hint, an empty state, a skeleton, a
+shimmer, a status bar, a description list, an alert, a link, a pagination
+bar and a stepper. The larger widgets use them, so every kind and state
+glyph in the crate comes from one icon catalog. Each piece builds from its
+own builder function, and the builder returns an `Element`.
+
+Every piece paints its colors from the theme's color roles, so a piece
+looks the same under every theme. A piece fills the width its parent gives
+it unless a `w-`, `h-`, `w-full` or `h-full` class sets its size. Focus,
+hover and a disabled state show by color alone. The screen reader hears the
+piece's role, its label and its state.
+
+### Icon
+
+`icon(Icon::Error)` paints one glyph from the icon catalog in the color its
+kind or state asks for. It takes the width of its glyph. Where the terminal
+reports Unicode it paints the Unicode glyph; where it reports none it paints
+an ASCII fallback. Use `.aria_label(` to name the icon for a screen reader.
+
+```rust
+let mark = icon(Icon::Success).aria_label("Saved").build();
+```
+
+### Icon catalog
+
+The catalog is the `Icon` enum. It names `Info`, `Warning`, `Error`,
+`Success`, `Close`, `Check`, `Dot`, `Circle`, `ChevronUp`, `ChevronDown`,
+`ChevronLeft`, `ChevronRight`, `Folder`, `FolderOpen`, `File`, `Search`,
+`Settings`, `Plus`, `Minus`, `Ellipsis` and `Spinner`. The tab badge, the
+confirmation dialog, the file explorer, the alert, the toast, the stepper,
+the pagination bar and the spinner paint their marks from it. No glyph is
+wider than one cell, and no piece paints an emoji for a kind or a state. An
+application can replace the glyphs with a Nerd Font set through
+`set_nerd_font`.
+
+### Spinner
+
+`spinner()` cycles through ten frames a second. It uses braille frames where
+the terminal reports Unicode and `|`, `/`, `-` and `\` where it reports none.
+It takes the width of its frame and its label. It is painted in `text-muted`.
+The screen reader hears it as a status with its label, announced once when it
+appears, not on each frame. Under the `reduced-motion` class, or with
+`.animated(false)`, it stands on one frame and requests no frames.
+
+```rust
+let busy = spinner().label("Saving").class("reduced-motion").build();
+```
+
+### Separator
+
+`separator()` draws a line across its parent in `border`. `.label(` puts a
+label in `text-muted` in the middle of the line. `.vertical()` draws a line
+down the height of its parent. `.style(` chooses a line, a thick line, a
+double line, a dashed line or a dotted line. The screen reader hears it as a
+splitter.
+
+```rust
+let divider = separator().label("Options").build();
+```
+
+### Badge
+
+`badge()` shows a count on `secondary` for the default kind, or on `info`,
+`success`, `warning` or `error` for the other kinds. A count of zero hides
+the badge. A count above `.max(` shows that maximum with `+`; the maximum is
+99 unless set, so 120 shows `99+`. `.dot()` shows a dot `●` in place of the
+count. `.text(` shows a short text in place of the count. The badge takes the
+width of its content. The screen reader reads its text as part of the
+description of the element it follows.
+
+```rust
+let unread = badge().kind(BadgeKind::Info).count(3).build();
+```
+
+### Tag
+
+`tag(` shows a short word with the padding of one cell each side. It is a
+filled tag by default, on the kind's fill color. `.outline()` draws it as
+text between brackets, in the kind's text color. A standalone tag is a label
+for the screen reader, with its text.
+
+```rust
+let status = tag("done").kind(BadgeKind::Success).outline().build();
+```
+
+### Key hint
+
+`kbd(` shows text such as `Ctrl+S` on `secondary`. `kbd_action(` shows the
+first key binding of an action from the active keymap, in the keymap's
+display form, and the hint follows a rebind at the next render. A key hint
+takes the width of its text. The screen reader hears its text in the binding's
+display form.
+
+```rust
+let copy = kbd_action(Action::Copy).build();
+```
+
+### Empty state
+
+`empty()` shows a centered icon, a title and a description. Its title is in `foreground` and its description in
+`text-muted`. `.action(` adds a button with its label; the button runs its
+callback on Confirm, Activate or a click, and it shows `ring` when it has the
+focus. The screen reader hears a group labelled by the title and described by
+the description, with each action as a button.
+
+```rust
+let none = empty()
+    .icon(Icon::Search)
+    .title("No results")
+    .description("Try another search term.")
+    .action("Clear search", || {})
+    .build();
+```
+
+### Skeleton
+
+`skeleton()` shows placeholder rows in `border`, one per `.rows(` count. It
+fills the width of its parent. It pulses between two colors about every two
+seconds. Under the `reduced-motion` class, or with `.animated(false)`, it
+stands still in `border` and requests no frames. The skeleton has no node of
+its own for the screen reader; its parent carries `busy` while the skeleton
+shows.
+
+```rust
+let loading = skeleton().rows(3).animated(false).build();
+```
+
+### Shimmer
+
+`shimmer(` paints text in `text-muted` with a band of brighter cells in
+`foreground` that moves across the text about once every two seconds. It
+takes the width of its text. Under the `reduced-motion` class, or with
+`.animated(false)`, the text is plain and no frames are requested. Like the
+skeleton, it has no node of its own, and its parent carries `busy` while it
+shows.
+
+```rust
+let placeholder = shimmer("Loading the table").animated(false).build();
+```
+
+### Status bar
+
+`status_bar()` is one row on `surface` in `foreground`, with three regions:
+`.left(`, `.center(` and `.right(`. It fills the width of its parent. When the
+regions do not fit, it cuts the center first, then the right region, then the
+left region, and it ends a cut region with `…`. The left region keeps its
+first cell and the right region keeps its last cell. The screen reader hears
+a status with the text of its regions.
+
+```rust
+let bar = status_bar().left("Ready").center("Saved 2 s ago").right("Ln 4, Col 12").build();
+```
+
+### Description list
+
+`description_list()` shows pairs of a label and a value with `.pair(`. The
+labels are in `text-muted` and the values in `foreground`. The default layout
+puts each label beside its value, with the labels in one column; `.vertical()`
+stacks each value under its label. `.bordered()` draws a box in `border` around
+the list, and `.columns(` sets the number of columns the pairs spread over, one
+unless set. The screen reader hears a description list
+with each term and definition.
+
+```rust
+let person = description_list().pair("Name", "Ada").pair("Role", "Engineer").vertical().build();
+```
+
+### Alert
+
+`alert(AlertKind::Warning)` shows a bar and an icon in the kind's color, its
+title in `foreground` and its message in `text-muted`, on `surface`. The kinds
+are `Default`, `Info`, `Success`, `Warning` and `Error`. `.closable(true)`
+adds a `[×]` mark; Confirm, Activate or a click on it closes the alert and
+runs `.on_close(`. The screen reader hears an alert for the `Error` and
+`Warning` kinds and a status for the others, with its title and message.
+
+```rust
+let note = alert(AlertKind::Warning).title("Disk almost full").message("Free 2 GB.").closable(true).build();
+```
+
+### Link
+
+`link(text, url)` paints its text underlined in `text-accent`, with `ring`
+while it has the focus. Confirm, Activate or a click runs `.on_open(` with the
+URL. Where the terminal reports hyperlinks, the app writes the text as an OSC
+8 hyperlink, so the terminal's own click opens the URL too. A `.disabled(true)`
+link is muted, takes no focus and takes no action. Keep the URL printable
+ASCII with no spaces, and percent-encode anything else. The screen reader hears
+a link with its text, its URL as the description, and the disabled state when
+it is set.
+
+```rust
+let docs = link("Reactive TUI docs", "https://example.com/docs").on_open(|url| {}).build();
+```
+
+### Pagination
+
+`pagination()` shows the first page, the last page and the pages around the
+current one, up to `.visible_pages(` (five unless set). Each hidden run of
+pages is an ellipsis `…`. The current page is painted on `primary` with
+`primary-foreground` text, and the arrows `‹` and `›` move one page back and
+forward. Left and Right move the page by one; Home and End go to the first and
+the last page. Confirm or a click on a page chooses it and reports it through
+`.on_change(`. Confirm or a click on an ellipsis opens a popup menu of the
+hidden pages. The bar fills the width of its parent. The screen reader hears a
+navigation landmark labelled by `.aria_label(`, each page as a button, and the
+current page with its position and the page count.
+
+```rust
+let pages = pagination().pages(20).current(5).visible_pages(5).on_change(|page| {}).build();
+```
+
+### Stepper
+
+`stepper()` shows its steps with `.step(` in a row, joined by `──`, or with
+`.vertical(true)` in a column, joined by `│`. A step before the current one
+shows `✓` in `text-success`, the current one shows `●` in `foreground`, and
+the others show `○` in `text-muted`. When the application sets `.on_change(`,
+Left and Right move the focus (Up and Down in a column), and Confirm or a
+click chooses the focused step. The screen reader hears a list of steps, each
+with its label, its position and the count, and the current step is marked
+current.
+
+```rust
+let steps = stepper().step("Account").step("Review").step("Done").current(1).on_change(|step| {}).build();
+```
+
 ## Limits
 
 - Chart resolution is limited by terminal cell geometry: two by four dots per
@@ -405,6 +635,11 @@ runs once when data first appears with `.animated(true)`; the
 - Chart contract tests: [`tests/charts_contract.rs`](../tests/charts_contract.rs)
 - Data table: [`src/widgets/display/data_table.rs`](../src/widgets/display/data_table.rs)
 - File explorer: [`src/widgets/display/file_explorer.rs`](../src/widgets/display/file_explorer.rs)
+- Display pieces: [`src/widgets/display/pieces/mod.rs`](../src/widgets/display/pieces/mod.rs)
+- Display piece builders: [`src/builder/widgets/pieces/mod.rs`](../src/builder/widgets/pieces/mod.rs)
+- Icon catalog: [`src/widgets/display/pieces/icon.rs`](../src/widgets/display/pieces/icon.rs)
+- Display piece contract tests: [`tests/display_pieces_contract.rs`](../tests/display_pieces_contract.rs)
+- Display piece goldens: [`tests/display_pieces_goldens.rs`](../tests/display_pieces_goldens.rs)
 - Display API probe: [`tests/api_widget_behavior/display_probe.rs`](../tests/api_widget_behavior/display_probe.rs)
 - Data table tests: [`tests/api_widget_behavior/data_table.rs`](../tests/api_widget_behavior/data_table.rs)
 - Tree tests: [`tests/api_widget_behavior/tree.rs`](../tests/api_widget_behavior/tree.rs)
