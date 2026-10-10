@@ -11,6 +11,8 @@ pub mod look;
 /// Modal dialog components
 pub mod modal;
 pub(super) mod overlay;
+/// The display pieces: shared icons, badges, spinners and other small parts
+pub mod pieces;
 /// Popover and tooltip components
 pub mod popover;
 /// Progress bar components
@@ -44,6 +46,7 @@ pub use image::{
     ImageFormat, ImageQuality, ImageSource,
 };
 pub use modal::Modal;
+pub use pieces::icon::Icon;
 pub use popover::Popover;
 pub use progress_bar::{
     ProgressBar, ProgressBarBuilder, ProgressBarOrientation, ProgressBarProps, ProgressBarState,
