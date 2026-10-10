@@ -148,9 +148,15 @@ impl Component for LiveToast {
         let visible = self.visible.clone();
         let config = self.options.clone();
         let lifetime = self.lifetime.clone();
+        // The kind's icon from the alert's table leads the message, in the
+        // fill's text role (DIS-006); a custom toast has no kind and no icon.
+        let text = match options.toast_type.kind() {
+            Some(kind) => format!("{} {}", kind.icon().glyph(), options.message),
+            None => options.message.clone(),
+        };
         let mut modal = ModalProps {
             visible: self.visible.get(),
-            content: Some(Element::text(&options.message).class(match role {
+            content: Some(Element::text(&text).class(match role {
                 Role::Alert => "aria-live-assertive",
                 _ => "aria-live-polite",
             })),

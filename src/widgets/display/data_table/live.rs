@@ -340,6 +340,9 @@ impl LiveDataTable {
         )
     }
 
+    /// The page row: the pagination display piece (DIS-006) with the
+    /// table's page count and current page. Choosing a page through it sets
+    /// the model's page, 0-based, and reports it through `on_page_change`.
     fn pages(
         &self,
         props: &DataTableProps,
@@ -347,45 +350,38 @@ impl LiveDataTable {
         shared: &Arc<Mutex<Model>>,
         count: usize,
     ) -> Element {
-        let total = count.div_ceil(props.pagination.page_size.max(1)).max(1);
-        let current = model.page.min(total - 1);
-        let mut children = Vec::new();
-        for (label, page, enabled) in [
-            ("Prev", current.saturating_sub(1), current > 0),
-            (
-                "Next",
-                current.saturating_add(1).min(total - 1),
-                current + 1 < total,
-            ),
-        ] {
-            let shared = shared.clone();
-            let callback = props.on_page_change.clone();
-            children.push(
-                button(label, move || {
-                    let changed = {
-                        let mut model = shared.lock().unwrap();
-                        let changed = model.page != page;
-                        model.page = page;
-                        if changed {
-                            model.reset_scroll();
-                        }
-                        changed
-                    };
-                    if changed {
-                        if let Some(callback) = &callback {
-                            callback(page);
-                        }
-                    }
-                })
-                .disabled(!enabled)
-                .with_key(label),
-            );
+        let pages = PaginationConfig {
+            total_rows: count,
+            ..props.pagination.clone()
         }
-        children.push(
-            Element::text(format!("{}/{} ({count})", current + 1, total))
-                .with_class(format!("shrink-0 {}", look::MUTED)),
-        );
-        row(children).with_key("pagination")
+        .total_pages()
+        .max(1);
+        let shared = shared.clone();
+        let callback = props.on_page_change.clone();
+        builder::pagination()
+            .pages(pages)
+            .current(model.page + 1)
+            .aria_label("Table pages")
+            .class("shrink-0")
+            .on_change(move |chosen| {
+                let page = chosen.saturating_sub(1);
+                let changed = {
+                    let mut model = shared.lock().unwrap();
+                    let changed = model.page != page;
+                    model.page = page;
+                    if changed {
+                        model.reset_scroll();
+                    }
+                    changed
+                };
+                if changed {
+                    if let Some(callback) = &callback {
+                        callback(page);
+                    }
+                }
+            })
+            .build()
+            .with_key("pagination")
     }
 
     fn table(
@@ -679,12 +675,13 @@ impl Component for LiveDataTable {
         let mut model = shared.lock().unwrap().clone();
         let indices = model.query(props_config);
         if props_config.pagination.enabled {
-            model.page = model.page.min(
-                indices
-                    .len()
-                    .div_ceil(props_config.pagination.page_size.max(1))
-                    .saturating_sub(1),
-            );
+            // The last page the rows fill; the row range below slices it.
+            let pages = PaginationConfig {
+                total_rows: indices.len(),
+                ..props_config.pagination.clone()
+            }
+            .total_pages();
+            model.page = model.page.min(pages.saturating_sub(1));
             shared.lock().unwrap().page = model.page;
         }
         let mut children = Vec::new();

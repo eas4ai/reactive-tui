@@ -5,13 +5,14 @@
 //! - File operations (copy, move, delete, rename)
 //! - Advanced filtering and search
 //! - Multiple selection modes
-//! - File type detection and icons
+//! - File and folder marks from the icon catalog
 //! - Breadcrumb integration
 //! - Keyboard shortcuts and accessibility
 //! - Async file system operations
 //! - Preview pane support
 
 use crate::component::{Component, Element, Props};
+use crate::widgets::display::pieces::icon::Icon;
 use std::any::Any;
 use std::collections::HashSet;
 use std::fs;
@@ -48,7 +49,9 @@ pub struct FileEntry {
     pub hidden: bool,
     /// File extension
     pub extension: Option<String>,
-    /// Icon for the file type
+    /// The catalog glyph of the entry's type when it was listed: a folder or
+    /// a file (DIS-005). The explorer paints the mark again at each paint,
+    /// so an open folder and the terminal's Unicode report show.
     pub icon: String,
     /// Whether this entry is selected
     pub selected: bool,
@@ -80,7 +83,7 @@ impl FileEntry {
             .and_then(|ext| ext.to_str())
             .map(|s| s.to_lowercase());
 
-        let icon = Self::get_icon_for_file(&name, &file_type, &extension);
+        let icon = Self::mark(&file_type, false).glyph().to_string();
         let hidden = name.starts_with('.');
         #[cfg(windows)]
         let hidden = {
@@ -109,83 +112,15 @@ impl FileEntry {
         })
     }
 
-    /// Get appropriate icon for file type
-    fn get_icon_for_file(name: &str, file_type: &FileType, extension: &Option<String>) -> String {
-        match file_type {
-            FileType::Directory => match name {
-                ".git" => "🔧".to_string(),
-                "node_modules" => "📦".to_string(),
-                "target" => "🎯".to_string(),
-                "build" | "dist" => "🏗️".to_string(),
-                _ => "📁".to_string(),
-            },
-            FileType::File => {
-                if let Some(ext) = extension {
-                    match ext.as_str() {
-                        // Programming languages
-                        "rs" => "🦀",
-                        "js" | "ts" => "📜",
-                        "py" => "🐍",
-                        "java" => "☕",
-                        "cpp" | "cc" | "cxx" => "⚙️",
-                        "c" => "🔧",
-                        "go" => "🐹",
-                        "php" => "🐘",
-                        "rb" => "💎",
-                        "swift" => "🦉",
-                        "kt" => "🎯",
-
-                        // Web technologies
-                        "html" | "htm" => "🌐",
-                        "css" => "🎨",
-                        "scss" | "sass" => "💅",
-                        "json" => "📋",
-                        "xml" => "📄",
-                        "yaml" | "yml" => "📝",
-
-                        // Documents
-                        "md" | "markdown" => "📖",
-                        "txt" => "📄",
-                        "pdf" => "📕",
-                        "doc" | "docx" => "📘",
-                        "xls" | "xlsx" => "📊",
-                        "ppt" | "pptx" => "📈",
-
-                        // Images
-                        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "svg" => "🖼️",
-                        "ico" => "🎭",
-
-                        // Audio/Video
-                        "mp3" | "wav" | "flac" | "ogg" => "🎵",
-                        "mp4" | "avi" | "mkv" | "mov" => "🎬",
-
-                        // Archives
-                        "zip" | "tar" | "gz" | "rar" | "7z" => "📦",
-
-                        // Config files
-                        "toml" | "ini" | "conf" | "config" => "⚙️",
-                        "env" => "🔐",
-
-                        // Build files
-                        "dockerfile" => "🐳",
-                        "makefile" => "🔨",
-
-                        _ => "📄",
-                    }
-                } else {
-                    match name.to_lowercase().as_str() {
-                        "readme" => "📖",
-                        "license" | "licence" => "📜",
-                        "changelog" => "📝",
-                        "dockerfile" => "🐳",
-                        "makefile" => "🔨",
-                        _ => "📄",
-                    }
-                }
-                .to_string()
-            }
-            FileType::Symlink => "🔗".to_string(),
-            FileType::Unknown => "❓".to_string(),
+    /// The mark of an entry of `file_type`, from the icon catalog (DIS-005):
+    /// an open folder for a directory the explorer shows expanded, a folder
+    /// for any other directory, and a file for every other entry. The
+    /// catalog has no link mark, so a symbolic link is drawn as a file.
+    pub(crate) fn mark(file_type: &FileType, open: bool) -> Icon {
+        match (file_type, open) {
+            (FileType::Directory, true) => Icon::FolderOpen,
+            (FileType::Directory, false) => Icon::Folder,
+            (FileType::File | FileType::Symlink | FileType::Unknown, _) => Icon::File,
         }
     }
 
@@ -603,6 +538,24 @@ mod windows_builder_tests {
                 .root_path(r"D:\limited")
                 .current_path(path);
             assert_eq!(explicit.props.root_path, PathBuf::from(r"D:\limited"));
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dis_005_files_and_folders_take_their_marks_from_the_catalog() {
+        assert_eq!(FileEntry::mark(&FileType::Directory, false), Icon::Folder);
+        assert_eq!(
+            FileEntry::mark(&FileType::Directory, true),
+            Icon::FolderOpen
+        );
+        for kind in [FileType::File, FileType::Symlink, FileType::Unknown] {
+            assert_eq!(FileEntry::mark(&kind, false), Icon::File);
+            assert_eq!(FileEntry::mark(&kind, true), Icon::File);
         }
     }
 }

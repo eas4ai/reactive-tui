@@ -5,10 +5,16 @@ use std::collections::HashMap;
 /// Maximum source size accepted by the checked Markdown renderer.
 pub const MAX_MARKDOWN_BYTES: usize = 1024 * 1024;
 
+/// The wrap width, in cells, of a renderer that was given none.
+pub const DEFAULT_WRAP_WIDTH: usize = 80;
+
 /// Main markdown renderer that converts markdown text to StyledLine output
 pub struct MarkdownRenderer<'a> {
     options: Options<'a>,
     enable_syntax_highlighting: bool,
+    /// The width, in cells, the rendered lines may take. A thematic break's
+    /// rule fills it.
+    wrap_width: usize,
 }
 
 impl<'a> MarkdownRenderer<'a> {
@@ -42,6 +48,7 @@ impl<'a> MarkdownRenderer<'a> {
         Self {
             options,
             enable_syntax_highlighting: true,
+            wrap_width: DEFAULT_WRAP_WIDTH,
         }
     }
 
@@ -50,12 +57,20 @@ impl<'a> MarkdownRenderer<'a> {
         Self {
             options,
             enable_syntax_highlighting: true,
+            wrap_width: DEFAULT_WRAP_WIDTH,
         }
     }
 
     /// Enable or disable syntax highlighting for code blocks
     pub fn with_syntax_highlighting(mut self, enabled: bool) -> Self {
         self.enable_syntax_highlighting = enabled;
+        self
+    }
+
+    /// Set the wrap width, in cells: the width a thematic break's rule fills.
+    /// A renderer given none uses [`DEFAULT_WRAP_WIDTH`], 80 cells.
+    pub fn with_wrap_width(mut self, cells: usize) -> Self {
+        self.wrap_width = cells;
         self
     }
 
@@ -80,7 +95,8 @@ impl<'a> MarkdownRenderer<'a> {
         let arena = Arena::new();
         let root = parse_document(&arena, markdown, &self.options);
 
-        let walker = crate::markdown::ast_walker::AstWalker::new(self.enable_syntax_highlighting);
+        let walker = crate::markdown::ast_walker::AstWalker::new(self.enable_syntax_highlighting)
+            .with_wrap_width(self.wrap_width);
 
         Ok(walker.walk_document(root))
     }
@@ -101,7 +117,8 @@ impl<'a> MarkdownRenderer<'a> {
         let root = parse_document(&arena, markdown, &options);
 
         let mut walker =
-            crate::markdown::ast_walker::AstWalker::new(self.enable_syntax_highlighting);
+            crate::markdown::ast_walker::AstWalker::new(self.enable_syntax_highlighting)
+                .with_wrap_width(self.wrap_width);
 
         walker.walk_and_finish(root);
         let sourcepos_map = walker.sourcepos_map.clone();

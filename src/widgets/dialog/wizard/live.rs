@@ -2,10 +2,7 @@ use super::*;
 use crate::{
     component::{Component, LayoutType, Props},
     reactive::ThreadSafeSignal,
-    widgets::display::{
-        modal::{ModalButton, ModalButtonAction, ModalProps},
-        progress_bar::{ProgressBar, ProgressBarProps},
-    },
+    widgets::display::modal::{ModalButton, ModalButtonAction, ModalProps},
 };
 use std::collections::HashSet;
 
@@ -172,23 +169,20 @@ impl Component for LiveWizard {
         }
         if let Some(index) = index.filter(|_| error.is_none()) {
             if props.options.show_progress {
-                content.push(
-                    Element::text(format!(
-                        "Step {} of {}",
-                        index + 1,
-                        props.options.steps.len()
-                    ))
-                    .with_key("progress-label"),
-                );
-                content.push(
-                    ProgressBar::with_props(ProgressBarProps {
-                        value: (index + 1) as f64,
-                        max_value: props.options.steps.len() as f64,
-                        show_percentage: false,
-                        ..Default::default()
+                // The step line is the stepper display piece (DIS-006): the
+                // steps' titles in a row, the ones before the current step
+                // passed.
+                let steps = props
+                    .options
+                    .steps
+                    .iter()
+                    .fold(crate::builder::stepper(), |stepper, step| {
+                        stepper.step(&step.title)
                     })
-                    .with_key("progress"),
-                );
+                    .current(index + 1)
+                    .build()
+                    .with_key("steps");
+                content.push(steps);
             }
             content.push(Element::text(&props.options.steps[index].title).with_key("step-title"));
             let visited = self.runtime.visited.get();

@@ -45,7 +45,8 @@ pub struct WizardDialogOptions {
     pub title: String,
     /// Sequence of steps in the wizard
     pub steps: Vec<WizardStep>,
-    /// Whether to show progress indicator
+    /// Whether to show the step line: the stepper display piece with every
+    /// step's title, the steps before the current one marked passed
     pub show_progress: bool,
     /// Whether to allow going back to previous steps
     pub allow_back: bool,

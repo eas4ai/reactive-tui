@@ -3,6 +3,7 @@
 use super::converter::*;
 use crate::core::styled_text::{StyledLine, StyledRun};
 use crate::core::surface::{Attr, Rgba};
+use crate::widgets::display::pieces::{separator_glyph, SeparatorStyle};
 use comrak::nodes::{AstNode, ListType, NodeTable, NodeValue, TableAlignment};
 use std::collections::HashMap;
 use unicode_width::UnicodeWidthStr;
@@ -10,6 +11,8 @@ use unicode_width::UnicodeWidthStr;
 /// AST walker that converts comrak AST nodes to StyledRun/StyledLine
 pub struct AstWalker {
     enable_syntax_highlighting: bool,
+    /// The width, in cells, a thematic break's rule fills.
+    wrap_width: usize,
     /// Styled lines for rendering
     pub lines: Vec<StyledLine>,
     current_line: Vec<StyledRun>,
@@ -19,15 +22,26 @@ pub struct AstWalker {
 }
 
 impl AstWalker {
-    /// Create a new AST walker with syntax highlighting option
+    /// Create a new AST walker with syntax highlighting option. Its rules fill
+    /// [`DEFAULT_WRAP_WIDTH`] cells until [`AstWalker::with_wrap_width`] sets
+    /// another width.
+    ///
+    /// [`DEFAULT_WRAP_WIDTH`]: crate::markdown::renderer::DEFAULT_WRAP_WIDTH
     pub fn new(enable_syntax_highlighting: bool) -> Self {
         Self {
             enable_syntax_highlighting,
+            wrap_width: crate::markdown::renderer::DEFAULT_WRAP_WIDTH,
             lines: Vec::new(),
             current_line: Vec::new(),
             sourcepos_map: HashMap::new(),
             list_depth: 0,
         }
+    }
+
+    /// Set the width, in cells, a thematic break's rule fills.
+    pub fn with_wrap_width(mut self, cells: usize) -> Self {
+        self.wrap_width = cells;
+        self
     }
 
     /// Walk the document AST and return styled lines
@@ -197,8 +211,11 @@ impl AstWalker {
             }
 
             NodeValue::ThematicBreak => {
+                // The rule fills the wrap width with the separator piece's
+                // line glyph (DIS-006).
+                let line = separator_glyph(SeparatorStyle::Line, false);
                 self.add_line_break();
-                self.add_text("────────────────────────────");
+                self.add_text(&line.to_string().repeat(self.wrap_width));
                 self.add_line_break();
                 self.add_line_break();
             }

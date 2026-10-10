@@ -1,10 +1,11 @@
 //! The badge and tag display pieces (docs/spec/display-pieces.md), carrying DIS-001,
 //! DIS-002, DIS-003, DIS-004.
 //!
-//! A badge is a count, a dot or a short text in a filled cell range. It takes the
-//! width of its content and hides at a count of zero. A badge that follows an
-//! element puts its text into the element's description for the screen reader. A
-//! tag is a filled text or, as an outline, its text between brackets.
+//! A badge is a count, a dot or a short text in a filled cell range, or, as an
+//! outline, the same text in its kind's color with no fill. It takes the width of
+//! its content and hides at a count of zero. A badge that follows an element puts
+//! its text into the element's description for the screen reader. A tag is a
+//! filled text or, as an outline, its text between brackets.
 
 use crate::accessibility::{Node, Role};
 use crate::builder::core::{div, span};
@@ -42,7 +43,7 @@ impl BadgeKind {
         }
     }
 
-    /// The class of an outline tag's text of this kind.
+    /// The class of an outline badge's or tag's text of this kind.
     pub fn outline(self) -> &'static str {
         match self {
             BadgeKind::Default => "text-muted",
@@ -50,6 +51,18 @@ impl BadgeKind {
             BadgeKind::Success => "text-success",
             BadgeKind::Warning => "text-warning",
             BadgeKind::Error => "text-error",
+        }
+    }
+
+    /// The mark of this kind, from the icon catalog (DIS-005): a badge with
+    /// its mark on paints it before its text.
+    pub fn mark(self) -> Icon {
+        match self {
+            BadgeKind::Default => Icon::Dot,
+            BadgeKind::Info => Icon::Info,
+            BadgeKind::Success => Icon::Check,
+            BadgeKind::Warning => Icon::Warning,
+            BadgeKind::Error => Icon::Error,
         }
     }
 }
@@ -78,6 +91,12 @@ pub struct BadgeProps {
     pub content: BadgeContent,
     /// The largest count shown as a number (99 unless set).
     pub max: u32,
+    /// Whether the badge is an outline: its text after one space, in its
+    /// kind's text color ([`BadgeKind::outline`]) with no fill.
+    pub outline: bool,
+    /// Whether the badge paints its kind's mark ([`BadgeKind::mark`]) before
+    /// its text.
+    pub mark: bool,
     /// Classes of the badge.
     pub classes: Vec<String>,
 }
@@ -88,6 +107,8 @@ impl Default for BadgeProps {
             kind: BadgeKind::Default,
             content: BadgeContent::Hidden,
             max: 99,
+            outline: false,
+            mark: false,
             classes: Vec::new(),
         }
     }
@@ -99,15 +120,33 @@ impl Props for BadgeProps {
     }
 }
 
-/// The text a badge paints, or `None` when it is hidden.
-pub fn badge_text(props: &BadgeProps) -> Option<String> {
+/// What a badge shows, without its padding or its mark, or `None` when it is
+/// hidden.
+fn content_text(props: &BadgeProps) -> Option<String> {
     match &props.content {
         BadgeContent::Count(0) | BadgeContent::Hidden => None,
-        BadgeContent::Count(count) if *count > props.max => Some(format!(" {}+ ", props.max)),
-        BadgeContent::Count(count) => Some(format!(" {count} ")),
+        BadgeContent::Count(count) if *count > props.max => Some(format!("{}+", props.max)),
+        BadgeContent::Count(count) => Some(count.to_string()),
         BadgeContent::Dot => Some(Icon::Dot.glyph().to_string()),
-        BadgeContent::Text(text) => Some(format!(" {text} ")),
+        BadgeContent::Text(text) => Some(text.clone()),
     }
+}
+
+/// The text a badge paints, or `None` when it is hidden: ` text ` filled, a dot
+/// alone, or ` text` as an outline, with the kind's mark before the text when
+/// the badge carries it.
+pub fn badge_text(props: &BadgeProps) -> Option<String> {
+    let content = content_text(props)?;
+    let mark = if props.mark {
+        props.kind.mark().glyph()
+    } else {
+        ""
+    };
+    Some(match (&props.content, props.outline) {
+        (_, true) => format!(" {mark}{content}"),
+        (BadgeContent::Dot, false) => format!("{mark}{content}"),
+        (_, false) => format!(" {mark}{content} "),
+    })
 }
 
 /// The element of a badge.
@@ -115,9 +154,23 @@ pub fn badge(props: &BadgeProps) -> Element {
     let Some(text) = badge_text(props) else {
         return span().build();
     };
-    let mut classes = vec![props.kind.fill().to_string()];
+    let look = if props.outline {
+        props.kind.outline()
+    } else {
+        props.kind.fill()
+    };
+    let mut classes = vec![look.to_string()];
     classes.extend(props.classes.iter().cloned());
     span().class(&classes.join(" ")).text(&text).build()
+}
+
+/// Add the badge's text, without its padding or mark, to the description of
+/// `node`, the node of the element the badge follows (DIS-004). A hidden badge
+/// adds nothing.
+pub(crate) fn describe(props: &BadgeProps, node: &mut Node) {
+    if let Some(text) = content_text(props) {
+        append_description(node, text.trim());
+    }
 }
 
 /// The element of `owner` with the badge after it. The badge's text, trimmed,
@@ -125,15 +178,14 @@ pub fn badge(props: &BadgeProps) -> Element {
 /// the owner (DIS-004). An owner without a node gets a group node that carries
 /// the text.
 pub fn follow(props: &BadgeProps, owner: Element) -> Element {
-    let text = badge_text(props).map(|text| text.trim().to_string());
     let mut owner = owner;
     let mut wrapper_node = None;
-    if let Some(text) = text.as_deref() {
+    if content_text(props).is_some() {
         match owner.metadata.accessibility.as_mut() {
-            Some(node) => append_description(node, text),
+            Some(node) => describe(props, node),
             None => {
                 let mut node = Node::new(Role::Group);
-                node.set_description(text.to_string());
+                describe(props, &mut node);
                 wrapper_node = Some(node);
             }
         }

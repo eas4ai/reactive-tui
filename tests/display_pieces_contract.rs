@@ -2178,3 +2178,504 @@ mod link {
         );
     }
 }
+
+// ===== adoption =====
+
+mod adoption {
+    //! The widgets the crate already had draw the shared pieces (DIS-006):
+    //! the tab's badge is the badge widget, the data table's page row is the
+    //! pagination bar, the wizard's step line is the stepper, the menus'
+    //! separators and the Markdown rule come from the separator's table, and
+    //! the toast's kinds, fills and icons are the alert's; and their kind
+    //! glyphs come from the icon catalog (DIS-005).
+
+    use super::*;
+    use common::app_input::click;
+    use reactive_tui::{
+        core::geometry::Rect,
+        markdown::MarkdownRenderer,
+        widgets::{
+            dialog::{
+                ConfirmationDialog, ConfirmationDialogOptions, ConfirmationIcon, DialogComponent,
+                DialogId, DialogTheme,
+            },
+            display::{
+                pieces::{alert::AlertKind, icon::Icon, separator_glyph, SeparatorStyle},
+                table::{TableColumn, TableRow},
+                DataTable, DataTableProps,
+            },
+            layout::{Tab, TabBadge, TabBadgeVariant, TabsBuilder},
+            menu::{MenuItem, MenuSeparator, PopupMenu, PopupMenuProps, PopupPlacement},
+        },
+    };
+    use std::sync::{Arc, Mutex};
+
+    /// Every glyph of the separator's table, in both directions.
+    fn separator_table() -> Vec<char> {
+        [
+            SeparatorStyle::Line,
+            SeparatorStyle::Thick,
+            SeparatorStyle::Double,
+            SeparatorStyle::Dashed,
+            SeparatorStyle::Dotted,
+        ]
+        .into_iter()
+        .flat_map(|style| [separator_glyph(style, false), separator_glyph(style, true)])
+        .collect()
+    }
+
+    /// The glyph, the glyph's color and the background of `count` cells of
+    /// `row` from `column` on.
+    fn cells(
+        frame: &Snapshot,
+        column: u16,
+        row: u16,
+        count: u16,
+    ) -> Vec<(String, Option<Rgb>, Option<Rgb>)> {
+        (column..column + count)
+            .map(|column| {
+                (
+                    glyph(frame, column, row),
+                    fg(frame, column, row),
+                    bg(frame, column, row),
+                )
+            })
+            .collect()
+    }
+
+    /// The text of a source file of the crate.
+    fn source(path: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("{} cannot be read: {error}", path.display()))
+    }
+
+    // ---------------------------------------------------------- DIS-006
+
+    /// DIS-006: a tab with a badge of count 3 paints the badge in the same
+    /// cells, glyphs and colors, as the badge widget built the same way: an
+    /// outline badge of its kind with its kind's mark, in `text-error`
+    /// (NAV-001).
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_006_a_tab_badge_of_3_paints_the_cells_of_the_badge_widget() {
+        let _theme = Active::set(probe());
+        let mark = Icon::Error.glyph();
+        let needle: &'static str = Box::leak(format!("Inbox {mark}3").into_boxed_str());
+        let tabs = shown(
+            TabsBuilder::new()
+                .tab(Tab::new("Home", Element::text("Home page")))
+                .tab(
+                    Tab::new("Inbox", Element::text("Mail"))
+                        .with_badge(TabBadge::new("3").with_variant(TabBadgeVariant::Error)),
+                )
+                .render(),
+            (80, 10),
+            needle,
+        );
+        let widget = shown(
+            builder::div()
+                .class("flex-row")
+                .child(Element::text("Inbox"))
+                .child(
+                    badge()
+                        .count(3)
+                        .kind(BadgeKind::Error)
+                        .outline()
+                        .mark()
+                        .build(),
+                )
+                .build(),
+            (80, 10),
+            needle,
+        );
+        let (tab_column, tab_row) = at(&tabs, needle);
+        let (widget_column, widget_row) = at(&widget, needle);
+        let in_tab = cells(&tabs, tab_column + 5, tab_row, 3);
+        let in_widget = cells(&widget, widget_column + 5, widget_row, 3);
+        assert_eq!(
+            in_tab, in_widget,
+            "DIS-006: the tab's badge differs from the badge widget's cells:\n{}\n{}",
+            tabs.text, widget.text
+        );
+        assert_eq!(
+            in_tab[1].0, mark,
+            "DIS-005: the badge's mark is the catalog's"
+        );
+        assert_eq!(
+            in_tab[1].1,
+            Some(role("error")),
+            "NAV-001: an error badge in `text-error`:\n{}",
+            tabs.text
+        );
+    }
+
+    /// Twelve pages of two rows: `Row00` to `Row23`.
+    fn paged_table(pages: Arc<Mutex<Vec<usize>>>) -> Element {
+        let rows = (0..24)
+            .map(|index| {
+                TableRow::new(&index.to_string()).with_cell("name", &format!("Row{index:02}"))
+            })
+            .collect();
+        let mut props = DataTableProps::new(vec![TableColumn::new("Name", "name")], rows)
+            .with_features(false, false, false)
+            .with_pagination(true, 2);
+        props.column_visibility_control = false;
+        props.on_page_change = Some(Arc::new(move |page| pages.lock().unwrap().push(page)));
+        Element::typed::<DataTable>(props)
+    }
+
+    /// DIS-006: the data table's page row is the pagination bar's row for
+    /// the same page and count, and a click on a page of it changes the
+    /// table's page: its rows and its `on_page_change`.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_006_the_data_table_page_row_is_the_pagination_bar_and_a_chosen_page_turns_it() {
+        let _theme = Active::set(probe());
+        let ellipsis = Icon::Ellipsis.glyph();
+        let table = shown(paged_table(Arc::default()), (80, 16), "Row01");
+        let bar = shown(
+            builder::pagination().pages(12).current(1).build(),
+            (80, 16),
+            "12",
+        );
+        let table_row = row_with(&table, ellipsis);
+        let bar_row = row_with(&bar, ellipsis);
+        assert_eq!(
+            cells(&table, 0, table_row, 80),
+            cells(&bar, 0, bar_row, 80),
+            "DIS-006: the table's page row differs from the pagination bar's:\n{}\n{}",
+            table.text,
+            bar.text
+        );
+
+        // A click on page 3 of the row turns the table to its third page.
+        let (column, row) = (0..80)
+            .find(|column| glyph(&table, *column, table_row) == "3")
+            .map(|column| (column, table_row))
+            .unwrap_or_else(|| panic!("page 3 is not painted:\n{}", table.text));
+        let pages = Arc::new(Mutex::new(Vec::new()));
+        let frames = app_input::run_until(
+            Control(page(paged_table(pages.clone()))),
+            (80, 16),
+            vec![
+                Until {
+                    text: "Row01",
+                    cell: None,
+                    event: click(column, row),
+                },
+                Until {
+                    text: "Row05",
+                    cell: None,
+                    event: None,
+                },
+            ],
+            WAIT,
+        );
+        let last = frames.last().unwrap();
+        assert!(
+            last.text.contains("Row04") && !last.text.contains("Row01"),
+            "DIS-006: choosing page 3 does not show the table's third page:\n{}",
+            last.text
+        );
+        assert_eq!(
+            *pages.lock().unwrap(),
+            vec![2],
+            "DIS-006: the table does not report its 0-based page through on_page_change"
+        );
+    }
+
+    /// DIS-006: a wizard at step 2 of 3 paints the stepper's row for that
+    /// state: the first step passed, the second current, the third to come.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_006_a_wizard_at_step_2_of_3_paints_the_steppers_row() {
+        use reactive_tui::builder::specialized::WizardStep;
+        let _theme = Active::set(probe());
+        let needle: &'static str =
+            Box::leak(format!("{} Compose", Icon::Check.glyph()).into_boxed_str());
+        let wizard = shown(
+            builder::wizard()
+                .title("Wizard")
+                .step(WizardStep::new("Compose").content(Element::text("Choose widgets")))
+                .step(WizardStep::new("Capture").content(Element::text("Record clip")))
+                .step(WizardStep::new("Review").content(Element::text("Check output")))
+                .current_step(1)
+                .build(),
+            (120, 30),
+            "Record clip",
+        );
+        let stepper = shown(
+            builder::stepper()
+                .step("Compose")
+                .step("Capture")
+                .step("Review")
+                .current(2)
+                .build(),
+            (120, 30),
+            "Review",
+        );
+        assert!(
+            !wizard.text.contains("Step 2 of 3"),
+            "DIS-006: the wizard still paints its own step line:\n{}",
+            wizard.text
+        );
+        let (wizard_column, wizard_row) = at(&wizard, needle);
+        let (stepper_column, stepper_row) = at(&stepper, needle);
+        // The stepper's row, from the first mark to the end of the last
+        // label; the wizard paints it on its own surface, so the glyphs and
+        // their colors are compared.
+        let end = (stepper_column..120)
+            .rev()
+            .find(|column| glyph(&stepper, *column, stepper_row) != " ")
+            .expect("the stepper paints its row");
+        let glyphs_and_colors = |frame: &Snapshot, column: u16, row: u16| {
+            (column..=column + end - stepper_column)
+                .map(|column| (glyph(frame, column, row), fg(frame, column, row)))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            glyphs_and_colors(&wizard, wizard_column, wizard_row),
+            glyphs_and_colors(&stepper, stepper_column, stepper_row),
+            "DIS-006: the wizard's step line differs from the stepper's row:\n{}\n{}",
+            wizard.text,
+            stepper.text
+        );
+    }
+
+    /// DIS-006: a menu's separator rows paint only glyphs of the
+    /// separator's table, one per style, in `text-muted` (MNU-001).
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_006_menu_separators_paint_only_glyphs_of_the_separator_table() {
+        let _theme = Active::set(probe());
+        let styles = [
+            ("ALPHA", MenuSeparator::Line, SeparatorStyle::Line),
+            ("BRAVO", MenuSeparator::ThickLine, SeparatorStyle::Thick),
+            ("CHARLIE", MenuSeparator::DoubleLine, SeparatorStyle::Double),
+            ("DELTA", MenuSeparator::Dashed, SeparatorStyle::Dashed),
+            ("ECHO", MenuSeparator::Dotted, SeparatorStyle::Dotted),
+        ];
+        let mut items = Vec::new();
+        for (label, kind, _) in &styles {
+            items.push(MenuItem::new(label.to_lowercase(), *label));
+            items.push(MenuItem::separator().separator_type(kind.clone()));
+        }
+        items.push(MenuItem::new("last", "LAST"));
+        let frame = shown(
+            Element::typed::<PopupMenu>(PopupMenuProps {
+                visible: true,
+                items,
+                placement: PopupPlacement::Position { x: 4, y: 2 },
+                ..Default::default()
+            }),
+            (60, 24),
+            "LAST",
+        );
+        let table = separator_table();
+        let muted = role("text-muted");
+        let (_, columns) = frame.screen.size();
+        for (label, _, style) in styles {
+            let (_, row) = at(&frame, label);
+            let line: Vec<String> = (0..columns)
+                .filter(|column| {
+                    glyph(&frame, *column, row + 1) != " "
+                        && fg(&frame, *column, row + 1) == Some(muted)
+                })
+                .map(|column| glyph(&frame, column, row + 1))
+                .collect();
+            assert!(
+                !line.is_empty(),
+                "MNU-001: the separator under {label} paints nothing in `text-muted`:\n{}",
+                frame.text
+            );
+            let expected = separator_glyph(style, false).to_string();
+            assert!(
+                line.iter().all(|glyph| *glyph == expected
+                    && table.contains(&glyph.chars().next().unwrap())),
+                "DIS-006: the separator under {label} paints {line:?}, not the table's {expected:?}:\n{}",
+                frame.text
+            );
+        }
+    }
+
+    /// DIS-006: a Markdown rule paints only the separator table's line
+    /// glyph and fills the wrap width the renderer was given: 100 cells at
+    /// a width of 100, 80 when none was given.
+    #[test]
+    fn dis_006_a_markdown_rule_fills_the_wrap_width_with_the_separator_glyph() {
+        let rule = |renderer: MarkdownRenderer| -> String {
+            renderer
+                .render_to_styled_lines("Above\n\n---\n\nBelow")
+                .iter()
+                .map(|line| line.text())
+                .find(|text| !text.is_empty() && !text.contains("Above") && !text.contains("Below"))
+                .expect("the rule is a line of its own")
+        };
+        let line = separator_glyph(SeparatorStyle::Line, false);
+        let wide = rule(MarkdownRenderer::new().with_wrap_width(100));
+        assert_eq!(
+            unicode_width::UnicodeWidthStr::width(wide.as_str()),
+            100,
+            "DIS-006: a rule at a wrap width of 100 paints {wide:?}"
+        );
+        assert!(
+            wide.chars().all(|glyph| glyph == line),
+            "DIS-006: the rule paints a glyph outside the separator's table: {wide:?}"
+        );
+        assert_eq!(
+            rule(MarkdownRenderer::new()).chars().count(),
+            80,
+            "DIS-006: a renderer given no width draws its rule 80 cells wide"
+        );
+    }
+
+    /// DIS-006: a toast and an alert of the same kind draw the same icon
+    /// and take their colors from the same entry of the alert's table: the
+    /// alert's icon in `text-{role}` on surface, the toast's in the fill of
+    /// `{role}` with that fill's text role (OVL-001).
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_006_a_toast_and_an_alert_of_one_kind_draw_one_icon_from_one_table() {
+        let _theme = Active::set(probe());
+        for (name, kind, icon, fill) in [
+            ("info", AlertKind::Info, Icon::Info, "info"),
+            ("success", AlertKind::Success, Icon::Success, "success"),
+            ("warning", AlertKind::Warning, Icon::Warning, "warning"),
+            ("error", AlertKind::Error, Icon::Error, "error"),
+        ] {
+            let toast = shown(
+                builder::toast()
+                    .message("Capture saved")
+                    .toast_type(name)
+                    .persistent()
+                    .build(),
+                (80, 24),
+                "Capture saved",
+            );
+            let alert = shown(
+                builder::alert(kind).title("Disk full").build(),
+                (80, 24),
+                "Disk full",
+            );
+            let (column, row) = at(&toast, "Capture saved");
+            let toast_icon = (
+                glyph(&toast, column - 2, row),
+                fg(&toast, column - 2, row),
+                bg(&toast, column - 2, row),
+            );
+            let (bar, row) = at(&alert, "▌");
+            let alert_icon = (glyph(&alert, bar + 2, row), fg(&alert, bar + 2, row));
+            assert_eq!(
+                toast_icon.0, alert_icon.0,
+                "DIS-006: a {name} toast and alert draw different icons:\n{}\n{}",
+                toast.text, alert.text
+            );
+            assert_eq!(
+                toast_icon.0,
+                icon.glyph(),
+                "DIS-005: the {name} icon is the catalog's"
+            );
+            assert_eq!(
+                (toast_icon.1, toast_icon.2),
+                (Some(role(&format!("{fill}-foreground"))), Some(role(fill))),
+                "DIS-006: a {name} toast's icon is not in the fill of `{fill}`:\n{}",
+                toast.text
+            );
+            assert_eq!(
+                alert_icon.1,
+                Some(role(fill)),
+                "DIS-006: a {name} alert's icon is not in `text-{fill}`:\n{}",
+                alert.text
+            );
+        }
+    }
+
+    /// DIS-006: no second copy of the tab badge's marks, the data table's
+    /// page arithmetic, the toast's kind-to-color map, the menus' separator
+    /// glyphs or the Markdown rule survives in those widgets' sources.
+    #[test]
+    fn dis_006_no_second_copy_of_the_marks_page_math_colors_or_lines_remains() {
+        let forbidden: [(&str, &[&str]); 6] = [
+            (
+                "src/widgets/layout/tabs.rs",
+                &["\"✓\"", "\"⚠\"", "\"✗\"", "\"ⓘ\"", "\"●\""],
+            ),
+            ("src/widgets/layout/look.rs", &["fn badge"]),
+            (
+                "src/widgets/display/data_table/live.rs",
+                &[
+                    "\"Prev\"",
+                    "\"Next\"",
+                    "div_ceil(props.pagination",
+                    "div_ceil(props_config.pagination",
+                    "{}/{} ({count})",
+                ],
+            ),
+            (
+                "src/widgets/dialog/toast.rs",
+                &[
+                    "\"bg-info text-info-foreground\"",
+                    "\"bg-success text-success-foreground\"",
+                    "\"bg-warning text-warning-foreground\"",
+                    "\"bg-error text-error-foreground\"",
+                ],
+            ),
+            (
+                "src/widgets/menu/view.rs",
+                &[
+                    "\"─\"", "\"│\"", "\"━\"", "\"┃\"", "\"═\"", "\"║\"", "\"╌\"", "\"╎\"", "\"·\"",
+                ],
+            ),
+            ("src/markdown/ast_walker.rs", &["\"────"]),
+        ];
+        let mut found = Vec::new();
+        for (path, literals) in forbidden {
+            let text = source(path);
+            for literal in literals {
+                if text.contains(literal) {
+                    found.push(format!("{path} still holds {literal}"));
+                }
+            }
+        }
+        assert!(found.is_empty(), "DIS-006: {found:#?}");
+    }
+
+    // ---------------------------------------------------------- DIS-005
+
+    /// DIS-005: the confirmation dialog's error kind paints the catalog's
+    /// error glyph before its message, and its warning, info and success
+    /// kinds their catalog glyphs.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_005_the_confirmation_dialogs_error_and_kind_icons_are_the_catalogs() {
+        for (kind, icon) in [
+            (ConfirmationIcon::Error, Icon::Error),
+            (ConfirmationIcon::Warning, Icon::Warning),
+            (ConfirmationIcon::Info, Icon::Info),
+            (ConfirmationIcon::Success, Icon::Success),
+        ] {
+            let frame = shown(
+                ConfirmationDialog::new(
+                    DialogId::from_u32(7),
+                    ConfirmationDialogOptions {
+                        title: "Delete".into(),
+                        message: "Delete the file?".into(),
+                        icon: Some(kind.clone()),
+                        ..Default::default()
+                    },
+                )
+                .render(Rect::default(), &DialogTheme::default()),
+                (80, 24),
+                "Delete the file?",
+            );
+            let (column, row) = at(&frame, "Delete the file?");
+            assert_eq!(
+                glyph(&frame, column - 2, row),
+                icon.glyph(),
+                "DIS-005: the confirmation dialog's {kind:?} glyph is not the catalog's:\n{}",
+                frame.text
+            );
+        }
+    }
+}

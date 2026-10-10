@@ -13,7 +13,8 @@ use crate::reactive::ThreadSafeSignal;
 use crate::widgets::display::look;
 use crate::widgets::display::pieces::icon::Icon;
 
-/// The kind of an alert (DIS-001): its bar, its icon and its color.
+/// The kind of an alert (DIS-001): its bar, its icon and its color. The toast
+/// takes its kinds, fills and icons from this table too (DIS-006).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum AlertKind {
     /// A note that needs no action. Painted in `text-muted`.
@@ -38,6 +39,19 @@ impl AlertKind {
             AlertKind::Success => "text-success",
             AlertKind::Warning => "text-warning",
             AlertKind::Error => "text-error",
+        }
+    }
+
+    /// The classes of a surface filled in this kind's color with that fill's
+    /// text role, such as a toast's (OVL-001, DIS-006). The default kind has
+    /// no fill of its own and takes `secondary`.
+    pub(crate) fn fill(self) -> &'static str {
+        match self {
+            AlertKind::Default => "bg-secondary text-secondary-foreground",
+            AlertKind::Info => "bg-info text-info-foreground",
+            AlertKind::Success => "bg-success text-success-foreground",
+            AlertKind::Warning => "bg-warning text-warning-foreground",
+            AlertKind::Error => "bg-error text-error-foreground",
         }
     }
 

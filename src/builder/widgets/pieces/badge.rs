@@ -1,6 +1,6 @@
 //! The badge and tag builders (DIS-001 to DIS-004): a count, a dot or a text in a
-//! filled cell range, a tag as a filled or outline text, and a badge that follows an
-//! element.
+//! filled cell range or as an outline, a tag as a filled or outline text, and a
+//! badge that follows an element.
 
 use crate::component::Element;
 use crate::widgets::display::pieces::badge as piece;
@@ -66,6 +66,20 @@ impl BadgeBuilder {
     /// Set the largest count shown as a number (99 unless set).
     pub fn max(mut self, max: u32) -> Self {
         self.props.max = max;
+        self
+    }
+
+    /// Paint the badge as an outline: its text after one space, in its kind's
+    /// text color with no fill.
+    pub fn outline(mut self) -> Self {
+        self.props.outline = true;
+        self
+    }
+
+    /// Paint the kind's mark from the icon catalog before the text: `●` for
+    /// the default kind, then the info, check, warning and error marks.
+    pub fn mark(mut self) -> Self {
+        self.props.mark = true;
         self
     }
 

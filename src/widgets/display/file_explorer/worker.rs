@@ -313,7 +313,7 @@ fn execute_cached(
                 let extension = path
                     .extension()
                     .map(|value| value.to_string_lossy().to_lowercase());
-                let icon = FileEntry::get_icon_for_file(&name, &file_type, &extension);
+                let icon = FileEntry::mark(&file_type, false).glyph().to_string();
                 let hidden = name.starts_with('.');
                 #[cfg(windows)]
                 let hidden = {
