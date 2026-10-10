@@ -22,10 +22,7 @@ use crate::widgets::display::pieces::icon::Icon;
 /// ```
 pub fn empty() -> EmptyBuilder {
     EmptyBuilder {
-        props: EmptyProps {
-            icon: Some(Icon::Info),
-            ..EmptyProps::default()
-        },
+        props: EmptyProps::default(),
     }
 }
 

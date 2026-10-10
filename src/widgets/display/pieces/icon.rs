@@ -17,6 +17,8 @@ pub enum Icon {
     Error,
     /// A finished step that worked.
     Success,
+    /// A question that needs an answer, such as a confirmation.
+    Question,
     /// Dismiss or close a panel.
     Close,
     /// A check mark for a chosen or done item.
@@ -75,6 +77,7 @@ impl Icon {
         Icon::Warning,
         Icon::Error,
         Icon::Success,
+        Icon::Question,
         Icon::Close,
         Icon::Check,
         Icon::Dot,
@@ -102,6 +105,7 @@ impl Icon {
             Icon::Warning => "⚠",
             Icon::Error => "×",
             Icon::Success => "✓",
+            Icon::Question => "?",
             Icon::Close => "×",
             Icon::Check => "✓",
             Icon::Dot => "●",
@@ -130,6 +134,7 @@ impl Icon {
             Icon::Warning => "!",
             Icon::Error => "x",
             Icon::Success => "v",
+            Icon::Question => "?",
             Icon::Close => "x",
             Icon::Check => "v",
             Icon::Dot => "*",
@@ -150,19 +155,18 @@ impl Icon {
         }
     }
 
-    /// The glyph to paint: the application's Nerd Font glyph when it set one
-    /// for this icon, else the Unicode glyph where the terminal takes Unicode,
-    /// else the ASCII fallback. The Unicode check is the same report the charts
-    /// read for braille and block glyphs.
+    /// The glyph to paint. Where the terminal reports no Unicode it is the
+    /// ASCII fallback, whatever the Nerd Font set names. Where the terminal
+    /// takes Unicode it is the application's Nerd Font glyph when the set names
+    /// this icon, else the Unicode glyph. The Unicode check is the same report
+    /// the charts read for braille and block glyphs.
     pub fn glyph(self) -> &'static str {
-        let nerd = *NERD_FONT.read().unwrap_or_else(|e| e.into_inner());
-        if let Some(glyph) = nerd.and_then(|table| table(self)) {
-            glyph
-        } else if crate::widgets::display::charts::glyph_support() {
-            self.unicode()
-        } else {
-            self.ascii()
+        if !crate::widgets::display::charts::glyph_support() {
+            return self.ascii();
         }
+        let nerd = *NERD_FONT.read().unwrap_or_else(|e| e.into_inner());
+        nerd.and_then(|table| table(self))
+            .unwrap_or_else(|| self.unicode())
     }
 
     /// The English name a screen reader speaks for this icon, such as
@@ -173,6 +177,7 @@ impl Icon {
             Icon::Warning => "Warning",
             Icon::Error => "Error",
             Icon::Success => "Success",
+            Icon::Question => "Question",
             Icon::Close => "Close",
             Icon::Check => "Check",
             Icon::Dot => "Dot",
@@ -196,8 +201,9 @@ impl Icon {
 
 /// Give the catalog an application's Nerd Font set, or clear it with `None`.
 /// The set replaces the Unicode glyphs for every icon the crate paints, in
-/// every widget, for the whole process. An icon the set does not name keeps
-/// its Unicode or ASCII glyph.
+/// every widget, for the whole process, where the terminal takes Unicode.
+/// Where the terminal reports no Unicode, the ASCII fallback is painted and
+/// the set is not used. An icon the set does not name keeps its Unicode glyph.
 pub fn set_nerd_font(table: Option<fn(Icon) -> Option<&'static str>>) {
     *NERD_FONT.write().unwrap_or_else(|e| e.into_inner()) = table;
 }
@@ -212,7 +218,7 @@ mod tests {
 
     #[test]
     fn dis_005_every_icon_has_a_one_cell_unicode_glyph_and_a_one_byte_ascii_fallback() {
-        assert_eq!(Icon::ALL.len(), 21, "the catalog names twenty-one icons");
+        assert_eq!(Icon::ALL.len(), 22, "the catalog names twenty-two icons");
         for &icon in Icon::ALL {
             let unicode = icon.unicode();
             assert_eq!(
@@ -273,6 +279,30 @@ mod tests {
         let before = glyph_support();
         report_glyph_support(false);
         assert_eq!(Icon::Warning.glyph(), Icon::Warning.ascii());
+        report_glyph_support(before);
+    }
+
+    #[test]
+    #[serial_test::serial(icon_font)]
+    fn dis_005_a_nerd_font_set_does_not_paint_where_the_terminal_reports_no_unicode() {
+        let _lock = GLYPH_REPORT_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let before = glyph_support();
+
+        fn nerd(icon: Icon) -> Option<&'static str> {
+            // Nerd Font `nf-fa-warning`, a private-use glyph.
+            (icon == Icon::Warning).then_some("\u{f071}")
+        }
+
+        report_glyph_support(false);
+        set_nerd_font(Some(nerd));
+        assert_eq!(
+            Icon::Warning.glyph(),
+            "!",
+            "DIS-005: with no Unicode the ASCII fallback is painted, not the set's glyph"
+        );
+        set_nerd_font(None);
         report_glyph_support(before);
     }
 }

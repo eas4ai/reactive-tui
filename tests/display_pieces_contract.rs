@@ -2317,6 +2317,7 @@ mod adoption {
             (ConfirmationIcon::Warning, Icon::Warning),
             (ConfirmationIcon::Info, Icon::Info),
             (ConfirmationIcon::Success, Icon::Success),
+            (ConfirmationIcon::Question, Icon::Question),
         ] {
             let frame = shown(
                 ConfirmationDialog::new(
@@ -2787,6 +2788,57 @@ mod bar {
         );
         assert_eq!(colors(&frame, "No results").0, Some(role("foreground")));
         assert_eq!(colors(&frame, "Try another").0, Some(role("text-muted")));
+    }
+
+    /// DIS-001: an empty state built from its props with the defaults and one
+    /// built through its builder paint the same cells, the builder's default
+    /// icon included.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_001_an_empty_state_from_default_props_paints_the_builders_cells() {
+        use reactive_tui::widgets::display::pieces::empty::{Empty, EmptyProps};
+
+        let _theme = Active::set(probe());
+        let from_props = shown(
+            Element::typed::<Empty>(EmptyProps {
+                title: "No results".into(),
+                description: "Try another search term.".into(),
+                ..Default::default()
+            }),
+            (80, 24),
+            "Try another",
+        );
+        let from_builder = shown(
+            builder::empty()
+                .title("No results")
+                .description("Try another search term.")
+                .build(),
+            (80, 24),
+            "Try another",
+        );
+        let cells = |frame: &Snapshot| -> Vec<(String, Option<Rgb>, Option<Rgb>)> {
+            (0..24)
+                .flat_map(|row| {
+                    (0..80).map(move |column| {
+                        (
+                            glyph(frame, column, row),
+                            fg(frame, column, row),
+                            bg(frame, column, row),
+                        )
+                    })
+                })
+                .collect()
+        };
+        assert!(
+            from_props.text.contains(Icon::Info.glyph()),
+            "DIS-001: the default icon is the catalog's Info mark:\n{}",
+            from_props.text
+        );
+        assert_eq!(
+            cells(&from_props),
+            cells(&from_builder),
+            "DIS-001: default props and the builder paint different cells"
+        );
     }
 
     /// DIS-001: an icon paints its glyph in `text-muted` unless its classes
