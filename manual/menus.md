@@ -37,6 +37,12 @@ and separators are skipped during navigation.
 Popup and context menus restore previous focus when they close. Menu selection
 is bounded when items change or the visible window becomes empty.
 
+A separator is one line of glyphs across its panel. `MenuSeparator::Line`
+paints `─`, `ThickLine` paints `━`, `DoubleLine` paints `═`, `Dashed` paints
+`╌` and `Dotted` paints `┄`. In a horizontal row, such as the title row of a
+menu bar, the same styles paint the vertical glyphs `│`, `┃`, `║`, `╎` and
+`┆` instead. `None` and `Space` paint a space. The color stays `text-muted`.
+
 ### Colors
 
 Every color of a menu is a role of the active theme (see the color roles in
@@ -163,6 +169,7 @@ defaults.
 
 - [Events, focus, and input](events-focus-and-input.md)
 - [Dialogs](dialogs.md)
+- [Display pieces](display-widgets.md#display-pieces), for the separator piece that draws the lines
 - [Accessibility](accessibility.md)
 
 [Back to the manual](README.md)

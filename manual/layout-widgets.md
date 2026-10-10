@@ -39,6 +39,15 @@ the count of tabs; its panel is named by the tab's label (NAV-004).
 
 When the tabs do not fit, the bar scrolls to keep the focused tab in view and paints an overflow mark at its far end, `»` on a horizontal bar and `⌄` on a vertical one; Shift+F10 while the bar holds the focus, or a click on the mark, opens a menu of every tab with the selected one checked, and choosing one selects it and brings it into view (NAV-006).
 
+A tab can carry a badge: `TabBadge::new(text)` with `.with_variant(..)`
+(`Default`, `Success`, `Warning`, `Error` or `Info`), added to the tab with
+`Tab::with_badge(..)`. The badge piece draws it in its outline form, the
+kind's mark from the icon catalog before the text, in the kind's text color:
+`●` for `Default`, `•` for `Info`, `✓` for `Success`, `⚠` for `Warning` and
+`×` for `Error`. The screen reader hears the badge's text as part of the
+tab's description. The piece is described under
+[Display widgets](display-widgets.md#badge).
+
 ## Accordion
 
 `builder::accordion()` takes `.section(AccordionSection)` for each section
@@ -118,5 +127,6 @@ parent allots, and is named only by `aria_label`.
 - [Layout, style, and themes](layout-style-and-themes.md)
 - [Animation and screens](animation-and-screens.md)
 - [Events, focus, and input](events-focus-and-input.md)
+- [Display pieces](display-widgets.md#display-pieces), for the badge piece on each tab
 
 [Back to the manual](README.md)

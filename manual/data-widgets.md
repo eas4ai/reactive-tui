@@ -74,8 +74,14 @@ caps the rows it shows),
 `.filter(key, filter_type)`, `.class(..)` and `.aria_label(..)`. Its table
 sorts and colors as the table does; Shift with a click on a header, or
 with `s`, adds a secondary sort, and each mark then carries its priority;
-the page count under the table, when pages are on, is `text-muted`. The filter and column panels and the export buttons keep
-their behavior.
+when pages are on, the row under the table is the pagination bar, `‹ 1 2 3 ›`,
+with the current page on `primary`, followed by the filtered row count in
+`text-muted`, such as ` (25)`. The arrows `‹` and `›` step one page; the
+bar has no separate Prev and Next buttons. Left and Right move a page, Home
+and End go to the first and the last page, and Confirm or a click chooses a
+page. An ellipsis `…` opens a popup menu of the pages it hides, and a choice
+there moves the table to that page. The filter and column panels and the
+export buttons keep their behavior.
 
 ## Tree
 
@@ -115,11 +121,14 @@ it is expanded and whether it is selected (DAT-004).
 `.max_visible_items(..)`, `.class(..)`, `.aria_label(..)` and the
 `.on_select(..)`, `.on_activate(..)` and `.on_navigate(..)` event names;
 `simple_file_browser(path)`, `code_project_explorer(path)` and the other
-presets start from common settings. A row shows an entry's icon and name
-in `foreground` and, with details on, its size and date in `text-muted`;
-the toolbar's words, the status line and the earlier directories of the
-breadcrumb are `text-muted` too, and the status line is `text-error` while
-it carries an error.
+presets start from common settings. A row shows an entry's mark and name
+in `foreground` and, with details on, its size and date in `text-muted`.
+The mark comes from the icon catalog and is one cell wide: `▪` for a
+folder, `▾` for a folder that the tree view shows expanded, and `▫` for a
+file, a link or an entry of unknown kind. Where the terminal reports no
+Unicode the marks are `+`, `-` and `.`. The toolbar's words, the status
+line and the earlier directories of the breadcrumb are `text-muted` too,
+and the status line is `text-error` while it carries an error.
 
 Up and Down move the cursor and select, Home, End, Page Up and Page Down
 as in the tree, Enter opens the entry, Space toggles it in the selection,
@@ -177,6 +186,7 @@ cells.
 ## Related chapters
 
 - [Display widgets](display-widgets.md)
+- [Display pieces](display-widgets.md#display-pieces), for the pagination bar and the icon catalog
 - [Layout, style, and themes](layout-style-and-themes.md)
 - [Events, focus, and input](events-focus-and-input.md)
 

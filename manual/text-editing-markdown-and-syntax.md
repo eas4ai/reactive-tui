@@ -38,6 +38,10 @@ Markdown parsing walks the document tree and emits styled runs for headings,
 lists, code, links, quotes, emphasis, tables, and task items according to
 options. Fenced code can pass through the syntax highlighter. `SyntaxHighlighter::highlight_lines` parses a document once per change of its text or theme and serves repeated calls from its cache.
 
+A thematic break, such as `---` on its own line in the source, is a rule of
+`─` as wide as the renderer's wrap width. `MarkdownRenderer::new().with_wrap_width(cells)`
+sets that width; a renderer given none uses 80 cells.
+
 ## Limits
 
 - Checked Markdown and syntax entry points reject oversized sources.
@@ -58,6 +62,7 @@ options. Fenced code can pass through the syntax highlighter. `SyntaxHighlighter
 ## Related chapters
 
 - [Input widgets](input-widgets.md)
+- [Display pieces](display-widgets.md#display-pieces), for the separator piece that draws the rule
 - [Layout, style, and themes](layout-style-and-themes.md)
 - [FFI and TypeScript](ffi-and-typescript.md)
 

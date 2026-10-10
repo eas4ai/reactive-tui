@@ -116,9 +116,14 @@ secondary button.
 `.closable(true)`) or show it with `DialogEngine::show_toast`. A toast is
 painted in the fill of its kind with that fill's text: `success`,
 `warning`, `error` or `info`; `ToastType::Custom(classes)` paints the
-classes its string names. It sits at the corner or edge its position
-names with one cell between it and the screen's edge; toasts the engine
-shows at the same position stack, each under the earlier ones (or over
+classes its string names. The message leads with the kind's icon from the
+icon catalog and one space: `•` for `info`, `✓` for `success`, `⚠` for
+`warning` and `×` for `error`, where the terminal reports no Unicode the
+ASCII marks `i`, `v`, `!` and `x` stand in. So the box of one of these kinds
+is two cells wider than its message. A `Custom` toast has no icon. The
+kind's colors come from the same table as the inline alert. It sits at the
+corner or edge its position names with one cell between it and the screen's
+edge; toasts the engine shows at the same position stack, each under the earlier ones (or over
 them at a bottom position), one row apart. A warning or an error is an
 alert to the screen reader, the rest a status, labeled by the kind and
 described by the message. Escape closes a closable toast that holds the
@@ -130,6 +135,11 @@ focus.
 `.step(WizardStep::new("name").content(element))`, `.cancelable(false)`)
 or open it with `DialogEngine::show_wizard`. Next and Finish are the
 primary button; Back, Skip and Cancel are secondary.
+
+While the wizard shows its progress (on by default; `.show_progress(false)`
+turns it off), a row above the step's title draws every step's title,
+joined by `──`, through the stepper piece. `✓` comes before a passed step,
+`●` before the current one and `○` before the steps still to come.
 
 ## Network access
 
@@ -181,5 +191,6 @@ rest of the application environment or user curl configuration.
 - [Menus](menus.md)
 - [Reactive state and hooks](reactive-state-and-hooks.md)
 - [Animation and screens](animation-and-screens.md)
+- [Display pieces](display-widgets.md#display-pieces), for the alert, stepper and icon pieces the toast and wizard draw
 
 [Back to the manual](README.md)
