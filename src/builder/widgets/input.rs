@@ -9,10 +9,12 @@ use std::sync::Arc;
 
 mod code_input;
 mod form;
+mod number_input;
 mod rating;
 mod switch;
 pub use code_input::CodeInputBuilder;
 pub use form::FormBuilder;
+pub use number_input::NumberInputBuilder;
 pub use rating::RatingBuilder;
 pub use switch::SwitchBuilder;
 
@@ -94,6 +96,14 @@ pub fn select() -> SelectBuilder {
 /// user sets by key, digit or click (CTL-007 to CTL-010).
 pub fn rating() -> RatingBuilder {
     RatingBuilder::default()
+}
+
+/// Create a Number input builder
+///
+/// Returns a `NumberInputBuilder` for a field that holds a number between
+/// `[-]` and `[+]` buttons.
+pub fn number_input() -> NumberInputBuilder {
+    NumberInputBuilder::new()
 }
 
 /// Create a Slider builder

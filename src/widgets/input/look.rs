@@ -60,6 +60,12 @@ pub const RATING_LIT: &str = "text-warning";
 pub const RATING_UNLIT: &str = "text-border";
 /// An unlit star of a rating while it holds the focus.
 pub const RATING_UNLIT_FOCUSED: &str = "text-ring";
+/// A stepper's button cells, `[-]` and `[+]`: `secondary` with the glyph
+/// in `secondary-foreground` (CTL-007).
+pub const STEPPER: &str = "bg-secondary text-secondary-foreground";
+/// A stepper that cannot step further, or a disabled one: its glyph in
+/// `text-muted` on `secondary`.
+pub const STEPPER_MUTED: &str = "bg-secondary text-muted";
 /// The row of a checkbox, a radio or a select's option under the pointer.
 pub const HOVER: &str = "bg-hover";
 /// A select's open list: a panel in `surface` with a border in `border`.

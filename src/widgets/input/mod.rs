@@ -7,6 +7,8 @@ mod form;
 /// The look every control shares: role classes and rows of colored pieces
 pub mod look;
 pub(crate) mod named_radio;
+/// Number input components
+mod number_input;
 /// The list panel a select and a text input's suggestions open
 pub(crate) mod panel;
 /// Radio button input components
@@ -25,6 +27,7 @@ mod text_input;
 pub use checkbox::{Checkbox, CheckboxBuilder, CheckboxProps, CheckboxState};
 pub use code_input::{CodeInput, CodeInputBuilder, CodeInputProps, CodeInputState};
 pub use form::{Form, FormField, FormLabels, FormProps};
+pub use number_input::{NumberInput, NumberInputBuilder, NumberInputProps, NumberInputState};
 pub use radio_button::{
     RadioButton, RadioButtonBuilder, RadioButtonProps, RadioButtonState, RadioOption,
     RadioOrientation,
