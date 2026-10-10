@@ -215,7 +215,7 @@ impl AstWalker {
                 // line glyph (DIS-006).
                 let line = separator_glyph(SeparatorStyle::Line, false);
                 self.add_line_break();
-                self.add_text(&line.to_string().repeat(self.wrap_width.saturating_sub(1)));
+                self.add_text(&line.to_string().repeat(self.wrap_width));
                 self.add_line_break();
                 self.add_line_break();
             }
