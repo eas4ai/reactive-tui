@@ -184,7 +184,23 @@ impl Component for Rating {
                 accessible.inner.add_action(action);
             }
         }
-        let mut element = look::row_of(look::pieces(&stars), "")
+        // With pixels the stars are one picture over the row and no glyph:
+        // a five-pointed star per cell, filled `warning` when lit and
+        // outlined in `border` (`ring` while focused) when not (PIX-007).
+        #[cfg(feature = "wgpu-graphics")]
+        let pictured = look::pixels().then(|| {
+            look::spacer(
+                props.max,
+                crate::graphics::look::Look::rating(props.max, lit, focused, props.disabled),
+            )
+        });
+        #[cfg(not(feature = "wgpu-graphics"))]
+        let pictured: Option<Element> = None;
+        let children = match pictured {
+            Some(pictured) => vec![pictured],
+            None => look::pieces(&stars),
+        };
+        let mut element = look::row_of(children, "")
             .with_accessibility(accessible)
             .with_focus(crate::component::FocusProps::input())
             .disabled(props.disabled || props.max == 0);

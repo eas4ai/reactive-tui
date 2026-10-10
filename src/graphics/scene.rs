@@ -371,6 +371,20 @@ impl Path {
             .build()
     }
 
+    /// A closed polygon through `points` in order; an empty path when there
+    /// are none.
+    pub fn polygon(points: &[(f32, f32)]) -> Self {
+        let Some((&(x, y), rest)) = points.split_first() else {
+            return Self::default();
+        };
+        rest.iter()
+            .fold(PathBuilder::new().move_to(x, y), |builder, &(x, y)| {
+                builder.line_to(x, y)
+            })
+            .close()
+            .build()
+    }
+
     /// An ellipse centred on (`cx`, `cy`) with radii `rx` and `ry`.
     pub fn ellipse(cx: f32, cy: f32, rx: f32, ry: f32) -> Self {
         PathBuilder::new()
