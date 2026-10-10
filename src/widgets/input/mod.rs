@@ -2,6 +2,8 @@
 mod checkbox;
 /// Code input components: a row of digit cells
 mod code_input;
+/// Form components: labelled controls in rows (CTL-007 to CTL-010)
+mod form;
 /// The look every control shares: role classes and rows of colored pieces
 pub mod look;
 pub(crate) mod named_radio;
@@ -22,6 +24,7 @@ mod text_input;
 
 pub use checkbox::{Checkbox, CheckboxBuilder, CheckboxProps, CheckboxState};
 pub use code_input::{CodeInput, CodeInputBuilder, CodeInputProps, CodeInputState};
+pub use form::{Form, FormField, FormLabels, FormProps};
 pub use radio_button::{
     RadioButton, RadioButtonBuilder, RadioButtonProps, RadioButtonState, RadioOption,
     RadioOrientation,

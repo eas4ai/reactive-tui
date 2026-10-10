@@ -7,17 +7,25 @@ use super::super::specialized::{RadioButtonBuilder, SliderBuilder};
 use crate::component::{same_callback, Element};
 use std::sync::Arc;
 
+mod code_input;
+mod form;
 mod rating;
 mod switch;
+pub use code_input::CodeInputBuilder;
+pub use form::FormBuilder;
 pub use rating::RatingBuilder;
 pub use switch::SwitchBuilder;
 
 /// A builder's change callback, called with the value the control reports.
 type Callback<T> = Arc<dyn Fn(T) + Send + Sync>;
 
-mod code_input;
-
-pub use code_input::CodeInputBuilder;
+/// Create a Form builder
+///
+/// Returns a `FormBuilder` for a form of labelled controls, with the labels
+/// beside them or above them when the width is short (CTL-007 to CTL-010).
+pub fn form() -> FormBuilder {
+    FormBuilder::new()
+}
 
 /// Create a Text Input builder
 ///

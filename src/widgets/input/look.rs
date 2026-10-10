@@ -44,6 +44,10 @@ pub const MARK_OFF: &str = "text-muted";
 pub const LABEL: &str = "text-foreground";
 /// A disabled control's label and text.
 pub const LABEL_DISABLED: &str = "text-muted";
+/// A form field's required mark, after its label (CTL-007).
+pub const REQUIRED_MARK: &str = "text-error";
+/// A form field's description (CTL-007).
+pub const DESCRIPTION: &str = "text-muted";
 /// A slider's track.
 pub const TRACK: &str = "text-border";
 /// A slider's thumb.

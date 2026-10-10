@@ -2,7 +2,7 @@ use super::{EventTree, Slot};
 use crate::{
     accessibility::{Snapshot, Target},
     backend::PaintedNode,
-    component::{Element, ElementType},
+    component::{Element, ElementType, FieldPart},
     event::{
         hit::Bounds,
         router::{EventRouter, NodeId},
@@ -21,6 +21,9 @@ struct Frame<'a> {
     text_runs: HashMap<accesskit::NodeId, usize>,
     /// Whether a shown child asked its parent to carry `busy` (DIS-004).
     child_busy: bool,
+    /// The first node published under each marked form part, in the order
+    /// the parts finish visiting (CTL-010).
+    field_parts: Vec<(FieldPart, accesskit::NodeId)>,
 }
 
 impl EventTree {
@@ -43,6 +46,7 @@ impl EventTree {
             screen_reader_only: false,
             text_runs: HashMap::new(),
             child_busy: false,
+            field_parts: Vec::new(),
         };
         let children = frame.visit(element, Vec::new(), 0, None, false, false);
         frame.snapshot.update.nodes[0].1.set_children(children);
@@ -52,6 +56,69 @@ impl EventTree {
 
 impl Frame<'_> {
     fn visit(
+        &mut self,
+        element: &Element,
+        path: Vec<Slot>,
+        index: usize,
+        owner: Option<NodeId>,
+        disabled: bool,
+        hidden: bool,
+    ) -> Vec<accesskit::NodeId> {
+        let first_node = self.snapshot.update.nodes.len();
+        let parts = self.field_parts.len();
+        let options = element.metadata.accessibility_options.as_deref();
+        let field_part = options.and_then(|options| options.field_part);
+        let field_row = options.and_then(|options| options.field_row);
+        let ids = self.visit_node(element, path, index, owner, disabled, hidden);
+        // The first node the subtree published is the part's node: its
+        // deepest-first first node, as the screen reader's link needs.
+        if let (Some(part), Some((id, _))) =
+            (field_part, self.snapshot.update.nodes.get(first_node))
+        {
+            self.field_parts.push((part, *id));
+        }
+        if let Some(row) = field_row {
+            self.link_field_row(parts, row.required);
+        }
+        ids
+    }
+
+    /// Tell the control of the form row whose parts were visited since
+    /// `parts` its label, its description and whether it is required
+    /// (CTL-010).
+    fn link_field_row(&mut self, parts: usize, required: bool) {
+        let found = |wanted: FieldPart| {
+            self.field_parts[parts..]
+                .iter()
+                .find(|(part, _)| *part == wanted)
+                .map(|(_, id)| *id)
+        };
+        let label = found(FieldPart::Label);
+        let description = found(FieldPart::Description);
+        let Some(control) = found(FieldPart::Control) else {
+            return;
+        };
+        let Some((_, node)) = self
+            .snapshot
+            .update
+            .nodes
+            .iter_mut()
+            .find(|(id, _)| *id == control)
+        else {
+            return;
+        };
+        if let Some(label) = label {
+            node.set_labelled_by(vec![label]);
+        }
+        if let Some(description) = description {
+            node.set_described_by(vec![description]);
+        }
+        if required {
+            node.set_required();
+        }
+    }
+
+    fn visit_node(
         &mut self,
         element: &Element,
         mut path: Vec<Slot>,
@@ -295,6 +362,60 @@ mod tests {
         }
         runtime.clear();
         scope.close();
+    }
+
+    #[test]
+    fn ctl_010_a_field_rows_control_is_labelled_and_described_by_its_parts() {
+        use crate::{
+            accessibility::Node,
+            component::{FieldPart, FieldRow, LayoutType},
+        };
+        // A row of a label, a control and a description, the control required.
+        let row = Element::layout(LayoutType::Flex)
+            .children(vec![
+                Element::text("Name").with_field_part(FieldPart::Label),
+                Element::layout(LayoutType::Flex)
+                    .with_accessibility(Node::new(Role::TextInput))
+                    .with_field_part(FieldPart::Control),
+                Element::text("Work address").with_field_part(FieldPart::Description),
+            ])
+            .with_field_row(FieldRow { required: true });
+        let element = Element::layout(LayoutType::Flex).with_child(row);
+        // Every element in pre-order gets bounds, so each one publishes.
+        let geometry: Vec<PaintedNode> = (0..5)
+            .map(|element_index| PaintedNode {
+                element_index,
+                bounds: Bounds {
+                    x: 0.0,
+                    y: element_index as f32,
+                    width: 30.0,
+                    height: 1.0,
+                },
+            })
+            .collect();
+        let mut events = EventTree::default();
+        let mut router = EventRouter::new();
+        events.sync(&element, &geometry, None, None, &mut router);
+        let snapshot = events.accessibility_snapshot(&element, &geometry, &router, "test");
+        let id_of = |label: &str| {
+            snapshot
+                .update
+                .nodes
+                .iter()
+                .find(|(_, node)| node.label() == Some(label))
+                .map(|(id, _)| *id)
+                .unwrap_or_else(|| panic!("{label} publishes a node"))
+        };
+        let (label, description) = (id_of("Name"), id_of("Work address"));
+        let (_, control) = snapshot
+            .update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.role() == Role::TextInput)
+            .expect("the control publishes its node");
+        assert_eq!(control.labelled_by(), &[label]);
+        assert_eq!(control.described_by(), &[description]);
+        assert!(control.is_required());
     }
 
     #[test]
