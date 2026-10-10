@@ -76,6 +76,12 @@ pub enum Extent {
     /// That many pixels at a cell height of 16, in proportion otherwise: a
     /// progress bar over its rows.
     Scaled(f32),
+    /// `times` the cell width: a rating's star, as wide as its cell
+    /// (PIX-007).
+    CellWidth {
+        /// What the cell width is multiplied by.
+        times: f32,
+    },
 }
 
 impl Extent {
@@ -85,13 +91,14 @@ impl Extent {
         times: 1.0,
     };
 
-    /// The size in pixels at a cell height of `cell_height` pixels; never
-    /// less than one.
-    fn px(self, cell_height: f32) -> f32 {
+    /// The size in pixels at a cell of `cell_width` by `cell_height`
+    /// pixels; never less than one.
+    fn px(self, cell_width: f32, cell_height: f32) -> f32 {
         match self {
             Self::Px(px) => px,
             Self::CellLess { less, times } => (cell_height - less) * times,
             Self::Scaled(px) => px * cell_height / REFERENCE_CELL_HEIGHT,
+            Self::CellWidth { times } => cell_width * times,
         }
         .max(1.0)
     }
@@ -415,7 +422,7 @@ impl Shape {
     fn draw(&self, scene: &mut Scene, cell: (u16, u16), opacity: f32) {
         let (cw, ch) = (f32::from(cell.0.max(1)), f32::from(cell.1.max(1)));
         let at = |(x, y): (f32, f32)| (x * cw, y * ch);
-        let px = |size: &Extent| size.px(ch);
+        let px = |size: &Extent| size.px(cw, ch);
         // A border is one pixel wide at every cell size (PIX-004).
         let line_px = |line: &Line| line.width.max(1.0).round();
         match self {
@@ -548,6 +555,10 @@ impl Shape {
             } => {
                 let (cx, cy) = at(*center);
                 let outer = px(size) / 2.0;
+                // The star's lower points reach cos(36°) of its radius, so
+                // its box is centered by moving it down by the difference's
+                // half (PIX-007).
+                let cy = cy + outer * (1.0 - 36.0_f32.to_radians().cos()) / 2.0;
                 if let Some(fill) = fill {
                     scene.fill(
                         &Path::polygon(&star_points(cx, cy, outer)),
@@ -1142,8 +1153,8 @@ impl Look {
         }
     }
 
-    /// A rating over `max` cells: one five-pointed star of the cell height
-    /// less two pixels per cell, filled `warning` for the first `value`,
+    /// A rating over `max` cells: one five-pointed star as wide as its cell
+    /// and centered in it per cell, filled `warning` for the first `value`,
     /// outlined one pixel in `border` (`ring` while focused) for the rest;
     /// at half when disabled (PIX-007).
     pub fn rating(max: usize, value: usize, focused: bool, disabled: bool) -> Self {
@@ -1152,7 +1163,11 @@ impl Look {
                 let lit = index < value;
                 Shape::Star {
                     center: (index as f32 + 0.5, 0.5),
-                    size: Extent::CELL_LESS_TWO,
+                    // A star's width is its diameter times sin 72°; as wide
+                    // as its cell, centered in it (PIX-007).
+                    size: Extent::CellWidth {
+                        times: 1.0 / 72.0_f32.to_radians().sin(),
+                    },
                     fill: lit.then(|| "warning".to_owned()),
                     border: (!lit).then(|| frame_line(focused)),
                 }
