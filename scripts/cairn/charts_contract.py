@@ -104,10 +104,11 @@ WIDGET_CODE = {
                  "src/builder/widgets/dialog.rs", "src/builder/dialog_builders.rs"),
                 r"(?:Modal|Toast|Dialog|ConfirmationDialog|ProgressDialog|Wizard|Popover)Builder"),
     # The input family: the text input, checkbox, radio button, select and
-    # slider, their builders, and the two button builders (input-widgets.md).
-    "input": (("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/specialized.rs",
-               "src/builder/core.rs"),
-              r"(?:TextInput|Checkbox|RadioButton|Select|Slider)Builder"),
+    # slider, the number input, code input, rating, switch and form, their
+    # builders, and the two button builders (input-widgets.md).
+    "input": (("src/widgets/input", "src/builder/widgets/input.rs", "src/builder/widgets/input",
+               "src/builder/specialized.rs", "src/builder/core.rs"),
+              r"(?:TextInput|Checkbox|RadioButton|Select|Slider|NumberInput|CodeInput|Rating|Switch|Form)Builder"),
     # The display pieces: the icon, spinner, separator, badge, tag, key hint,
     # empty state, skeleton, shimmer, status bar, description list, alert,
     # link, pagination bar and stepper, and their builders (display-widgets.md).
