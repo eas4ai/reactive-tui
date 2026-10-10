@@ -137,11 +137,13 @@ impl Inner {
 /// row and each cell's own colors and attributes before its text, so one
 /// vt100 screen model inspects both backends. Lossless for what the painter
 /// writes: 24-bit colors and the bold, italic, underline, inverse and
-/// strikethrough attributes.
+/// strikethrough attributes, and each run of linked cells between an OSC 8
+/// start and end where the backend reports hyperlinks (DIS-003).
 fn debug_output(backend: &DebugBackend) -> Vec<u8> {
     let (width, height) = backend.size();
     let byte = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
     let mut out = Vec::new();
+    let mut open: Option<&str> = None;
     for y in 0..usize::from(height) {
         write!(out, "\x1b[{};1H", y + 1).unwrap();
         for x in 0..usize::from(width) {
@@ -151,6 +153,16 @@ fn debug_output(backend: &DebugBackend) -> Vec<u8> {
             // The second cell of a wide grapheme: the terminal advances past it.
             if text.is_empty() {
                 continue;
+            }
+            let link = backend.cell_link(x, y);
+            if link != open {
+                if open.is_some() {
+                    out.extend_from_slice(b"\x1b]8;;\x1b\\");
+                }
+                if let Some(url) = link {
+                    write!(out, "\x1b]8;;{url}\x1b\\").unwrap();
+                }
+                open = link;
             }
             let mut sgr = String::from("0");
             for (attribute, code) in [
@@ -176,6 +188,9 @@ fn debug_output(backend: &DebugBackend) -> Vec<u8> {
             )
             .unwrap();
         }
+    }
+    if open.is_some() {
+        out.extend_from_slice(b"\x1b]8;;\x1b\\");
     }
     out.extend_from_slice(b"\x1b[0m");
     out
@@ -949,6 +964,27 @@ pub fn run_until_on_debug(
     run_steps_on(root, size, until(steps), Target::Debug, timeout)
 }
 
+/// `run_until` on the debug backend reporting that its terminal takes OSC 8
+/// hyperlinks, or not; every other run reports that it does (DIS-003).
+#[allow(dead_code)]
+pub fn run_until_on_debug_with_hyperlinks(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: Vec<Until>,
+    timeout: Duration,
+    hyperlinks: bool,
+) -> Vec<Snapshot> {
+    run_steps_reporting(
+        root,
+        size,
+        until(steps),
+        Target::Debug,
+        timeout,
+        |app| app,
+        hyperlinks,
+    )
+}
+
 fn run_steps(
     root: impl RootComponent + 'static,
     size: (u16, u16),
@@ -1086,23 +1122,42 @@ fn run_steps_built(
     timeout: Duration,
     build: impl FnOnce(AppBuilder) -> AppBuilder,
 ) -> Vec<Snapshot> {
+    run_steps_reporting(root, size, steps, target, timeout, build, true)
+}
+
+/// `run_steps_built` with the backend reporting that its terminal takes OSC
+/// 8 hyperlinks, or not.
+fn run_steps_reporting(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    steps: VecDeque<Step>,
+    target: Target,
+    timeout: Duration,
+    build: impl FnOnce(AppBuilder) -> AppBuilder,
+    hyperlinks: bool,
+) -> Vec<Snapshot> {
     // A test that copies must not reach the developer's clipboard: the
     // terminal's sequence is what the tests observe, so the local clipboard
     // tool stays off for every App the harness runs.
     reactive_tui::clipboard::set_local_commands(false);
     let capture = Capture::default();
     let snapshots = Arc::new(Mutex::new(Vec::new()));
+    let mut inner = match target {
+        Target::SuprTui(Some(images)) => Inner::SuprTui(Box::new(
+            SuprTuiBackend::with_writer_and_images(size.0, size.1, capture.clone(), images)
+                .unwrap(),
+        )),
+        Target::SuprTui(None) => Inner::SuprTui(Box::new(
+            SuprTuiBackend::with_writer(size.0, size.1, capture.clone()).unwrap(),
+        )),
+        Target::Debug => Inner::Debug(Box::new(DebugBackend::new(size.0, size.1))),
+    };
+    match &mut inner {
+        Inner::SuprTui(backend) => backend.set_hyperlinks(hyperlinks),
+        Inner::Debug(backend) => backend.set_hyperlinks(hyperlinks),
+    }
     let backend = InputBackend {
-        inner: match target {
-            Target::SuprTui(Some(images)) => Inner::SuprTui(Box::new(
-                SuprTuiBackend::with_writer_and_images(size.0, size.1, capture.clone(), images)
-                    .unwrap(),
-            )),
-            Target::SuprTui(None) => Inner::SuprTui(Box::new(
-                SuprTuiBackend::with_writer(size.0, size.1, capture.clone()).unwrap(),
-            )),
-            Target::Debug => Inner::Debug(Box::new(DebugBackend::new(size.0, size.1))),
-        },
+        inner,
         events: steps,
         capture,
         snapshots: snapshots.clone(),

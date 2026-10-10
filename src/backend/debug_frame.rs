@@ -5,7 +5,7 @@ use crate::{
     error::{ReactiveError, Result},
 };
 use ::suprtui::{
-    ansi,
+    ansi::{self, TextAttributes},
     buffer::{InitOptions, OptimizedBuffer},
     uni::{
         pool::GraphemePool,
@@ -16,7 +16,7 @@ use std::{
     cell::RefCell,
     panic::{self, AssertUnwindSafe},
     rc::Rc,
-    sync::mpsc,
+    sync::{mpsc, Arc},
     thread,
 };
 
@@ -102,6 +102,9 @@ pub(super) struct DebugFrame {
     pub surface: Surface,
     pub text: FrameText,
     pub geometry: PresentedGeometry,
+    /// The linked cells, by row-major index in ascending order, with the
+    /// URL each links to (DIS-003).
+    pub links: Vec<(usize, Arc<str>)>,
 }
 
 /// The text of every cell of a presented frame in one buffer, so a frame
@@ -192,6 +195,12 @@ struct Canvas {
     /// The cells and text of the frame this one replaced on screen, whose
     /// memory the next frame writes into instead of fresh pages.
     spare: Option<(Vec<Cell>, FrameText)>,
+    /// The link ids of the last frame, each with one pool reference this
+    /// canvas holds, and its URL. The painter clears the buffer before each
+    /// frame, which drops the buffer's own references, so these keep a
+    /// link's id the same from frame to frame, as the SuprTUI renderer's
+    /// shown buffer does.
+    held: Vec<(u32, Arc<str>)>,
 }
 
 /// Hand the cells and text of a frame that left the screen back to this
@@ -280,7 +289,40 @@ impl Canvas {
             hits: vec![0; usize::from(size.0) * usize::from(size.1)],
             cache: crate::layout::paint_tree::suprtui::LayoutCache::default(),
             spare: None,
+            held: Vec::new(),
         })
+    }
+
+    /// The URL of link id `id` in this frame, from the ids `found` so far
+    /// or held from the last frame, else from the buffer's pool; `None` for
+    /// an id the pool does not know.
+    fn link_url(&self, found: &mut Vec<(u32, Arc<str>)>, id: u32) -> Option<Arc<str>> {
+        if let Some((_, url)) = found.iter().find(|(known, _)| *known == id) {
+            return Some(url.clone());
+        }
+        let url = match self.held.iter().find(|(known, _)| *known == id) {
+            Some((_, url)) => url.clone(),
+            None => {
+                let pool = self.buffer.link_pool.borrow();
+                Arc::from(std::str::from_utf8(pool.get(id).ok()?).ok()?)
+            }
+        };
+        found.push((id, url.clone()));
+        Some(url)
+    }
+
+    /// Hold one pool reference to each link id of this frame and release
+    /// those of the last.
+    fn hold_links(&mut self, found: Vec<(u32, Arc<str>)>) {
+        let mut pool = self.buffer.link_pool.borrow_mut();
+        for (id, _) in &found {
+            let _ = pool.incref(*id);
+        }
+        for (id, _) in &self.held {
+            let _ = pool.decref(*id);
+        }
+        drop(pool);
+        self.held = found;
     }
 
     fn paint(&mut self, element: &Element) -> Result<DebugFrame> {
@@ -310,7 +352,15 @@ impl Canvas {
         let mut fg = Memo::new(color);
         let mut bg = Memo::new(color);
         let mut attr = Memo::new(attributes);
+        let mut links = Vec::new();
+        let mut found = Vec::new();
         for index in 0..width * height {
+            let link = TextAttributes::link_id(self.buffer.attributes_at(index));
+            if link != 0 {
+                if let Some(url) = self.link_url(&mut found, link) {
+                    links.push((index, url));
+                }
+            }
             let char = self.buffer.char_at(index);
             let first = if is_continuation_char(char) {
                 text.push("");
@@ -347,10 +397,12 @@ impl Canvas {
         }
         let surface = Surface::from_cells(width, height, cells);
         drop(graphemes);
+        self.hold_links(found);
         Ok(DebugFrame {
             surface,
             text,
             geometry,
+            links,
         })
     }
 }
@@ -393,5 +445,6 @@ pub(super) fn cells(frame: &CellFrame) -> DebugFrame {
         surface,
         text,
         geometry: PresentedGeometry::default(),
+        links: Vec::new(),
     }
 }

@@ -353,6 +353,9 @@ impl ComponentRuntime {
         if element.metadata.gradient_border.is_some() {
             resolved.metadata.gradient_border = element.metadata.gradient_border;
         }
+        if element.metadata.hyperlink.is_some() {
+            resolved.metadata.hyperlink = element.metadata.hyperlink;
+        }
         // Caller styling belongs to the rendered root and takes precedence.
         if let Some(class) = element.class {
             resolved.class = Some(match resolved.class {

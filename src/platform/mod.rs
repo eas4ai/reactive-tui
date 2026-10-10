@@ -530,6 +530,13 @@ pub mod sequences {
     }
 }
 
+/// Whether a terminal whose `TERM` is `term` takes OSC 8 hyperlinks, as far
+/// as the environment tells: every terminal but `screen` and `tmux`, which
+/// may not pass the sequence on.
+pub(crate) fn hyperlinks_from_term(term: &str) -> bool {
+    !term.contains("screen") && !term.contains("tmux")
+}
+
 // Platform-specific implementation selection
 /// Default TTY implementation for Unix platforms
 #[cfg(unix)]
@@ -1615,7 +1622,7 @@ impl DirectTty {
             term.contains("xterm") || term_program == "WezTerm" || term_program == "foot";
 
         // Modern terminal features
-        self.capabilities.hyperlinks = !term.contains("screen") && !term.contains("tmux");
+        self.capabilities.hyperlinks = hyperlinks_from_term(&term);
         self.capabilities.synchronized_output = term_program == "WezTerm"
             || std::env::var("KITTY_WINDOW_ID").is_ok()
             || term_program == "iTerm.app";

@@ -31,6 +31,18 @@ pub const SLOT_MASK: u32 = (1 << SLOT_BITS) - 1;
 pub const MAX_URL_LENGTH: usize = 512;
 const RETIRED_GENERATION: u32 = GEN_MASK + 1;
 
+/// Whether `url` may be written into an OSC 8 hyperlink as it is: it holds
+/// at least one byte and at most [`MAX_URL_LENGTH`], each printable ASCII
+/// from `!` to `~`. A space, a control byte such as ESC or BEL, or a byte
+/// of a multi-byte character could end the sequence early or be read as
+/// text, so a URL holding one is percent-encoded by its owner or not
+/// written at all.
+pub fn is_writable_url(url: &[u8]) -> bool {
+    !url.is_empty()
+        && url.len() <= MAX_URL_LENGTH
+        && url.iter().all(|byte| (0x21..=0x7e).contains(byte))
+}
+
 /// Reference `LinkPoolError`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LinkPoolError {

@@ -631,6 +631,7 @@ pub(crate) fn paint_frame(
                 &mut images,
                 &mut cursor,
                 spec.cursors[node.element_index],
+                spec.links[node.element_index].as_deref(),
                 &mut inverse_cells,
             )?;
             #[cfg(feature = "wgpu-graphics")]
@@ -1121,6 +1122,28 @@ fn fill_plain_background(
     Ok(())
 }
 
+/// The link id `target`'s pool holds for `url`, taken for a node's first
+/// drawn glyph, so the rasterizer writes the node's text as an OSC 8
+/// hyperlink; `None` for a URL that cannot be written or that the pool
+/// refuses, whose text is painted plain.
+fn link_id(target: &OptimizedBuffer<'_>, url: &str) -> Option<u32> {
+    if !::suprtui::link::is_writable_url(url.as_bytes()) {
+        return None;
+    }
+    target.link_pool.borrow_mut().alloc(url.as_bytes()).ok()
+}
+
+/// Give back a link id no drawn cell took: the pool keeps an id it handed
+/// out until a cell references it, so one whose glyphs were all clipped
+/// is referenced once and released, which frees its slot.
+fn release_unused_link(target: &OptimizedBuffer<'_>, id: u32) {
+    let mut pool = target.link_pool.borrow_mut();
+    if pool.get_refcount(id) == Ok(0) && pool.incref(id).is_ok() {
+        let _ = pool.decref(id);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn paint_node(
     target: &mut OptimizedBuffer<'_>,
     paint: &NodePaint,
@@ -1128,6 +1151,7 @@ fn paint_node(
     images: &mut images::Layers,
     cursor: &mut cursor::Layer,
     request: Option<crate::component::element::TextCursor>,
+    link: Option<&str>,
     inverse_cells: &mut u64,
 ) -> Result<()> {
     use ::suprtui::buffer::draw::blend_colors;
@@ -1185,6 +1209,8 @@ fn paint_node(
         }
     }
     if let Some(text) = &paint.text {
+        // The text's link id, taken at its first drawn glyph (DIS-003).
+        let mut linked: Option<Option<u32>> = None;
         let content = Rect {
             left: node.local.left.saturating_add(paint.pad.left as i32),
             top: node.local.top.saturating_add(paint.pad.top as i32),
@@ -1268,6 +1294,13 @@ fn paint_node(
                     });
                     let width = u8::try_from(width)
                         .map_err(|_| ReactiveError::layout("grapheme exceeds 255 cells"))?;
+                    let attr = match link {
+                        Some(url) => match *linked.get_or_insert_with(|| link_id(target, url)) {
+                            Some(id) => TextAttributes::set_link_id(attr, id),
+                            None => attr,
+                        },
+                        None => attr,
+                    };
                     target
                         .draw_grapheme(
                             grapheme.as_bytes(),
@@ -1291,6 +1324,9 @@ fn paint_node(
                 }
                 x = right;
             }
+        }
+        if let Some(Some(id)) = linked {
+            release_unused_link(target, id);
         }
     }
     Ok(())

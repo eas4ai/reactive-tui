@@ -1644,3 +1644,433 @@ mod interactive {
         }
     }
 }
+
+// ===== link =====
+
+mod link {
+    //! The link (DIS-001 to DIS-003): underlined in `text-accent`, in `ring`
+    //! while it holds the focus, as wide as its text, opened by Confirm,
+    //! Activate or a click, and written between OSC 8 sequences where the
+    //! terminal takes hyperlinks.
+
+    use super::*;
+    use common::app_input::{click, key};
+    use reactive_tui::{
+        event::types::KeyCode,
+        theme::{Theme, ThemeVariables},
+        widgets::display::pieces::{Link, LinkProps},
+    };
+    use std::sync::{Arc, Mutex};
+
+    type Rgb = [u8; 3];
+
+    const URL: &str = "https://example.com/docs";
+
+    const ROLES: [&str; 25] = [
+        "background",
+        "surface",
+        "foreground",
+        "text-muted",
+        "border",
+        "input",
+        "ring",
+        "hover",
+        "selection",
+        "selection-foreground",
+        "primary",
+        "primary-foreground",
+        "secondary",
+        "secondary-foreground",
+        "error",
+        "error-foreground",
+        "warning",
+        "warning-foreground",
+        "success",
+        "success-foreground",
+        "info",
+        "info-foreground",
+        "accent",
+        "accent-foreground",
+        "overlay",
+    ];
+
+    fn probe_color(index: usize) -> Rgb {
+        [
+            30 + 8 * index as u8,
+            200 - 6 * index as u8,
+            90 + 5 * index as u8,
+        ]
+    }
+
+    fn role(name: &str) -> Rgb {
+        probe_color(
+            ROLES
+                .iter()
+                .position(|role| *role == name)
+                .unwrap_or_else(|| panic!("{name} is not a role of the probe theme")),
+        )
+    }
+
+    /// A theme whose roles all differ, so a cell's color names its role.
+    fn probe() -> Theme {
+        let mut variables = ThemeVariables::new();
+        for (index, name) in ROLES.iter().enumerate() {
+            let [r, g, b] = probe_color(index);
+            variables = variables.set(
+                Theme::color_variable(name),
+                format!("#{r:02x}{g:02x}{b:02x}"),
+            );
+        }
+        Theme::new("probe").with_variables(variables)
+    }
+
+    /// Makes `theme` the active theme until it is dropped, also when the
+    /// test fails in between.
+    struct Active(Arc<Theme>);
+    impl Active {
+        fn set(theme: Theme) -> Self {
+            let before = Theme::active();
+            Theme::set_active(theme);
+            Self(before)
+        }
+    }
+    impl Drop for Active {
+        fn drop(&mut self) {
+            Theme::set_active((*self.0).clone());
+        }
+    }
+
+    /// The cell where `needle` starts, as (column, row).
+    fn at(frame: &Snapshot, needle: &str) -> (u16, u16) {
+        let (rows, columns) = frame.screen.size();
+        let glyphs: Vec<String> = needle.chars().map(String::from).collect();
+        let length = glyphs.len() as u16;
+        (0..rows)
+            .flat_map(|row| (0..=columns.saturating_sub(length)).map(move |column| (column, row)))
+            .find(|(column, row)| {
+                glyphs.iter().enumerate().all(|(offset, glyph)| {
+                    frame
+                        .screen
+                        .cell(*row, column + offset as u16)
+                        .is_some_and(|cell| cell.contents() == *glyph)
+                })
+            })
+            .unwrap_or_else(|| panic!("{needle:?} is not painted:\n{}", frame.text))
+    }
+
+    /// The glyph color, the background and whether it is underlined, of
+    /// each cell of `needle` where it is painted.
+    fn looks(frame: &Snapshot, needle: &str) -> Vec<(Option<Rgb>, Option<Rgb>, bool)> {
+        let rgb = |color| match color {
+            vt100::Color::Rgb(r, g, b) => Some([r, g, b]),
+            _ => None,
+        };
+        let (column, row) = at(frame, needle);
+        (0..needle.chars().count() as u16)
+            .map(|offset| {
+                let cell = frame.screen.cell(row, column + offset).unwrap();
+                (rgb(cell.fgcolor()), rgb(cell.bgcolor()), cell.underline())
+            })
+            .collect()
+    }
+
+    /// A link to `URL` that records each URL it is opened with.
+    fn recorded(text: &str) -> (builder::LinkBuilder, Arc<Mutex<Vec<String>>>) {
+        let opened = Arc::new(Mutex::new(Vec::new()));
+        let sink = opened.clone();
+        let link =
+            builder::link(text, URL).on_open(move |url| sink.lock().unwrap().push(url.into()));
+        (link, opened)
+    }
+
+    /// The output with every CSI sequence (colors, attributes, moves)
+    /// removed, so the text and the OSC 8 sequences around it read in order.
+    fn without_csi(output: &[u8]) -> String {
+        let text = String::from_utf8_lossy(output);
+        let mut out = String::new();
+        let mut chars = text.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\x1b' && chars.peek() == Some(&'[') {
+                chars.next();
+                for c in chars.by_ref() {
+                    if ('\x40'..='\x7e').contains(&c) {
+                        break;
+                    }
+                }
+                continue;
+            }
+            out.push(c);
+        }
+        out
+    }
+
+    /// DIS-001: a link is underlined in `text-accent`, in `ring` while it
+    /// holds the focus, the same from its props and its builder, and its
+    /// focus and disabled states add no glyph.
+    #[test]
+    #[serial_test::serial(theme)]
+    fn dis_001_a_link_is_underlined_in_accent_and_in_ring_while_focused() {
+        let _theme = Active::set(probe());
+        let frame = shown(
+            builder::div()
+                .class("flex-col w-full")
+                .child(Element::typed::<Link>(LinkProps::new("Props", URL)))
+                .child(builder::link("Builder", URL).build())
+                .child(builder::link("Focused", URL).build().auto_focus())
+                .child(builder::link("Disabled", URL).disabled(true).build())
+                .build(),
+            (60, 8),
+            "Disabled",
+        );
+        let background = Some(role("background"));
+        for text in ["Props", "Builder"] {
+            for (offset, look) in looks(&frame, text).into_iter().enumerate() {
+                assert_eq!(
+                    look,
+                    (Some(role("accent")), background, true),
+                    "DIS-001: cell {offset} of the link {text:?} is not underlined text-accent:\n{}",
+                    frame.text
+                );
+            }
+        }
+        for (offset, look) in looks(&frame, "Focused").into_iter().enumerate() {
+            assert_eq!(
+                look,
+                (Some(role("ring")), background, true),
+                "DIS-001: cell {offset} of the focused link is not underlined ring:\n{}",
+                frame.text
+            );
+        }
+        for (offset, look) in looks(&frame, "Disabled").into_iter().enumerate() {
+            assert_eq!(
+                look.0,
+                Some(role("text-muted")),
+                "DIS-001: cell {offset} of the disabled link is not text-muted:\n{}",
+                frame.text
+            );
+        }
+        let rows: Vec<&str> = frame.text.lines().map(str::trim_end).collect();
+        assert_eq!(
+            rows[..4],
+            ["Props", "Builder", "Focused", "Disabled"],
+            "DIS-001: a focused or disabled link paints a glyph besides its text:\n{}",
+            frame.text
+        );
+    }
+
+    /// DIS-002: a link takes the width of its text and no more, in a column
+    /// that stretches its children; a click beside its text is not on it.
+    #[test]
+    fn dis_002_a_link_takes_the_width_of_its_text() {
+        let (link, opened) = recorded("Docs");
+        let frames = app_input::run_until(
+            Control(page(
+                builder::div()
+                    .class("flex-col w-40")
+                    .child(link.build())
+                    .build(),
+            )),
+            (60, 4),
+            vec![
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: click(10, 0),
+                },
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: None,
+                },
+            ],
+            WAIT,
+        );
+        let frame = frames.last().unwrap();
+        assert_eq!(at(frame, "Docs"), (0, 0));
+        // The page, its box, then the link, in preorder.
+        let node = frame
+            .geometry
+            .iter()
+            .find(|node| node.element_index == 2)
+            .expect("the link's node");
+        assert_eq!(
+            (node.bounds.x, node.bounds.width),
+            (0.0, 4.0),
+            "DIS-002: the link of four cells spans other cells than its text"
+        );
+        assert!(
+            opened.lock().unwrap().is_empty(),
+            "DIS-002: a click six cells right of the link's text opened it"
+        );
+    }
+
+    /// DIS-003: Confirm, Activate and a click each run `on_open` with the
+    /// link's URL.
+    #[test]
+    fn dis_003_a_link_opens_on_confirm_activate_and_a_click() {
+        let (link, opened) = recorded("Docs");
+        app_input::run_until_on_debug_with_hyperlinks(
+            Control(page(link.build().auto_focus())),
+            (40, 4),
+            vec![
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: key(KeyCode::Enter),
+                },
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: key(KeyCode::Char(' ')),
+                },
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: click(1, 0),
+                },
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: None,
+                },
+            ],
+            WAIT,
+            true,
+        );
+        assert_eq!(
+            *opened.lock().unwrap(),
+            vec![URL; 3],
+            "DIS-003: Confirm, Activate and a click each open the link with its URL"
+        );
+    }
+
+    /// DIS-003: a disabled link takes no action on Confirm, Activate or a
+    /// click.
+    #[test]
+    fn dis_003_a_disabled_link_takes_no_action() {
+        let (link, opened) = recorded("Docs");
+        app_input::run_until_on_debug_with_hyperlinks(
+            Control(page(link.disabled(true).build().auto_focus())),
+            (40, 4),
+            vec![
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: key(KeyCode::Enter),
+                },
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: key(KeyCode::Char(' ')),
+                },
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: click(1, 0),
+                },
+                Until {
+                    text: "Docs",
+                    cell: None,
+                    event: None,
+                },
+            ],
+            WAIT,
+            true,
+        );
+        assert!(
+            opened.lock().unwrap().is_empty(),
+            "DIS-003: a disabled link ran on_open"
+        );
+    }
+
+    /// The last frame's output of a link "Docs" beside plain text, on the
+    /// debug backend reporting hyperlinks or not, with its CSI sequences
+    /// removed.
+    fn written(hyperlinks: bool) -> String {
+        let frames = app_input::run_until_on_debug_with_hyperlinks(
+            Control(page(
+                builder::div()
+                    .class("flex-row gap-1")
+                    .child(builder::link("Docs", URL).build())
+                    .child(Element::text("and more"))
+                    .build(),
+            )),
+            (40, 4),
+            vec![Until {
+                text: "Docs and more",
+                cell: None,
+                event: None,
+            }],
+            WAIT,
+            hyperlinks,
+        );
+        without_csi(&frames.last().unwrap().output)
+    }
+
+    /// DIS-003: with hyperlinks reported, the link's text is written
+    /// between one `ESC ] 8 ; ; <url> ESC \` and one `ESC ] 8 ; ; ESC \`,
+    /// and the text beside it outside them.
+    #[test]
+    fn dis_003_a_link_is_written_between_osc_8_sequences_where_hyperlinks_are_reported() {
+        let output = written(true);
+        let start = format!("\x1b]8;;{URL}\x1b\\");
+        let end = "\x1b]8;;\x1b\\";
+        assert!(
+            output.contains(&format!("{start}Docs{end} and more")),
+            "DIS-003: the link's text is not between the OSC 8 start and end: {output:?}"
+        );
+        assert_eq!(
+            output.matches(start.as_str()).count(),
+            1,
+            "DIS-003: one link starts once: {output:?}"
+        );
+        assert_eq!(
+            output.matches(end).count(),
+            1,
+            "DIS-003: one link ends once: {output:?}"
+        );
+    }
+
+    /// DIS-003: without hyperlinks reported, no OSC 8 sequence is written.
+    #[test]
+    fn dis_003_a_link_is_written_plain_where_hyperlinks_are_not_reported() {
+        let output = written(false);
+        assert!(
+            output.contains("Docs and more"),
+            "the link's text is written: {output:?}"
+        );
+        assert!(
+            !output.contains("\x1b]8;"),
+            "DIS-003: an OSC 8 sequence is written although the terminal reports no hyperlinks: {output:?}"
+        );
+    }
+
+    /// DIS-003: the default backend's terminal bytes carry the same OSC 8
+    /// sequences around the link's text where the terminal takes
+    /// hyperlinks.
+    #[test]
+    fn dis_003_the_default_backend_writes_the_link_between_osc_8_sequences() {
+        let frames = app_input::run_until(
+            Control(page(
+                builder::div()
+                    .class("flex-row gap-1")
+                    .child(builder::link("Docs", URL).build())
+                    .child(Element::text("and more"))
+                    .build(),
+            )),
+            (40, 4),
+            vec![Until {
+                text: "Docs and more",
+                cell: None,
+                event: None,
+            }],
+            WAIT,
+        );
+        let output = without_csi(&frames.last().unwrap().output);
+        let expected = format!("\x1b]8;;{URL}\x1b\\Docs\x1b]8;;\x1b\\ and more");
+        assert!(
+            output.contains(&expected),
+            "DIS-003: the terminal bytes lack the OSC 8 start before the link's text or its end after it: {output:?}"
+        );
+    }
+}

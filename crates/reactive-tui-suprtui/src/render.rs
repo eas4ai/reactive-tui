@@ -49,6 +49,13 @@ const ERASE_BELOW: &str = "\x1b[J";
 const RESET_CURSOR_COLOR_FALLBACK: &str = "\x1b]12;default\x07";
 const RESET_CURSOR_COLOR: &str = "\x1b]112\x07";
 
+// ---- OSC 8 hyperlinks ----
+
+/// Opens a hyperlink: the URL and then [`HYPERLINK_CLOSE`] follow.
+const HYPERLINK_OPEN: &[u8] = b"\x1b]8;;";
+/// Ends an OSC 8 sequence; after an empty URL it ends the open hyperlink.
+const HYPERLINK_CLOSE: &[u8] = b"\x1b\\";
+
 /// Per-frame write outcome. Reference `output.WriteStatus`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WriteStatus {
@@ -441,6 +448,7 @@ pub struct Renderer<'a, B: Backend> {
     render_offset: u32,
     hit_scissor: Vec<ClipRect>,
     kitty_supported: bool,
+    hyperlinks_supported: bool,
     use_alt_screen: bool,
     clear_on_shutdown: bool,
     setup_done: bool,
@@ -507,6 +515,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
             render_offset: 0,
             hit_scissor: Vec::new(),
             kitty_supported: false,
+            hyperlinks_supported: false,
             use_alt_screen: true,
             clear_on_shutdown: true,
             setup_done: false,
@@ -818,6 +827,22 @@ impl<'a, B: Backend> Renderer<'a, B> {
         self.kitty_supported
     }
 
+    /// Whether the terminal takes OSC 8 hyperlinks. With support, each run
+    /// of written cells whose attribute word carries a link id is written
+    /// between `ESC ] 8 ; ; <url> ESC \` and `ESC ] 8 ; ; ESC \`, with the URL
+    /// the buffer's link pool holds for the id, so the terminal opens the
+    /// URL when the text is clicked. Without support the cells are written
+    /// plain. A URL that is empty or holds a byte outside printable ASCII
+    /// is never written. The setting applies from the next cell written.
+    pub fn set_hyperlinks_supported(&mut self, supported: bool) {
+        self.hyperlinks_supported = supported;
+    }
+
+    /// Whether hyperlink support is set; see `set_hyperlinks_supported`.
+    pub fn hyperlinks_supported(&self) -> bool {
+        self.hyperlinks_supported
+    }
+
     fn ensure_hit_grid(&mut self) {
         if self.next_hit.is_empty() {
             self.next_hit = vec![0; self.width as usize * self.height as usize];
@@ -917,6 +942,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
         let width = self.width;
         let row_offset = self.render_offset;
         let kitty = self.kitty_supported;
+        let hyperlinks = self.hyperlinks_supported;
         for k in 0..self.changed_rows.len() {
             let (y, first) = self.changed_rows[k];
             for x in first..width {
@@ -948,6 +974,7 @@ impl<'a, B: Backend> Renderer<'a, B> {
                     y,
                     row_offset,
                     kitty,
+                    hyperlinks,
                     state,
                     stats,
                 );
@@ -963,6 +990,11 @@ impl<'a, B: Backend> Renderer<'a, B> {
                 self.current.sync_cell(x, y, cell);
                 cells_updated += 1;
             }
+        }
+        // A hyperlink never stays open past the frame's cells.
+        if state.link != 0 {
+            close_hyperlink(&mut self.frame);
+            state.link = 0;
         }
         cells_updated
     }
@@ -1236,6 +1268,8 @@ struct EmitState {
     underline: u8,
     underline_color: Option<[u8; 3]>,
     overline: bool,
+    /// The link id of the open OSC 8 hyperlink, or 0 when none is open.
+    link: u32,
 }
 
 /// The one codepoint a UTF-8 cluster holds, if it holds exactly one.
@@ -1275,6 +1309,37 @@ fn push_codepoint(out: &mut Vec<u8>, cp: u32) {
     let mut utf8 = [0u8; 4];
     let ch = char::from_u32(cp).unwrap_or(' ');
     out.extend_from_slice(ch.encode_utf8(&mut utf8).as_bytes());
+}
+
+/// End the open OSC 8 hyperlink.
+fn close_hyperlink(out: &mut Vec<u8>) {
+    out.extend_from_slice(HYPERLINK_OPEN);
+    out.extend_from_slice(HYPERLINK_CLOSE);
+}
+
+/// Bring the open OSC 8 hyperlink to the cell's link: end the open one when
+/// the link changes, and open the cell's when it has one whose URL may be
+/// written. `link` is 0 for a cell without a link.
+fn push_hyperlink(out: &mut Vec<u8>, state: &mut EmitState, next: &OptimizedBuffer<'_>, link: u32) {
+    if link == state.link {
+        return;
+    }
+    if state.link != 0 {
+        close_hyperlink(out);
+        state.link = 0;
+    }
+    if link == 0 {
+        return;
+    }
+    let pool = next.link_pool.borrow();
+    if let Ok(url) = pool.get(link)
+        && crate::link::is_writable_url(url)
+    {
+        out.extend_from_slice(HYPERLINK_OPEN);
+        out.extend_from_slice(url);
+        out.extend_from_slice(HYPERLINK_CLOSE);
+        state.link = link;
+    }
 }
 
 fn push_sgr(out: &mut Vec<u8>, code: u32) {
@@ -1400,10 +1465,11 @@ fn push_attributes(
 }
 
 /// Emit one changed cell: the cursor move it needs, the style parts that
-/// differ from the emitted state, then the glyph bytes; grapheme bytes
-/// resolve through the buffer's pool, image cells use the quadrant fallback
-/// unless Kitty owns the pixels. Returns how many columns the terminal
-/// cursor advanced, or `COLUMN_UNKNOWN` after a grapheme cluster.
+/// differ from the emitted state, the hyperlink change when the terminal
+/// takes hyperlinks, then the glyph bytes; grapheme bytes resolve through
+/// the buffer's pool, image cells use the quadrant fallback unless Kitty
+/// owns the pixels. Returns how many columns the terminal cursor advanced,
+/// or `COLUMN_UNKNOWN` after a grapheme cluster.
 #[allow(clippy::too_many_arguments)]
 fn emit_cell(
     out: &mut Vec<u8>,
@@ -1413,6 +1479,7 @@ fn emit_cell(
     y: u32,
     row_offset: u32,
     kitty: bool,
+    hyperlinks: bool,
     state: &mut EmitState,
     stats: &mut RenderStats,
 ) -> u32 {
@@ -1447,11 +1514,15 @@ fn emit_cell(
     } else {
         stats.bg_elided += 1;
     }
-    let attributes = TextAttributes::base_attributes(next.attributes_at(index));
+    let word = next.attributes_at(index);
+    let attributes = TextAttributes::base_attributes(word);
     if push_attributes(out, state, attributes, next.decoration_at(index)) {
         stats.attr_emitted += 1;
     } else {
         stats.attr_elided += 1;
+    }
+    if hyperlinks {
+        push_hyperlink(out, state, next, TextAttributes::link_id(word));
     }
     let ch = next.char_at(index);
     if ch == 0 {
@@ -2084,4 +2155,151 @@ fn stdout_backend_broken_writer() {
     backend.write_out(b"direct");
     backend.begin_frame();
     assert_eq!(WriteStatus::Failed, backend.end_frame());
+}
+
+/// Draw `text` at (`x`, 0) in white on black with `attributes`.
+#[cfg(test)]
+fn draw_attributed<B: Backend>(
+    renderer: &mut Renderer<'_, B>,
+    text: &str,
+    x: u32,
+    attributes: u32,
+) {
+    use crate::ansi::rgb_color;
+    renderer
+        .next_buffer()
+        .draw_text(
+            text,
+            x,
+            0,
+            rgb_color(255, 255, 255, 255),
+            Some(rgb_color(0, 0, 0, 255)),
+            attributes,
+        )
+        .unwrap();
+}
+
+/// The number of times `needle` occurs in `haystack`.
+#[cfg(test)]
+fn occurrences(haystack: &[u8], needle: &[u8]) -> usize {
+    haystack
+        .windows(needle.len())
+        .filter(|w| *w == needle)
+        .count()
+}
+
+/// DIS-003: where the terminal takes hyperlinks, a run of cells with one
+/// link id is written after exactly one OSC 8 start that names its URL and
+/// before exactly one end, and the plain cells around it outside them; an
+/// unchanged frame writes neither again; where it does not, neither is
+/// written.
+#[cfg(test)]
+#[test]
+fn hyperlink_run_is_written_between_one_start_and_one_end() {
+    for supported in [true, false] {
+        let mut renderer = test_renderer(16, 2);
+        renderer.set_hyperlinks_supported(supported);
+        let id = renderer
+            .next_buffer()
+            .link_pool
+            .borrow_mut()
+            .alloc(b"https://example.com/a")
+            .unwrap();
+        let linked = TextAttributes::set_link_id(u32::from(TextAttributes::UNDERLINE), id);
+        draw_attributed(&mut renderer, "go", 0, 0);
+        draw_attributed(&mut renderer, "docs", 3, linked);
+        draw_attributed(&mut renderer, "end", 8, 0);
+        assert_eq!(RenderStatus::Rendered, renderer.render(false));
+        let frame = renderer.backend().frames()[0].clone();
+        let start = b"\x1b]8;;https://example.com/a\x1b\\";
+        let end = b"\x1b]8;;\x1b\\";
+        let starts = occurrences(&frame, start);
+        let ends = occurrences(&frame, end);
+        if !supported {
+            assert_eq!((starts, ends), (0, 0), "no hyperlinks, no OSC 8");
+            assert!(occurrences(&frame, b"\x1b]8;") == 0);
+            continue;
+        }
+        assert_eq!((starts, ends), (1, 1), "one start and one end: {frame:?}");
+        let at = |needle: &[u8]| {
+            frame
+                .windows(needle.len())
+                .position(|w| w == needle)
+                .unwrap_or_else(|| panic!("{needle:?} is not written"))
+        };
+        let (open, close) = (at(start), at(end));
+        assert!(
+            at(b"go") < open,
+            "plain text before the link stays outside it"
+        );
+        assert!(open < at(b"d") && at(b"s") < close, "the run is inside");
+        assert!(
+            close < at(b"end"),
+            "plain text after the link stays outside it"
+        );
+        // Redrawn as it was: nothing changed, so nothing is written.
+        draw_attributed(&mut renderer, "go", 0, 0);
+        draw_attributed(&mut renderer, "docs", 3, linked);
+        draw_attributed(&mut renderer, "end", 8, 0);
+        assert_eq!(RenderStatus::Skipped, renderer.render(false));
+    }
+}
+
+/// DIS-003: a link still open at the frame's last written cell ends before
+/// the frame does, and a URL that could break the sequence is never
+/// written.
+#[cfg(test)]
+#[test]
+fn hyperlink_ends_with_the_frame_and_skips_an_unwritable_url() {
+    let mut renderer = test_renderer(4, 1);
+    renderer.set_hyperlinks_supported(true);
+    let (good, bad) = {
+        let mut pool = renderer.next_buffer().link_pool.borrow_mut();
+        (
+            pool.alloc(b"https://example.com/b").unwrap(),
+            pool.alloc(b"https://example.com/\x1b]0;x\x07").unwrap(),
+        )
+    };
+    draw_attributed(&mut renderer, "ab", 0, TextAttributes::set_link_id(0, bad));
+    draw_attributed(&mut renderer, "cd", 2, TextAttributes::set_link_id(0, good));
+    assert_eq!(RenderStatus::Rendered, renderer.render(false));
+    let frame = renderer.backend().frames()[0].clone();
+    assert_eq!(
+        occurrences(&frame, b"\x1b]8;;https://example.com/b\x1b\\"),
+        1
+    );
+    assert_eq!(
+        occurrences(&frame, b"\x1b]8;;"),
+        2,
+        "one start, one end: {frame:?}"
+    );
+    assert_eq!(
+        occurrences(&frame, b"\x1b]0;"),
+        0,
+        "the unwritable URL is not written"
+    );
+    let end = frame
+        .windows(6)
+        .rposition(|w| w == b"\x1b]8;;\x1b")
+        .expect("the link's end");
+    let reset = frame
+        .windows(RESET.len())
+        .rposition(|w| w == RESET)
+        .expect("the frame's closing reset");
+    assert!(end < reset, "the link ends before the frame does");
+}
+
+/// The OSC 8 URL check: printable ASCII without spaces, within the pool's
+/// bound.
+#[cfg(test)]
+#[test]
+fn writable_urls_are_printable_ascii_without_spaces() {
+    use crate::link::{MAX_URL_LENGTH, is_writable_url};
+    assert!(is_writable_url(b"https://example.com/a?b=c%20d#e"));
+    assert!(!is_writable_url(b""));
+    assert!(!is_writable_url(b"https://example.com/a b"));
+    assert!(!is_writable_url(b"https://example.com/\x1b\\"));
+    assert!(!is_writable_url("https://example.com/é".as_bytes()));
+    assert!(!is_writable_url(&vec![b'a'; MAX_URL_LENGTH + 1]));
+    assert!(is_writable_url(&vec![b'a'; MAX_URL_LENGTH]));
 }

@@ -54,8 +54,11 @@ impl DirectTtyBackend {
             ..Default::default()
         };
         images.refresh_cell_pixels();
-        let renderer =
+        let mut renderer =
             SuprTuiBackend::with_terminal_writer(size.0, size.1, TtyOutput(tty.clone()), images)?;
+        // Linked cells are written as OSC 8 hyperlinks through the same
+        // transport, where the terminal reports them (DIS-003).
+        renderer.set_hyperlinks(capabilities.hyperlinks);
         let backend = Self {
             tty,
             renderer,
