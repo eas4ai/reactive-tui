@@ -568,8 +568,11 @@ let note = alert(AlertKind::Warning).title("Disk almost full").message("Free 2 G
 while it has the focus. Confirm, Activate or a click runs `.on_open(` with the
 URL. Where the terminal reports hyperlinks, the app writes the text as an OSC
 8 hyperlink, so the terminal's own click opens the URL too. A `.disabled(true)`
-link is muted, takes no focus and takes no action. Keep the URL printable
-ASCII with no spaces, and percent-encode anything else. The screen reader hears
+link is muted, takes no focus and takes no action. A URL must be 1 to 512 bytes (`MAX_URL_LENGTH`) of printable ASCII, from `!`
+to `~`, with no spaces; percent-encode anything else. A URL that breaks this,
+or that the link pool refuses, is not written as a hyperlink: the text paints
+plain, and `on_open` still runs on Confirm, Activate or a click. The screen
+reader hears
 a link with its text, its URL as the description, and the disabled state when
 it is set.
 
