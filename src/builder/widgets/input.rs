@@ -7,6 +7,9 @@ use super::super::specialized::{RadioButtonBuilder, SliderBuilder};
 use crate::component::{same_callback, Element};
 use std::sync::Arc;
 
+mod switch;
+pub use switch::SwitchBuilder;
+
 /// A builder's change callback, called with the value the control reports.
 type Callback<T> = Arc<dyn Fn(T) + Send + Sync>;
 
@@ -76,6 +79,20 @@ pub fn select() -> SelectBuilder {
 /// Returns a `SliderBuilder` for creating range slider controls.
 pub fn slider() -> SliderBuilder {
     SliderBuilder::new()
+}
+
+/// Create a Switch builder
+///
+/// Returns a `SwitchBuilder` for creating on/off switches with a label.
+///
+/// # Example
+/// ```rust
+/// use reactive_tui::builder::switch;
+///
+/// let wifi = switch().label("Wi-Fi").checked(true).build();
+/// ```
+pub fn switch() -> SwitchBuilder {
+    SwitchBuilder::new()
 }
 
 /// Builder for TextInput components

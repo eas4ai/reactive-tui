@@ -38,6 +38,8 @@ pub const SELECTION: &str = "bg-selection text-selection-foreground";
 /// A checked or mixed box's mark, a chosen radio's dot, a slider's filled
 /// part, a chosen option's mark.
 pub const MARK: &str = "text-primary";
+/// A switch's thumb while it is off: `text-muted`, as its label when disabled.
+pub const MARK_OFF: &str = "text-muted";
 /// A control's label and text.
 pub const LABEL: &str = "text-foreground";
 /// A disabled control's label and text.

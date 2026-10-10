@@ -11,6 +11,8 @@ mod radio_button;
 mod select;
 /// Slider input components
 mod slider;
+/// Switch input components
+mod switch;
 /// Text input components
 mod text_input;
 
@@ -22,6 +24,7 @@ pub use radio_button::{
 pub(crate) use select::SET_VALUE_EVENT;
 pub use select::{Select, SelectBuilder, SelectOption, SelectProps, SelectState};
 pub use slider::{Slider, SliderBuilder, SliderOrientation, SliderProps, SliderState};
+pub use switch::{Switch, SwitchBuilder, SwitchProps, SwitchState};
 /// The event a text input takes for the screen reader's SetValue (CTL-005).
 pub(crate) use text_input::SET_VALUE_EVENT as TEXT_INPUT_SET_VALUE_EVENT;
 pub use text_input::{
