@@ -89,7 +89,7 @@ fn dis_005_the_file_explorer_paints_no_emoji_for_files_and_folders() {
 /// current step marked `●` and the ones to come `○`, not "Step N of M".
 #[test]
 fn dis_006_the_wizard_draws_its_steps_through_the_stepper() {
-    use reactive_tui::widgets::dialog::WizardStep;
+    use reactive_tui::builder::specialized::WizardStep;
     let frame = shown(
         builder::wizard()
             .title("Wizard")
