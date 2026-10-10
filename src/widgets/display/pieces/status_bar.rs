@@ -1,0 +1,1 @@
+//! The status bar display piece (docs/spec/display-pieces.md), carrying DIS-001, DIS-002, DIS-004.
