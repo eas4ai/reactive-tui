@@ -17,6 +17,7 @@ use reactive_tui::{
     component::Element,
     event::types::{Event, KeyCode, KeyEvent},
     theme::{dark_theme, Theme},
+    widgets::input::FormField,
 };
 
 struct Root(Element);
@@ -170,6 +171,69 @@ fn controls() -> Vec<(&'static str, Element, Vec<Until>)> {
                     .build(),
             ),
             vec![wait("Cancel", None)],
+        ),
+        (
+            "number_input",
+            page(
+                builder::number_input()
+                    .value(2.5)
+                    .range(0.0, 10.0)
+                    .step(0.5)
+                    .aria_label("Volume")
+                    .build(),
+            ),
+            vec![wait("2.5", None)],
+        ),
+        (
+            "code_input",
+            page(
+                builder::code_input()
+                    .length(6)
+                    .group(3)
+                    .value("123")
+                    .label("Code")
+                    .build(),
+            ),
+            vec![wait("[3]", None)],
+        ),
+        (
+            "rating",
+            page(
+                builder::rating()
+                    .value(3)
+                    .max(5)
+                    .aria_label("Quality")
+                    .build(),
+            ),
+            vec![wait("★", None)],
+        ),
+        (
+            "switch",
+            page(
+                builder::switch()
+                    .checked(true)
+                    .label("Capture-ready")
+                    .build(),
+            ),
+            vec![wait("Capture-ready", None)],
+        ),
+        (
+            "form",
+            page(
+                builder::form()
+                    .aria_label("Account")
+                    .field(
+                        FormField::new("Name", builder::text_input().value("Ada").build())
+                            .required(),
+                    )
+                    .field(
+                        FormField::new("Email", builder::text_input().build())
+                            .description("Work address"),
+                    )
+                    .field(FormField::new("Notifications", builder::switch().build()))
+                    .build(),
+            ),
+            vec![wait("Work address", None)],
         ),
     ]
 }
