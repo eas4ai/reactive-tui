@@ -668,9 +668,15 @@ fn data_table_replaces_filters_from_new_props_and_keeps_disabled_controls_inert(
             vec![(2, click(6, 1)), (2, key(KeyCode::End)), (2, None)],
         );
         assert!(pages.lock().unwrap().is_empty());
-        // With no rows the pagination bar still paints its one page.
+        // With no rows the pagination bar still paints its one page, and the
+        // count beside it reads zero.
         assert!(
             frames.last().unwrap().text.contains("‹ 1 ›"),
+            "{}",
+            frames.last().unwrap().text
+        );
+        assert!(
+            frames.last().unwrap().text.contains("‹ 1 › (0)"),
             "{}",
             frames.last().unwrap().text
         );
