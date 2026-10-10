@@ -267,6 +267,47 @@ mod tests {
     }
 
     #[test]
+    fn dis_002_a_description_list_of_two_columns_splits_its_pairs_in_order() {
+        let pairs: Vec<(String, String)> = [("A", "1"), ("B", "2"), ("C", "3"), ("D", "4")]
+            .iter()
+            .map(|(label, value)| (label.to_string(), value.to_string()))
+            .collect();
+        let props = DescriptionListProps {
+            pairs,
+            columns: 2,
+            ..DescriptionListProps::default()
+        };
+        let element = render(&props, 0);
+        let terms: Vec<Vec<String>> = element
+            .children
+            .iter()
+            .map(|column| {
+                assert_eq!(column.children.len(), 2, "two pairs in each column");
+                column
+                    .children
+                    .iter()
+                    .map(|pair| {
+                        pair.children[0]
+                            .metadata
+                            .accessibility
+                            .as_ref()
+                            .and_then(|node| node.inner.label())
+                            .unwrap_or_default()
+                            .to_string()
+                    })
+                    .collect()
+            })
+            .collect();
+        assert_eq!(
+            terms,
+            vec![
+                vec!["A".to_string(), "B".to_string()],
+                vec!["C".to_string(), "D".to_string()],
+            ]
+        );
+    }
+
+    #[test]
     fn dis_002_the_label_column_is_as_wide_as_the_longest_label() {
         assert_eq!(pad("Id", 6), "Id     ");
         assert_eq!(pad("Status", 6), "Status ");

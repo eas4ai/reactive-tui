@@ -7,7 +7,7 @@
 
 use std::{any::Any, sync::Arc};
 
-use crate::accessibility::{Node, Role};
+use crate::accessibility::{AriaCurrent, Node, Role};
 use crate::builder::core::{div, span};
 use crate::component::{same_callback, Component, Element, FocusProps, Props};
 use crate::event::{
@@ -367,7 +367,7 @@ impl Pagination {
                 node.inner.set_position_in_set(number);
                 node.inner.set_size_of_set(pages);
                 if current {
-                    node.inner.set_aria_current(accesskit::AriaCurrent::Page);
+                    node.set_current(AriaCurrent::Page);
                 }
                 let page_signal = self.page.clone();
                 let on_change = props.on_change.clone();
@@ -526,7 +526,7 @@ mod tests {
     #[test]
     fn dis_005_the_bar_ellipsis_and_arrows_come_from_the_catalog() {
         assert_eq!(Icon::Ellipsis.unicode(), "…");
-        assert_eq!(Icon::ChevronLeft.unicode(), "◂");
-        assert_eq!(Icon::ChevronRight.unicode(), "▸");
+        assert_eq!(Icon::ChevronLeft.unicode(), "‹");
+        assert_eq!(Icon::ChevronRight.unicode(), "›");
     }
 }
