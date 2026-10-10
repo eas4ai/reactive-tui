@@ -7,7 +7,9 @@ use super::super::specialized::{RadioButtonBuilder, SliderBuilder};
 use crate::component::{same_callback, Element};
 use std::sync::Arc;
 
+mod rating;
 mod switch;
+pub use rating::RatingBuilder;
 pub use switch::SwitchBuilder;
 
 /// A builder's change callback, called with the value the control reports.
@@ -72,6 +74,14 @@ pub fn radio_button() -> RadioButtonBuilder {
 /// ```
 pub fn select() -> SelectBuilder {
     SelectBuilder::new()
+}
+
+/// Create a Rating builder
+///
+/// Returns a `RatingBuilder` for a row of stars, one cell each, that the
+/// user sets by key, digit or click (CTL-007 to CTL-010).
+pub fn rating() -> RatingBuilder {
+    RatingBuilder::default()
 }
 
 /// Create a Slider builder

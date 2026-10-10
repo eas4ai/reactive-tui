@@ -7,6 +7,8 @@ pub(crate) mod named_radio;
 pub(crate) mod panel;
 /// Radio button input components
 mod radio_button;
+/// Rating input components
+mod rating;
 /// Select dropdown components
 mod select;
 /// Slider input components
@@ -21,6 +23,7 @@ pub use radio_button::{
     RadioButton, RadioButtonBuilder, RadioButtonProps, RadioButtonState, RadioOption,
     RadioOrientation,
 };
+pub use rating::{Rating, RatingProps, RatingState};
 pub(crate) use select::SET_VALUE_EVENT;
 pub use select::{Select, SelectBuilder, SelectOption, SelectProps, SelectState};
 pub use slider::{Slider, SliderBuilder, SliderOrientation, SliderProps, SliderState};

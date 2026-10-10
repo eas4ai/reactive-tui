@@ -50,6 +50,12 @@ pub const TRACK: &str = "text-border";
 pub const THUMB: &str = "text-foreground";
 /// A slider's thumb while the slider holds the focus.
 pub const THUMB_FOCUSED: &str = "text-ring";
+/// A lit star of a rating.
+pub const RATING_LIT: &str = "text-warning";
+/// An unlit star of a rating.
+pub const RATING_UNLIT: &str = "text-border";
+/// An unlit star of a rating while it holds the focus.
+pub const RATING_UNLIT_FOCUSED: &str = "text-ring";
 /// The row of a checkbox, a radio or a select's option under the pointer.
 pub const HOVER: &str = "bg-hover";
 /// A select's open list: a panel in `surface` with a border in `border`.
