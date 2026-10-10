@@ -15,6 +15,10 @@ pub use switch::SwitchBuilder;
 /// A builder's change callback, called with the value the control reports.
 type Callback<T> = Arc<dyn Fn(T) + Send + Sync>;
 
+mod code_input;
+
+pub use code_input::CodeInputBuilder;
+
 /// Create a Text Input builder
 ///
 /// Returns a `TextInputBuilder` for creating text input fields with various
@@ -103,6 +107,21 @@ pub fn slider() -> SliderBuilder {
 /// ```
 pub fn switch() -> SwitchBuilder {
     SwitchBuilder::new()
+}
+
+/// Create a Code input builder
+///
+/// Returns a `CodeInputBuilder` for a row of digit cells: a one-time code
+/// or a verification number, six digits unless `length` sets another count.
+///
+/// # Example
+/// ```rust
+/// use reactive_tui::builder::code_input;
+///
+/// let code = code_input().length(6).group(3).build();
+/// ```
+pub fn code_input() -> CodeInputBuilder {
+    CodeInputBuilder::new()
 }
 
 /// Builder for TextInput components
