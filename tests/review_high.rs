@@ -910,22 +910,39 @@ mod cht_040 {
 
     /// Build the chart and draw it until the App paints a settled frame that
     /// shows the chart's one value, so a loaded machine that paints fewer
-    /// frames still reaches it. Returns the last frame's text and the App's
-    /// work over the frames it painted (the sum of `work_ms`), as the draw's
-    /// cost, or why the chart did not finish.
+    /// frames still reaches it. Returns the last frame's text and, as the
+    /// draw's cost, the wall clock from the chart's construction to that
+    /// frame: `build()`, layout, the chart worker's drawing and the App's
+    /// work. Or why the chart did not finish.
     fn draw(build: Build) -> Result<(String, Duration), String> {
-        let frames = within(Duration::from_secs(60), move || {
+        let (frames, took) = within(Duration::from_secs(60), move || {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let started = std::time::Instant::now();
                 let props = build();
+                let shown: std::sync::Arc<std::sync::Mutex<Option<std::time::Instant>>> =
+                    std::sync::Arc::new(std::sync::Mutex::new(None));
+                let mark = std::sync::Arc::clone(&shown);
                 let shows_the_value: app_input::FramePredicate =
-                    Box::new(|frame: &app_input::Snapshot| {
-                        !frame.busy && shows_a_mark(&frame.text)
+                    Box::new(move |frame: &app_input::Snapshot| {
+                        let settled = !frame.busy && shows_a_mark(&frame.text);
+                        if settled {
+                            if let Ok(mut at) = mark.lock() {
+                                at.get_or_insert_with(std::time::Instant::now);
+                            }
+                        }
+                        settled
                     });
-                app_input::run_when_frame(
+                let frames = app_input::run_when_frame(
                     Root(Element::typed::<Chart>(props)),
                     SIZE,
                     vec![(shows_the_value, None)],
-                )
+                );
+                let shown_at = shown
+                    .lock()
+                    .ok()
+                    .and_then(|at| *at)
+                    .unwrap_or_else(std::time::Instant::now);
+                (frames, shown_at.duration_since(started))
             }))
             .map_err(|_| {
                 "the chart did not build, or the App did not paint a settled frame showing its value"
@@ -937,8 +954,7 @@ mod cht_040 {
             .last()
             .map(|frame| frame.text.clone())
             .unwrap_or_default();
-        let work_ms: f64 = frames.iter().map(|frame| frame.work_ms).sum();
-        Ok((last, Duration::from_secs_f64(work_ms / 1000.0)))
+        Ok((last, took))
     }
 
     /// Whether the plot shows a mark: a braille dot or a block glyph.
@@ -967,6 +983,21 @@ mod cht_040 {
                 "CHT-040: {what} of 10,000,000 with one value took {took:?} to draw"
             );
         }
+    }
+
+    #[test]
+    fn cht_040_the_draw_cost_includes_the_charts_construction() {
+        let built = one_value(ChartsBuilder::bar());
+        let slow: Build = Box::new(move || {
+            std::thread::sleep(Duration::from_millis(300));
+            built()
+        });
+        let (_, took) = draw(slow).unwrap_or_else(|why| panic!("CHT-040: a slow build: {why}"));
+        assert!(
+            took >= Duration::from_millis(300),
+            "CHT-040: the draw cost of a chart whose construction sleeps 300 ms was {took:?}; \
+             the cost must include the chart's construction"
+        );
     }
 
     #[test]
