@@ -38,16 +38,34 @@ pub const SELECTION: &str = "bg-selection text-selection-foreground";
 /// A checked or mixed box's mark, a chosen radio's dot, a slider's filled
 /// part, a chosen option's mark.
 pub const MARK: &str = "text-primary";
+/// A switch's thumb while it is off: `text-muted`, as its label when disabled.
+pub const MARK_OFF: &str = "text-muted";
 /// A control's label and text.
 pub const LABEL: &str = "text-foreground";
 /// A disabled control's label and text.
 pub const LABEL_DISABLED: &str = "text-muted";
+/// A form field's required mark, after its label (CTL-007).
+pub const REQUIRED_MARK: &str = "text-error";
+/// A form field's description (CTL-007).
+pub const DESCRIPTION: &str = "text-muted";
 /// A slider's track.
 pub const TRACK: &str = "text-border";
 /// A slider's thumb.
 pub const THUMB: &str = "text-foreground";
 /// A slider's thumb while the slider holds the focus.
 pub const THUMB_FOCUSED: &str = "text-ring";
+/// A lit star of a rating.
+pub const RATING_LIT: &str = "text-warning";
+/// An unlit star of a rating.
+pub const RATING_UNLIT: &str = "text-border";
+/// An unlit star of a rating while it holds the focus.
+pub const RATING_UNLIT_FOCUSED: &str = "text-ring";
+/// A stepper's button cells, `[-]` and `[+]`: `secondary` with the glyph
+/// in `secondary-foreground` (CTL-007).
+pub const STEPPER: &str = "bg-secondary text-secondary-foreground";
+/// A stepper that cannot step further, or a disabled one: its glyph in
+/// `text-muted` on `secondary`.
+pub const STEPPER_MUTED: &str = "bg-secondary text-muted";
 /// The row of a checkbox, a radio or a select's option under the pointer.
 pub const HOVER: &str = "bg-hover";
 /// A select's open list: a panel in `surface` with a border in `border`.

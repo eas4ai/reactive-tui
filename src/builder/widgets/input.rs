@@ -7,8 +7,27 @@ use super::super::specialized::{RadioButtonBuilder, SliderBuilder};
 use crate::component::{same_callback, Element};
 use std::sync::Arc;
 
+mod code_input;
+mod form;
+mod number_input;
+mod rating;
+mod switch;
+pub use code_input::CodeInputBuilder;
+pub use form::FormBuilder;
+pub use number_input::NumberInputBuilder;
+pub use rating::RatingBuilder;
+pub use switch::SwitchBuilder;
+
 /// A builder's change callback, called with the value the control reports.
 type Callback<T> = Arc<dyn Fn(T) + Send + Sync>;
+
+/// Create a Form builder
+///
+/// Returns a `FormBuilder` for a form of labelled controls, with the labels
+/// beside them or above them when the width is short (CTL-007 to CTL-010).
+pub fn form() -> FormBuilder {
+    FormBuilder::new()
+}
 
 /// Create a Text Input builder
 ///
@@ -71,11 +90,56 @@ pub fn select() -> SelectBuilder {
     SelectBuilder::new()
 }
 
+/// Create a Rating builder
+///
+/// Returns a `RatingBuilder` for a row of stars, one cell each, that the
+/// user sets by key, digit or click (CTL-007 to CTL-010).
+pub fn rating() -> RatingBuilder {
+    RatingBuilder::default()
+}
+
+/// Create a Number input builder
+///
+/// Returns a `NumberInputBuilder` for a field that holds a number between
+/// `[-]` and `[+]` buttons.
+pub fn number_input() -> NumberInputBuilder {
+    NumberInputBuilder::new()
+}
+
 /// Create a Slider builder
 ///
 /// Returns a `SliderBuilder` for creating range slider controls.
 pub fn slider() -> SliderBuilder {
     SliderBuilder::new()
+}
+
+/// Create a Switch builder
+///
+/// Returns a `SwitchBuilder` for creating on/off switches with a label.
+///
+/// # Example
+/// ```rust
+/// use reactive_tui::builder::switch;
+///
+/// let wifi = switch().label("Wi-Fi").checked(true).build();
+/// ```
+pub fn switch() -> SwitchBuilder {
+    SwitchBuilder::new()
+}
+
+/// Create a Code input builder
+///
+/// Returns a `CodeInputBuilder` for a row of digit cells: a one-time code
+/// or a verification number, six digits unless `length` sets another count.
+///
+/// # Example
+/// ```rust
+/// use reactive_tui::builder::code_input;
+///
+/// let code = code_input().length(6).group(3).build();
+/// ```
+pub fn code_input() -> CodeInputBuilder {
+    CodeInputBuilder::new()
 }
 
 /// Builder for TextInput components

@@ -41,8 +41,9 @@ pub use display::{
     SortCriteria, SortOrder, Table, Tree, ViewMode, VirtualScrollConfig,
 };
 pub use input::{
-    Checkbox, CheckboxProps, CheckboxState, RadioButton, Select, SelectOption, SelectProps,
-    SelectState, Slider, TextInput, TextInputProps, TextInputState,
+    Checkbox, CheckboxProps, CheckboxState, CodeInput, CodeInputProps, CodeInputState, RadioButton,
+    Select, SelectOption, SelectProps, SelectState, Slider, TextInput, TextInputProps,
+    TextInputState,
 };
 pub use layout::{
     Accordion, AccordionBuilder, AccordionMode, AccordionProps, AccordionSection, AccordionState,

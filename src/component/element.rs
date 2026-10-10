@@ -30,6 +30,30 @@ pub(crate) struct AccessibilityOptions {
     /// While this element is shown, the nearest ancestor that has a node in
     /// the published tree carries `busy` (DIS-004).
     pub busy_parent: bool,
+    /// The part of a form row this element is (CTL-010).
+    pub field_part: Option<FieldPart>,
+    /// This element is a form row whose control is told it is required.
+    pub field_row: Option<FieldRow>,
+}
+
+/// The part of a form row an element is (CTL-010): the label, the control
+/// or the description the screen reader links to the control.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FieldPart {
+    /// The label text the control is named by.
+    Label,
+    /// The control itself.
+    Control,
+    /// The text the control is described by.
+    Description,
+}
+
+/// A form row. `required` marks its control as required for the screen
+/// reader (CTL-010).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FieldRow {
+    /// Whether the row's control is required.
+    pub required: bool,
 }
 
 /// Whether two optional events have the same name and data.
@@ -50,6 +74,8 @@ impl PartialEq for AccessibilityOptions {
             && self.screen_reader_only == other.screen_reader_only
             && self.label == other.label
             && self.busy_parent == other.busy_parent
+            && self.field_part == other.field_part
+            && self.field_row == other.field_row
             && same_event(&self.click_event, &other.click_event)
             && same_event(&self.focus_event, &other.focus_event)
             && same_event(&self.set_value_event, &other.set_value_event)
@@ -294,6 +320,26 @@ impl Element {
             .accessibility_options
             .get_or_insert_default()
             .busy_parent = true;
+        self
+    }
+
+    /// Mark this element as the label, control or description of a form row,
+    /// so the screen reader links the control to them (CTL-010).
+    pub fn with_field_part(mut self, part: FieldPart) -> Self {
+        self.metadata
+            .accessibility_options
+            .get_or_insert_default()
+            .field_part = Some(part);
+        self
+    }
+
+    /// Mark this element as a form row, whose control the screen reader is
+    /// told is required when `row.required` (CTL-010).
+    pub fn with_field_row(mut self, row: FieldRow) -> Self {
+        self.metadata
+            .accessibility_options
+            .get_or_insert_default()
+            .field_row = Some(row);
         self
     }
 

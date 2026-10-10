@@ -7,6 +7,7 @@ use crate::component::Element;
 use crate::widgets::display::table::{TableCell, TableColumn, TableRow};
 use crate::widgets::display::{Alignment, ColumnFilter, DataTableProps, DisplaySize, FilterType};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Create a DataTable with fluent configuration
 pub fn data_table() -> DataTableBuilder {
@@ -29,6 +30,7 @@ pub struct DataTableBuilder {
     filters: Vec<ColumnFilter>,
     class: Option<String>,
     aria_label: Option<String>,
+    on_page_change: Option<Arc<dyn Fn(usize) + Send + Sync>>,
 }
 
 impl DataTableBuilder {
@@ -48,6 +50,7 @@ impl DataTableBuilder {
             filters: Vec::new(),
             class: None,
             aria_label: None,
+            on_page_change: None,
         }
     }
 
@@ -171,6 +174,13 @@ impl DataTableBuilder {
         self
     }
 
+    /// Set the callback called with the 0-based page each time the page
+    /// changes, as `DataTableProps::on_page_change` is.
+    pub fn on_page_change(mut self, f: impl Fn(usize) + Send + Sync + 'static) -> Self {
+        self.on_page_change = Some(Arc::new(f));
+        self
+    }
+
     /// Build the DataTable element
     pub fn build(self) -> Element {
         self.build_with_name("DataTable")
@@ -190,6 +200,7 @@ impl DataTableBuilder {
         props.filters = self.filters;
         props.table_props.sortable = true;
         props.table_props.aria_label = self.aria_label;
+        props.on_page_change = self.on_page_change;
 
         let mut element = Element::component_with_props(component_name, props);
 
@@ -204,5 +215,30 @@ impl DataTableBuilder {
 impl From<DataTableBuilder> for Element {
     fn from(builder: DataTableBuilder) -> Self {
         builder.build()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    #[test]
+    fn ctl_009_the_data_table_builder_takes_the_page_callback() {
+        let pages: Arc<Mutex<Vec<usize>>> = Arc::default();
+        let log = pages.clone();
+        let element = data_table()
+            .on_page_change(move |page| log.lock().unwrap().push(page))
+            .build();
+        let props = element
+            .props
+            .downcast_ref::<DataTableProps>()
+            .expect("the data table's props");
+        let callback = props
+            .on_page_change
+            .as_ref()
+            .expect("the built props carry the page callback");
+        callback(2);
+        assert_eq!(*pages.lock().unwrap(), vec![2]);
     }
 }
