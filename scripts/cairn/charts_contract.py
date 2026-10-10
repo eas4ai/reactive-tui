@@ -289,6 +289,7 @@ def main() -> int:
             ("data", cargo_test_filtered("data_widgets_contract", "bar_003_")),
             ("input widgets", cargo_test_filtered("input_widgets_contract", "bar_003_")),
             ("display pieces", cargo_test_filtered("display_pieces_contract", "bar_003_")),
+            ("input pieces", cargo_test_filtered("input_pieces_contract", "bar_003_")),
         ):
             if not passed:
                 problems.append(f"{name}: {reason}")
