@@ -76,7 +76,7 @@ fn dis_005_the_file_explorer_paints_no_emoji_for_files_and_folders() {
             .show_preview(false)
             .build(),
         (80, 24),
-        "README.md",
+        "accessibility.md",
     );
     assert!(
         !has_wide_glyph(&frame.text),
