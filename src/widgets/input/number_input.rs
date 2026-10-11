@@ -734,9 +734,13 @@ impl Component for NumberInput {
         // the developer's ruling on escalation 22c14501).
         let typed = state.typed.as_deref();
         let typed_number = typed.and_then(parse);
-        accessible
-            .inner
-            .set_numeric_value(typed_number.unwrap_or(value));
+        // An emptied field publishes no number, so the reader hears it empty
+        // rather than falling back to the number before it.
+        if typed.is_none_or(|text| !text.trim().is_empty()) {
+            accessible
+                .inner
+                .set_numeric_value(typed_number.unwrap_or(value));
+        }
         accessible.inner.set_value(text.clone());
         if typed.is_some_and(|text| !text.trim().is_empty())
             && typed_number.is_none_or(|number| props.clamp(number) != number)
@@ -1147,8 +1151,9 @@ mod tests {
         }
         assert_eq!(
             read(&input, &props, &state),
-            (Some(0.0), Some(String::new()), false),
-            "an empty field reads as empty and is not invalid"
+            (None, Some(String::new()), false),
+            "an empty field publishes no number, so the reader hears it empty \
+             rather than the number before it, and it is not invalid"
         );
         input.handle_event(&key(KeyCode::Char('4')), &mut props, &mut state);
         assert_eq!(
