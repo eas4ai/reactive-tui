@@ -1184,7 +1184,7 @@ impl Look {
                         } else if focused {
                             "ring"
                         } else {
-                            "input"
+                            "border"
                         }
                         .to_owned(),
                     ),
