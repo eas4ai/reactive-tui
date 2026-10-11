@@ -240,7 +240,10 @@ step, Page Up and Page Down by ten steps, and Home and End go to `min` and
 wheel over the piece steps (wheel up adds one step). A step never passes
 `min` or `max`. When the focus leaves, the typed text is read, clamped into
 the range and written in the step's decimals. Each change calls `on_change`
-with the value. A disabled number input takes nothing.
+with the value, also while the user types, but only with a number inside
+the range: typing `4` then `2` in a range of 0 to 10 reports 4, nothing
+for 42, and 10 when the focus leaves. A disabled number input takes
+nothing.
 
 The screen reader hears a spin button, named by its label or `aria_label`,
 with its value, minimum, maximum and step. It advertises Increment,
