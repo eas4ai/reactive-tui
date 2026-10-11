@@ -302,7 +302,7 @@ def inside(args):
             command.append("--without-semantic-labels")
         if args.negative_css:
             command.append("--without-semantic-styles")
-        if args.catalog in ["tabs", "overlays", "display", "dialogs"]:
+        if args.catalog in ["tabs", "overlays", "display", "dialogs", "inputs"]:
             command.append("--" + args.catalog)
         terminal = spawn(command, "terminal.log")
 
@@ -332,6 +332,8 @@ def inside(args):
                 from orca_display import exercise
             elif args.catalog == "dialogs":
                 from orca_dialogs import exercise
+            elif args.catalog == "inputs":
+                from orca_inputs import exercise
             else:
                 from orca_data import exercise
             exercise(root, keyboard, wait, named, state, click, speech, Atspi,
@@ -667,7 +669,7 @@ if __name__ == "__main__":
     parser.add_argument("--binary", required=True)
     parser.add_argument("--geometry", default="60x16")
     parser.add_argument("--inside")
-    parser.add_argument("--catalog", choices=["tables", "tabs", "overlays", "display", "dialogs"])
+    parser.add_argument("--catalog", choices=["tables", "tabs", "overlays", "display", "dialogs", "inputs"])
     parser.add_argument("--negative", action="store_true")
     parser.add_argument("--negative-css", action="store_true")
     arguments = parser.parse_args()
