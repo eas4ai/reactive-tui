@@ -127,6 +127,58 @@ impl NumberInputProps {
         self.clamp(if snapped.is_finite() { snapped } else { value })
     }
 
+    /// Whether characters the field takes (digits, `.` and `-`), typed
+    /// after `text`, could make it a number inside the range (CTL-010). A
+    /// text is first read as the magnitudes it can still reach: more digits
+    /// after `n` reach `[n * 10^m, (n + 1) * 10^m)` for every `m`, a
+    /// fraction only refines its last digit, and an empty or bare sign
+    /// reaches every magnitude; a minus sign mirrors the range. So in 1900
+    /// to 2100, `2` can still become 2025 and `21` 2100, while `3` and `22`
+    /// cannot. A range whose least is above its greatest holds any text, as
+    /// it clamps nothing.
+    fn can_reach(&self, text: &str) -> bool {
+        let low = self.min.unwrap_or(f64::NEG_INFINITY);
+        let high = self.max.unwrap_or(f64::INFINITY);
+        let text = text.trim();
+        if text.is_empty() || low > high {
+            return true;
+        }
+        let (negative, body) = match text.strip_prefix('-') {
+            Some(rest) => (true, rest),
+            None => (false, text),
+        };
+        if body.contains('-') || body.matches('.').count() > 1 {
+            return false;
+        }
+        // The range's magnitudes, mirrored for a negative text.
+        let (least, greatest) = if negative { (-high, -low) } else { (low, high) };
+        let overlaps = |from: f64, to: f64| from <= greatest && to > least;
+        match body.split_once('.') {
+            Some((whole, fraction)) => {
+                let digits = |part: &str| if part.is_empty() { "0" } else { part }.to_owned();
+                let Ok(from) = format!("{}.{}", digits(whole), digits(fraction)).parse::<f64>()
+                else {
+                    return false;
+                };
+                overlaps(from, from + 10f64.powi(-(fraction.len() as i32)))
+            }
+            None if body.is_empty() => overlaps(0.0, f64::INFINITY),
+            None => {
+                let Ok(n) = body.parse::<f64>() else {
+                    return false;
+                };
+                let mut scale = 1.0;
+                while n * scale <= greatest && (n * scale).is_finite() {
+                    if overlaps(n * scale, (n + 1.0) * scale) {
+                        return true;
+                    }
+                    scale *= 10.0;
+                }
+                false
+            }
+        }
+    }
+
     /// Whether a step up (`up`) or down from `value` moves it.
     fn can_step(&self, value: f64, up: bool) -> bool {
         if up {
@@ -729,7 +781,7 @@ impl Component for NumberInput {
         }
         // The screen reader hears what the field shows: its text as the
         // value text, the number it reads as, and that the entry is invalid
-        // when the text reads as no number or as one outside the range.
+        // when no typing after the text could bring it into the range.
         // The application still holds the number last reported (CTL-010,
         // the developer's ruling on escalation 22c14501).
         let typed = state.typed.as_deref();
@@ -742,9 +794,7 @@ impl Component for NumberInput {
                 .set_numeric_value(typed_number.unwrap_or(value));
         }
         accessible.inner.set_value(text.clone());
-        if typed.is_some_and(|text| !text.trim().is_empty())
-            && typed_number.is_none_or(|number| props.clamp(number) != number)
-        {
+        if typed.is_some_and(|text| !props.can_reach(text)) {
             accessible.inner.set_invalid(accesskit::Invalid::True);
         }
         if let Some(min) = props.min {
