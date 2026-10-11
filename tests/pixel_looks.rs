@@ -1,4 +1,4 @@
-//! pixel-looks mechanism: PIX-001 to PIX-007 (docs/spec/pixel-looks.md). Built
+//! pixel-looks mechanism: PIX-001 to PIX-008 (docs/spec/pixel-looks.md). Built
 //! with `wgpu-graphics`.
 //!
 //! A widget's or element's look is one pixel picture over its rectangle where
@@ -89,6 +89,13 @@ fn multiline_input() -> Element {
 
 fn checkbox(label: &str, checked: bool) -> Element {
     builder::checkbox().label(label).checked(checked).build()
+}
+
+fn mixed_checkbox() -> Element {
+    builder::checkbox()
+        .label("Capture")
+        .indeterminate(true)
+        .build()
 }
 
 fn radios(chosen: usize) -> Element {
@@ -1468,9 +1475,9 @@ fn pix_001_a_hovered_or_disabled_buttons_label_cells_match_the_picture_beside_th
 }
 
 // ---------------------------------------------------------------------------
-// Reference pictures (PIX-003 to PIX-005, PIX-007): a look's picture on a
-// Kitty host against tests/snapshots/pixel-looks/<name>.png, within GFX-002's
-// tolerance.
+// Reference pictures (PIX-003 to PIX-005, PIX-007, PIX-008): a look's
+// picture on a Kitty host against tests/snapshots/pixel-looks/<name>.png,
+// within GFX-002's tolerance.
 
 /// `tests/snapshots/pixel-looks`, or `pixel-looks` under
 /// `REACTIVE_TUI_SNAPSHOTS`: the pixel-looks check points that at a copy with
@@ -2546,6 +2553,226 @@ fn pix_007_without_pixels_the_pieces_keep_their_cell_looks() {
             screen.contents()
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// PIX-008: a gap between the ring and a `primary` fill.
+
+/// A pixel with less alpha than this (an eighth of opaque) counts with the
+/// gap, not with the ring or the fill: an anti-aliased edge of the ring or of
+/// the fill may leave such a pixel beside the gap. The gap must still hold a
+/// pixel of alpha 0, through which what is under the look shows.
+const GAP_ALPHA: u8 = 32;
+/// The widest ring of these looks, the button's two pixels (PIX-003), and one
+/// anti-aliased pixel: a first opaque run from the edge wider than this is
+/// the ring and the fill drawn as one.
+const RING_MOST: usize = 3;
+/// The gap's one pixel and an anti-aliased pixel on each side of it: a longer
+/// transparent run after the ring is not the gap (a button's label cells are
+/// cut out of its picture, PIX-001).
+const GAP_MOST: usize = 3;
+
+/// Why `line`, a picture's pixels from one edge inward, lacks PIX-008's gap,
+/// or none. Past the transparent pixels outside the look it must cross the
+/// ring (an opaque run no wider than `RING_MOST` holding `ring`), then the
+/// gap (a transparent run no wider than `GAP_MOST` holding a pixel of alpha
+/// 0), then the fill (an opaque run, whatever is drawn on it).
+fn gap_problem(line: &[[u8; 4]], ring: [u8; 3]) -> Option<String> {
+    let opaque = |pixel: &&[u8; 4]| pixel[3] >= GAP_ALPHA;
+    let outside = line.iter().take_while(|p| !opaque(p)).count();
+    let ring_run = line[outside..].iter().take_while(opaque).count();
+    let gap_from = outside + ring_run;
+    let gap = line[gap_from..].iter().take_while(|p| !opaque(p)).count();
+    let fill = line[gap_from + gap..].iter().take_while(opaque).count();
+    if ring_run == 0 {
+        return Some("the line crosses no opaque pixel".into());
+    }
+    if ring_run > RING_MOST {
+        return Some(format!(
+            "the ring and the fill are one opaque run of {ring_run} pixels, {outside} pixels in from the edge, with no transparent pixel between them"
+        ));
+    }
+    if !line[outside..gap_from].iter().any(|p| near(*p, ring, 2)) {
+        return Some(format!(
+            "the first opaque run, {:?}, is not in `ring` {ring:?}",
+            &line[outside..gap_from]
+        ));
+    }
+    if fill == 0 {
+        return Some(format!(
+            "the ring of {ring_run} pixels is followed by no fill"
+        ));
+    }
+    if gap > GAP_MOST {
+        return Some(format!(
+            "the ring is followed by {gap} transparent pixels before the next opaque run, not a gap of one"
+        ));
+    }
+    let gap_alphas: Vec<u8> = line[gap_from..gap_from + gap]
+        .iter()
+        .map(|p| p[3])
+        .collect();
+    if !gap_alphas.contains(&0) {
+        return Some(format!(
+            "no fully transparent pixel between the ring and the fill: alphas {gap_alphas:?}"
+        ));
+    }
+    None
+}
+
+/// A line of a picture's pixels from one edge inward, named by the side of
+/// the look it crosses.
+type Side = (String, Vec<[u8; 4]>);
+
+/// The four lines PIX-008 walks in a look's picture, each from one edge of
+/// the picture inward and named by the side of the look it crosses: the row
+/// through the middle of the look's opaque pixels, from the left and from
+/// the right, and the column nearest the look's middle that is opaque on that
+/// row (a button's middle cells hold its label, which is cut out of its
+/// picture), from the top and from the bottom.
+fn sides(frame: &GraphicsFrame) -> Result<Vec<Side>, String> {
+    let (width, height) = (frame.width() as usize, frame.height() as usize);
+    let at = |x: usize, y: usize| frame.pixels()[y * width + x];
+    let painted: Vec<(usize, usize)> = (0..height)
+        .flat_map(|y| (0..width).map(move |x| (x, y)))
+        .filter(|&(x, y)| at(x, y)[3] >= GAP_ALPHA)
+        .collect();
+    let (Some(left), Some(right), Some(top), Some(bottom)) = (
+        painted.iter().map(|p| p.0).min(),
+        painted.iter().map(|p| p.0).max(),
+        painted.iter().map(|p| p.1).min(),
+        painted.iter().map(|p| p.1).max(),
+    ) else {
+        return Err("the picture has no opaque pixel".into());
+    };
+    let row = (top + bottom) / 2;
+    let middle = (left + right) / 2;
+    let column = (0..width)
+        .filter(|&x| at(x, row)[3] >= GAP_ALPHA)
+        .min_by_key(|&x| x.abs_diff(middle))
+        .ok_or_else(|| format!("row {row} has no opaque pixel"))?;
+    let across: Vec<[u8; 4]> = (0..width).map(|x| at(x, row)).collect();
+    let down: Vec<[u8; 4]> = (0..height).map(|y| at(column, y)).collect();
+    Ok(vec![
+        (format!("left side along row {row}"), across.clone()),
+        (
+            format!("right side along row {row}"),
+            across.into_iter().rev().collect(),
+        ),
+        (format!("top side along column {column}"), down.clone()),
+        (
+            format!("bottom side along column {column}"),
+            down.into_iter().rev().collect(),
+        ),
+    ])
+}
+
+/// The falsifier's looks whose fill is `primary` or `selection`, each with
+/// the focus (a button of either kind, filled `selection` while focused, a
+/// checked and a mixed checkbox, a switch that is on), drawn by the software
+/// renderer at 8 by 16 pixels per cell under the dark preset, whose `ring`
+/// and `selection` are its `primary`: on each side of the look a walk
+/// from the picture's edge inward crosses the ring, a fully transparent
+/// pixel, then the fill. Their reference pictures are compared by PIX-003's,
+/// PIX-004's and PIX-007's reference tests and, for the mixed checkbox, by
+/// the next test.
+#[test]
+fn pix_008_a_focused_look_filled_primary_or_selection_has_a_gap_between_its_ring_and_its_fill() {
+    let ring = role("ring");
+    assert_eq!(
+        ring,
+        role("primary"),
+        "PIX-008's case: under the dark preset `ring` is `primary`"
+    );
+    assert_eq!(
+        role("selection"),
+        ring,
+        "PIX-008's case: under the dark preset `selection` is `ring`"
+    );
+    let mut problems = Vec::new();
+    for (look, focused_case) in [
+        (
+            "the focused primary button `Save`",
+            focused(case("primary_focused", 8, 1, save_button())),
+        ),
+        (
+            "the focused `builder::button()` `Save`",
+            focused(case(
+                "button_save_focused",
+                8,
+                1,
+                builder::button().text("Save").on_click(|| {}).build(),
+            )),
+        ),
+        (
+            "the focused checked checkbox",
+            focused(case(
+                "checkbox_checked_focused",
+                30,
+                1,
+                checkbox("Capture", true),
+            )),
+        ),
+        (
+            "the focused mixed checkbox",
+            focused(case("checkbox_mixed_focused", 30, 1, mixed_checkbox())),
+        ),
+        (
+            "the focused switch that is on",
+            focused(case("switch_on_focused", 30, 1, switch(true))),
+        ),
+    ] {
+        let captured = match capture(focused_case) {
+            Ok(captured) => captured,
+            Err(problem) => {
+                problems.push(problem);
+                continue;
+            }
+        };
+        let lines = match sides(&captured.frame) {
+            Ok(lines) => lines,
+            Err(problem) => {
+                problems.push(format!("{look}: {problem}"));
+                continue;
+            }
+        };
+        for (side, line) in lines {
+            if let Some(why) = gap_problem(&line, ring) {
+                problems.push(format!("{look}, {side}: {why}"));
+            }
+        }
+    }
+    assert!(
+        problems.is_empty(),
+        "PIX-008: {} sides lack a transparent gap between the ring and the fill: {}",
+        problems.len(),
+        problems.join("; ")
+    );
+}
+
+/// PIX-008 leaves a focused look whose fill is neither `primary` nor
+/// `selection` as PIX-004 and PIX-007 draw it: the focused unchecked checkbox
+/// and the focused switch that is off keep their ring as it is. The focused
+/// mixed checkbox, which PIX-004 draws no reference of, is compared here. The falsifier's other unchanged
+/// looks, the unfocused primary button and the focused `builder::button()`,
+/// are PIX-003's reference cases `primary_default` and `button_focused`; the
+/// pixel-looks check runs PIX-003's reference test for PIX-008 too rather
+/// than drawing them twice.
+#[test]
+fn pix_008_a_focused_look_filled_neither_and_the_mixed_checkbox_match_their_references() {
+    assert_references(
+        "PIX-008",
+        vec![
+            focused(case(
+                "checkbox_unchecked_focused",
+                30,
+                1,
+                checkbox("Capture", false),
+            )),
+            focused(case("switch_off_focused", 30, 1, switch(false))),
+            focused(case("checkbox_mixed_focused", 30, 1, mixed_checkbox())),
+        ],
+    );
 }
 
 // ---------------------------------------------------------------------------
