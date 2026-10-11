@@ -1412,6 +1412,66 @@ fn ctl_009_a_rating_moves_on_keys_digits_and_clicks() {
     );
 }
 
+/// CTL-009, BAR-003: a click on a star gives the rating the keyboard focus,
+/// as a click gives every control its focus, so the next arrow key moves
+/// the rating and not the field that held the focus before.
+#[test]
+#[serial_test::serial(theme)]
+fn ctl_009_a_click_on_a_star_gives_the_rating_the_focus() {
+    let _theme = Active::set(probe());
+    let changes: Log<usize> = Arc::default();
+    let typed: Log<String> = Arc::default();
+    let root = || {
+        builder::div()
+            .class("flex-col gap-1")
+            .child(
+                builder::text_input()
+                    .value("Ada")
+                    .on_change(recorder(&typed))
+                    .build()
+                    .auto_focus(),
+            )
+            .child(
+                builder::rating()
+                    .value(1)
+                    .max(5)
+                    .on_change(recorder(&changes))
+                    .build(),
+            )
+            .build()
+    };
+    let base = shown(root(), (80, 8), "★☆☆☆☆");
+    let (first, row) = at(&base, "★☆☆☆☆");
+    let frames = shown_after(
+        root(),
+        (80, 8),
+        vec![
+            ("★☆☆☆☆", app_input::click(first + 3, row)),
+            ("★★★★☆", key(KeyCode::Right)),
+            ("★★★★★", None),
+        ],
+    );
+    assert_eq!(
+        held(&changes),
+        vec![4, 5],
+        "CTL-009: a click on the fourth star sets 4 and the next Right reaches the rating:\n{}",
+        last(&frames).text
+    );
+    assert!(
+        held(&typed).is_empty(),
+        "CTL-009: the Right after the click does not reach the text input that held the focus; it reported {:?}:\n{}",
+        held(&typed),
+        last(&frames).text
+    );
+    let (column, row) = at(last(&frames), "★★★★★");
+    assert_eq!(
+        cell_colors(last(&frames), column, row).0,
+        Some(role("warning")),
+        "CTL-007: the lit stars keep warning with the focus:\n{}",
+        last(&frames).text
+    );
+}
+
 #[test]
 #[serial_test::serial(theme)]
 fn ctl_009_a_switch_toggles_on_space_enter_and_click_and_not_when_disabled() {
