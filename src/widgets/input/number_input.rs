@@ -645,7 +645,10 @@ impl Component for NumberInput {
         let width = self.row_width(props);
         let field = width.saturating_sub(CHROME);
         let focused = state.is_focused && !props.disabled;
-        let value = props.clamp(props.value);
+        // The value is the number last reported: while the user types, the
+        // typed number once it lies inside the range, so the spin button
+        // and the buttons agree with what the application was told (CTL-010).
+        let value = Self::last_reported(props, state);
         // The field's text is the typed text while the user types, else
         // the value in the step's decimals; the cursor shows only while
         // the user types.
@@ -1089,6 +1092,45 @@ mod tests {
             props.value,
             f64::MAX,
             "CTL-009: with no maximum, Up from the greatest number keeps it"
+        );
+    }
+
+    /// CTL-010: while the user types, the spin button's value is the number
+    /// last reported, so the screen reader hears what the application was
+    /// told: 4 after typing 4, and still 4 while the text reads 42, outside
+    /// the range.
+    #[test]
+    fn ctl_010_the_spin_buttons_value_follows_the_typed_number() {
+        fn value(
+            input: &NumberInput,
+            props: &NumberInputProps,
+            state: &NumberInputState,
+        ) -> Option<f64> {
+            let element = input.render(props, state);
+            element
+                .metadata
+                .accessibility
+                .as_ref()?
+                .inner
+                .numeric_value()
+        }
+        let mut input = NumberInput::new(range_props(0.0));
+        let mut props = range_props(0.0);
+        let mut state = focused();
+        for _ in 0..3 {
+            input.handle_event(&key(KeyCode::Backspace), &mut props, &mut state);
+        }
+        input.handle_event(&key(KeyCode::Char('4')), &mut props, &mut state);
+        assert_eq!(
+            value(&input, &props, &state),
+            Some(4.0),
+            "CTL-010: the typed 4 is the spin button's value"
+        );
+        input.handle_event(&key(KeyCode::Char('2')), &mut props, &mut state);
+        assert_eq!(
+            value(&input, &props, &state),
+            Some(4.0),
+            "CTL-010: 42 lies outside 0 to 10, so the value stays the 4 reported"
         );
     }
 }
