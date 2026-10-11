@@ -1175,4 +1175,65 @@ mod tests {
             "the clamp to 10 is valid"
         );
     }
+
+    /// CTL-010: a typed number is marked invalid only when no characters
+    /// the field takes, typed after its text, could make it a number inside
+    /// the range. In a year box of 1900 to 2100, `2` can still become 2025
+    /// and `21` 2100, while `3` can only become 3, the 30s, the 300s or the
+    /// 3000s; a leading zero can still become any year; `1.` and a lone
+    /// minus sign never reach 1900; and `1.2.` never reads as a number.
+    #[test]
+    fn ctl_010_a_typed_number_is_invalid_only_when_typing_on_cannot_help() {
+        fn invalid(props: &NumberInputProps, typed: &str) -> bool {
+            let input = NumberInput::new(props.clone());
+            let state = NumberInputState {
+                is_focused: true,
+                typed: Some(typed.to_owned()),
+                cursor: typed.chars().count(),
+                ..Default::default()
+            };
+            let element = input.render(props, &state);
+            let node = &element.metadata.accessibility.as_ref().unwrap().inner;
+            node.invalid().is_some()
+        }
+        let range = |min: f64, max: f64| NumberInputProps {
+            value: min,
+            min: Some(min),
+            max: Some(max),
+            step: 1.0,
+            ..Default::default()
+        };
+        let cases = [
+            (range(1900.0, 2100.0), "2", false),
+            (range(1900.0, 2100.0), "20", false),
+            (range(1900.0, 2100.0), "202", false),
+            (range(1900.0, 2100.0), "2025", false),
+            (range(1900.0, 2100.0), "21", false),
+            (range(1900.0, 2100.0), "0", false),
+            (range(1900.0, 2100.0), "", false),
+            (range(1900.0, 2100.0), "3", true),
+            (range(1900.0, 2100.0), "22", true),
+            (range(1900.0, 2100.0), "2101", true),
+            (range(1900.0, 2100.0), "1.", true),
+            (range(1900.0, 2100.0), "-", true),
+            (range(0.0, 10.0), "4", false),
+            (range(0.0, 10.0), "-", false),
+            (range(0.0, 10.0), ".5", false),
+            (range(0.0, 10.0), "42", true),
+            (range(0.0, 10.0), "-1", true),
+            (range(0.0, 10.0), "1.2.", true),
+            (range(-10.0, 10.0), "-5", false),
+            (range(-10.0, 10.0), "-11", true),
+        ];
+        for (props, typed, expected) in &cases {
+            assert_eq!(
+                invalid(props, typed),
+                *expected,
+                "CTL-010: {typed:?} typed in {:?} to {:?} should {}be marked invalid",
+                props.min.unwrap(),
+                props.max.unwrap(),
+                if *expected { "" } else { "not " }
+            );
+        }
+    }
 }
