@@ -57,6 +57,10 @@ fn save_button() -> Element {
     builder::primary_button("Save", || {})
 }
 
+fn plain_save_button() -> Element {
+    builder::button().text("Save").on_click(|| {}).build()
+}
+
 fn cancel_button() -> Element {
     builder::button().text("Cancel").on_click(|| {}).build()
 }
@@ -2697,12 +2701,7 @@ fn pix_008_a_focused_look_filled_primary_or_selection_has_a_gap_between_its_ring
         ),
         (
             "the focused `builder::button()` `Save`",
-            focused(case(
-                "button_save_focused",
-                8,
-                1,
-                builder::button().text("Save").on_click(|| {}).build(),
-            )),
+            focused(case("button_save_focused", 8, 1, plain_save_button())),
         ),
         (
             "the focused checked checkbox",
@@ -2753,7 +2752,8 @@ fn pix_008_a_focused_look_filled_primary_or_selection_has_a_gap_between_its_ring
 /// PIX-008 leaves a focused look whose fill is neither `primary` nor
 /// `selection` as PIX-004 and PIX-007 draw it: the focused unchecked checkbox
 /// and the focused switch that is off keep their ring as it is. The focused
-/// mixed checkbox, which PIX-004 draws no reference of, is compared here. The falsifier's other unchanged
+/// mixed checkbox and the focused `builder::button()` labelled `Save`, of
+/// which PIX-003 and PIX-004 draw no reference, are compared here. The falsifier's other unchanged
 /// looks, the unfocused primary button and the focused `builder::button()`,
 /// are PIX-003's reference cases `primary_default` and `button_focused`; the
 /// pixel-looks check runs PIX-003's reference test for PIX-008 too rather
@@ -2771,6 +2771,7 @@ fn pix_008_a_focused_look_filled_neither_and_the_mixed_checkbox_match_their_refe
             )),
             focused(case("switch_off_focused", 30, 1, switch(false))),
             focused(case("checkbox_mixed_focused", 30, 1, mixed_checkbox())),
+            focused(case("button_save_focused", 8, 1, plain_save_button())),
         ],
     );
 }
