@@ -1,0 +1,2802 @@
+{
+  "c_functions": {
+    "rtui_version": {
+      "previous": "RTuiVersion (void)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiVersion",
+        "parameters": []
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_init": {
+      "previous": "RTuiError (void)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": []
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_cleanup": {
+      "previous": "void (void)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": []
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_free_string": {
+      "previous": "void (char *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "char *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "createRenderer": {
+      "previous": "RTuiRenderer *(uint32_t, uint32_t, _Bool, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiRenderer *",
+        "parameters": [
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "destroyRenderer": {
+      "previous": "void (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "bool",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setBackgroundColor": {
+      "previous": "void (RTuiRenderer *, float, float, float, float)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "const float *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "render": {
+      "previous": "void (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "resizeRenderer": {
+      "previous": "void (RTuiRenderer *, uint32_t, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "getRendererSurface": {
+      "previous": "RTuiBuffer *(RTuiRenderer *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "Use rtui_renderer_get_surface with its native signature and ownership; it is not a drop-in alias."
+    },
+    "rtui_animation_manager_create": {
+      "previous": "RTuiError (RTuiAnimationManager **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimationManager **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_manager_destroy": {
+      "previous": "void (RTuiAnimationManager *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiAnimationManager *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_manager_update": {
+      "previous": "RTuiError (RTuiAnimationManager *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimationManager *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_manager_add": {
+      "previous": "RTuiError (RTuiAnimationManager *, RTuiAnimation *, char **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimationManager *",
+          "RTuiAnimation *",
+          "char **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_manager_remove": {
+      "previous": "RTuiError (RTuiAnimationManager *, const char *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimationManager *",
+          "const char *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_create": {
+      "previous": "RTuiError (const char *, uint32_t, RTuiEasingType, RTuiLoopMode, uint32_t, RTuiAnimation **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const char *",
+          "uint32_t",
+          "RTuiEasingType",
+          "RTuiLoopMode",
+          "uint32_t",
+          "RTuiAnimation **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_create_spring": {
+      "previous": "RTuiError (const char *, float, float, float, RTuiAnimation **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const char *",
+          "float",
+          "float",
+          "float",
+          "RTuiAnimation **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_destroy": {
+      "previous": "void (RTuiAnimation *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiAnimation *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_play": {
+      "previous": "RTuiError (RTuiAnimation *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimation *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_stop": {
+      "previous": "RTuiError (RTuiAnimation *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimation *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_pause": {
+      "previous": "RTuiError (RTuiAnimation *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimation *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_is_playing": {
+      "previous": "RTuiError (const RTuiAnimation *, _Bool *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiAnimation *",
+          "bool *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_get_progress": {
+      "previous": "RTuiError (const RTuiAnimation *, float *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiAnimation *",
+          "float *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_animation_set_property": {
+      "previous": "RTuiError (RTuiAnimation *, RTuiAnimatedProperty, float, float)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimation *",
+          "RTuiAnimatedProperty",
+          "float",
+          "float"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_div": {
+      "previous": "RTuiError (RTuiElementBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_span": {
+      "previous": "RTuiError (RTuiElementBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_button": {
+      "previous": "RTuiError (RTuiElementBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_p": {
+      "previous": "RTuiError (RTuiElementBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_h1": {
+      "previous": "RTuiError (RTuiElementBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_h2": {
+      "previous": "RTuiError (RTuiElementBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_h3": {
+      "previous": "RTuiError (RTuiElementBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_builder_destroy": {
+      "previous": "void (RTuiElementBuilder *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiElementBuilder *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_builder_class": {
+      "previous": "RTuiError (RTuiElementBuilder *, const char *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder *",
+          "const char *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_builder_text": {
+      "previous": "RTuiError (RTuiElementBuilder *, const char *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder *",
+          "const char *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_builder_key": {
+      "previous": "RTuiError (RTuiElementBuilder *, const char *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder *",
+          "const char *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_builder_child": {
+      "previous": "RTuiError (RTuiElementBuilder *, RTuiElement *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder *",
+          "RTuiElement *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_builder_children": {
+      "previous": "RTuiError (RTuiElementBuilder *, RTuiElement *const *, size_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder *",
+          "RTuiElement *const *",
+          "size_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_builder_build": {
+      "previous": "RTuiError (RTuiElementBuilder *, RTuiElement **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElementBuilder *",
+          "RTuiElement **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_destroy": {
+      "previous": "void (RTuiElement *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiElement *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_text": {
+      "previous": "RTuiError (const char *, RTuiElement **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const char *",
+          "RTuiElement **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_element_empty": {
+      "previous": "RTuiError (RTuiElement **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElement **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_primary_button": {
+      "previous": "RTuiError (const char *, RTuiClickHandler, void *, RTuiElement **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old symbol remains absent. Use the foreign component event callback with a focusable Element for native interaction; see native-components.md."
+    },
+    "rtui_card": {
+      "previous": "RTuiError (RTuiElement *const *, size_t, RTuiElement **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiElement *const *",
+          "size_t",
+          "RTuiElement **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_builder_create": {
+      "previous": "RTuiError (RTuiAppBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAppBuilder **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_builder_destroy": {
+      "previous": "void (RTuiAppBuilder *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiAppBuilder *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_builder_debug": {
+      "previous": "RTuiError (RTuiAppBuilder *, _Bool)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAppBuilder *",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_builder_performance_mode": {
+      "previous": "RTuiError (RTuiAppBuilder *, RTuiPerformanceMode)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAppBuilder *",
+          "RTuiPerformanceMode"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_builder_backend_debug": {
+      "previous": "RTuiError (RTuiAppBuilder *, uint16_t, uint16_t, RTuiAppBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAppBuilder *",
+          "uint16_t",
+          "uint16_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_builder_root_component": {
+      "previous": "RTuiError (RTuiAppBuilder *, RTuiRootComponentCallback, void *, RTuiAppBuilder **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAppBuilder *",
+          "RTuiRootComponentCallback",
+          "void *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_builder_build": {
+      "previous": "RTuiError (RTuiAppBuilder *, RTuiApp **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAppBuilder *",
+          "RTuiApp **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_destroy": {
+      "previous": "void (RTuiApp *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiApp *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_run": {
+      "previous": "RTuiError (RTuiApp *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiApp *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_quit": {
+      "previous": "RTuiError (RTuiApp *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiApp *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_get_size": {
+      "previous": "RTuiError (const RTuiApp *, RTuiDimensions *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiApp *",
+          "RTuiDimensions *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_set_performance_mode": {
+      "previous": "RTuiError (RTuiApp *, RTuiPerformanceMode)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiApp *",
+          "RTuiPerformanceMode"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_get_current_fps": {
+      "previous": "RTuiError (const RTuiApp *, uint32_t *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiApp *",
+          "uint32_t *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_app_get_performance_metrics": {
+      "previous": "RTuiError (const RTuiApp *, RTuiPerformanceMetrics *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiApp *",
+          "RTuiPerformanceMetrics *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_dialog_engine_create": {
+      "previous": "RTuiError (RTuiDialogEngine **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiDialogEngine **"
+        ]
+      },
+      "guidance": "Reintroduced in API-017 with the exact audited native.h signature. Updates target an active dialog ID and validated JSON changes; destruction returns a status. See native-components.md for ownership and behavior."
+    },
+    "rtui_dialog_engine_destroy": {
+      "previous": "void (RTuiDialogEngine *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiDialogEngine *"
+        ]
+      },
+      "guidance": "Reintroduced in API-017 with the exact audited native.h signature. Updates target an active dialog ID and validated JSON changes; destruction returns a status. See native-components.md for ownership and behavior."
+    },
+    "rtui_dialog_engine_update": {
+      "previous": "RTuiError (RTuiDialogEngine *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiDialogEngine *",
+          "uint32_t",
+          "const char *"
+        ]
+      },
+      "guidance": "Reintroduced in API-017 with the exact audited native.h signature. Updates target an active dialog ID and validated JSON changes; destruction returns a status. See native-components.md for ownership and behavior."
+    },
+    "rtui_dialog_engine_has_active_dialogs": {
+      "previous": "RTuiError (const RTuiDialogEngine *, _Bool *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_create_confirmation": {
+      "previous": "RTuiError (RTuiDialogEngine *, const char *, const char *, const char *, const char *, RTuiDialog **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_create_input": {
+      "previous": "RTuiError (RTuiDialogEngine *, const char *, const char *, const char *, const char *, RTuiDialog **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_create_toast": {
+      "previous": "RTuiError (RTuiDialogEngine *, const char *, uint32_t, RTuiDialog **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_create_progress": {
+      "previous": "RTuiError (RTuiDialogEngine *, const char *, const char *, RTuiDialog **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_show": {
+      "previous": "RTuiError (RTuiDialog *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_hide": {
+      "previous": "RTuiError (RTuiDialog *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_close": {
+      "previous": "RTuiError (RTuiDialog *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_is_visible": {
+      "previous": "RTuiError (const RTuiDialog *, _Bool *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_get_confirmation_result": {
+      "previous": "RTuiError (const RTuiDialog *, _Bool *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_get_input_text": {
+      "previous": "RTuiError (const RTuiDialog *, char *, size_t)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_set_progress": {
+      "previous": "RTuiError (RTuiDialog *, float)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_dialog_set_progress_message": {
+      "previous": "RTuiError (RTuiDialog *, const char *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md."
+    },
+    "rtui_terminal_poll_event": {
+      "previous": "RTuiError (uint32_t, RTuiEvent *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "uint32_t",
+          "RTuiEvent *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "renderSurfaceToTerminal": {
+      "previous": "_Bool (const RTuiBuffer *, RTuiTerminal *)",
+      "status": "reconciled",
+      "current": {
+        "result": "bool",
+        "parameters": [
+          "const RTuiBuffer *",
+          "RTuiTerminal *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "renderTextToTerminal": {
+      "previous": "_Bool (const RTuiTextBuffer *, RTuiTerminal *, uint32_t, uint32_t, uint32_t, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "bool",
+        "parameters": [
+          "const RTuiTextBuffer *",
+          "RTuiTerminal *",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "renderWithStats": {
+      "previous": "_Bool (RTuiRenderer *, RTuiTerminal *, _Bool)",
+      "status": "reconciled",
+      "current": {
+        "result": "bool",
+        "parameters": [
+          "RTuiRenderer *",
+          "RTuiTerminal *",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "getBufferDims": {
+      "previous": "void (const RTuiBuffer *, uint32_t *, uint32_t *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "Use getBufferWidth and getBufferHeight."
+    },
+    "createRenderingContext": {
+      "previous": "_Bool (uint32_t, uint32_t, RTuiTerminal **, RTuiRenderer **, RTuiBuffer **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No combined context export exists. Create terminal, renderer and buffers separately and release each owner."
+    },
+    "destroyRenderingContext": {
+      "previous": "void (RTuiTerminal *, RTuiRenderer *, RTuiBuffer *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No combined context export exists. Create terminal, renderer and buffers separately and release each owner."
+    },
+    "rtui_style_builder_create": {
+      "previous": "RTuiError (RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_destroy": {
+      "previous": "void (RTuiStyleBuilder *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_apply_utility_classes": {
+      "previous": "RTuiError (RTuiStyleBuilder *, const char *, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_display": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiDisplayType, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_flex_direction": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiFlexDirection, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_justify_content": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiJustifyContent, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_align_items": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiAlignItems, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_width": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiDimension, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_height": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiDimension, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_padding": {
+      "previous": "RTuiError (RTuiStyleBuilder *, float, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_margin": {
+      "previous": "RTuiError (RTuiStyleBuilder *, float, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_background_color": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiStyleColor, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_color": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiStyleColor, RTuiStyleBuilder **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_style_builder_build": {
+      "previous": "RTuiError (RTuiStyleBuilder *, RTuiComputedStyle **)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_computed_style_destroy": {
+      "previous": "void (RTuiComputedStyle *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_native_style_create/apply/destroy for validated inline CSS, or retained Element utility classes. See native-components.md."
+    },
+    "rtui_terminal_create": {
+      "previous": "RTuiError (RTuiTerminal **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiTerminal **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_terminal_destroy": {
+      "previous": "void (RTuiTerminal *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_terminal_get_dimensions": {
+      "previous": "RTuiError (const RTuiTerminal *, RTuiDimensions *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiTerminal *",
+          "RTuiDimensions *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_terminal_enter_raw_mode": {
+      "previous": "RTuiError (RTuiTerminal *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "Use setupTerminal with its native signature and ownership; it is not a drop-in alias."
+    },
+    "rtui_terminal_exit_raw_mode": {
+      "previous": "RTuiError (RTuiTerminal *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "Use destroyTerminal with its native signature and ownership; it is not a drop-in alias."
+    },
+    "rtui_terminal_sync": {
+      "previous": "RTuiError (RTuiTerminal *, _Bool)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiTerminal *",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_terminal_clear": {
+      "previous": "RTuiError (RTuiTerminal *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_terminal_set_cursor": {
+      "previous": "RTuiError (RTuiTerminal *, uint16_t, uint16_t)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_terminal_set_cursor_visible": {
+      "previous": "RTuiError (RTuiTerminal *, _Bool)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_terminal_write": {
+      "previous": "RTuiError (RTuiTerminal *, const char *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_terminal_flush": {
+      "previous": "RTuiError (RTuiTerminal *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "createTerminal": {
+      "previous": "RTuiTerminal *(void)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiTerminal *",
+        "parameters": []
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "destroyTerminal": {
+      "previous": "void (RTuiTerminal *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setupTerminal": {
+      "previous": "void (RTuiTerminal *, _Bool)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "clearTerminal": {
+      "previous": "void (RTuiTerminal *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "getTerminalCapabilities": {
+      "previous": "_Bool (RTuiTerminal *, RTuiCapabilities *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "const RTuiTerminal *",
+          "RTuiCapabilities *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "processCapabilityResponse": {
+      "previous": "void (RTuiTerminal *, const char *, size_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *",
+          "const uint8_t *",
+          "size_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setCursorPosition": {
+      "previous": "void (RTuiTerminal *, uint16_t, uint16_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *",
+          "int32_t",
+          "int32_t",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setCursorStyle": {
+      "previous": "void (RTuiTerminal *, RTuiCursorStyle)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *",
+          "const uint8_t *",
+          "size_t",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setCursorColor": {
+      "previous": "void (RTuiTerminal *, uint8_t, uint8_t, uint8_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *",
+          "const float *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setTerminalTitle": {
+      "previous": "void (RTuiTerminal *, const char *, size_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *",
+          "const uint8_t *",
+          "size_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "enableMouse": {
+      "previous": "void (RTuiTerminal *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "disableMouse": {
+      "previous": "void (RTuiTerminal *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "enableKittyKeyboard": {
+      "previous": "void (RTuiTerminal *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "disableKittyKeyboard": {
+      "previous": "void (RTuiTerminal *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_surface_create": {
+      "previous": "RTuiError (uint16_t, uint16_t, RTuiSurface **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "uint16_t",
+          "uint16_t",
+          "RTuiSurface **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_surface_destroy": {
+      "previous": "void (RTuiSurface *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiSurface *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_surface_get_dimensions": {
+      "previous": "RTuiError (const RTuiSurface *, RTuiDimensions *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiSurface *",
+          "RTuiDimensions *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_surface_resize": {
+      "previous": "RTuiError (RTuiSurface *, uint16_t, uint16_t)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_surface_clear": {
+      "previous": "RTuiError (RTuiSurface *, const RTuiCell *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiSurface *",
+          "uint8_t",
+          "uint8_t",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_surface_clear_default": {
+      "previous": "RTuiError (RTuiSurface *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_surface_set_cell": {
+      "previous": "RTuiError (RTuiSurface *, uint16_t, uint16_t, const RTuiCell *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiSurface *",
+          "uint16_t",
+          "uint16_t",
+          "const RTuiCell *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_surface_get_cell": {
+      "previous": "RTuiError (const RTuiSurface *, uint16_t, uint16_t, RTuiCell *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiSurface *",
+          "uint16_t",
+          "uint16_t",
+          "RTuiCell *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_surface_set_text": {
+      "previous": "RTuiError (RTuiSurface *, uint16_t, uint16_t, const char *, RTuiColor, RTuiColor, RTuiTextAttributes)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_surface_fill_rect": {
+      "previous": "RTuiError (RTuiSurface *, RTuiRect, const RTuiCell *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiSurface *",
+          "const RTuiRect *",
+          "uint32_t",
+          "const RTuiColor *",
+          "const RTuiColor *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_surface_copy_rect": {
+      "previous": "RTuiError (RTuiSurface *, uint16_t, uint16_t, const RTuiSurface *, RTuiRect)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "createOptimizedBuffer": {
+      "previous": "RTuiBuffer *(uint32_t, uint32_t, _Bool, uint8_t, const uint8_t *, size_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiBuffer *",
+        "parameters": [
+          "uint32_t",
+          "uint32_t",
+          "bool",
+          "uint8_t",
+          "const uint8_t *",
+          "size_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "destroyOptimizedBuffer": {
+      "previous": "void (RTuiBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "getBufferWidth": {
+      "previous": "uint32_t (const RTuiBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t",
+        "parameters": [
+          "const RTuiBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "getBufferHeight": {
+      "previous": "uint32_t (const RTuiBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t",
+        "parameters": [
+          "const RTuiBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferClear": {
+      "previous": "void (RTuiBuffer *, float, float, float, float)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiBuffer *",
+          "const float *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferDrawText": {
+      "previous": "void (RTuiBuffer *, uint32_t, uint32_t, const char *, size_t, const float *, const float *, const uint32_t *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiBuffer *",
+          "const uint8_t *",
+          "size_t",
+          "uint32_t",
+          "uint32_t",
+          "const float *",
+          "const float *",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "writeToBuffer": {
+      "previous": "void (RTuiBuffer *, uint32_t, uint32_t, const char *, size_t, const float *, const float *, const uint32_t *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "bufferSetCellWithAlphaBlending": {
+      "previous": "void (RTuiBuffer *, uint32_t, uint32_t, uint32_t, const float *, const float *, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiBuffer *",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t",
+          "const float *",
+          "const float *",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferFillRect": {
+      "previous": "void (RTuiBuffer *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, const float *, const float *, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiBuffer *",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t",
+          "const float *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferResize": {
+      "previous": "void (RTuiBuffer *, uint32_t, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiBuffer *",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferGetRespectAlpha": {
+      "previous": "_Bool (const RTuiBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "bool",
+        "parameters": [
+          "const RTuiBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferSetRespectAlpha": {
+      "previous": "void (RTuiBuffer *, _Bool)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiBuffer *",
+          "bool"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferGetCharPtr": {
+      "previous": "uint32_t *(RTuiBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t *",
+        "parameters": [
+          "RTuiBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferGetFgPtr": {
+      "previous": "float *(RTuiBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "float *",
+        "parameters": [
+          "RTuiBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferGetBgPtr": {
+      "previous": "float *(RTuiBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "float *",
+        "parameters": [
+          "RTuiBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferGetAttributesPtr": {
+      "previous": "uint8_t *(RTuiBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint8_t *",
+        "parameters": [
+          "RTuiBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferReleaseCharPtr": {
+      "previous": "void (uint32_t *, size_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "uint32_t *",
+          "size_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferReleaseFgPtr": {
+      "previous": "void (float *, size_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "float *",
+          "size_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferReleaseBgPtr": {
+      "previous": "void (float *, size_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "float *",
+          "size_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "bufferReleaseAttrPtr": {
+      "previous": "void (uint8_t *, size_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "uint8_t *",
+          "size_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_renderer_create": {
+      "previous": "RTuiError (RTuiTerminal *, RTuiRenderer **)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "uint16_t",
+          "uint16_t",
+          "RTuiRenderer **"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_renderer_destroy": {
+      "previous": "void (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_renderer_get_dimensions": {
+      "previous": "RTuiError (const RTuiRenderer *, RTuiDimensions *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_renderer_resize": {
+      "previous": "RTuiError (RTuiRenderer *, uint16_t, uint16_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiRenderer *",
+          "uint16_t",
+          "uint16_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_renderer_begin_frame": {
+      "previous": "RTuiError (RTuiRenderer *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_renderer_end_frame": {
+      "previous": "RTuiError (RTuiRenderer *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_renderer_clear": {
+      "previous": "RTuiError (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiRenderer *",
+          "uint8_t",
+          "uint8_t",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "rtui_renderer_clear_with_color": {
+      "previous": "RTuiError (RTuiRenderer *, RTuiColor)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_renderer_draw_surface": {
+      "previous": "RTuiError (RTuiRenderer *, const RTuiSurface *, uint16_t, uint16_t)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_renderer_draw_surface_rect": {
+      "previous": "RTuiError (RTuiRenderer *, const RTuiSurface *, RTuiRect, uint16_t, uint16_t)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_renderer_draw_text": {
+      "previous": "RTuiError (RTuiRenderer *, uint16_t, uint16_t, const char *, RTuiColor, RTuiColor, RTuiTextAttributes)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_renderer_fill_rect": {
+      "previous": "RTuiError (RTuiRenderer *, RTuiRect, const RTuiCell *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "rtui_renderer_draw_rect": {
+      "previous": "RTuiError (RTuiRenderer *, RTuiRect, const RTuiCell *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "updateStats": {
+      "previous": "void (RTuiRenderer *, double, uint32_t, double)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "double",
+          "uint32_t",
+          "double"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "updateMemoryStats": {
+      "previous": "void (RTuiRenderer *, uint64_t, uint64_t, uint64_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "getFrameStats": {
+      "previous": "_Bool (RTuiRenderer *, float *, float *, uint64_t *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "const RTuiRenderer *",
+          "float *",
+          "float *",
+          "float *",
+          "uint32_t *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "resetPerformanceCounters": {
+      "previous": "void (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setRenderOffset": {
+      "previous": "void (RTuiRenderer *, int32_t, int32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setDebugOverlay": {
+      "previous": "void (RTuiRenderer *, _Bool, RTuiDebugOverlayCorner)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "bool",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "addToHitGrid": {
+      "previous": "void (RTuiRenderer *, uint32_t, uint32_t, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "int32_t",
+          "int32_t",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "checkHit": {
+      "previous": "uint32_t (RTuiRenderer *, uint32_t, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t",
+        "parameters": [
+          "RTuiRenderer *",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "dumpHitGrid": {
+      "previous": "void (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "dumpBuffers": {
+      "previous": "void (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "int64_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "dumpStdoutBuffer": {
+      "previous": "void (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *",
+          "int64_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "setLogCallback": {
+      "previous": "void (RTuiLogCallback)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "void (*)(uint8_t, const uint8_t *, size_t)"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "logMessage": {
+      "previous": "void (RTuiLogLevel, const char *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "startProfiling": {
+      "previous": "void (RTuiRenderer *, _Bool)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "stopProfiling": {
+      "previous": "void (RTuiRenderer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "createTextBuffer": {
+      "previous": "RTuiTextBuffer *(uint32_t, uint8_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiTextBuffer *",
+        "parameters": [
+          "uint32_t",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "destroyTextBuffer": {
+      "previous": "void (RTuiTextBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferGetCharPtr": {
+      "previous": "const uint32_t *(const RTuiTextBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t *",
+        "parameters": [
+          "RTuiTextBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferGetLength": {
+      "previous": "uint32_t (const RTuiTextBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t",
+        "parameters": [
+          "const RTuiTextBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferGetCapacity": {
+      "previous": "uint32_t (const RTuiTextBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t",
+        "parameters": [
+          "const RTuiTextBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferResize": {
+      "previous": "_Bool (RTuiTextBuffer *, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferReset": {
+      "previous": "void (RTuiTextBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferWriteChunk": {
+      "previous": "uint32_t (RTuiTextBuffer *, const uint8_t *, uint32_t, const float *, const float *, const uint8_t *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t",
+        "parameters": [
+          "RTuiTextBuffer *",
+          "const uint8_t *",
+          "uint32_t",
+          "const float *",
+          "const float *",
+          "const uint8_t *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferAppendText": {
+      "previous": "uint32_t (RTuiTextBuffer *, const char *, size_t, const float *, const float *, const uint32_t *)",
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided."
+    },
+    "textBufferSetSelection": {
+      "previous": "void (RTuiTextBuffer *, uint32_t, uint32_t, const float *, const float *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *",
+          "uint32_t",
+          "uint32_t",
+          "const float *",
+          "const float *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferResetSelection": {
+      "previous": "void (RTuiTextBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferGetSelectionInfo": {
+      "previous": "_Bool (const RTuiTextBuffer *, uint32_t *, uint32_t *)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint64_t",
+        "parameters": [
+          "const RTuiTextBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferSetDefaultFg": {
+      "previous": "void (RTuiTextBuffer *, const float *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *",
+          "const float *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferSetDefaultBg": {
+      "previous": "void (RTuiTextBuffer *, const float *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *",
+          "const float *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferSetDefaultAttributes": {
+      "previous": "void (RTuiTextBuffer *, uint8_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *",
+          "const uint8_t *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "textBufferResetDefaults": {
+      "previous": "void (RTuiTextBuffer *)",
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTextBuffer *"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "renderTextBufferToSurface": {
+      "previous": "uint32_t (const RTuiTextBuffer *, RTuiBuffer *, uint32_t, uint32_t, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t",
+        "parameters": [
+          "const RTuiTextBuffer *",
+          "RTuiBuffer *",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "renderTextBufferToRenderer": {
+      "previous": "uint32_t (const RTuiTextBuffer *, RTuiRenderer *, uint32_t, uint32_t, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "uint32_t",
+        "parameters": [
+          "const RTuiTextBuffer *",
+          "RTuiRenderer *",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    },
+    "renderTextBufferDirect": {
+      "previous": "_Bool (const RTuiTextBuffer *, RTuiTerminal *, uint32_t, uint32_t, uint32_t, uint32_t)",
+      "status": "reconciled",
+      "current": {
+        "result": "bool",
+        "parameters": [
+          "const RTuiTextBuffer *",
+          "RTuiTerminal *",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t",
+          "uint32_t"
+        ]
+      },
+      "guidance": "Recompile using native.h; the compiler-audited signature is authoritative."
+    }
+  },
+  "typescript_functions": {
+    "rtui_animation_create": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const char *",
+          "uint32_t",
+          "RTuiEasingType",
+          "RTuiLoopMode",
+          "uint32_t",
+          "RTuiAnimation **"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "[VoidPtr, ['int', 'double', 'double', 'uint32', 'int', 'uint32', 'int', 'bool']]"
+    },
+    "rtui_animation_free": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use rtui_animation_destroy with its native signature and ownership; it is not a drop-in alias.",
+      "previous": "['void', [VoidPtr]]"
+    },
+    "rtui_animation_get_progress": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiAnimation *",
+          "float *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['double', [VoidPtr]]"
+    },
+    "rtui_animation_group_add": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr, VoidPtr]]"
+    },
+    "rtui_animation_group_create": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "[VoidPtr, []]"
+    },
+    "rtui_animation_group_free": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['void', [VoidPtr]]"
+    },
+    "rtui_animation_group_is_running": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['bool', [VoidPtr]]"
+    },
+    "rtui_animation_group_pause": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_group_remove": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr, VoidPtr]]"
+    },
+    "rtui_animation_group_resume": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_group_start": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_group_stop": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_group_update": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr, 'double']]"
+    },
+    "rtui_animation_is_complete": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['bool', [VoidPtr]]"
+    },
+    "rtui_animation_is_running": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use rtui_animation_is_playing with its native signature and ownership; it is not a drop-in alias.",
+      "previous": "['bool', [VoidPtr]]"
+    },
+    "rtui_animation_pause": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimation *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_reset": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_resume": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_set_progress": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr, 'double']]"
+    },
+    "rtui_animation_start": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use rtui_animation_play with its native signature and ownership; it is not a drop-in alias.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_stop": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiAnimation *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_animation_update": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use the native animation/manager API described in native.h; old group, callback, seek and delta-time contracts are unsupported.",
+      "previous": "['int', [VoidPtr, 'double']]"
+    },
+    "rtui_cleanup": {
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": []
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['void', []]"
+    },
+    "rtui_component_create": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Generic JSON component runtime is not implemented; use rtui_element_* for static Element trees.",
+      "previous": "[VoidPtr, ['string', 'string']]"
+    },
+    "rtui_component_free": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Generic JSON component runtime is not implemented; use rtui_element_* for static Element trees.",
+      "previous": "['void', [VoidPtr]]"
+    },
+    "rtui_component_get_state": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Generic JSON component runtime is not implemented; use rtui_element_* for static Element trees.",
+      "previous": "['string', [VoidPtr]]"
+    },
+    "rtui_component_handle_event": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Generic JSON component runtime is not implemented; use rtui_element_* for static Element trees.",
+      "previous": "['int', [VoidPtr, 'pointer']]"
+    },
+    "rtui_component_render": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Generic JSON component runtime is not implemented; use rtui_element_* for static Element trees.",
+      "previous": "['int', [VoidPtr, VoidPtr]]"
+    },
+    "rtui_component_set_state": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Generic JSON component runtime is not implemented; use rtui_element_* for static Element trees.",
+      "previous": "['int', [VoidPtr, 'string']]"
+    },
+    "rtui_component_update": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Generic JSON component runtime is not implemented; use rtui_element_* for static Element trees.",
+      "previous": "['int', [VoidPtr, 'string']]"
+    },
+    "rtui_dialog_close": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_dialog_create": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "[VoidPtr, ['int', 'string']]"
+    },
+    "rtui_dialog_focus": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_dialog_free": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "['void', [VoidPtr]]"
+    },
+    "rtui_dialog_get_result": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "['string', [VoidPtr]]"
+    },
+    "rtui_dialog_is_visible": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "['bool', [VoidPtr]]"
+    },
+    "rtui_dialog_result_free": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "['void', [VoidPtr]]"
+    },
+    "rtui_dialog_show": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "[VoidPtr, [VoidPtr]]"
+    },
+    "rtui_dialog_show_async": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "[VoidPtr, [VoidPtr, 'string', 'pointer']]"
+    },
+    "rtui_dialog_update": {
+      "status": "retired",
+      "current": null,
+      "guidance": "This old declaration was never a compiled export. Use rtui_dialog_engine_open/element/update/close/take_event with the controller ownership documented in native-components.md.",
+      "previous": "['int', [VoidPtr, 'string']]"
+    },
+    "rtui_init": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": []
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', []]"
+    },
+    "rtui_renderer_clear": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiRenderer *",
+          "uint8_t",
+          "uint8_t",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr, 'uint8', 'uint8', 'uint8']]"
+    },
+    "rtui_renderer_create": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "uint16_t",
+          "uint16_t",
+          "RTuiRenderer **"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', ['uint16', 'uint16', 'pointer']]"
+    },
+    "rtui_renderer_destroy": {
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiRenderer *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['void', [VoidPtr]]"
+    },
+    "rtui_renderer_frame": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiRenderer *",
+          "bool"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr, 'bool']]"
+    },
+    "rtui_renderer_resize": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiRenderer *",
+          "uint16_t",
+          "uint16_t"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr, 'uint16', 'uint16']]"
+    },
+    "rtui_surface_clear": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiSurface *",
+          "uint8_t",
+          "uint8_t",
+          "uint8_t"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr, 'uint8', 'uint8', 'uint8']]"
+    },
+    "rtui_surface_create": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "uint16_t",
+          "uint16_t",
+          "RTuiSurface **"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', ['uint16', 'uint16', 'pointer']]"
+    },
+    "rtui_surface_destroy": {
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiSurface *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['void', [VoidPtr]]"
+    },
+    "rtui_surface_get_cell": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiSurface *",
+          "uint16_t",
+          "uint16_t",
+          "RTuiCell *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr, 'uint16', 'uint16', 'pointer']]"
+    },
+    "rtui_surface_get_dimensions": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "const RTuiSurface *",
+          "RTuiDimensions *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr, 'pointer']]"
+    },
+    "rtui_surface_set_cell": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiSurface *",
+          "uint16_t",
+          "uint16_t",
+          "const RTuiCell *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', [VoidPtr, 'uint16', 'uint16', 'pointer']]"
+    },
+    "rtui_terminal_create": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiError",
+        "parameters": [
+          "RTuiTerminal **"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['int', ['uint16', 'uint16', 'pointer']]"
+    },
+    "rtui_terminal_destroy": {
+      "status": "reconciled",
+      "current": {
+        "result": "void",
+        "parameters": [
+          "RTuiTerminal *"
+        ]
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "['void', [VoidPtr]]"
+    },
+    "rtui_terminal_get_size": {
+      "status": "retired",
+      "current": null,
+      "guidance": "Use rtui_terminal_get_dimensions with its native signature and ownership; it is not a drop-in alias.",
+      "previous": "['int', [VoidPtr, 'pointer']]"
+    },
+    "rtui_terminal_init": {
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_terminal_shutdown": {
+      "status": "retired",
+      "current": null,
+      "guidance": "No matching native export exists. Use the audited functions in native.h; no replacement with this exact behavior is provided.",
+      "previous": "['int', [VoidPtr]]"
+    },
+    "rtui_version": {
+      "status": "reconciled",
+      "current": {
+        "result": "RTuiVersion",
+        "parameters": []
+      },
+      "guidance": "Use native-api.json arguments, output storage and ownership; see the TypeScript migration guide.",
+      "previous": "[RTuiVersion, []]"
+    }
+  },
+  "c_types": {
+    "RTuiVersion": {
+      "previous": "struct RTuiVersion",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiError": {
+      "previous": "enum RTuiError",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiPosition": {
+      "previous": "struct RTuiPosition",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiDimensions": {
+      "previous": "struct RTuiDimensions",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiRect": {
+      "previous": "struct RTuiRect",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiColor": {
+      "previous": "struct RTuiColor",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiColorRGBA": {
+      "previous": "struct RTuiColorRGBA",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiTextAttributes": {
+      "previous": "struct RTuiTextAttributes",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiCell": {
+      "previous": "struct RTuiCell",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiRenderer": {
+      "previous": "struct RTuiRenderer",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiBuffer": {
+      "previous": "struct RTuiBuffer",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiTerminal": {
+      "previous": "struct RTuiTerminal",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiTextBuffer": {
+      "previous": "struct RTuiTextBuffer",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiAnimationManager": {
+      "previous": "struct RTuiAnimationManager",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiAnimation": {
+      "previous": "struct RTuiAnimation",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiEasingType": {
+      "previous": "enum RTuiEasingType",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiLoopMode": {
+      "previous": "enum RTuiLoopMode",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiAnimatedProperty": {
+      "previous": "enum RTuiAnimatedProperty",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiElementBuilder": {
+      "previous": "struct RTuiElementBuilder",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiElement": {
+      "previous": "struct RTuiElement",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiClickHandler": {
+      "previous": "void (*)(void *)",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiAppBuilder": {
+      "previous": "struct RTuiAppBuilder",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiApp": {
+      "previous": "struct RTuiApp",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiRootComponent": {
+      "previous": "struct RTuiRootComponent",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiPerformanceMode": {
+      "previous": "enum RTuiPerformanceMode",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiPerformanceMetrics": {
+      "previous": "struct RTuiPerformanceMetrics",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiRootComponentCallback": {
+      "previous": "RTuiElement *(*)(void *)",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiDialogEngine": {
+      "previous": "struct RTuiDialogEngine",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiDialog": {
+      "previous": "struct RTuiDialog",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiEventType": {
+      "previous": "enum RTuiEventType",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiKeyEvent": {
+      "previous": "struct RTuiKeyEvent",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiMouseEvent": {
+      "previous": "struct RTuiMouseEvent",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiResizeEvent": {
+      "previous": "struct RTuiResizeEvent",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiEventData": {
+      "previous": "union RTuiEventData",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiEvent": {
+      "previous": "struct RTuiEvent",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiEventHandler": {
+      "previous": "_Bool (*)(const RTuiEvent *, void *)",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiStyleBuilder": {
+      "previous": "struct RTuiStyleBuilder",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiComputedStyle": {
+      "previous": "struct RTuiComputedStyle",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiDisplayType": {
+      "previous": "enum RTuiDisplayType",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiFlexDirection": {
+      "previous": "enum RTuiFlexDirection",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiJustifyContent": {
+      "previous": "enum RTuiJustifyContent",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiAlignItems": {
+      "previous": "enum RTuiAlignItems",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiDimensionUnit": {
+      "previous": "enum RTuiDimensionUnit",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiDimension": {
+      "previous": "struct RTuiDimension",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiStyleColor": {
+      "previous": "struct RTuiStyleColor",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiCursorStyle": {
+      "previous": "enum RTuiCursorStyle",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiCapabilities": {
+      "previous": "struct RTuiCapabilities",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiSurface": {
+      "previous": "struct RTuiSurface",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiDebugOverlayCorner": {
+      "previous": "enum RTuiDebugOverlayCorner",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiLogLevel": {
+      "previous": "enum RTuiLogLevel",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiLogCallback": {
+      "previous": "void (*)(RTuiLogLevel, const char *)",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    },
+    "RTuiLineInfo": {
+      "previous": "struct RTuiLineInfo",
+      "status": "retained",
+      "guidance": "Use native.h for native layouts; compat.h preserves legacy-only type names. Legacy-only types are not accepted by native calls."
+    }
+  }
+}
