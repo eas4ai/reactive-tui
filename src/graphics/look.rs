@@ -246,6 +246,10 @@ fn star_points(cx: f32, cy: f32, outer: f32) -> Vec<(f32, f32)> {
 pub struct Look {
     /// The theme role the box is filled with, if any.
     pub fill: Option<String>,
+    /// The role a text cell inside the look takes when the box has no fill
+    /// of its own, at the look's opacity: a code cell's digit sits in a
+    /// square drawn as a shape, and dims with it when disabled (PIX-007).
+    pub text_fill: Option<String>,
     /// The fill's opacity over what is under the element: 1 is opaque.
     pub fill_opacity: f32,
     /// The whole look's opacity over what is under the element: a disabled
@@ -265,6 +269,7 @@ impl Default for Look {
     fn default() -> Self {
         Self {
             fill: None,
+            text_fill: None,
             fill_opacity: 1.0,
             opacity: 1.0,
             radius: Radius::None,
@@ -1148,6 +1153,9 @@ impl Look {
                 fill: Some("input".to_owned()),
                 border: Some(border),
             }],
+            // The digit's cell takes the square's fill at the same opacity,
+            // so a disabled cell dims whole (PIX-007).
+            text_fill: Some("input".to_owned()),
             opacity: if disabled { 0.5 } else { 1.0 },
             ..Self::default()
         }
