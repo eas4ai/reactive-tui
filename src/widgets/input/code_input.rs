@@ -204,8 +204,12 @@ impl CodeInput {
 
     fn handle_key_event(&mut self, event: &KeyEvent, props: &mut CodeInputProps) -> EventResult {
         // Confirm is read through the keymap (KEY-001); digits and Backspace
-        // are the code input's own keys.
-        if matches!(Keymap::active().action(event), Some(Action::Confirm)) {
+        // are the code input's own keys, and a digit is text first, whatever
+        // the keymap binds it to (KEY-001: typing wins).
+        let digit = !event.modifiers.ctrl
+            && !event.modifiers.alt
+            && matches!(event.code, KeyCode::Char(c) if c.is_ascii_digit());
+        if !digit && matches!(Keymap::active().action(event), Some(Action::Confirm)) {
             let code = digits_of(&props.value, props.length);
             if props.length > 0 && code.chars().count() == props.length {
                 if let Some(callback) = &self.on_complete {
@@ -728,5 +732,29 @@ mod tests {
             "three dots, a gap, three empty cells"
         );
         assert!(!text.chars().any(|c| c.is_ascii_digit()));
+    }
+
+    /// KEY-001, CTL-009: a digit fills the code input's first empty cell
+    /// even when the active keymap binds it to Confirm.
+    #[test]
+    fn ctl_009_a_digit_bound_to_confirm_is_typed() {
+        use crate::keymap::{Action, KeyBinding};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Confirm, [KeyBinding::new(KeyCode::Char('1'))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut props = CodeInputProps {
+            length: 6,
+            ..Default::default()
+        };
+        let (mut input, changes, complete) = logged(props.clone());
+        let mut state = focused();
+        let result = key(&mut input, &mut props, &mut state, KeyCode::Char('1'));
+        assert!(matches!(result, EventResult::Consumed));
+        assert_eq!(
+            held(&changes),
+            vec!["1".to_owned()],
+            "KEY-001: the 1 fills the first cell, not read as Confirm"
+        );
+        assert!(held(&complete).is_empty());
     }
 }

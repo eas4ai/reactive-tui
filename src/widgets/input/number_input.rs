@@ -441,7 +441,18 @@ impl NumberInput {
         state: &mut NumberInputState,
     ) -> EventResult {
         use crate::keymap::Action;
-        match crate::keymap::Keymap::active().action(event) {
+        // A character the number input takes is text first, whatever the
+        // keymap binds it to (KEY-001: typing wins); every other key means
+        // what the active keymap says.
+        let typed = !event.modifiers.ctrl
+            && !event.modifiers.alt
+            && matches!(event.code, KeyCode::Char(c) if takes_typed(c));
+        let action = if typed {
+            None
+        } else {
+            crate::keymap::Keymap::active().action(event)
+        };
+        match action {
             Some(Action::Up) => return self.step(props, state, 1.0),
             Some(Action::Down) => return self.step(props, state, -1.0),
             Some(Action::PageUp) => return self.step(props, state, PAGE_STEPS),
@@ -1021,5 +1032,29 @@ mod tests {
         let decrement = CustomEvent::new(DECREMENT_EVENT, Vec::new());
         input.handle_event(&Event::Custom(decrement), &mut props, &mut state);
         assert_eq!(props.value, 9.5);
+    }
+
+    /// KEY-001, CTL-009: a character the number input takes is typed even
+    /// when the active keymap binds it to an action: with Up rebound to
+    /// `7`, typing 7 types it and does not step.
+    #[test]
+    fn ctl_009_a_digit_bound_to_an_action_is_typed() {
+        use crate::keymap::{Action, KeyBinding, Keymap};
+        let mut keymap = Keymap::default();
+        keymap.rebind(Action::Up, [KeyBinding::new(KeyCode::Char('7'))]);
+        let _scope = Keymap::scoped(keymap);
+        let mut input = NumberInput::new(range_props(0.0));
+        let mut props = range_props(0.0);
+        let mut state = focused();
+        for _ in 0..3 {
+            input.handle_event(&key(KeyCode::Backspace), &mut props, &mut state);
+        }
+        input.handle_event(&key(KeyCode::Char('7')), &mut props, &mut state);
+        assert_eq!(
+            state.typed.as_deref(),
+            Some("7"),
+            "KEY-001: the 7 is typed, not read as Up"
+        );
+        assert_eq!(props.value, 0.0, "the value did not step");
     }
 }
