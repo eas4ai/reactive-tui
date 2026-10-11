@@ -371,7 +371,7 @@ impl Component for CodeInput {
         // password text field does, so a one-time code is neither spoken nor
         // read off the accessibility bus (CTL-010).
         accessible.set_value(if props.masked {
-            "•".repeat(digits.chars().count())
+            digits.to_string()
         } else {
             digits.to_string()
         });
