@@ -208,9 +208,15 @@ fn glyph_in(
     None
 }
 
+/// How long a run waits at least before its frame count ends it: on a
+/// loaded host the App's frames race ahead of the drawing thread, and a
+/// frame count alone ended a run before its first picture came (the canvas
+/// gate's receipt 7be9b6b9 of 2026-10-10); a tree that sends no picture
+/// still ends on the count once this much time has passed, not on the guard.
+const FRAME_BOUND_FLOOR: Duration = Duration::from_secs(3);
+
 /// A stop rule that ends `settle` frames after the `count`th picture, or
-/// after `frames` frames: a run on a tree that sends no picture ends on the
-/// frame count, not on the guard.
+/// after `frames` frames once `FRAME_BOUND_FLOOR` has passed.
 fn pictures_or_frames(count: usize, settle: usize, frames: usize) -> Stop {
     let reached = Mutex::new(None);
     Box::new(move |frame, pictures, elapsed| {
@@ -218,7 +224,9 @@ fn pictures_or_frames(count: usize, settle: usize, frames: usize) -> Stop {
         if pictures >= count && reached.is_none() {
             *reached = Some(frame);
         }
-        reached.is_some_and(|at| frame >= at + settle) || frame >= frames || elapsed >= GUARD
+        reached.is_some_and(|at| frame >= at + settle)
+            || (frame >= frames && elapsed >= FRAME_BOUND_FLOOR)
+            || elapsed >= GUARD
     })
 }
 
