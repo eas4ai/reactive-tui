@@ -313,30 +313,50 @@ impl ComponentRuntime {
             resolved.metadata.accessibility = Some(accessibility);
         }
         if let Some(options) = element.metadata.accessibility_options {
+            // Every option the caller set reaches the rendered element: a
+            // mark set on the caller's element joins the rendered one's, a
+            // value set there replaces it. The pattern names every field, so
+            // an option added later cannot be left out of the merge
+            // (CTL-010, DIS-004).
+            let super::element::AccessibilityOptions {
+                id,
+                keyboard_only,
+                screen_reader_only,
+                focus,
+                clickable,
+                focus_event,
+                click_event,
+                set_value_event,
+                increment_event,
+                decrement_event,
+                label,
+                busy_parent,
+                field_part,
+                field_row,
+            } = *options;
             let target = resolved
                 .metadata
                 .accessibility_options
                 .get_or_insert_default();
-            target.focus |= options.focus;
-            target.clickable |= options.clickable;
-            if options.focus_event.is_some() {
-                target.focus_event = options.focus_event;
+            target.keyboard_only |= keyboard_only;
+            target.screen_reader_only |= screen_reader_only;
+            target.focus |= focus;
+            target.clickable |= clickable;
+            target.busy_parent |= busy_parent;
+            fn replace<T>(target: &mut Option<T>, value: Option<T>) {
+                if value.is_some() {
+                    *target = value;
+                }
             }
-            if options.click_event.is_some() {
-                target.click_event = options.click_event;
-            }
-            if options.set_value_event.is_some() {
-                target.set_value_event = options.set_value_event;
-            }
-            if options.increment_event.is_some() {
-                target.increment_event = options.increment_event;
-            }
-            if options.decrement_event.is_some() {
-                target.decrement_event = options.decrement_event;
-            }
-            if options.label.is_some() {
-                target.label = options.label;
-            }
+            replace(&mut target.id, id);
+            replace(&mut target.focus_event, focus_event);
+            replace(&mut target.click_event, click_event);
+            replace(&mut target.set_value_event, set_value_event);
+            replace(&mut target.increment_event, increment_event);
+            replace(&mut target.decrement_event, decrement_event);
+            replace(&mut target.label, label);
+            replace(&mut target.field_part, field_part);
+            replace(&mut target.field_row, field_row);
         }
         if element.metadata.styles.is_some() {
             resolved.metadata.styles = element.metadata.styles;
@@ -603,6 +623,54 @@ mod tests {
 
         runtime.resolve(Element::text("removed")).unwrap();
         assert_eq!(runtime.mouse.registration_count(), 0);
+        scope.close();
+    }
+
+    struct Plain;
+
+    impl Component for Plain {
+        type Props = EmptyProps;
+        type State = ();
+
+        fn new(_props: Self::Props) -> Self {
+            Self
+        }
+
+        fn render(&self, _props: &Self::Props, _state: &Self::State) -> Element {
+            Element::text("plain")
+        }
+    }
+
+    /// CTL-010, DIS-004: the accessibility markers a caller puts on a
+    /// component's element reach the element it renders, so a text input
+    /// marked as a form row's control is linked to the row's label.
+    #[test]
+    fn ctl_010_a_component_elements_markers_reach_the_element_it_renders() {
+        use crate::component::{FieldPart, FieldRow};
+        let scope = ComponentScope::new(Arc::new(Scheduler::new()));
+        let _binding = scope.enter(true);
+        let mut runtime = ComponentRuntime::default();
+        let mut element = Element::typed::<Plain>(EmptyProps)
+            .with_field_part(FieldPart::Control)
+            .with_field_row(FieldRow { required: true })
+            .with_busy_parent()
+            .with_accessibility_id("plain");
+        let options = element
+            .metadata
+            .accessibility_options
+            .get_or_insert_default();
+        options.keyboard_only = true;
+        options.screen_reader_only = true;
+        let resolved = runtime.resolve(element).unwrap();
+        let options = resolved
+            .metadata
+            .accessibility_options
+            .expect("the markers reach the rendered element");
+        assert_eq!(options.field_part, Some(FieldPart::Control));
+        assert_eq!(options.field_row, Some(FieldRow { required: true }));
+        assert!(options.busy_parent, "DIS-004: the busy mark is kept");
+        assert_eq!(options.id.as_deref(), Some("plain"));
+        assert!(options.keyboard_only && options.screen_reader_only);
         scope.close();
     }
 }

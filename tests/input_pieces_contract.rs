@@ -2088,6 +2088,45 @@ mod reader {
     }
 
     #[test]
+    fn ctl_010_a_text_input_marked_as_a_rows_control_is_labelled_by_the_rows_label() {
+        // A form row built by hand: the markers sit on the text input's own
+        // element, which the runtime expands into the element it renders.
+        use reactive_tui::component::{FieldPart, FieldRow};
+        let reader = ReaderChannel::new();
+        run(
+            builder::div()
+                .class("flex-col")
+                .child(
+                    builder::div()
+                        .class("flex flex-row")
+                        .child(Element::text("Phone").with_field_part(FieldPart::Label))
+                        .child(
+                            builder::text_input()
+                                .build()
+                                .with_field_part(FieldPart::Control),
+                        )
+                        .build()
+                        .with_field_row(FieldRow { required: true }),
+                )
+                .build(),
+            &reader,
+            vec![(painted("Phone"), None)],
+        );
+        let tree = published(&reader);
+        let inputs = text_inputs(&tree);
+        assert_eq!(inputs.len(), 1, "CTL-010: one text input node");
+        assert_eq!(
+            labelled_by_label(&tree, inputs[0]),
+            Some("Phone"),
+            "CTL-010: the control is labelled by the row's label"
+        );
+        assert!(
+            inputs[0].is_required(),
+            "CTL-010: the row's control is required"
+        );
+    }
+
+    #[test]
     fn ctl_010_a_disabled_piece_is_marked_disabled() {
         let reader = ReaderChannel::new();
         run(
