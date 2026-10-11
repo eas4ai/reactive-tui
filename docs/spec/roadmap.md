@@ -2251,3 +2251,63 @@ the command palette, the log view, the Markdown view, the calendar and
 date picker) are the next commitment, the code editor left out unless
 asked.
 
+
+## input-pieces-4
+
+Carries input-pieces-3, superseded on 2026-10-10 after the developer ruled
+that a rating's unlit star is filled in the dim `border` role (`ring` with
+the focus) rather than outlined one pixel, which fills a star of 8 or 10
+pixels into a blob; PIX-007 changes in that one phrase. The work, the
+gates and the mechanism bindings carry over; nothing else changed.
+
+Requirements: CTL-007, CTL-008, CTL-009, CTL-010, PIX-007, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The second of the three commitments that build the widgets
+docs/widget-study.md shortlists, in the order the developer confirmed on
+2026-10-09: after the display pieces, the input pieces. Read on
+2026-10-10: none of the five exists as a widget. The text input's
+`Numeric` mode filters characters and names a role but has no step, no
+range and no buttons; the slider and the checkbox carry the keys and the
+states the rating and the switch need; and a form is a label helper over a
+grid, with no link from a label to its control for the screen reader.
+
+The commitment brings the number input, the code input, the rating, the
+switch and the form (`widgets::input`, with `builder::number_input()`,
+`builder::code_input()`, `builder::rating()`, `builder::switch()` and
+`builder::form()`) to the widget bar (BAR-003 to BAR-006) on the color
+roles of theme.md and the keymap of keymap.md: every color from a role, one
+look from props or builder, focus, hover and disabled by color alone, and
+two catalog icons for the stars (CTL-007); the number input and the form
+filling the width their parent allots, the code input, the rating and the
+switch taking their content's, the form's label column and its move above
+the controls when the row is too narrow (CTL-008); the number input's
+typing, stepping, clamping and buttons, the code input's cells, paste and
+completion, the rating's keys and clicks, the switch's toggle, the form's
+focus order, the builders' callbacks and the data table builder's page
+callback (CTL-009); what each tells the screen reader, with the form's
+controls labelled and described by their label and description (CTL-010);
+and their pictures where the terminal takes pixels, the buttons and the
+code cells as rounded squares, the stars as stars and the switch as a pill
+(PIX-007). Goldens at 80 by 24 and 400 by 100 for each of the five in
+tests/input_widgets_goldens.rs; five cards on the catalog's Input page; a
+heading of its own for each in manual/input-widgets.md. The input-widgets
+mechanism is redeclared here with CTL-007 to CTL-010 over
+tests/input_pieces_contract.rs and the crate's `ctl_010_` unit tests, the
+pixel-looks mechanism with PIX-007 and its reference pictures, and the
+widget-bar check with the new test file; the goldens and catalog-manual
+checks learn the five through the inputs they already have. Nothing
+animates, so the frame-budget check keeps holding on what it holds. The
+coding goes to Haiku 5.5 subagents for jobs under 100k tokens of context
+and Opus 5.5 above, as the developer asked on 2026-10-09. The picture icon
+set (pixel-icon-set, a97c35c1) stays outside: the rating's stars are
+shapes of its look, not catalog pictures.
+
+Done when every named requirement passes; input-widgets has recorded a
+fail on the tree as it was at the start for each of CTL-007 to CTL-010,
+and pixel-looks for PIX-007; the workflow's run for the final commit is
+green on the three machines; and the adversary's findings are resolved or
+declined. The medium widgets (the resizable split, the sidebar, the list,
+the command palette, the log view, the Markdown view, the calendar and
+date picker) are the next commitment, the code editor left out unless
+asked.
+
