@@ -1536,12 +1536,16 @@ fn prepare_look(
     // control's half, under the element's own opacity. A text cell beside
     // the picture takes it over what is under the element, so the two are
     // one color (PIX-001); the cell CSS has no opacity to say it with.
-    let look_fill = look.fill.as_deref().and_then(|role| {
-        let (r, g, b, a) = crate::theme::Theme::active().resolve_variable(role)?;
-        let alpha = a * look.fill_opacity * look.opacity * paint.opacity * node.parent_opacity;
-        let byte = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
-        Some(ansi::rgb_color(byte(r), byte(g), byte(b), byte(alpha)))
-    });
+    let look_fill = look
+        .fill
+        .as_deref()
+        .or(look.text_fill.as_deref())
+        .and_then(|role| {
+            let (r, g, b, a) = crate::theme::Theme::active().resolve_variable(role)?;
+            let alpha = a * look.fill_opacity * look.opacity * paint.opacity * node.parent_opacity;
+            let byte = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+            Some(ansi::rgb_color(byte(r), byte(g), byte(b), byte(alpha)))
+        });
     // The box's cells on the screen with what each holds before the node
     // paints. A cell under another look's picture takes that look's fill
     // first: this picture's rounded corners and a translucent fill show

@@ -2295,6 +2295,15 @@ fn code_input(masked: bool) -> Element {
         .build()
 }
 
+/// A disabled code input of six digits with three typed.
+fn disabled_code_input() -> Element {
+    builder::code_input()
+        .length(6)
+        .value("123")
+        .disabled(true)
+        .build()
+}
+
 /// A rating of five stars at 3.
 fn rating(disabled: bool) -> Element {
     builder::rating().max(5).value(3).disabled(disabled).build()
@@ -2348,6 +2357,10 @@ fn pix_007_number_inputs_code_inputs_ratings_and_switches_match_their_reference_
                 case("code_input_masked", 18, 1, code_input(true)),
                 CODE_INPUT_LOOKS,
             ),
+            whole(
+                case("code_input_disabled", 18, 1, disabled_code_input()),
+                CODE_INPUT_LOOKS,
+            ),
             case("rating_3", 30, 1, rating(false)),
             focused(case("rating_3_focused", 30, 1, rating(false))),
             case("rating_disabled", 30, 1, rating(true)),
@@ -2380,6 +2393,48 @@ fn pieces_page() -> (Element, usize) {
         .child(sized(30, 1, switch(true)))
         .build();
     (page, NUMBER_INPUT_LOOKS + CODE_INPUT_LOOKS + 2)
+}
+
+/// PIX-007, PIX-001: a disabled code input's squares are drawn at half,
+/// and its digit cells take the same half fill, so a digit cell and the
+/// square around it are one color.
+#[test]
+fn pix_007_a_disabled_code_inputs_digit_cell_dims_with_its_square() {
+    let tree = div()
+        .class("bg-background w-full h-full")
+        .child(sized(18, 1, disabled_code_input()))
+        .build();
+    let run = run(
+        tree,
+        SIZE,
+        kitty(),
+        Box::new(|_, _| None),
+        pictures_or_frames(CODE_INPUT_LOOKS, 6, 120),
+        true,
+    );
+    let first = run.first_picture("PIX-007: a disabled code input");
+    let picture = run
+        .pictures()
+        .into_iter()
+        .rfind(|p| p.id == first.id)
+        .expect("the first cell's picture");
+    // A pixel of the square's fill in the cell left of the digit: the fill
+    // alone, at half.
+    let fill = picture.pixel(6, 8);
+    assert!(
+        (118..=138).contains(&fill[3]),
+        "PIX-007: a disabled code input's square is drawn with alpha {} instead of half",
+        fill[3]
+    );
+    let under = role("background");
+    let shown = kitty_shows(fill, under);
+    let screen = run.screen(run.frames.len() - 1);
+    let text = columns_of(&screen, 0, "1").expect("the first digit");
+    let cell = bg(&screen, 0, text.start).expect("the digit cell's background");
+    assert!(
+        near([cell[0], cell[1], cell[2], 255], shown, 2),
+        "PIX-001: a disabled code input's digit cell is {cell:?} beside a square Kitty shows as {shown:?} over `background`"
+    );
 }
 
 #[test]
