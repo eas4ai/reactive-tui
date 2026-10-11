@@ -246,8 +246,11 @@ for 42, and 10 when the focus leaves. A disabled number input takes
 nothing.
 
 The screen reader hears a spin button, named by its label or `aria_label`,
-with its value, minimum, maximum and step. It advertises Increment,
-Decrement and SetValue and acts on them as a slider does.
+with its value, minimum, maximum and step. While the user types it hears
+what the field shows, and a number outside the range, or a text that is no
+number, as an invalid entry: `42` in a range of 0 to 10 reads as 42,
+invalid entry, while the application still holds 4. It advertises
+Increment, Decrement and SetValue and acts on them as a slider does.
 
 ## Code input
 
