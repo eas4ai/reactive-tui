@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pixel-looks: PIX-001 to PIX-007 (docs/spec/pixel-looks.md) through
+"""pixel-looks: PIX-001 to PIX-008 (docs/spec/pixel-looks.md) through
 tests/pixel_looks.rs, built with wgpu-graphics. A widget's or element's look is
 one pixel picture over its rectangle where the terminal takes Kitty graphics
 or Sixel, drawn around its text, kept and sent only when it changes, hidden
@@ -18,6 +18,16 @@ cells, the rating's stars and the switch's pill) also ask that every reference
 picture the tests name is checked in and tracked, that the test file writes a reference only under
 REGENERATE=1 (BAR-004's rule), and that an altered reference fails the
 comparison.
+
+PIX-008: a focused look whose fill is `primary` (the primary button, the
+checked checkbox, the switch that is on) has a fully transparent pixel
+between its ring and its fill on each side, under the dark preset whose
+`ring` is its `primary`, and every other look stays as drawn. Its own tests
+walk each side of those three pictures and compare the focused unchecked
+checkbox and the focused switch that is off with their references; the
+unfocused primary button, the focused `builder::button()` and the three
+focused looks themselves are reference cases of PIX-003, PIX-004 and
+PIX-007, whose reference tests run for PIX-008 too.
 
 PIX-006 binds on this host: the catalog's Input page and a page of 192 looks
 at 240 by 60 cells, in a release build on the hardware adapter, with Kitty
@@ -51,6 +61,18 @@ REFERENCES = {
     "PIX-004": "pix_004_",
     "PIX-005": "pix_005_",
     "PIX-007": "pix_007_",
+    "PIX-008": "pix_008_",
+}
+# The reference tests of other requirements that hold a requirement's cases,
+# run after its own tests: PIX-008's primary button with and without the
+# focus, focused `builder::button()`, focused checked checkbox and focused
+# switch that is on are reference cases of PIX-003, PIX-004 and PIX-007.
+SHARED = {
+    "PIX-008": [
+        "pix_003_rounded_containers_buttons_and_cards_match_their_reference_pictures",
+        "pix_004_fields_checkboxes_and_radios_match_their_reference_pictures",
+        "pix_007_number_inputs_code_inputs_ratings_and_switches_match_their_reference_pictures",
+    ],
 }
 
 
@@ -172,6 +194,11 @@ def main() -> int:
     problems = reference_problems() + regeneration_problems(TEST) + altered_reference_problems()
     for req, substring in REFERENCES.items():
         ok, why = cargo_test_filtered("pixel_looks", substring, features=FEATURE, package=PACKAGE)
+        for shared in SHARED.get(req, []):
+            if not ok:
+                break
+            ok, shared_why = cargo_test_filtered("pixel_looks", shared, features=FEATURE, package=PACKAGE)
+            why = f"{why}; {shared_why} in {shared[:7]}" if ok else f"{shared}: {shared_why}"
         # The tests' own verdict first: a picture that differs or was not sent
         # is the falsifier; the audits say what the references lack.
         results[req] = (ok and not problems, why if not ok else "; ".join(problems[:6]) or why)
