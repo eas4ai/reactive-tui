@@ -1154,9 +1154,9 @@ impl Look {
     }
 
     /// A rating over `max` cells: one five-pointed star as wide as its cell
-    /// and centered in it per cell, filled `warning` for the first `value`,
-    /// outlined one pixel in `border` (`ring` while focused) for the rest;
-    /// at half when disabled (PIX-007).
+    /// and centered in it per cell, filled `warning` for the first `value`
+    /// and `border` (`ring` while focused) for the rest; at half when
+    /// disabled (PIX-007).
     pub fn rating(max: usize, value: usize, focused: bool, disabled: bool) -> Self {
         let shapes = (0..max)
             .map(|index| {
@@ -1168,8 +1168,19 @@ impl Look {
                     size: Extent::CellWidth {
                         times: 1.0 / 72.0_f32.to_radians().sin(),
                     },
-                    fill: lit.then(|| "warning".to_owned()),
-                    border: (!lit).then(|| frame_line(focused)),
+                    // Lit in `warning`; unlit filled in `border`, `ring`
+                    // while the rating holds the focus (PIX-007).
+                    fill: Some(
+                        if lit {
+                            "warning"
+                        } else if focused {
+                            "ring"
+                        } else {
+                            "border"
+                        }
+                        .to_owned(),
+                    ),
+                    border: None,
                 }
             })
             .collect();
