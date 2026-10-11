@@ -750,7 +750,12 @@ impl Component for NumberInput {
                 accessible.inner.add_action(action);
             }
         }
-        let mut element = look::row_of(children, "w-full")
+        // The props' width sets the row's width; without one the row fills
+        // the width its layout gives it (CTL-008).
+        let row_width = props
+            .width
+            .map_or_else(|| "w-full".to_owned(), |cells| format!("w-{cells}"));
+        let mut element = look::row_of(children, &row_width)
             .with_accessibility(accessible)
             .with_focus(FocusProps::input())
             .disabled(props.disabled);

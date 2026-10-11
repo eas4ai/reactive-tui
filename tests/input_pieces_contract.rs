@@ -1010,6 +1010,49 @@ fn ctl_008_a_number_input_fills_a_box_of_100_cells_and_a_width_class_sets_its_wi
 }
 
 #[test]
+fn ctl_008_a_width_on_the_props_or_the_builder_sets_the_number_inputs_width() {
+    // A row holds the number input and a text after it, so the text starts
+    // where the number input's width ends.
+    let built = builder::number_input()
+        .value(2.0)
+        .min(0.0)
+        .max(10.0)
+        .step(0.5)
+        .width(40)
+        .build();
+    let typed = Element::typed::<NumberInput>(NumberInputProps {
+        value: 2.0,
+        min: Some(0.0),
+        max: Some(10.0),
+        step: 0.5,
+        width: Some(40),
+        ..Default::default()
+    });
+    for (how, input) in [
+        ("the builder's width(40)", built),
+        ("width: Some(40) on its props", typed),
+    ] {
+        let row = builder::div()
+            .class("flex flex-row w-100 h-1")
+            .child(input)
+            .child(Element::text("After"))
+            .build();
+        let frame = shown(row, (240, 4), "2.0");
+        assert!(
+            frame.text.contains("After"),
+            "CTL-008: with {how} the text after the number input shows:\n{}",
+            frame.text
+        );
+        let (after, _) = at(&frame, "After");
+        assert_eq!(
+            after, 40,
+            "CTL-008: with {how} the text after the number input starts at 40:\n{}",
+            frame.text
+        );
+    }
+}
+
+#[test]
 fn ctl_008_a_code_input_a_rating_and_a_switch_take_their_contents_width() {
     let frame = shown(boxed(100, 1, code_at("123")), (240, 4), "[1][2][3]");
     let (start, row) = at(&frame, "[");
