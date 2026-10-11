@@ -348,14 +348,19 @@ impl NumberInput {
         }
     }
 
-    /// Reports the number the typed text reads as, when it reads as one and
-    /// differs from the value last reported: each typed change of the
-    /// number is a change of the value (CTL-009). The number is reported as
-    /// typed; the range clamps it when the text is committed.
+    /// Reports the number the typed text reads as, when it reads as one
+    /// inside the range and differs from the value last reported: each
+    /// typed change of the number is a change of the value (CTL-009). A
+    /// typed number outside the range is not a value the input holds, so
+    /// an application never receives one; the clamp reports the value it
+    /// becomes when the text is committed.
     fn report_typed(&self, props: &NumberInputProps, state: &mut NumberInputState) {
         let Some(typed) = state.typed.as_deref().and_then(parse) else {
             return;
         };
+        if props.clamp(typed) != typed {
+            return;
+        }
         if typed != Self::last_reported(props, state) {
             state.reported = Some(typed);
             self.report(typed);
@@ -881,8 +886,9 @@ mod tests {
     }
 
     /// CTL-009: each typed keystroke that changes the number the text reads
-    /// as reports it, and the clamp when the focus leaves reports again
-    /// when it changes the value.
+    /// as reports it while it lies inside the range, a number outside the
+    /// range is not reported, and the clamp when the focus leaves reports
+    /// the value it becomes.
     #[test]
     fn ctl_009_a_typed_change_of_the_number_is_reported() {
         let (mut input, log) = logged(0.0);
@@ -896,13 +902,17 @@ mod tests {
         input.handle_event(&key(KeyCode::Char('4')), &mut props, &mut state);
         input.handle_event(&key(KeyCode::Char('2')), &mut props, &mut state);
         input.handle_event(&key(KeyCode::Char('x')), &mut props, &mut state);
-        assert_eq!(*log.lock().unwrap(), vec![4.0, 42.0], "4, then 42");
+        assert_eq!(
+            *log.lock().unwrap(),
+            vec![4.0],
+            "4; 42 lies outside 0 to 10 and is not reported"
+        );
         input.handle_event(&lost(), &mut props, &mut state);
         assert_eq!(props.value, 10.0);
         assert_eq!(
             *log.lock().unwrap(),
-            vec![4.0, 42.0, 10.0],
-            "the clamp to 10 is a change from the 42 reported"
+            vec![4.0, 10.0],
+            "the clamp to 10 is a change from the 4 reported"
         );
     }
 

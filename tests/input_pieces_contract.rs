@@ -1233,6 +1233,7 @@ fn ctl_009_a_number_input_clamps_a_typed_value_when_the_focus_leaves() {
     // Right moves the cursor past the text; Backspace clears it. The
     // "Next" button stays on screen, so it marks each step's frame once
     // the value's text changes.
+    let changes: Log<f64> = Arc::default();
     let frames = shown_after(
         builder::div()
             .class("flex-col gap-1")
@@ -1242,6 +1243,7 @@ fn ctl_009_a_number_input_clamps_a_typed_value_when_the_focus_leaves() {
                     .min(0.0)
                     .max(10.0)
                     .step(0.5)
+                    .on_change(recorder(&changes))
                     .build()
                     .auto_focus(),
             )
@@ -1264,6 +1266,12 @@ fn ctl_009_a_number_input_clamps_a_typed_value_when_the_focus_leaves() {
     assert!(
         find(last(&frames), "10.0").is_some(),
         "CTL-009: a typed 42 is clamped to 10.0 when the focus leaves:\n{}",
+        last(&frames).text
+    );
+    assert_eq!(
+        held(&changes),
+        vec![4.0, 10.0],
+        "CTL-009: typing 4 then 2 in a range of 0 to 10 reports 4, never 42, then the 10 the clamp makes:\n{}",
         last(&frames).text
     );
 }
