@@ -84,10 +84,16 @@ impl NumberInputProps {
         }
     }
 
-    /// `value` clamped into the range; a value that is not finite reads as
-    /// 0, and a range whose least is above its greatest clamps nothing.
+    /// `value` clamped into the range; a value that is not a number reads
+    /// as 0, an infinite one as the greatest finite number of its sign, so
+    /// a step that overflows keeps its direction (CTL-009), and a range
+    /// whose least is above its greatest clamps nothing.
     fn clamp(&self, value: f64) -> f64 {
-        let value = if value.is_finite() { value } else { 0.0 };
+        let value = if value.is_nan() {
+            0.0
+        } else {
+            value.clamp(f64::MIN, f64::MAX)
+        };
         let low = self.min.unwrap_or(f64::NEG_INFINITY);
         let high = self.max.unwrap_or(f64::INFINITY);
         if low <= high {
@@ -1056,5 +1062,33 @@ mod tests {
             "KEY-001: the 7 is typed, not read as Up"
         );
         assert_eq!(props.value, 0.0, "the value did not step");
+    }
+
+    /// CTL-009: a step past the greatest finite number keeps the bound, as a
+    /// step at the bound does; it never wraps to 0.
+    #[test]
+    fn ctl_009_a_step_that_overflows_keeps_the_bound() {
+        let at = |value: f64, min: Option<f64>, max: Option<f64>| NumberInputProps {
+            value,
+            min,
+            max,
+            step: 1e308,
+            ..Default::default()
+        };
+        let mut input = NumberInput::new(at(1e308, Some(0.0), Some(1e308)));
+        let mut state = focused();
+        let mut props = at(1e308, Some(0.0), Some(1e308));
+        input.handle_event(&key(KeyCode::Up), &mut props, &mut state);
+        assert_eq!(props.value, 1e308, "CTL-009: Up at the maximum keeps it");
+        let mut props = at(-1e308, Some(-1e308), Some(0.0));
+        input.handle_event(&key(KeyCode::Down), &mut props, &mut state);
+        assert_eq!(props.value, -1e308, "CTL-009: Down at the minimum keeps it");
+        let mut props = at(f64::MAX, None, None);
+        input.handle_event(&key(KeyCode::Up), &mut props, &mut state);
+        assert_eq!(
+            props.value,
+            f64::MAX,
+            "CTL-009: with no maximum, Up from the greatest number keeps it"
+        );
     }
 }
