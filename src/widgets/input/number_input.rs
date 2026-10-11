@@ -727,7 +727,22 @@ impl Component for NumberInput {
         if let Some(label) = &props.aria_label {
             accessible.set_label(label.clone());
         }
-        accessible.inner.set_numeric_value(value);
+        // The screen reader hears what the field shows: its text as the
+        // value text, the number it reads as, and that the entry is invalid
+        // when the text reads as no number or as one outside the range.
+        // The application still holds the number last reported (CTL-010,
+        // the developer's ruling on escalation 22c14501).
+        let typed = state.typed.as_deref();
+        let typed_number = typed.and_then(parse);
+        accessible
+            .inner
+            .set_numeric_value(typed_number.unwrap_or(value));
+        accessible.inner.set_value(text.clone());
+        if typed.is_some_and(|text| !text.trim().is_empty())
+            && typed_number.is_none_or(|number| props.clamp(number) != number)
+        {
+            accessible.inner.set_invalid(accesskit::Invalid::True);
+        }
         if let Some(min) = props.min {
             accessible.inner.set_min_numeric_value(min);
         }
@@ -1100,42 +1115,59 @@ mod tests {
         );
     }
 
-    /// CTL-010: while the user types, the spin button's value is the number
-    /// last reported, so the screen reader hears what the application was
-    /// told: 4 after typing 4, and still 4 while the text reads 42, outside
-    /// the range.
+    /// CTL-010: while the user types, the screen reader hears what the field
+    /// shows: after 4 the value 4, after 42 the value 42 marked invalid, as
+    /// 42 lies outside 0 to 10, while the application still holds the 4 it
+    /// was told; when the focus leaves, the value is 10 and valid again
+    /// (the developer's ruling on escalation 22c14501).
     #[test]
-    fn ctl_010_the_spin_buttons_value_follows_the_typed_number() {
-        fn value(
+    fn ctl_010_the_spin_button_reads_what_the_field_shows() {
+        fn read(
             input: &NumberInput,
             props: &NumberInputProps,
             state: &NumberInputState,
-        ) -> Option<f64> {
+        ) -> (Option<f64>, Option<String>, bool) {
             let element = input.render(props, state);
-            element
-                .metadata
-                .accessibility
-                .as_ref()?
-                .inner
-                .numeric_value()
+            let node = &element.metadata.accessibility.as_ref().unwrap().inner;
+            (
+                node.numeric_value(),
+                node.value().map(str::to_owned),
+                node.invalid().is_some(),
+            )
         }
-        let mut input = NumberInput::new(range_props(0.0));
+        let (mut input, log) = logged(0.0);
         let mut props = range_props(0.0);
         let mut state = focused();
+        assert_eq!(
+            read(&input, &props, &state),
+            (Some(0.0), Some("0.0".to_owned()), false)
+        );
         for _ in 0..3 {
             input.handle_event(&key(KeyCode::Backspace), &mut props, &mut state);
         }
+        assert_eq!(
+            read(&input, &props, &state),
+            (Some(0.0), Some(String::new()), false),
+            "an empty field reads as empty and is not invalid"
+        );
         input.handle_event(&key(KeyCode::Char('4')), &mut props, &mut state);
         assert_eq!(
-            value(&input, &props, &state),
-            Some(4.0),
-            "CTL-010: the typed 4 is the spin button's value"
+            read(&input, &props, &state),
+            (Some(4.0), Some("4".to_owned()), false),
+            "CTL-010: the typed 4 is read"
         );
         input.handle_event(&key(KeyCode::Char('2')), &mut props, &mut state);
         assert_eq!(
-            value(&input, &props, &state),
-            Some(4.0),
-            "CTL-010: 42 lies outside 0 to 10, so the value stays the 4 reported"
+            read(&input, &props, &state),
+            (Some(42.0), Some("42".to_owned()), true),
+            "CTL-010: the field shows 42, so the reader hears 42, invalid"
+        );
+        assert_eq!(*log.lock().unwrap(), vec![4.0], "the application holds 4");
+        input.handle_event(&lost(), &mut props, &mut state);
+        assert_eq!(
+            read(&input, &props, &state),
+            (Some(10.0), Some("10.0".to_owned()), false),
+            "the clamp to 10 is valid"
         );
     }
 }

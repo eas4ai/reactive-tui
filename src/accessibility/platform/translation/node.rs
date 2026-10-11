@@ -336,6 +336,9 @@ impl NodeWrapper<'_> {
         if state.is_required() {
             atspi_state.insert(State::Required);
         }
+        if state.data().invalid().is_some() {
+            atspi_state.insert(State::InvalidEntry);
+        }
         if state.is_multiselectable() {
             atspi_state.insert(State::Multiselectable);
         }
@@ -1810,6 +1813,19 @@ impl PlatformNode {
         self.resolve(|node| {
             let wrapper = NodeWrapper(&node);
             Ok(wrapper.current_value().unwrap_or(0.0))
+        })
+    }
+
+    /// The value as text: the node's value text when it has one, such as
+    /// the text a number box shows, else its number (CTL-010).
+    pub fn value_text(&self) -> Result<String> {
+        self.resolve(|node| {
+            Ok(node.value().unwrap_or_else(|| {
+                NodeWrapper(&node)
+                    .current_value()
+                    .map(|value| value.to_string())
+                    .unwrap_or_default()
+            }))
         })
     }
 

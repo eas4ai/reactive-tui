@@ -44,6 +44,12 @@ impl ValueInterface {
         self.node.current_value().map_err(self.map_error())
     }
 
+    /// The value as the screen reader reads it (CTL-010).
+    #[zbus(property)]
+    fn text(&self) -> fdo::Result<String> {
+        self.node.value_text().map_err(self.map_error())
+    }
+
     #[zbus(property)]
     fn set_current_value(&mut self, value: f64) -> fdo::Result<()> {
         self.node.set_current_value(value).map_err(self.map_error())
