@@ -883,4 +883,32 @@ mod tests {
         assert_eq!(node.hyperlink_start_index().unwrap(), -1);
         assert_eq!(node.hyperlink_end_index().unwrap(), -1);
     }
+
+    /// CTL-010: a node whose entry is invalid tells the screen reader so,
+    /// and a spin button's value text is what its field shows.
+    #[test]
+    fn an_invalid_entry_is_announced_and_a_value_text_is_read() {
+        let mut spin = Node::new(Role::SpinButton);
+        spin.set_numeric_value(42.0);
+        spin.set_value("42");
+        spin.set_invalid(accesskit::Invalid::True);
+        let (adapter, child) = linked_tree(spin, vec![]);
+        let node = adapter.platform_node(child);
+        assert!(
+            node.state().contains(atspi_common::State::InvalidEntry),
+            "an invalid entry is announced as one"
+        );
+        assert_eq!(node.value_text().unwrap(), "42");
+        let (adapter, child) = linked_tree(Node::new(Role::SpinButton), vec![]);
+        let node = adapter.platform_node(child);
+        assert!(!node.state().contains(atspi_common::State::InvalidEntry));
+        let mut number = Node::new(Role::SpinButton);
+        number.set_numeric_value(2.5);
+        let (adapter, child) = linked_tree(number, vec![]);
+        assert_eq!(
+            adapter.platform_node(child).value_text().unwrap(),
+            "2.5",
+            "with no value text, the number is read"
+        );
+    }
 }
