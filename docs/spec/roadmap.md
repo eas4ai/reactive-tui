@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: input-pieces-4
+Current: input-pieces-follow-up
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -2311,3 +2311,46 @@ the command palette, the log view, the Markdown view, the calendar and
 date picker) are the next commitment, the code editor left out unless
 asked.
 
+## input-pieces-follow-up
+
+Requirements: CTL-010, CTL-011, PIX-003, PIX-004, PIX-007, PIX-008, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+Three changes to the input pieces input-pieces-4 brought, which the
+developer chose on 2026-10-11 to take before the medium widgets. Read that
+day: every built-in preset sets `ring` to the color of `primary` (THM-001
+asks only that it contrast with `background` and `surface`, and THM-002
+makes it `primary` when a theme leaves it out), so the pictures of a focused
+primary button, a focused checked checkbox and a focused switch that is on
+show no focus; a number input marks a typed number invalid whenever it lies
+outside the range, so a year box of 1900 to 2100 is invalid at the first
+digit of 2025; and the project's Orca scripts under tests/api_widget_behavior
+cover other widgets and run under no check, while a by-hand Orca run found an
+emptied number input speaking its old number (fixed 7f8d0d5c).
+
+The commitment draws a focused look filled with `primary` with a gap of
+one pixel between its ring and its fill (PIX-008), redrawing the three
+reference pictures of PIX-003, PIX-004 and PIX-007 that show such a look
+with the focus and leaving every other picture as it is; marks a number
+input's typed text invalid only when no characters it takes, typed after
+the text, could bring it into the range, and states in CTL-010 what the
+screen reader is told while the user types (the developer's ruling on
+escalation 22c14501 and the fix of the emptied input, both built); and adds
+an input page to the accessibility probe (tests/api_widget_behavior) with a
+scenario that runs real Orca on a private X display and D-Bus session and
+reads its speech (CTL-011), under a new mechanism, input-orca, that runs on
+the Linux development host. The input-widgets mechanism is bound again to
+CTL-010's revised text, and the pixel-looks mechanism is redeclared with
+PIX-008. Themes do not change. The coding goes to Haiku 5.5 subagents for
+jobs under 100k tokens of context and Opus 5.5 above, as the developer
+asked on 2026-10-09.
+
+Done when every named requirement passes; input-widgets has recorded a fail
+for CTL-010's revised text, pixel-looks for PIX-008 and input-orca for
+CTL-011, each on the tree as it was before the work; the three redrawn
+reference pictures were shown to the developer before they were accepted;
+the workflow's run for the final commit is green on the three machines; and
+the adversary's findings are resolved or declined. The medium widgets (the
+resizable split, the sidebar, the list, the command palette, the log view,
+the Markdown view, the calendar and date picker) come next, the code editor
+left out unless asked; the catalog settle-test flake waits until the next
+Done by the developer's ok.
