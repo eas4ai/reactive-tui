@@ -183,3 +183,35 @@ fn focus_without_pixel_bounds_exposes_component_but_not_activation() {
     assert!(interfaces.contains(Interface::Component));
     assert!(!interfaces.contains(Interface::Action));
 }
+
+/// CTL-010: an emptied number input publishes no number. On AT-SPI its spin
+/// button keeps the value interface and reads as `blank`, so Orca's Where Am
+/// I does not read a number the box does not hold; a spin button holding a
+/// number reads as its text (the developer's ruling on escalation 3b71c4b1).
+#[test]
+fn ctl_010_an_empty_spin_button_keeps_its_value_interface_and_reads_as_blank() {
+    let mut root = Node::new(Role::Window);
+    root.set_children([NodeId(2), NodeId(3)]);
+    let mut empty = Node::new(Role::SpinButton);
+    empty.set_value("");
+    let mut holding = Node::new(Role::SpinButton);
+    holding.set_value("42");
+    holding.set_numeric_value(42.0);
+    let tree = Tree::new(
+        TreeUpdate {
+            nodes: vec![(NodeId(1), root), (NodeId(2), empty), (NodeId(3), holding)],
+            tree: Some(TreeInfo::new(NodeId(1))),
+            tree_id: TreeId::ROOT,
+            focus: NodeId(2),
+        },
+        true,
+    );
+    let mut children = tree.state().root().children();
+    let (empty, holding) = (children.next().unwrap(), children.next().unwrap());
+    assert!(
+        NodeWrapper(&empty).interfaces().contains(Interface::Value),
+        "an empty spin button keeps its value interface"
+    );
+    assert_eq!(NodeWrapper(&empty).value_text(), "blank");
+    assert_eq!(NodeWrapper(&holding).value_text(), "42");
+}

@@ -87,8 +87,9 @@ def exercise(root, keyboard, wait, named, state, click, speech, Atspi, speech_st
     idle(PAUSE)
     # Emptied after the invalid 42, the box reads as empty. Emptying 4 sends
     # the reader no number to speak, so Orca's Where Am I asks for what the
-    # box holds: its name and role, and no number, neither the 42 it showed
-    # nor the 4 the application still holds.
+    # box holds: its name, its role and blank, and no number, neither the 42
+    # it showed nor the 4 the application still holds (the developer's
+    # ruling on escalation 3b71c4b1).
     for _ in range(2):
         start = speech_start()
         keyboard.key(BACKSPACE)
@@ -96,7 +97,7 @@ def exercise(root, keyboard, wait, named, state, click, speech, Atspi, speech_st
         idle(PAUSE)
     start = speech_start()
     keyboard.key(WHERE_AM_I)
-    heard("Where Am I on Volume emptied after 42", start, "Volume", "spin button")
+    heard("Where Am I on Volume emptied after 42", start, "Volume", "spin button", "blank")
     unheard("Where Am I on Volume emptied after 42", start, *SPOKEN_DIGITS)
     idle(PAUSE)
 
