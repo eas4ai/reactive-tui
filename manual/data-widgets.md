@@ -7,10 +7,10 @@ Widget module: `display`
 ## Purpose
 
 Data widgets show a set of records: the table, the data table, the tree,
-the file explorer and the progress bar. Each shows rows of a set, or one
-value's share of a range, moves the current row on a key or a click, and
-reports a choice through a callback. Their colors come from the theme's
-roles (docs/spec/data-widgets.md, DAT-001): a box sits on its parent's
+the file explorer, the progress bar and the list. Each shows rows of a set,
+or one value's share of a range, moves the current row on a key or a click,
+and reports a choice through a callback. Their colors come from the theme's
+roles (docs/spec/data-widgets.md, DAT-001 and DAT-006): a box sits on its parent's
 background with no fill of its own and its border in `border`; a header's
 title is `foreground` and the sorted column's mark `primary`; a row's text
 is `foreground`; the row that holds the keyboard cursor is `selection`
@@ -19,9 +19,10 @@ pointer `hover`, a disabled row `text-muted`; a tree's lines and expanders,
 a file explorer's hints and sizes and a data table's page count are
 `text-muted`; an error line is `text-error`; a progress bar's filled part
 is `primary` on a `border` track. Focus, hover and selection show by color
-alone. The four list widgets fill the width and the height their parent
-allots, and the progress bar the width; `width` and `height` on the props,
-or a `w-N` or `h-N` class on a builder, set a size instead (DAT-002). Every
+alone. The table, the data table, the tree, the file explorer and the list
+fill the width and the height their parent allots, and the progress bar the
+width; `width` and `height` on the props, or a `w-N` or `h-N` class on a
+builder, set a size instead (DAT-002, DAT-007). Every
 widget is named for the screen reader by `aria_label` on its props or its
 builder, and has no fixed English name without one (DAT-004).
 
@@ -171,6 +172,54 @@ validation shows its error line in cells and no track. A bar with its own
 colors, stripes, segments or a pulse, and a vertical bar, keep their
 cells.
 
+## List
+
+`builder::list()` takes `.item(ListItem)` for each item, or `.items(vec)`,
+`.selected(id)` for the selected item, `.filterable(true)` for a filter row
+on top, `.has_more(true)` when the application has more items to give,
+`.loading(true)` for a loading row at the end, `.empty_text(..)` for the
+message shown when no item shows, `.aria_label(..)`, `.width(..)`,
+`.height(..)` and `.class(..)`, and the callbacks `.on_select(f)`, called
+with the id of the item the cursor moves to, `.on_confirm(f)`, called with
+the id of the item Enter or a double click confirms, `.on_cancel(f)` and
+`.on_load_more(f)`. `ListItem::new(id, label)` takes `.description(..)`,
+shown after the label, `.section(..)`, the title of the section the item
+sits under (consecutive items with one section share one title row), and
+`.disabled(true)`. `List::new(props)` with `.with_on_select(f)`,
+`.with_on_confirm(f)`, `.with_on_cancel(f)` and `.with_on_load_more(f)`
+builds the same list from `ListProps`.
+
+The list fills the width and the height its parent allots, one row per
+item or section title, and builds elements only for the rows in view and
+at most ten beyond them at each side, so a list of 100,000 items costs no
+more to draw than one of a hundred. Its box has no fill of its own; a
+label is `foreground`, a description and a section title `text-muted`, the
+cursor's item `selection` with `selection-foreground` text while the list
+holds the focus, the selected item `accent` with `accent-foreground` text,
+the item under the pointer `hover`, a disabled item `text-muted`, and the
+characters of a label that match the filter `primary`. The filter row is
+painted as a text input's field, the loading row is the spinner piece, and
+the empty view is the empty piece with `empty_text`.
+
+The list is one focus stop. Up and Down move the cursor one item, Page Up
+and Page Down by the items its height holds, Home and End to the first and
+the last item, passing over section titles and disabled items and keeping
+the cursor's item in view; each move calls `on_select`. A click on an item
+moves the cursor there and gives the list the focus; Enter, or a double
+click, selects the cursor's item and calls `on_confirm`; the wheel scrolls.
+With a filter, a typed character goes into the filter and Backspace takes
+the last one out; the list shows the items whose label holds the filter's
+text, letters compared without case, under the titles of the sections that
+keep an item, with the cursor on the first of them. Escape empties a
+filter that holds text, and otherwise calls `on_cancel`. While `has_more`
+is set, the list calls `on_load_more` once, until its items change, when
+the cursor or the view's last row comes within twenty items of the last
+item. The screen reader hears a list box named by `aria_label`; each item in view is
+an option with its label, its position among the items the list shows and
+their count, and whether it is selected; a section is a group named by its
+title, the filter a search input named by the list, and a disabled item is
+marked disabled.
+
 ## Source map
 
 - The shared look: [`src/widgets/display/look.rs`](../src/widgets/display/look.rs)
@@ -179,8 +228,9 @@ cells.
 - Tree: [`src/widgets/display/tree.rs`](../src/widgets/display/tree.rs), [`src/widgets/display/tree/live.rs`](../src/widgets/display/tree/live.rs), [`src/widgets/display/tree/live/paint.rs`](../src/widgets/display/tree/live/paint.rs)
 - File explorer: [`src/widgets/display/file_explorer.rs`](../src/widgets/display/file_explorer.rs), [`src/widgets/display/file_explorer/live.rs`](../src/widgets/display/file_explorer/live.rs), [`src/widgets/display/file_explorer/live/paint.rs`](../src/widgets/display/file_explorer/live/paint.rs)
 - Progress bar: [`src/widgets/display/progress_bar.rs`](../src/widgets/display/progress_bar.rs), [`src/widgets/display/progress_bar/live.rs`](../src/widgets/display/progress_bar/live.rs)
-- Builders: [`src/builder/widgets/table.rs`](../src/builder/widgets/table.rs), [`src/builder/widgets/display.rs`](../src/builder/widgets/display.rs), [`src/builder/widgets/file_explorer.rs`](../src/builder/widgets/file_explorer.rs), [`src/builder/specialized.rs`](../src/builder/specialized.rs)
-- Contract tests: [`tests/data_widgets_contract.rs`](../tests/data_widgets_contract.rs)
+- List: [`src/widgets/display/list.rs`](../src/widgets/display/list.rs), [`src/widgets/display/list/lines.rs`](../src/widgets/display/list/lines.rs), [`src/widgets/display/list/paint.rs`](../src/widgets/display/list/paint.rs)
+- Builders: [`src/builder/widgets/table.rs`](../src/builder/widgets/table.rs), [`src/builder/widgets/display.rs`](../src/builder/widgets/display.rs), [`src/builder/widgets/file_explorer.rs`](../src/builder/widgets/file_explorer.rs), [`src/builder/specialized.rs`](../src/builder/specialized.rs), [`src/builder/widgets/list.rs`](../src/builder/widgets/list.rs)
+- Contract tests: [`tests/data_widgets_contract.rs`](../tests/data_widgets_contract.rs); the list in [`tests/medium_widgets_contract.rs`](../tests/medium_widgets_contract.rs)
 - Goldens: [`tests/data_widgets_goldens.rs`](../tests/data_widgets_goldens.rs), [`tests/snapshots/data_widgets`](../tests/snapshots/data_widgets)
 - Behavior tests: [`tests/api_widget_behavior/table.rs`](../tests/api_widget_behavior/table.rs), [`tests/api_widget_behavior/data_table.rs`](../tests/api_widget_behavior/data_table.rs), [`tests/api_widget_behavior/tree.rs`](../tests/api_widget_behavior/tree.rs), [`tests/api_widget_behavior/file_explorer.rs`](../tests/api_widget_behavior/file_explorer.rs), [`tests/api_widget_behavior/progress.rs`](../tests/api_widget_behavior/progress.rs)
 
