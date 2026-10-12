@@ -1432,7 +1432,7 @@ impl Look {
         let (line, line_role, grip_role) = if focused {
             (2.0, "ring", "ring")
         } else {
-            (1.0, "ring", "text-muted")
+            (1.0, "border", "text-muted")
         };
         Self {
             shapes: vec![
