@@ -383,8 +383,25 @@ impl ComponentRuntime {
                 None => class,
             });
         }
-        if element.focus.is_some() {
-            resolved.focus = element.focus;
+        if let Some(mut focus) = element.focus {
+            // A rendered root that names a child to take the auto focus
+            // passes it there (NAV-011): the child, a focus stop, takes it,
+            // and the caller's other focus props reach the root without
+            // making it a focus stop it is not.
+            let taker = if focus.auto_focus {
+                resolved
+                    .children
+                    .iter_mut()
+                    .find(|child| child.metadata.takes_auto_focus)
+            } else {
+                None
+            };
+            if let Some(child) = taker {
+                child.focus.get_or_insert_default().auto_focus = true;
+                focus.auto_focus = false;
+                focus.focusable = resolved.focus.as_ref().is_some_and(|own| own.focusable);
+            }
+            resolved.focus = Some(focus);
         }
         if element.key.is_some() {
             resolved.key = element.key;

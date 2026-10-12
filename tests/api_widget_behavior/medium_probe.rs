@@ -50,7 +50,8 @@ pub(super) fn page() -> Element {
                         .pane_with(Pane::new(Element::text("Left pane")).size(40))
                         .pane(Element::text("Right pane"))
                         .aria_label("Panes")
-                        .build(),
+                        .build()
+                        .auto_focus(),
                 )
                 .build(),
         )
