@@ -125,12 +125,13 @@ def last_error(text: str) -> tuple[str, str] | None:
     return found
 
 
-def verdict(output: str, code: int) -> tuple[bool, str]:
-    """Pass when the harness exited zero and printed the inputs summary;
-    otherwise the failure, read from the session log the harness names
-    (the run inside the private session) before its own output."""
-    if code == 0 and "A11Y inputs:" in output:
-        return True, next(l for l in output.splitlines() if l.startswith("A11Y inputs:"))
+def verdict(output: str, code: int, summary: str = "A11Y inputs:") -> tuple[bool, str]:
+    """Pass when the harness exited zero and printed the scenario's summary
+    line, starting `summary`; otherwise the failure, read from the session
+    log the harness names (the run inside the private session) before its
+    own output."""
+    if code == 0 and summary in output:
+        return True, next(l for l in output.splitlines() if l.startswith(summary))
     logs = re.search(r"Orca diagnostic logs: (\S+)", output)
     inner = None
     if logs and (Path(logs.group(1)) / "session.log").is_file():
