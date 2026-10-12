@@ -1,6 +1,6 @@
 # Roadmap
 
-Current: input-pieces-follow-up
+Current: medium-widgets
 
 Order agreed with the developer on 2026-09-21: charts first on a cell canvas,
 then a general graphics canvas over wgpu that replaces the rasterizer
@@ -2354,3 +2354,46 @@ resizable split, the sidebar, the list, the command palette, the log view,
 the Markdown view, the calendar and date picker) come next, the code editor
 left out unless asked; the catalog settle-test flake waits until the next
 Done by the developer's ok.
+
+## medium-widgets
+
+Requirements: NAV-007, NAV-008, NAV-009, NAV-010, NAV-011, DAT-006, DAT-007, DAT-008, DAT-009, PIX-009, LAY-004, BAR-001, BAR-002, BAR-003, BAR-004, BAR-005, BAR-006, BAR-007, BAR-008, BAR-009, BAR-010, BAR-011, BAR-012
+
+The first of two batches of the medium widgets of docs/widget-study.md,
+which the developer chose on 2026-10-12 with the catalog settle-test flake
+folded in (backlog item lay-004-catalog-settle-flake-under-load, retired
+into this commitment). Read that day: no resizable split, list or log view
+exists; `builder::sidebar()` is a styled box with palette colors and no
+keys, state or role; each widget that shows a list builds its own; and
+tests/layout_contract.rs `lay_004_a_catalog_page_settles` failed once, in
+the canvas gate's run of 2026-10-10 under load, its message cut from the
+retained output, and passed 112 runs under CPU contention since.
+
+The commitment brings the resizable split (`resizable()`), the sidebar
+(`sidebar()`, replacing the styled box under its name, as the developer
+agreed), the list (`list()`) and the log view (`log_view()`) to the widget
+bar (BAR-003 to BAR-006) on the color roles of theme.md and the keymap of
+keymap.md: their colors, sizes, keys and screen-reader nodes (NAV-007 to
+NAV-010, DAT-006 to DAT-009), what Orca speaks for them on a page of the
+accessibility probe (NAV-011, under a new mechanism, widgets-orca, that
+runs on the Linux development host), and their pixel looks (PIX-009), with
+goldens at 80 by 24 and 400 by 100, cards on the catalog's Layout and Data
+pages, and manual sections. The select, the autocomplete dialog and the
+file explorer keep their own lists. It finds why the catalog's settle test
+failed under load, by making the asynchronous work on the catalog's pages
+late enough to fail it every time, and fixes the cause, so the test passes
+under that load (LAY-004). The layout-widgets and data-widgets mechanisms
+are redeclared with the new requirements and their contract tests, and the
+pixel-looks mechanism with PIX-009. The coding goes to Haiku 5.5 subagents
+for jobs under 100k tokens of context and Opus 5.5 above, as the developer
+asked on 2026-10-09.
+
+Done when every named requirement passes; layout-widgets and data-widgets
+have recorded a fail for the new requirements, widgets-orca for NAV-011
+and pixel-looks for PIX-009, each on the tree as it was before the work
+they check; the settle test's failure was shown reproduced before its fix;
+the new reference pictures were shown to the developer before they were
+accepted; the workflow's run for the final commit is green on the three
+machines; and the adversary's findings are resolved or declined. The
+second batch (the command palette, the Markdown view, the calendar and
+date picker) comes next.

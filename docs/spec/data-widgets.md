@@ -48,6 +48,17 @@ row in `list.active` with a `selection` border, a list item's selection
 in `list.active` or `accent`, and a progress bar in `progress_bar`; its
 table's columns default to 100 px wide with a minimum of 20 px.
 
+Read on 2026-10-12 for the list, a medium widget of docs/widget-study.md
+(its entry List): each widget that shows a list builds its own, the select
+(src/widgets/input/select.rs), the autocomplete dialog with a private
+filter and match highlighter (src/widgets/dialog/autocomplete/live.rs),
+the file explorer and the menus; the table, data table and tree build only
+the rows in view. A shared list is built first; moving those widgets onto
+it is later work. gpui-kit 0.7.0's list emits select, confirm and cancel,
+resets the selection to the first row when its search changes, asks for
+more rows within twenty of the end, and gives each row its position, set
+size and selected state (G7/list/list.rs:29-44, 291-350, 492-495).
+
 ## Observed
 
 (none yet)
@@ -82,3 +93,26 @@ Falsifier: A column holding 9007199254740993 and 9007199254740992.0 sorted ascen
 Mechanism: review-widgets
 Rationale: The developer's code review of 2026-10-04, W07: a mixed pair went through f64, which rounds an integer past 2^53, while the table promised exact integers past it.
 Status: Agreed 2026-10-08
+
+[DAT-006] A list whose style the application did not set MUST look the same whether it is built from its props or through `builder::list()`, and MUST paint: its box in its parent's background with no fill of its own; an item's label in `foreground` and its description in `text-muted`; a section's title in `text-muted`; the item that holds the keyboard cursor in `selection` with `selection-foreground` text while the list holds the focus; the selected item in `accent` with `accent-foreground` text; the item under the pointer in `hover`; a disabled item in `text-muted`; the characters of a label that match the filter in `primary`; its filter row as a text input's field; and its loading row and its empty view as the spinner and the empty piece paint them. A list MUST show focus, hover and selection by those colors alone, adding no glyph and changing no text.
+Falsifier: Under a theme whose roles all differ, a default list built through `builder::list()` paints a cell in another color than the same list built from its props; a box, label, description, section title, cursor item, selected item, hovered item, disabled item, matched character or filter row is painted in a color other than its role's; the box paints a fill of its own; the list paints a cell in a color no role of the theme has; or a list paints another glyph or another text when it holds the focus, is under the pointer or has a selection than when it does not.
+Mechanism: data-widgets
+Rationale: DAT-001's rule for the family's new widget.
+Status: Agreed 2026-10-12
+
+[DAT-007] A list MUST fill the width and the height its parent allots when the application set no size; `width` and `height` on its props and a `w-N`, `h-N`, `w-full` or `h-full` class on its builder MUST set the size instead. It MUST show as many items as its height holds, one row each, its filter row and its loading row each taking a row when shown, and MUST build elements only for the rows in view and at most ten rows beyond them at each side, whatever its number of items.
+Falsifier: In a viewport of 240 by 60 cells, a default list of 40 items inside a box of 100 by 20 cells paints fewer than 20 items or a row that ends before the box's last cell; a list of 100,000 items in that box builds an element for more than 40 rows; or `.class("w-40")` on its builder paints a list of another width than 40 cells.
+Mechanism: data-widgets
+Rationale: DAT-002's rule, and the widget study's call for one windowed list that the widgets showing a list and the applications can share (docs/widget-study.md, List).
+Status: Agreed 2026-10-12
+
+[DAT-008] A list MUST move its cursor by one item on Up and Down, by the items its height holds on Page Up and Page Down, and to the first and the last item on Home and End, passing over section titles and disabled items, and keep the cursor's item in view; each move MUST report the cursor's item through `on_select`. A click on an item MUST move the cursor to it and give the list the focus; Enter, or a double click on an item, MUST select the cursor's item and report it through `on_confirm`. A list with a filter MUST take each character typed while it holds the focus into its filter, Backspace taking the last one out, and show only the items whose label holds the filter's text, letters compared without case, under the titles of the sections that keep an item, with the cursor on the first of them and the view at the top; Escape MUST empty a filter that holds text, and otherwise report through `on_cancel`. A list whose application says more items are to come MUST report through `on_load_more`, once until its items change, when its cursor or its view comes within twenty items of its last one, and MUST show its loading row while the application says it is loading; a list with no item to show MUST show its empty view.
+Falsifier: A list of Apple, Banana, a section Citrus holding Lemon and Lime, and a disabled Mango, with the cursor on Apple, has the cursor elsewhere than on Lemon after Down twice or elsewhere than on Lime after End; a list of 1,000 items inside a box of 20 rows has the cursor elsewhere than on item 21 after Page Down from item 1, or item 1,000 out of view after End; a click on an item leaves the cursor elsewhere or the list without the focus; Enter or a double click reports no `on_confirm`; in the first list with a filter, typing `l` and `e` shows other items than Apple and, under the title Citrus, Lemon, or leaves the cursor elsewhere than on Apple; Escape leaves text in that filter, or a second Escape reports no `on_cancel`; a list of 100 items whose application says more are to come reports no `on_load_more` after End, or reports it twice before its items change; or a list of no items paints no empty view.
+Mechanism: data-widgets
+Rationale: gpui-kit's list resets its selection to the first row when its search changes and asks for more within twenty rows of the end (G7/list/list.rs:291-350); KEY-001 keeps a typed character text.
+Status: Agreed 2026-10-12
+
+[DAT-009] The screen reader MUST be told a list's name from the `aria_label` its props or its builder set, with no fixed English name; the list as a list box; each item in view as an option with its label, its position among the items the list shows and their count, and whether it is selected; a section as a group named by its title; its filter as a search input labelled by the list's name; and disabled for an item that is. Every action a list takes from the pointer MUST have a key: a click on an item is an arrow, Page Up, Page Down, Home or End, a double click is Enter, and the wheel is an arrow, Page Up or Page Down.
+Falsifier: A list's node has a label although its props set no `aria_label`, or has none although they set one; it is not a list box; an option's node lacks its label, its position, its count or its selected state, or in a list of 100,000 items the option of item 70,000 has another position than 70,000 or another count than 100,000; a section's node is not a group named by its title; the filter's node is not a search input labelled by the list's name; a disabled item's node is not marked disabled; or an action of the list can be taken by the pointer and by no key.
+Mechanism: data-widgets
+Status: Agreed 2026-10-12
