@@ -131,9 +131,9 @@ split's length changes, each pane keeps its share of it.
 A divider is a `│` between panes side by side and a `─` between stacked
 panes, drawn by the separator piece in `border`, on `hover` under the
 pointer, and in `selection` with `selection-foreground` while it holds the
-focus or is dragged. Each divider is a focus stop, and `.auto_focus()` on
-the split's built element gives its first divider the focus when the page
-opens. Left and Right, or Up
+focus or is dragged. Each divider is a focus stop, and `Element::auto_focus`
+on the split's built element gives its first divider the focus when the
+page opens. Left and Right, or Up
 and Down between stacked panes, move it one cell, ten with Shift; Home and
 End move it as far as it goes. A press on a divider takes the pointer, and
 the drag moves the divider to the cell under it. A move takes cells from
