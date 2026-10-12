@@ -8,8 +8,8 @@ tests/api_widget_behavior/orca.py with `--catalog inputs`: the probe opens on
 its input page (`--inputs`) in GNOME Terminal on a private Xvfb display and
 D-Bus session with real Orca (`orca --debug-file`), keys are sent by XTest,
 and tests/api_widget_behavior/orca_inputs.py reads the speech Orca logs after
-each step: the number input Volume given the focus, emptied, and typed 4 then
-2; 2025 typed into the number input Year; the switch Wi-Fi given the focus
+each step: the number input Volume given the focus, emptied, typed 4 then 2,
+and emptied again; 2025 typed into the number input Year; the switch Wi-Fi given the focus
 and Space; the rating Stars given the focus and Right; the masked code input
 given the focus and typed 1 and 2. The reader runs against the patched
 libatspi that scripts/check-libatspi-lifetime.py builds under
