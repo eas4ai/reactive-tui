@@ -57,6 +57,9 @@ pub enum Icon {
     Star,
     /// An unlit star, such as a rating's step not chosen.
     StarOutline,
+    /// An arrow that points down to more below, such as the rows a log
+    /// view holds under its view.
+    ArrowDown,
 }
 
 /// A table that gives a Nerd Font glyph for an icon, or `None` for an icon the
@@ -101,6 +104,7 @@ impl Icon {
         Icon::Spinner,
         Icon::Star,
         Icon::StarOutline,
+        Icon::ArrowDown,
     ];
 
     /// The single-width Unicode glyph for this icon. Used where the terminal
@@ -131,6 +135,7 @@ impl Icon {
             Icon::Spinner => "⠋",
             Icon::Star => "★",
             Icon::StarOutline => "☆",
+            Icon::ArrowDown => "↓",
         }
     }
 
@@ -162,6 +167,7 @@ impl Icon {
             Icon::Spinner => "|",
             Icon::Star => "*",
             Icon::StarOutline => "-",
+            Icon::ArrowDown => "v",
         }
     }
 
@@ -207,6 +213,7 @@ impl Icon {
             Icon::Spinner => "Loading",
             Icon::Star => "Star",
             Icon::StarOutline => "Star outline",
+            Icon::ArrowDown => "Arrow down",
         }
     }
 }
@@ -230,7 +237,7 @@ mod tests {
 
     #[test]
     fn dis_005_every_icon_has_a_one_cell_unicode_glyph_and_a_one_byte_ascii_fallback() {
-        assert_eq!(Icon::ALL.len(), 24, "the catalog names twenty-four icons");
+        assert_eq!(Icon::ALL.len(), 25, "the catalog names twenty-five icons");
         for &icon in Icon::ALL {
             let unicode = icon.unicode();
             assert_eq!(

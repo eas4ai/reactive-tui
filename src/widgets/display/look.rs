@@ -27,6 +27,13 @@ pub const DISABLED: &str = "text-muted";
 pub const ERROR: &str = "text-error";
 /// A progress bar's filled part: `primary`.
 pub const FILL: &str = "text-primary";
+/// The characters of a list item's label that match the list's filter:
+/// `primary`.
+pub const MATCH: &str = "text-primary";
+/// A list's filled row, the cursor's, the selected and the hovered one: its
+/// fill drawn with round corners where the terminal takes pixels (PIX-009).
+/// It comes after the fill's class, so in cells it changes no color.
+pub const ROUNDED: &str = "rounded";
 
 /// The classes of a row by its state. The cursor row shows `selection`
 /// while the widget holds the focus, a selected row `accent`, the row
