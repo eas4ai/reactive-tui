@@ -14,6 +14,8 @@ use std::{
 
 const ENTRY_LIMIT: usize = 100_000;
 const PREVIEW_BYTES: u64 = 16 * 1024;
+/// The log target of the worker's "answer ready" record.
+const LOG_TARGET: &str = "reactive_tui::file_explorer";
 #[path = "worker/operations.rs"]
 mod operations;
 pub(super) use operations::Operation;
@@ -157,6 +159,11 @@ fn run(shared: Arc<Shared>) {
         if stale() {
             continue;
         }
+        // The last step before the explorer can see the answer. A test's
+        // logger can hold this thread here, so the answer lands after a
+        // present of the test's choosing, as it does on a loaded machine
+        // (LAY-004 in tests/layout_contract.rs).
+        log::debug!(target: LOG_TARGET, "answer {} ready", request.id);
         let mut slots = shared.slots.lock().unwrap();
         if stale() {
             continue;
