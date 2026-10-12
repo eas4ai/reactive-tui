@@ -384,6 +384,20 @@ fn shown(root: Element, text: &'static str) -> Snapshot {
     settled(root, text, Vec::new())
 }
 
+/// The frame a page holding a loading list settles on: the third frame that
+/// shows `text`. The loading row's spinner keeps the page presenting, so it
+/// is never idle and `shown`'s wait for idleness can outlast the deadline on
+/// a loaded machine with coarse timers; a page settles within three
+/// presents (LAY-004), and the spinner keeps presenting.
+fn shown_loading(root: Element, text: &'static str) -> Snapshot {
+    last_of(app_input::run_until_shown(
+        Control(page(root)),
+        SCREEN,
+        text,
+        3,
+    ))
+}
+
 fn key(code: KeyCode) -> Option<Event> {
     app_input::key(code)
 }
@@ -3106,7 +3120,7 @@ fn dat_006_the_loading_row_and_the_empty_view_are_painted_as_the_spinner_and_the
     let (column, row) = spinner_cell(&spinner)
         .unwrap_or_else(|| panic!("the spinner piece paints its glyph:\n{}", spinner.text));
     let spinner_color = cell_colors(&spinner, column, row).0;
-    let loading = shown(
+    let loading = shown_loading(
         in_box(builder::list().items(fruits()).loading(true).build()),
         "Mango",
     );
@@ -3272,7 +3286,7 @@ fn dat_006_a_list_takes_every_color_from_the_theme() {
         ),
         (
             "loading list",
-            shown(
+            shown_loading(
                 in_box(builder::list().items(fruits()).loading(true).build()),
                 "Apple",
             ),
@@ -3409,7 +3423,7 @@ fn dat_007_the_filter_row_and_the_loading_row_each_take_a_row() {
         frame.text
     );
 
-    let frame = shown(
+    let frame = shown_loading(
         in_box(
             builder::list()
                 .items(numbered(10))
@@ -3840,7 +3854,7 @@ fn dat_008_a_list_with_more_to_come_asks_for_it_once_until_its_items_change() {
 
 #[test]
 fn dat_008_a_loading_list_shows_its_loading_row_and_a_list_with_nothing_to_show_its_empty_view() {
-    let frame = shown(
+    let frame = shown_loading(
         in_box(builder::list().items(fruits()).loading(true).build()),
         "Apple",
     );
