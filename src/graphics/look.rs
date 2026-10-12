@@ -27,6 +27,19 @@ use std::sync::Arc;
 /// scale it in proportion (PIX-003).
 const REFERENCE_CELL_HEIGHT: f32 = 16.0;
 
+/// The pixels left empty between a focus ring and a fill the ring would
+/// merge into, at every cell size (PIX-008).
+const RING_GAP: f32 = 1.0;
+
+/// Whether a fill in `role` gives up [`RING_GAP`] pixels to the focus ring
+/// beside it (PIX-008): every built-in preset's `ring` is its `primary`, and
+/// a theme that leaves `ring` or `selection` out gets them from `primary`
+/// (THM-002), so on those fills a ring that touches the fill does not show.
+/// The ring stays where it is; what is under the look shows in the gap.
+fn gives_ring_a_gap(role: &str) -> bool {
+    matches!(role, "primary" | "selection")
+}
+
 /// The radius of a look's corners.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum Radius {
@@ -162,7 +175,8 @@ pub enum Shape {
         to: f32,
         /// The row the bar's middle lies on, in cells down.
         row: f32,
-        /// The bar's height.
+        /// The bar's height: the thumb's center lies half of it in from the
+        /// bar's end.
         height: Extent,
         /// The thumb's diameter.
         diameter: Extent,
@@ -381,24 +395,48 @@ impl Look {
 
     /// The scene of this look for a picture of `size` pixels over cells of
     /// `cell` pixels (PIX-001): the fill, the ring at the edge, the border
-    /// inside it, then the control's shapes. Colors are theme tokens the
-    /// renderer resolves when it draws (GFX-001).
+    /// inside it, then the control's shapes. A fill in `primary` or
+    /// `selection` with a ring, a focused button's, starts [`RING_GAP`]
+    /// pixels inside the ring, and a border lies on the fill (PIX-008).
+    /// Colors are theme tokens the renderer resolves when it draws
+    /// (GFX-001).
     pub(crate) fn scene(&self, size: (u32, u32), cell: (u16, u16)) -> Scene {
         let (width, height) = (size.0 as f32, size.1 as f32);
         let radius = self.radius_px(width, height, cell);
         let mut scene = Scene::new();
+        // A border is one pixel and a ring one or two at every cell size
+        // (PIX-003); only the radius follows the cell height.
+        let line_px = |line: &Line| line.width.max(1.0).round();
+        let gap = match (&self.ring, &self.fill) {
+            (Some(_), Some(fill)) if gives_ring_a_gap(fill) => RING_GAP,
+            _ => 0.0,
+        };
         if let Some(fill) = &self.fill {
-            scene.fill(
-                &Path::rounded_rect(0.0, 0.0, width, height, radius),
-                &Paint::solid(Color::token(fill.as_str()))
-                    .opacity(self.fill_opacity * self.opacity),
-            );
+            let inset = if gap > 0.0 {
+                self.ring.as_ref().map_or(0.0, line_px) + gap
+            } else {
+                0.0
+            };
+            if width - 2.0 * inset > 0.0 && height - 2.0 * inset > 0.0 {
+                scene.fill(
+                    &Path::rounded_rect(
+                        inset,
+                        inset,
+                        width - 2.0 * inset,
+                        height - 2.0 * inset,
+                        (radius - inset).max(0.0),
+                    ),
+                    &Paint::solid(Color::token(fill.as_str()))
+                        .opacity(self.fill_opacity * self.opacity),
+                );
+            }
         }
         let mut inset = 0.0;
-        for line in [&self.ring, &self.border].into_iter().flatten() {
-            // A border is one pixel and a ring one or two at every cell size
-            // (PIX-003); only the radius follows the cell height.
-            let line_width = line.width.max(1.0).round();
+        for (line, after) in [(&self.ring, gap), (&self.border, 0.0)] {
+            let Some(line) = line else {
+                continue;
+            };
+            let line_width = line_px(line);
             let half = inset + line_width / 2.0;
             if width - 2.0 * half <= 0.0 || height - 2.0 * half <= 0.0 {
                 break;
@@ -414,7 +452,7 @@ impl Look {
                 &Stroke::new(line_width),
                 &Paint::solid(Color::token(line.role.as_str())).opacity(self.opacity),
             );
-            inset += line_width;
+            inset += line_width + after;
         }
         for shape in &self.shapes {
             shape.draw(&mut scene, cell, self.opacity);
@@ -430,6 +468,13 @@ impl Shape {
         let px = |size: &Extent| size.px(cw, ch);
         // A border is one pixel wide at every cell size (PIX-004).
         let line_px = |line: &Line| line.width.max(1.0).round();
+        // How far in from the shape's edge its fill starts: past a border in
+        // `ring`, the focus ring, and the gap when the fill would merge into
+        // it (PIX-008); at the edge otherwise.
+        let fill_inset = |fill: &str, border: &Option<Line>| match border {
+            Some(line) if line.role == "ring" && gives_ring_a_gap(fill) => line_px(line) + RING_GAP,
+            _ => 0.0,
+        };
         match self {
             Shape::Box {
                 center,
@@ -440,18 +485,20 @@ impl Shape {
             } => {
                 let (cx, cy) = at(*center);
                 let side = px(size).round();
-                let path = Path::rounded_rect(
-                    cx - side / 2.0,
-                    cy - side / 2.0,
-                    side,
-                    side,
-                    px(radius).min(side / 2.0),
-                );
                 if let Some(fill) = fill {
-                    scene.fill(
-                        &path,
-                        &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
-                    );
+                    let inset = fill_inset(fill, border);
+                    if side - 2.0 * inset > 0.0 {
+                        scene.fill(
+                            &Path::rounded_rect(
+                                cx - side / 2.0 + inset,
+                                cy - side / 2.0 + inset,
+                                side - 2.0 * inset,
+                                side - 2.0 * inset,
+                                (px(radius).min(side / 2.0) - inset).max(0.0),
+                            ),
+                            &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
+                        );
+                    }
                 }
                 if let Some(line) = border {
                     let width = line_px(line);
@@ -506,10 +553,28 @@ impl Shape {
                 let y = row * ch - h / 2.0;
                 if x1 > x0 {
                     let r = px(radius).min(h / 2.0).min((x1 - x0) / 2.0);
-                    scene.fill(
-                        &Path::rounded_rect(x0, y, x1 - x0, h, r),
-                        &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
-                    );
+                    let inset = fill_inset(fill, border);
+                    // A round end curves through the bar's middle rows, where
+                    // the ring's curve reaches into the pixel inside it; the
+                    // fill there starts a pixel further in, so a clear pixel
+                    // lies between them on every row (PIX-008).
+                    let across = if inset > 0.0 && 2.0 * r >= h {
+                        inset + RING_GAP
+                    } else {
+                        inset
+                    };
+                    if x1 - x0 > 2.0 * across && h > 2.0 * inset {
+                        scene.fill(
+                            &Path::rounded_rect(
+                                x0 + across,
+                                y + inset,
+                                x1 - x0 - 2.0 * across,
+                                h - 2.0 * inset,
+                                (r - inset).max(0.0),
+                            ),
+                            &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
+                        );
+                    }
                     // The border lies inside the edge, as a box's does.
                     if let Some(line) = border {
                         let width = line_px(line);
@@ -910,9 +975,25 @@ impl Look {
     /// less two pixels with a radius of two, bordered in `border` (`ring`
     /// with the focus), filled `primary` with a check mark in
     /// `primary-foreground` when checked and a dash when mixed; a disabled
-    /// box at half (PIX-004).
+    /// box at half (PIX-004). A focused box that is checked or mixed keeps
+    /// its ring at its edge and fills `primary` from a pixel inside it, the
+    /// check mark sized with that fill so it stays on it (PIX-008).
     pub fn checkbox(checked: bool, mixed: bool, focused: bool, disabled: bool) -> Self {
         let center = (1.5, 0.5);
+        // The check mark is sized with what it lies on: the box, or the fill
+        // inside the ring and the gap, the cell height less six pixels
+        // (PIX-008). The dash is shorter and fits the fill either way.
+        let check_size = if focused {
+            Extent::CellLess {
+                less: 6.0,
+                times: 0.75,
+            }
+        } else {
+            Extent::CellLess {
+                less: 2.0,
+                times: 10.0 / 14.0,
+            }
+        };
         let mut shapes = vec![Shape::Box {
             center,
             size: Extent::CELL_LESS_TWO,
@@ -934,10 +1015,7 @@ impl Look {
         } else if checked {
             shapes.push(Shape::Check {
                 center,
-                size: Extent::CellLess {
-                    less: 2.0,
-                    times: 10.0 / 14.0,
-                },
+                size: check_size,
                 width: Extent::Px(2.0),
                 role: "primary-foreground".to_owned(),
             });
@@ -1206,10 +1284,27 @@ impl Look {
     /// its right end; off, it is `input` bordered one pixel in `border`
     /// with the thumb in `foreground` at its left end. While the switch
     /// holds the focus the pill is bordered one pixel in `ring`, on or off;
-    /// a disabled switch is drawn at half (PIX-007).
+    /// a disabled switch is drawn at half (PIX-007). A focused pill that is
+    /// on fills `primary` from a pixel inside the ring, and at its round
+    /// ends from two, with the thumb at the right end of that fill
+    /// (PIX-008).
     pub fn switch(on: bool, focused: bool, disabled: bool) -> Self {
         let (from, to, row) = (0.5, 3.5, 0.5);
         let height = Extent::CELL_LESS_TWO;
+        // The thumb is centered on the round end of what it lies on. A
+        // focused pill that is on fills from the ring's width and the gap
+        // inside its edge and a pixel further at its ends (`Shape::Bar`),
+        // so that fill's end is centered a pixel further in than the
+        // pill's: where the end of a pill two pixels taller, the cell
+        // height, is centered (PIX-008).
+        let thumb_bar = if focused && on {
+            Extent::CellLess {
+                less: 0.0,
+                times: 1.0,
+            }
+        } else {
+            height
+        };
         let border = if focused {
             Some(Line::new(1.0, "ring"))
         } else if on {
@@ -1235,7 +1330,7 @@ impl Look {
                     from,
                     to,
                     row,
-                    height,
+                    height: thumb_bar,
                     diameter: Extent::CellLess {
                         less: 6.0,
                         times: 1.0,
