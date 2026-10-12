@@ -1,7 +1,10 @@
 //! The list builder (DAT-006 to DAT-009): `builder::list()`. Its element is
-//! a `List` with the builder's callbacks handed to it.
+//! a `List` with the builder's callbacks handed to it, so a rebuild with new
+//! callbacks keeps the mounted list and acts on the new ones (CMP-008,
+//! CMP-009).
 
-use crate::component::Element;
+use crate::component::{same_callback, Component, Element, LayoutInfo};
+use crate::event::router::EventResult;
 use crate::widgets::display::list::{IdCallback, UnitCallback};
 use crate::widgets::display::{List, ListItem, ListProps};
 use std::sync::Arc;
@@ -29,6 +32,21 @@ pub struct ListBuilder {
     on_confirm: Option<IdCallback>,
     on_cancel: Option<UnitCallback>,
     on_load_more: Option<UnitCallback>,
+}
+
+/// Equal over the settings and not the callbacks, so a rebuild that changes
+/// only a callback keeps the mounted list and hands it the new one
+/// (CMP-008).
+impl PartialEq for ListBuilder {
+    fn eq(&self, other: &Self) -> bool {
+        self.props == other.props && self.class == other.class
+    }
+}
+
+impl crate::component::Props for ListBuilder {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Create a list builder.
@@ -134,21 +152,83 @@ impl ListBuilder {
 
     /// Build the list's element.
     pub fn build(self) -> Element {
-        let on_select = self.on_select;
-        let on_confirm = self.on_confirm;
-        let on_cancel = self.on_cancel;
-        let on_load_more = self.on_load_more;
-        let mut element = Element::typed_with::<List>(self.props, move |props| {
-            let mut data = List::new(props);
-            data.on_select = on_select.clone();
-            data.on_confirm = on_confirm.clone();
-            data.on_cancel = on_cancel.clone();
-            data.on_load_more = on_load_more.clone();
-            data
-        });
-        if let Some(class) = self.class {
+        let class = self.class.clone();
+        let mut element = Element::typed::<ConfiguredList>(self);
+        if let Some(class) = class {
             element = element.with_class(&class);
         }
         element
+    }
+
+    /// Hands the builder's callbacks to `list`.
+    fn configure(&self, list: &mut List) {
+        list.on_select = self.on_select.clone();
+        list.on_confirm = self.on_confirm.clone();
+        list.on_cancel = self.on_cancel.clone();
+        list.on_load_more = self.on_load_more.clone();
+    }
+}
+
+/// A list built through its builder: the widget itself, with the builder's
+/// callbacks handed to it (CMP-009).
+struct ConfiguredList(List);
+
+impl Component for ConfiguredList {
+    type Props = ListBuilder;
+    type State = ();
+
+    fn new(props: Self::Props) -> Self {
+        let mut inner = List::new(props.props.clone());
+        props.configure(&mut inner);
+        Self(inner)
+    }
+
+    fn update(&mut self, props: &Self::Props, state: &mut Self::State) -> bool {
+        props.configure(&mut self.0);
+        Component::update(&mut self.0, &props.props, state)
+    }
+
+    fn adopt_callbacks(
+        &self,
+        props: &mut Self::Props,
+        _state: &mut Self::State,
+        supplied: &Self::Props,
+    ) -> bool {
+        let changed = !same_callback(&props.on_select, &supplied.on_select)
+            || !same_callback(&props.on_confirm, &supplied.on_confirm)
+            || !same_callback(&props.on_cancel, &supplied.on_cancel)
+            || !same_callback(&props.on_load_more, &supplied.on_load_more);
+        if changed {
+            props.on_select = supplied.on_select.clone();
+            props.on_confirm = supplied.on_confirm.clone();
+            props.on_cancel = supplied.on_cancel.clone();
+            props.on_load_more = supplied.on_load_more.clone();
+        }
+        changed
+    }
+
+    fn render(&self, props: &Self::Props, state: &Self::State) -> Element {
+        self.0.render(&props.props, state)
+    }
+
+    fn layout(
+        &mut self,
+        layout: LayoutInfo,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> bool {
+        // The callbacks a rebuild adopted act from here on (CMP-008).
+        props.configure(&mut self.0);
+        self.0.layout(layout, &mut props.props, state)
+    }
+
+    fn handle_event(
+        &mut self,
+        event: &crate::event::Event,
+        props: &mut Self::Props,
+        state: &mut Self::State,
+    ) -> EventResult {
+        props.configure(&mut self.0);
+        self.0.handle_event(event, &mut props.props, state)
     }
 }

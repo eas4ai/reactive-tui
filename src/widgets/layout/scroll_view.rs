@@ -638,7 +638,10 @@ pub(super) fn shifted(value: usize, delta: f64, speed: usize) -> usize {
     }
 }
 
-fn scrollbar(
+/// A scroll bar of `visible` cells for content of `total` cells scrolled by
+/// `offset`, its track in `border` and its thumb in `text-muted` (NAV-001),
+/// standing at `origin`; the log view paints its bar with it too.
+pub(super) fn scrollbar(
     visible: usize,
     total: usize,
     offset: usize,
@@ -680,7 +683,8 @@ fn scrollbar(
         .build()
 }
 
-fn thumb_geometry(visible: usize, total: usize, offset: usize) -> (usize, usize) {
+/// Where a scroll bar's thumb starts and how many cells it takes.
+pub(super) fn thumb_geometry(visible: usize, total: usize, offset: usize) -> (usize, usize) {
     let thumb = ((visible as f64 / total.max(1) as f64) * visible as f64).ceil() as usize;
     let thumb = thumb.clamp(1, visible.max(1));
     let travel = visible.saturating_sub(thumb);

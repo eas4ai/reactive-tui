@@ -32,3 +32,15 @@ pub const TOOLTIP: &str = "bg-surface text-foreground";
 pub const TRACK: &str = "text-border";
 /// A scroll bar's thumb.
 pub const THUMB: &str = "text-muted";
+/// A log view's info, success, warning and error rows (NAV-007); a plain
+/// row is `TEXT`.
+pub const LOG_INFO: &str = "text-info";
+/// A log view's success row.
+pub const LOG_SUCCESS: &str = "text-success";
+/// A log view's warning row.
+pub const LOG_WARNING: &str = "text-warning";
+/// A log view's error row.
+pub const LOG_ERROR: &str = "text-error";
+/// A log view's `↓ N new` bar: `primary` with its text, drawn as a pill
+/// where the terminal takes pixels (PIX-009).
+pub const NEW_BAR: &str = "bg-primary text-primary-foreground rounded-full";
