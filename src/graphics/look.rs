@@ -275,6 +275,10 @@ pub struct Look {
     pub border: Option<Line>,
     /// A line at the edge: the focus ring.
     pub ring: Option<Line>,
+    /// Whether the element holds the focus. Only then does a ring leave a
+    /// gap on a fill in `primary` or `selection` (PIX-008): a ring that is
+    /// no focus variant, on a look nothing focuses, stays against its fill.
+    pub focused: bool,
     /// What a control draws inside the box.
     pub shapes: Vec<Shape>,
 }
@@ -289,6 +293,7 @@ impl Default for Look {
             radius: Radius::None,
             border: None,
             ring: None,
+            focused: false,
             shapes: Vec::new(),
         }
     }
@@ -395,9 +400,10 @@ impl Look {
 
     /// The scene of this look for a picture of `size` pixels over cells of
     /// `cell` pixels (PIX-001): the fill, the ring at the edge, the border
-    /// inside it, then the control's shapes. A fill in `primary` or
-    /// `selection` with a ring, a focused button's, starts [`RING_GAP`]
-    /// pixels inside the ring, and a border lies on the fill (PIX-008).
+    /// inside it, then the control's shapes. A focused look's fill in
+    /// `primary` or `selection` with a ring, a focused button's, starts
+    /// [`RING_GAP`] pixels inside the ring, and a border lies on the fill
+    /// (PIX-008).
     /// Colors are theme tokens the renderer resolves when it draws
     /// (GFX-001).
     pub(crate) fn scene(&self, size: (u32, u32), cell: (u16, u16)) -> Scene {
@@ -408,7 +414,7 @@ impl Look {
         // (PIX-003); only the radius follows the cell height.
         let line_px = |line: &Line| line.width.max(1.0).round();
         let gap = match (&self.ring, &self.fill) {
-            (Some(_), Some(fill)) if gives_ring_a_gap(fill) => RING_GAP,
+            (Some(_), Some(fill)) if self.focused && gives_ring_a_gap(fill) => RING_GAP,
             _ => 0.0,
         };
         if let Some(fill) = &self.fill {

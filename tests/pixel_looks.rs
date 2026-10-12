@@ -2776,6 +2776,45 @@ fn pix_008_a_focused_look_filled_neither_and_the_mixed_checkbox_match_their_refe
     );
 }
 
+/// PIX-008 changes only a look that holds the focus. A rounded box filled
+/// `primary` with a ring that is no focus variant (`ring-2 ring-ring`), which
+/// nothing focuses, keeps its fill against its ring as PIX-003 draws it: on
+/// each side a walk from the picture's edge inward finds no transparent pixel
+/// from the ring's first pixel to past where a gap would lie (adversary
+/// finding 2).
+#[test]
+fn pix_008_a_look_without_the_focus_keeps_its_fill_against_its_ring() {
+    // The ring's two pixels, the gap's one and two of the fill.
+    const DEPTH: usize = 5;
+    let captured = capture(case(
+        "ring_rounded_primary",
+        20,
+        4,
+        rounded("w-20 h-4 bg-primary ring-2 ring-ring rounded"),
+    ))
+    .unwrap_or_else(|problem| panic!("PIX-008: {problem}"));
+    let lines = sides(&captured.frame).unwrap_or_else(|problem| panic!("PIX-008: {problem}"));
+    let mut problems = Vec::new();
+    for (side, line) in lines {
+        let Some(edge) = line.iter().position(|pixel| pixel[3] >= GAP_ALPHA) else {
+            problems.push(format!("{side}: no opaque pixel"));
+            continue;
+        };
+        let run = &line[edge..(edge + DEPTH).min(line.len())];
+        if run.iter().any(|pixel| pixel[3] < GAP_ALPHA) {
+            let alphas: Vec<u8> = run.iter().map(|pixel| pixel[3]).collect();
+            problems.push(format!(
+                "{side}: a transparent pixel lies between the ring and the fill: alphas {alphas:?}"
+            ));
+        }
+    }
+    assert!(
+        problems.is_empty(),
+        "PIX-008: the unfocused box filled `primary` with a static ring left a gap: {}",
+        problems.join("; ")
+    );
+}
+
 // ---------------------------------------------------------------------------
 // PIX-006: speed and scale, in release on the Linux host; recorded elsewhere.
 
