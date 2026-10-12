@@ -83,7 +83,8 @@ pub const CURRENT_ROW: &str = "bg-selection text-selection-foreground";
 /// side, `secondary` with its text, `selection` while focused, its text
 /// `text-muted` when disabled. Where the terminal takes pixels the same
 /// classes draw its pixel look (PIX-003): a rounded fill, a two-pixel ring
-/// in `ring` while focused, the fill at 90 percent under the pointer and at
+/// in `ring` while focused with a pixel left empty between it and the
+/// `selection` fill (PIX-008), the fill at 90 percent under the pointer and at
 /// half when disabled. The ring tokens come before `focus:bg-selection`, so
 /// in cells the focused fill stays `selection`.
 pub const BUTTON: &str = "h-1 px-1 bg-secondary text-secondary-foreground cursor-pointer rounded focus:ring-2 focus:ring-ring focus:bg-selection focus:text-selection-foreground hover:bg-opacity-90 disabled:text-muted disabled:bg-opacity-50";
