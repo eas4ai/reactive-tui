@@ -2778,21 +2778,24 @@ fn pix_008_a_focused_look_filled_neither_and_the_mixed_checkbox_match_their_refe
 
 /// PIX-008 changes only a look that holds the focus. A rounded box filled
 /// `primary` with a ring that is no focus variant (`ring-2 ring-ring`), which
-/// nothing focuses, keeps its fill against its ring as PIX-003 draws it: on
-/// each side a walk from the picture's edge inward finds no transparent pixel
-/// from the ring's first pixel to past where a gap would lie (adversary
-/// finding 2).
+/// nothing focuses, keeps its fill against its ring as PIX-003 draws it: its
+/// picture matches its reference, and on each side a walk from the picture's
+/// edge inward finds no transparent pixel from the ring's first pixel to past
+/// where a gap would lie (adversary finding 2).
 #[test]
 fn pix_008_a_look_without_the_focus_keeps_its_fill_against_its_ring() {
     // The ring's two pixels, the gap's one and two of the fill.
     const DEPTH: usize = 5;
-    let captured = capture(case(
-        "ring_rounded_primary",
-        20,
-        4,
-        rounded("w-20 h-4 bg-primary ring-2 ring-ring rounded"),
-    ))
-    .unwrap_or_else(|problem| panic!("PIX-008: {problem}"));
+    let static_ring = || {
+        case(
+            "ring_rounded_primary",
+            20,
+            4,
+            rounded("w-20 h-4 bg-primary ring-2 ring-ring rounded"),
+        )
+    };
+    assert_references("PIX-008", vec![static_ring()]);
+    let captured = capture(static_ring()).unwrap_or_else(|problem| panic!("PIX-008: {problem}"));
     let lines = sides(&captured.frame).unwrap_or_else(|problem| panic!("PIX-008: {problem}"));
     let mut problems = Vec::new();
     for (side, line) in lines {
