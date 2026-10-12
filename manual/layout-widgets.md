@@ -7,15 +7,18 @@ Widget module: `layout`
 ## Purpose
 
 Layout widgets arrange other content and move through it: the tabs, the
-accordion, the breadcrumb, the scroll view and the stack. Each shows a set
-of places, panels or rows, moves the current one on a key or a click, and
-reports the move through a callback. Their colors come from the theme's
-roles (docs/spec/layout-widgets.md, NAV-001): a tab's label, a breadcrumb's
-segment and an accordion's glyph are `text-muted`, the selected tab, the
-current segment and a title `foreground`, the item that holds the keyboard
-focus `selection` while the widget has the focus, the item under the
-pointer `hover`, and a disabled item `text-muted`. They fill the width their
-parent allots, and the scroll view its height too (NAV-002).
+accordion, the breadcrumb, the scroll view, the stack, the resizable split,
+the sidebar and the log view. Each shows a set of places, panels or rows,
+moves the current one on a key or a click, and reports the move through a
+callback. Their colors come from the theme's roles
+(docs/spec/layout-widgets.md, NAV-001 and NAV-007): a tab's label, a
+breadcrumb's segment and an accordion's glyph are `text-muted`, the
+selected tab, the current segment and a title `foreground`, the item that
+holds the keyboard focus `selection` while the widget has the focus, the
+item under the pointer `hover`, and a disabled item `text-muted`. They fill
+the width their parent allots, except the sidebar, which is 28 cells wide;
+the scroll view, the split, the sidebar and the log view fill its height
+too (NAV-002, NAV-008).
 
 ## Tabs
 
@@ -108,6 +111,106 @@ points, `.wrap(..)`, `.reverse(..)` and the `.padding_all(..)`,
 shorthands. A stack has no colors or state of its own, fills the width its
 parent allots, and is named only by `aria_label`.
 
+## Resizable split
+
+`builder::resizable()` lays its panes side by side with `.horizontal()`,
+the default, or stacks them with `.vertical()`, with a divider between
+each pair. `.pane(element)` adds a pane that takes an equal share;
+`.pane_with(Pane::new(element).size(40))` adds one of a fixed number of
+cells, `.weight(2.0)` in place of `.size(..)` one with a share by weight of
+the cells the fixed panes leave, and `.min(6)` sets the fewest cells a pane
+can be moved down to (4 unless set). The builder also takes
+`.aria_label(..)`, `.disabled(..)`, `.class(..)` and `.on_resize(f)`, called
+with every pane's size after each move;
+`Resizable::new(props).with_on_resize(f)` builds the same split from
+`ResizableProps`. The split fills what its parent allots unless a `w-N` or
+`h-N` class sizes it. Its length less one cell per divider is shared in
+whole cells: fixed sizes first, then weights, then equal shares. When the
+split's length changes, each pane keeps its share of it.
+
+A divider is a `│` between panes side by side and a `─` between stacked
+panes, drawn by the separator piece in `border`, on `hover` under the
+pointer, and in `selection` with `selection-foreground` while it holds the
+focus or is dragged. Each divider is a focus stop. Left and Right, or Up
+and Down between stacked panes, move it one cell, ten with Shift; Home and
+End move it as far as it goes. A press on a divider takes the pointer, and
+the drag moves the divider to the cell under it. A move takes cells from
+the pane beside the divider down to its minimum, then from the next pane
+beyond it, and gives them to the pane on the other side; `on_resize` is
+called once per move. The screen reader hears each divider as a splitter
+named by `aria_label`, with its orientation, the size of the pane before it
+as its value, and the least and greatest size it can take; Increment,
+Decrement and SetValue move it as the arrow keys do.
+
+## Sidebar
+
+`builder::sidebar()` takes `.item(SidebarItem)` for each top-level item, or
+`.items(vec)`, `.active(id)` for the active item, `.collapsed(bool)`,
+`.header(element)` and `.footer(element)`, `.aria_label(..)`, `.class(..)`,
+`.on_select(f)`, called with the id of the item the user makes active, and
+`.on_collapse(f)`, called with the collapsed state after the user flips it.
+`SidebarItem::new(id, label)` takes `.icon(Icon::Folder)`, `.badge("3")`,
+`.disabled(true)`, `.open(true)` for a group that starts open, and
+`.child(item)`; an item with children is a group.
+`Sidebar::new(props).with_on_select(f).with_on_collapse(f)` builds the same
+bar from `SidebarProps`.
+
+The bar is 28 cells wide and fills the height its parent allots. It shows
+the header, then one row per visible item, then the footer, and its toggle
+on the last row, `‹` while the bar is expanded and `›` while it is
+collapsed. An item is indented two cells per level, with the expander of a
+group (`›` closed, `▼` open), its icon, its label cut with
+`…` when it is too long, and its badge at the row's end. The bar is on
+`surface` with a `│` in `border` along the edge that faces the content; a
+label is `foreground`, an icon and an expander `text-muted`, the badge as
+the badge piece paints it, the active item `accent` with
+`accent-foreground` text, the item under the keyboard cursor `selection`
+with `selection-foreground` text while the bar holds the focus, the item
+under the pointer `hover`, and a disabled item and the toggle `text-muted`.
+
+The item tree and the toggle are two focus stops. In the tree, Up, Down,
+Home and End move the cursor over the visible items and pass disabled
+ones; Right opens a closed group, or moves into an open one; Left closes an
+open group, or moves from a child to its group; Enter and Space make the
+item active, call `on_select`, and open or close a group. A click on an
+item does what Enter does. On the toggle, Enter, Space or a click collapse
+or expand the bar and call `on_collapse`. A collapsed bar is 3 cells wide
+and shows each visible item's icon, or its label's first character; while
+the tree holds the focus, the cursor item's label shows beside the bar as a
+tooltip. The screen reader hears the bar as a navigation landmark named by
+`aria_label`, holding a tree; each item is a tree item with its label, its
+level, its position and the count of its siblings, a group's expanded
+state, and the active item marked selected. The toggle is a button named
+by `aria_label`, marked expanded while the bar is.
+
+## Log view
+
+`builder::log_view()` shows the rows of a `LogHandle` given with
+`.handle(handle)`, and takes `.new_word(..)`, `.aria_label(..)` and
+`.class(..)`. `LogHandle::new()` holds the rows: `.append(row)` and
+`.append_all(rows)` add rows at the end, `.prepend(rows)` adds older rows
+above, `.clear()` removes them, and `.len()` counts them. A clone of a
+handle holds the same rows, so a clone on another thread can add rows;
+each change wakes the App that shows the view, which redraws it.
+`LogRow::new(text)` is a row in `foreground`; `.kind(LogKind::Error)` paints
+it in `text-error`, and the kinds `Info`, `Success` and `Warning` in
+`text-info`, `text-success` and `text-warning`.
+
+The view fills the width and the height its parent allots, and a row wider
+than the view continues on the next lines. It follows its last row while
+rows arrive. Up, Page Up, Home, the wheel up, a click on the track above
+the thumb or a drag of the thumb up stop the following; End, a click on the
+`↓ N new` bar or scrolling down to the last row resume it. While the view
+does not follow and rows arrived since it stopped, its last line is a bar
+that reads `↓ N new` with the count of those rows, on `primary` with
+`primary-foreground` text; `.new_word(..)` replaces the word `new`.
+Prepended rows, and rows appended while the view does not follow, leave the
+rows in view on their lines. The scroll bar and the keys are a scroll
+view's. The view is one focus stop. The screen reader hears a log named by
+`aria_label` that announces new rows politely, with the scroll offsets and
+their ranges; the `↓ N new` bar is a button named by its text, and its
+Click resumes the following.
+
 ## Source map
 
 - Layout widget exports: [`src/widgets/layout/mod.rs`](../src/widgets/layout/mod.rs)
@@ -117,10 +220,14 @@ parent allots, and is named only by `aria_label`.
 - Breadcrumb: [`src/widgets/layout/breadcrumb.rs`](../src/widgets/layout/breadcrumb.rs), [`src/widgets/layout/breadcrumb/live.rs`](../src/widgets/layout/breadcrumb/live.rs)
 - Scroll view: [`src/widgets/layout/scroll_view.rs`](../src/widgets/layout/scroll_view.rs)
 - Stack: [`src/widgets/layout/stack.rs`](../src/widgets/layout/stack.rs)
-- Builders: [`src/builder/widgets/layout.rs`](../src/builder/widgets/layout.rs), [`src/builder/widgets/accordion.rs`](../src/builder/widgets/accordion.rs), [`src/builder/widgets/breadcrumb.rs`](../src/builder/widgets/breadcrumb.rs), [`src/builder/specialized.rs`](../src/builder/specialized.rs)
-- Contract tests: [`tests/layout_widgets_contract.rs`](../tests/layout_widgets_contract.rs)
+- Resizable split: [`src/widgets/layout/resizable.rs`](../src/widgets/layout/resizable.rs), [`src/widgets/layout/resizable/share.rs`](../src/widgets/layout/resizable/share.rs)
+- Sidebar: [`src/widgets/layout/sidebar.rs`](../src/widgets/layout/sidebar.rs), [`src/widgets/layout/sidebar/paint.rs`](../src/widgets/layout/sidebar/paint.rs), [`src/widgets/layout/sidebar/rows.rs`](../src/widgets/layout/sidebar/rows.rs)
+- Log view: [`src/widgets/layout/log_view.rs`](../src/widgets/layout/log_view.rs), [`src/widgets/layout/log_view/handle.rs`](../src/widgets/layout/log_view/handle.rs), [`src/widgets/layout/log_view/wrap.rs`](../src/widgets/layout/log_view/wrap.rs)
+- Builders: [`src/builder/widgets/layout.rs`](../src/builder/widgets/layout.rs), [`src/builder/widgets/accordion.rs`](../src/builder/widgets/accordion.rs), [`src/builder/widgets/breadcrumb.rs`](../src/builder/widgets/breadcrumb.rs), [`src/builder/specialized.rs`](../src/builder/specialized.rs), [`src/builder/widgets/resizable.rs`](../src/builder/widgets/resizable.rs), [`src/builder/widgets/sidebar.rs`](../src/builder/widgets/sidebar.rs), [`src/builder/widgets/log_view.rs`](../src/builder/widgets/log_view.rs)
+- Contract tests: [`tests/layout_widgets_contract.rs`](../tests/layout_widgets_contract.rs); the split, the sidebar and the log view in [`tests/medium_widgets_contract.rs`](../tests/medium_widgets_contract.rs)
 - Goldens: [`tests/layout_widgets_goldens.rs`](../tests/layout_widgets_goldens.rs), [`tests/snapshots/layout_widgets`](../tests/snapshots/layout_widgets)
 - Behavior tests: [`tests/api_widget_behavior/accordion.rs`](../tests/api_widget_behavior/accordion.rs), [`tests/api_widget_behavior/breadcrumb.rs`](../tests/api_widget_behavior/breadcrumb.rs), [`tests/api_widget_behavior/scroll.rs`](../tests/api_widget_behavior/scroll.rs), [`tests/api_widget_behavior/stack.rs`](../tests/api_widget_behavior/stack.rs), [`tests/api_widget_behavior/tabs.rs`](../tests/api_widget_behavior/tabs.rs)
+- Screen-reader probe page of the split, the sidebar, the list and the log view (NAV-011): [`tests/api_widget_behavior/medium_probe.rs`](../tests/api_widget_behavior/medium_probe.rs), with what Orca must say in [`tests/api_widget_behavior/orca_medium.py`](../tests/api_widget_behavior/orca_medium.py)
 
 ## Related chapters
 
