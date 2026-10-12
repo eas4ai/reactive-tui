@@ -78,7 +78,7 @@ the width its parent allots.
 Where the terminal takes Kitty graphics or Sixel and the crate is built
 with `wgpu-graphics`, each control draws its look as one pixel picture
 over the cells it paints, around its text (`docs/spec/pixel-looks.md`,
-PIX-001 to PIX-007). Everywhere else, with `REACTIVE_TUI_CANVAS=blocks`,
+PIX-001 to PIX-008). Everywhere else, with `REACTIVE_TUI_CANVAS=blocks`,
 or with a process-wide `GraphicsOptions` whose output is blocks, it draws
 the cell look above, byte for byte. The picture is drawn on the drawing
 thread the canvases share, kept across frames and sent again only when
@@ -124,16 +124,26 @@ look's glyphs.
   two pixels in `ring` for the current cell while the code input holds
   the focus, in place of `[` and `]`. The digit, `_` or dot stays cell
   text in the middle cell, which the square's color fills.
-- A rating draws a five-pointed star of the cell height less two pixels
-  in each of its cells, filled `warning` when lit and outlined one pixel
-  in `border` (`ring` while focused) when not, in place of `★` and `☆`;
-  a disabled rating is drawn at half.
+- A rating draws a five-pointed star as wide as its cell, centered in
+  it, in each of its cells, filled `warning` when lit and filled `border`
+  (`ring` while focused) when not, in place of `★` and `☆`; a disabled
+  rating is drawn at half.
 - A switch's box is a pill of the cell height less two pixels tall over
   its four cells. On, it is filled `primary` with a round thumb in
   `primary-foreground` at its right end; off, it is `input` bordered one
   pixel in `border` with the thumb in `foreground` at its left end. While
   the switch holds the focus the pill is bordered in `ring`, and a
   disabled switch is drawn at half. The label stays cell text.
+- A focused look filled `primary` or `selection` leaves one pixel between
+  its ring and its fill, through which what is under the look shows, so
+  the focus shows under a theme whose `ring` is the color of that fill,
+  as every built-in preset's is: a focused button of either kind, filled
+  `selection` while it holds the focus, a checked or mixed checkbox and a
+  switch that is on. The ring stays at the edge and the fill starts inside
+  the gap; a focused checkbox's check mark shrinks with its fill, and a
+  switch's thumb sits at the end of the smaller fill. On a button the gap
+  shows in its two end cells, like `[` and `]`, since its label cells are
+  painted in the fill's flat color.
 
 `cargo test --features wgpu-graphics --test pixel_looks` draws each
 control on a Kitty host and compares its picture with the reference under
