@@ -32,6 +32,13 @@ pub const TOOLTIP: &str = "bg-surface text-foreground";
 pub const TRACK: &str = "text-border";
 /// A scroll bar's thumb.
 pub const THUMB: &str = "text-muted";
+/// A split's divider and a sidebar's edge: `border` (NAV-007).
+pub const DIVIDER: &str = "text-border";
+/// A sidebar's fill: `surface` (NAV-007).
+pub const BAR: &str = "bg-surface";
+/// A sidebar's active item: `accent` with `accent-foreground` text
+/// (NAV-007).
+pub const ACTIVE: &str = "bg-accent text-accent-foreground";
 /// A log view's info, success, warning and error rows (NAV-007); a plain
 /// row is `TEXT`.
 pub const LOG_INFO: &str = "text-info";
