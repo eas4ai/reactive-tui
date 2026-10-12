@@ -199,7 +199,9 @@ holds the focus, the selected item `accent` with `accent-foreground` text,
 the item under the pointer `hover`, a disabled item `text-muted`, and the
 characters of a label that match the filter `primary`. The filter row is
 painted as a text input's field, the loading row is the spinner piece, and
-the empty view is the empty piece with `empty_text`.
+the empty view is the empty piece with `empty_text`. Where the terminal
+takes pixels (PIX-009), the list's filled rows draw their fills with round
+ends.
 
 The list is one focus stop. Up and Down move the cursor one item, Page Up
 and Page Down by the items its height holds, Home and End to the first and

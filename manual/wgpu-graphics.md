@@ -187,9 +187,12 @@ that names none of the three is logged as a warning and changes nothing.
 ## Pixel looks
 
 The controls of [Input widgets](input-widgets.md#pixel-looks), the
-progress bar and the rounded boxes of
+progress bar, the rounded boxes of
 [Layout, style, and themes](layout-style-and-themes.md#rounded-boxes-with-pixels)
-draw their looks through the canvas path (`docs/spec/pixel-looks.md`).
+and the medium widgets, the
+[resizable split's divider](layout-widgets.md#resizable-split), the
+sidebar's and the list's rows and the log view's bar, draw their looks
+through the canvas path (`docs/spec/pixel-looks.md`).
 The painter keeps one drawing slot and one image per element, submits a
 scene to the drawing thread when the look, the box, the cell size or the
 theme changes, and places the finished picture over the element's whole
