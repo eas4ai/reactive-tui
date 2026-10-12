@@ -9,6 +9,8 @@ the violations; the run then fails with all of them in one AssertionError.
 import time
 
 BACKSPACE, TAB, SPACE, RIGHT = 0xff08, 0xff09, 0x20, 0xff53
+# Keypad Enter: Orca's Where Am I in its desktop layout.
+WHERE_AM_I = 0xff8d
 DIGITS = "0123456789"
 # Orca logs each utterance in quotes, so a quote before a digit is a spoken
 # number; the voice settings after it and the background App's "Background
@@ -82,6 +84,20 @@ def exercise(root, keyboard, wait, named, state, click, speech, Atspi, speech_st
     type_digit("4")
     type_digit("2")
     heard("4 then 2 typed into Volume (0 to 10)", start, "42", "invalid entry")
+    idle(PAUSE)
+    # Emptied after the invalid 42, the box reads as empty. Emptying 4 sends
+    # the reader no number to speak, so Orca's Where Am I asks for what the
+    # box holds: its name and role, and no number, neither the 42 it showed
+    # nor the 4 the application still holds.
+    for _ in range(2):
+        start = speech_start()
+        keyboard.key(BACKSPACE)
+        echoed(start, "backspace")
+        idle(PAUSE)
+    start = speech_start()
+    keyboard.key(WHERE_AM_I)
+    heard("Where Am I on Volume emptied after 42", start, "Volume", "spin button")
+    unheard("Where Am I on Volume emptied after 42", start, *SPOKEN_DIGITS)
     idle(PAUSE)
 
     start = focus_moves("Tab to Year", year)
