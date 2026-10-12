@@ -6,6 +6,8 @@ pub mod data_table;
 pub mod file_explorer;
 /// Image display widgets for terminal graphics
 pub mod image;
+/// The list: items with sections, a filter and a loading row (DAT-006 to DAT-009)
+pub mod list;
 /// The look the data widgets share: the classes that name each part's role
 pub mod look;
 /// Modal dialog components
@@ -45,6 +47,7 @@ pub use image::{
     image_blitter, set_image_blitter, Blitter, Image, ImageCapabilities, ImageDisplayMode,
     ImageFormat, ImageQuality, ImageSource,
 };
+pub use list::{List, ListItem, ListProps};
 pub use modal::Modal;
 pub use pieces::icon::Icon;
 pub use popover::Popover;

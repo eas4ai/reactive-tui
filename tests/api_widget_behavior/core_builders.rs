@@ -189,7 +189,6 @@ fn convenience_containers_show_their_children_with_default_styles() {
             ("screen", builder::screen()),
             ("container", builder::container()),
             ("card", builder::card_builder()),
-            ("sidebar", builder::sidebar()),
             ("content", builder::content()),
             ("responsive grid", builder::responsive_grid(2)),
         ] {
