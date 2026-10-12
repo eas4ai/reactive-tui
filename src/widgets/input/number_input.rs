@@ -150,9 +150,12 @@ impl NumberInputProps {
         if body.contains('-') || body.matches('.').count() > 1 {
             return false;
         }
-        // The range's magnitudes, mirrored for a negative text.
+        // The range's magnitudes, mirrored for a negative text. A run of
+        // magnitudes starts at the one the text reads as, which counts on
+        // its own: past 2^53, or after many decimals, `to` can round back
+        // onto `from`.
         let (least, greatest) = if negative { (-high, -low) } else { (low, high) };
-        let overlaps = |from: f64, to: f64| from <= greatest && to > least;
+        let overlaps = |from: f64, to: f64| from <= greatest && (from >= least || to > least);
         match body.split_once('.') {
             Some((whole, fraction)) => {
                 let digits = |part: &str| if part.is_empty() { "0" } else { part }.to_owned();
@@ -1231,7 +1234,9 @@ mod tests {
     /// the range. In a year box of 1900 to 2100, `2` can still become 2025
     /// and `21` 2100, while `3` can only become 3, the 30s, the 300s or the
     /// 3000s; a leading zero can still become any year; `1.` and a lone
-    /// minus sign never reach 1900; and `1.2.` never reads as a number.
+    /// minus sign never reach 1900; and `1.2.` never reads as a number. A
+    /// text that reads as a number in the range is never invalid, even
+    /// where the magnitudes after it are too close to tell apart.
     #[test]
     fn ctl_010_a_typed_number_is_invalid_only_when_typing_on_cannot_help() {
         fn invalid(props: &NumberInputProps, typed: &str) -> bool {
@@ -1274,6 +1279,16 @@ mod tests {
             (range(0.0, 10.0), "1.2.", true),
             (range(-10.0, 10.0), "-5", false),
             (range(-10.0, 10.0), "-11", true),
+            // A text that already reads as a number at an end of the range
+            // is inside it, however short the step its next digit would add
+            // (adversary finding 1).
+            (range(2.0, 10.0), "2.0000000000000000", false),
+            (range(-10.0, -2.0), "-2.0000000000000000", false),
+            (
+                range(9007199254740992.0, 9007199254740992.0),
+                "9007199254740992",
+                false,
+            ),
         ];
         for (props, typed, expected) in &cases {
             assert_eq!(
