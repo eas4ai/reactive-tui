@@ -1,8 +1,9 @@
 //! charts-goldens mechanism, BAR-004 for the data widgets: the table, the
-//! data table, the tree, the file explorer and the progress bar, on the
-//! debug backend under the dark preset, against checked-in goldens of the
-//! text grid plus a color digest at 80 by 24 and at 400 by 100. Each fills
-//! the width the page allots, so the wide golden shows them at 400 columns.
+//! data table, the tree, the file explorer, the progress bar and the list,
+//! on the debug backend under the dark preset, against checked-in goldens
+//! of the text grid plus a color digest at 80 by 24 and at 400 by 100. Each
+//! fills the width the page allots, so the wide golden shows them at 400
+//! columns.
 //! Goldens live in `tests/snapshots/data_widgets/<widget>_<size>.ansi`, or under
 //! `REACTIVE_TUI_SNAPSHOTS` when the check points there; run with
 //! `REGENERATE=1` to write them, review the diff, then commit.
@@ -85,7 +86,7 @@ fn page(child: Element) -> Element {
 /// that show it: the table focused, the tree with a selected node.
 fn widgets(fixture: &std::path::Path) -> Vec<(&'static str, Element, Vec<Until>)> {
     use reactive_tui::widgets::display::table::{Table, TableColumn, TableProps, TableRow};
-    use reactive_tui::widgets::display::TreeNode;
+    use reactive_tui::widgets::display::{ListItem, TreeNode};
     vec![
         (
             "table",
@@ -161,6 +162,31 @@ fn widgets(fixture: &std::path::Path) -> Vec<(&'static str, Element, Vec<Until>)
                     .build(),
             ),
             vec![wait("82.0%", None)],
+        ),
+        (
+            "list",
+            // The list fills the box its card gives it, eight rows: two
+            // section titles and six items.
+            page(
+                builder::div()
+                    .class("w-full h-8")
+                    .child(
+                        builder::list()
+                            .items(vec![
+                                ListItem::new("apple", "Apple").section("Orchard"),
+                                ListItem::new("banana", "Banana").section("Orchard"),
+                                ListItem::new("cherry", "Cherry").section("Orchard"),
+                                ListItem::new("lemon", "Lemon").section("Citrus"),
+                                ListItem::new("lime", "Lime").section("Citrus"),
+                                ListItem::new("orange", "Orange").section("Citrus"),
+                            ])
+                            .selected("banana")
+                            .aria_label("Fruits")
+                            .build(),
+                    )
+                    .build(),
+            ),
+            vec![wait("Orange", None)],
         ),
     ]
 }

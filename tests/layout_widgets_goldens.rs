@@ -1,8 +1,10 @@
 //! charts-goldens mechanism, BAR-004 for the layout widgets: the tabs, the
-//! accordion, the breadcrumb, the scroll view and the stack, on the debug
-//! backend under the dark preset, against checked-in goldens of the text
-//! grid plus a color digest at 80 by 24 and at 400 by 100. Each fills the
-//! width the page allots, so the wide golden shows them at 400 columns.
+//! accordion, the breadcrumb, the scroll view, the stack, the resizable
+//! split, the sidebar and the log view, on the debug backend under the dark
+//! preset, against checked-in goldens of the text grid plus a color digest
+//! at 80 by 24 and at 400 by 100. Each fills the width the page allots, but
+//! the sidebar, which is 28 cells wide, so the wide golden shows them at 400
+//! columns.
 //! Goldens live in `tests/snapshots/layout_widgets/<widget>_<size>.ansi`, or under
 //! `REACTIVE_TUI_SNAPSHOTS` when the check points there; run with
 //! `REGENERATE=1` to write them, review the diff, then commit.
@@ -16,6 +18,7 @@ use reactive_tui::{
     component::Element,
     event::types::Event,
     theme::{dark_theme, Theme},
+    widgets::layout::{LogHandle, LogKind, LogRow, SidebarItem},
 };
 
 struct Root(Element);
@@ -81,6 +84,29 @@ fn page(child: Element) -> Element {
         .build()
 }
 
+/// A box of `height` rows across the page that holds `child`, as the
+/// widget catalog's card gives the widgets that fill their parent.
+fn boxed(height: u16, child: Element) -> Element {
+    builder::div()
+        .class(&format!("w-full h-{height}"))
+        .child(child)
+        .build()
+}
+
+/// The catalog's build log: a row of each kind.
+fn build_log() -> LogHandle {
+    let log = LogHandle::new();
+    log.append_all(vec![
+        LogRow::new("Build started"),
+        LogRow::new("Compiling widgets").kind(LogKind::Info),
+        LogRow::new("warning: unused var").kind(LogKind::Warning),
+        LogRow::new("error: 1 test failed").kind(LogKind::Error),
+        LogRow::new("Retrying the test").kind(LogKind::Info),
+        LogRow::new("Build finished").kind(LogKind::Success),
+    ]);
+    log
+}
+
 /// Each widget by name, as the widget catalog builds it, with the steps
 /// that show it: the tabs and the accordion focused.
 fn widgets() -> Vec<(&'static str, Element, Vec<Until>)> {
@@ -137,6 +163,47 @@ fn widgets() -> Vec<(&'static str, Element, Vec<Until>)> {
                     .build(),
             ),
             vec![wait("Layer two", None)],
+        ),
+        (
+            "resizable",
+            page(boxed(
+                4,
+                builder::resizable()
+                    .pane(Element::text("Files"))
+                    .pane(Element::text("Preview"))
+                    .aria_label("Panes")
+                    .build(),
+            )),
+            vec![wait("Preview", None)],
+        ),
+        (
+            "sidebar",
+            page(boxed(
+                5,
+                builder::sidebar()
+                    .item(SidebarItem::new("home", "Home"))
+                    .item(
+                        SidebarItem::new("projects", "Projects")
+                            .child(SidebarItem::new("alpha", "Alpha"))
+                            .child(SidebarItem::new("beta", "Beta")),
+                    )
+                    .item(SidebarItem::new("settings", "Settings"))
+                    .active("home")
+                    .aria_label("Main")
+                    .build(),
+            )),
+            vec![wait("Settings", None)],
+        ),
+        (
+            "log_view",
+            page(boxed(
+                4,
+                builder::log_view()
+                    .handle(build_log())
+                    .aria_label("Build log")
+                    .build(),
+            )),
+            vec![wait("Build finished", None)],
         ),
     ]
 }
