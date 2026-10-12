@@ -261,8 +261,11 @@ what the field shows, an emptied field as empty, and an invalid entry only
 when no more typing could bring the text into the range: `42` in a range
 of 0 to 10 reads as 42, invalid entry, while the application still holds
 4; the `2` that starts 2025 in a year box of 1900 to 2100 is not invalid,
-and a `3` there is. It advertises Increment, Decrement and SetValue and
-acts on them as a slider does.
+and a `3` there is. On Linux an emptied field keeps its value for the
+screen reader as the word blank, since AT-SPI has no spin button without a
+number: Orca's Where Am I says `Volume, spin button, blank` rather than a
+number the field does not hold. It advertises Increment, Decrement and
+SetValue and acts on them as a slider does.
 
 ## Code input
 
