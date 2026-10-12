@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pixel-looks: PIX-001 to PIX-008 (docs/spec/pixel-looks.md) through
+"""pixel-looks: PIX-001 to PIX-009 (docs/spec/pixel-looks.md) through
 tests/pixel_looks.rs, built with wgpu-graphics. A widget's or element's look is
 one pixel picture over its rectangle where the terminal takes Kitty graphics
 or Sixel, drawn around its text, kept and sent only when it changes, hidden
@@ -28,6 +28,12 @@ checkbox and the focused switch that is off with their references; the
 unfocused primary button, the focused `builder::button()` and the three
 focused looks themselves are reference cases of PIX-003, PIX-004 and
 PIX-007, whose reference tests run for PIX-008 too.
+
+PIX-009: the medium widgets' looks (a split's divider at rest and with the
+focus, a sidebar's and a list's filled rows, a log view's bar) match their
+reference pictures, a divider cell holds no glyph while its picture shows,
+and the widgets keep their cell looks without pixels, through the
+`pix_009_` tests.
 
 PIX-006 binds on this host: the catalog's Input page and a page of 192 looks
 at 240 by 60 cells, in a release build on the hardware adapter, with Kitty
@@ -62,6 +68,7 @@ REFERENCES = {
     "PIX-005": "pix_005_",
     "PIX-007": "pix_007_",
     "PIX-008": "pix_008_",
+    "PIX-009": "pix_009_",
 }
 # The reference tests of other requirements that hold a requirement's cases,
 # run after its own tests: PIX-008's primary button with and without the
