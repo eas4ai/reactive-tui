@@ -7,7 +7,9 @@ alike, with focus, hover and selection shown by color alone; the width and
 height each fills, columns that share the width by weight, and no cap on
 a data table's rows; numeric sorting, a revealed selection and a cursor
 that stays near a collapse; and what each widget tells the screen reader
-and the key behind every pointer action.
+and the key behind every pointer action. DAT-006 to DAT-009, the list, run
+through the tests/medium_widgets_contract.rs binary: its colors, size and
+windowing, keys, filter and loading, and screen-reader nodes.
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -28,6 +30,8 @@ def main() -> int:
     # the screen reader is read from its node, which only the crate sees.
     results["DAT-004"] = both(cargo_test_filtered(None, "dat_004_"),
                               cargo_test_filtered("data_widgets_contract", "dat_004_"))
+    for n in (6, 7, 8, 9):
+        results[f"DAT-{n:03d}"] = cargo_test_filtered("medium_widgets_contract", f"dat_{n:03d}_")
     return finish(results)
 
 

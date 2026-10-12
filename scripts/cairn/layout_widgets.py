@@ -8,7 +8,9 @@ the padding of a tab's label and a segment, and a bar column only while
 the content overflows; a tab bar that scrolls to its focused tab, a trail
 that keeps its ends whole, and a scroll view that follows the wheel, its
 track and its thumb; and what each widget tells the screen reader and the
-key behind every pointer action.
+key behind every pointer action. NAV-007 to NAV-010, the resizable split,
+the sidebar and the log view, run through the tests/medium_widgets_contract.rs
+binary: their colors, sizes, keys and pointer, and screen-reader nodes.
 
 Prints one `cairn: <REQ>: pass|fail` line per requirement.
 """
@@ -29,6 +31,8 @@ def main() -> int:
     # the screen reader is read from its node, which only the crate sees.
     results["NAV-004"] = both(cargo_test_filtered(None, "nav_004_"),
                               cargo_test_filtered("layout_widgets_contract", "nav_004_"))
+    for n in (7, 8, 9, 10):
+        results[f"NAV-{n:03d}"] = cargo_test_filtered("medium_widgets_contract", f"nav_{n:03d}_")
     return finish(results)
 
 
