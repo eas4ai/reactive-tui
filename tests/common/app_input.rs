@@ -953,6 +953,39 @@ pub fn run_until(
     run_steps_with_images(root, size, until(steps), None, timeout)
 }
 
+/// The frames up to the `count`th that shows `text`, for a page that keeps
+/// presenting, such as one with a running spinner. Such a page is never
+/// idle: `run_until`'s wait for idleness then depends on how often the App
+/// asks for input between two of its frames, which a loaded Windows
+/// machine, its timers 15.6 ms coarse, may never do often enough (the
+/// workflow's run for 672d5b72, reproduced on the Windows tablet with every
+/// CPU busy). A page settles within three presents (LAY-004), so with
+/// `count` at three the last frame is a settled one however long the
+/// machine takes, and no count races the animation, which keeps presenting.
+#[allow(dead_code)]
+pub fn run_until_shown(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    text: &str,
+    count: usize,
+) -> Vec<Snapshot> {
+    let step = Step {
+        frame: 1,
+        text: vec![text.into()],
+        absent: Vec::new(),
+        occurrences: count,
+        event: None,
+        pointer_text: None,
+        cell: None,
+        output: None,
+        painted: false,
+        idle: false,
+        when: None,
+        request: None,
+    };
+    run_steps_with_images(root, size, VecDeque::from([step]), None, HANG_GUARD)
+}
+
 /// `run_until` on the debug backend.
 #[allow(dead_code)]
 pub fn run_until_on_debug(
