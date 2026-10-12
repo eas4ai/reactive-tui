@@ -96,7 +96,12 @@ pub mod docs {
                 div()
                     .class("flex flex-1")
                     .children(vec![
-                        sidebar().child(nav().text("Navigation").build()).build(),
+                        sidebar()
+                            .item(crate::widgets::layout::SidebarItem::new(
+                                "navigation",
+                                "Navigation",
+                            ))
+                            .build(),
                         content()
                             .children(vec![
                                 card(vec![

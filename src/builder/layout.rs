@@ -3,7 +3,7 @@
 //! This module provides pre-styled components and layout utilities that make it easy
 //! to create common UI patterns with consistent styling.
 
-use super::core::{aside, div, grid_builder, input, main, span, ElementBuilder};
+use super::core::{div, grid_builder, input, main, span, ElementBuilder};
 use crate::component::Element;
 
 /// Convenience functions for common layout patterns
@@ -22,11 +22,6 @@ pub fn container() -> ElementBuilder {
 /// in `border`, drawn as pixels where the terminal takes them (PIX-003).
 pub fn card_builder() -> ElementBuilder {
     div().class("bg-surface border border-border rounded-lg")
-}
-
-/// Create a sidebar layout
-pub fn sidebar() -> ElementBuilder {
-    aside().class("w-64 bg-gray-800 text-white")
 }
 
 /// Create a content area
