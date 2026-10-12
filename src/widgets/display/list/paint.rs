@@ -53,7 +53,9 @@ impl List {
             return 0..body;
         };
         let [a, b, c, d, _, y] = layout.transform;
-        if (a, b, c, d) != (1.0, 0.0, 0.0, 1.0) {
+        // A list that is scaled or turned builds every row of its body.
+        let upright = a == 1.0 && b == 0.0 && c == 0.0 && d == 1.0;
+        if !upright {
             return 0..body;
         }
         let top = y + Self::filter_rows(props) as f32;

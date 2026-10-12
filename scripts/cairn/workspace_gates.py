@@ -177,6 +177,42 @@ def captured(output: str, name: str) -> str:
     return ""
 
 
+# What a failing gate's retained output keeps. A panic's message is on the
+# lines after its `panicked at` line; the settle test's message of
+# 2026-10-10 was lost by keeping the panic line alone, and finding the
+# cause again took a hundred reruns.
+MARKS = ("FAILED", "panicked at", "signal:", "signal ", "error", "failures:", "warning: unused")
+MESSAGE_LINES = 12
+NAMED_FAILURES = 120
+
+
+def retained(output: str) -> str:
+    """The part of a failing gate's output worth keeping: every line that
+    names a failed test, a panic, a signal or an error, the first
+    NAMED_FAILURES of them; after each panic line its message, the lines
+    that follow it up to a blank line or MESSAGE_LINES; and the output's
+    last ten lines."""
+    lines = output.splitlines()
+    kept: list[str] = []
+    named = 0
+    i = 0
+    while i < len(lines) and named < NAMED_FAILURES:
+        line = lines[i]
+        i += 1
+        if not any(mark in line for mark in MARKS):
+            continue
+        kept.append(line)
+        named += 1
+        if "panicked at" in line:
+            end = i
+            while end < len(lines) and end < i + MESSAGE_LINES and lines[end].strip():
+                kept.append(lines[end])
+                end += 1
+            i = end
+    kept.extend(lines[-10:])
+    return "\n".join(kept)
+
+
 def crash_in(text: str) -> bool:
     """Whether `text` shows the toolchain killed by a signal."""
     return any(pattern.search(text) for pattern in TOOLCHAIN_CRASH)
@@ -413,11 +449,7 @@ def main() -> int:
         output = r.stdout + (r.stderr or "")
         name = " ".join(cmd[:3])
         if r.returncode != 0:
-            lines = output.splitlines()
-            # Name the failure: failed tests, panics, signals and errors, then the tail.
-            marks = ("FAILED", "panicked at", "signal:", "signal ", "error", "failures:", "warning: unused")
-            hits = [l for l in lines if any(m in l for m in marks)]
-            print("\n".join(hits[:60] + lines[-10:]))
+            print(retained(output))
             crashes = toolchain_crashes(output)
             if crashes:
                 crashed.append(f"{name} ({'; '.join(crashes)})")

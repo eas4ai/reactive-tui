@@ -28,6 +28,8 @@ mod dialog_probe;
 mod display_probe;
 #[path = "input_probe.rs"]
 mod input_probe;
+#[path = "medium_probe.rs"]
+mod medium_probe;
 #[path = "menu_probe.rs"]
 mod menu_probe;
 #[path = "overlay_probe.rs"]
@@ -147,6 +149,9 @@ impl RootComponent for Probe {
         let control = self.controls.load(Ordering::SeqCst);
         if control == 25 {
             return input_probe::inputs();
+        }
+        if control == 26 {
+            return medium_probe::page();
         }
         if (18..=24).contains(&control) {
             return dialog_probe::render(control, &self.menu_calls);
@@ -457,6 +462,7 @@ fn main() -> Result<()> {
             Some("--display") => 13,
             Some("--dialogs") => 18,
             Some("--inputs") => 25,
+            Some("--medium") => 26,
             _ => 0,
         },
     );
