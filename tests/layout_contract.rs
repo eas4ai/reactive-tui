@@ -27,7 +27,8 @@ use reactive_tui::layout::style::StyleBuilder;
 use reactive_tui::render::{reconcile::PatchOp, RenderTree};
 use std::collections::VecDeque;
 use std::io::{self, Write};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex, Once, PoisonError};
 use std::time::{Duration, Instant};
 use taffy::style::{LengthPercentage, LengthPercentageAuto, Style};
 
@@ -1162,12 +1163,81 @@ fn geometry(nodes: &[PaintedNode]) -> Geometry {
 const PRESENTS: usize = 12;
 const IDLE_TURNS: usize = 400;
 
-/// Every presented frame's geometry, how many frames were presented when
-/// the last click was sent, and the text of the last frame.
+/// Every presented frame's geometry, how many frames come before the first
+/// that counts (those presented when the last click was sent, or before
+/// the frame that awaited data arrived with), and the text of the last
+/// frame.
 type Frames = Arc<Mutex<(Vec<Geometry>, usize, String)>>;
 
+/// Holds back the answers of the file explorer's worker thread. The worker
+/// logs "answer ready" under the target `reactive_tui::file_explorer` as
+/// its last step before the explorer can see a directory listing. While the
+/// hold is closed, this logger keeps the worker waiting at that record, so
+/// a run decides after which present the listing lands. On 2026-10-10 a
+/// loaded machine delivered the catalog's listing after the third present.
+struct ListingHold {
+    closed: Mutex<bool>,
+    opened: Condvar,
+    /// The answers logged since the hold was last closed, held or not.
+    answers: AtomicUsize,
+}
+
+static LISTING_HOLD: ListingHold = ListingHold {
+    closed: Mutex::new(false),
+    opened: Condvar::new(),
+    answers: AtomicUsize::new(0),
+};
+
+impl ListingHold {
+    /// Hold every answer from now on, and count them from zero.
+    fn close(&'static self) {
+        static INSTALL: Once = Once::new();
+        INSTALL.call_once(|| {
+            log::set_logger(self).expect("the listing hold is this binary's only logger");
+            log::set_max_level(log::LevelFilter::Debug);
+        });
+        *self.closed.lock().unwrap_or_else(PoisonError::into_inner) = true;
+        self.answers.store(0, Ordering::SeqCst);
+    }
+
+    /// Let the held answers and every later one through.
+    fn open(&self) {
+        *self.closed.lock().unwrap_or_else(PoisonError::into_inner) = false;
+        self.opened.notify_all();
+    }
+}
+
+impl log::Log for ListingHold {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.target() == "reactive_tui::file_explorer"
+    }
+    fn log(&self, record: &log::Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+        self.answers.fetch_add(1, Ordering::SeqCst);
+        let mut closed = self.closed.lock().unwrap_or_else(PoisonError::into_inner);
+        // The run opens the hold. The deadline only frees a worker that a
+        // failed run left waiting.
+        let deadline = Instant::now() + HANG_GUARD;
+        while *closed {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                break;
+            }
+            closed = self
+                .opened
+                .wait_timeout(closed, left)
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
+        }
+    }
+    fn flush(&self) {}
+}
+
 /// A debug backend that clicks each text of a script once the frame shows
-/// it, then lets the App run until it has stopped presenting.
+/// it, waits for data that reaches the page from another thread, then lets
+/// the App run until it has stopped presenting.
 struct Settling {
     inner: DebugBackend,
     script: VecDeque<&'static str>,
@@ -1175,8 +1245,21 @@ struct Settling {
     seen: usize,
     idle: usize,
     deadline: Instant,
+    /// The present after which the run opens the listing hold it closed.
+    hold_until: Option<usize>,
+    /// Text the presented element tree holds once data that reaches the
+    /// page from another thread has arrived; `None` once it has.
+    ready: Option<&'static str>,
+    /// Whether the element tree of the frame being presented holds `ready`.
+    shows_ready: bool,
 }
 impl Settling {
+    /// Open the listing hold if this run closed it.
+    fn release_hold(&mut self) {
+        if self.hold_until.take().is_some() {
+            LISTING_HOLD.open();
+        }
+    }
     /// The cell where `text` starts in the presented frame.
     fn find(&self, text: &str) -> Option<(u16, u16)> {
         let (width, height) = self.inner.size();
@@ -1204,6 +1287,7 @@ impl Backend for Settling {
         self.inner.hit_cells()
     }
     fn render_frame(&mut self, element: &Element) -> Result<bool> {
+        self.shows_ready = self.ready.is_some_and(|text| holds_text(element, text));
         self.inner.render_frame(element)
     }
     fn layout_frame(&mut self, element: Arc<Element>) -> Result<Option<FrameLayout>> {
@@ -1224,12 +1308,26 @@ impl Backend for Settling {
         let mut frames = self.frames.lock().unwrap();
         frames.0.push(geometry(nodes));
         frames.2 = self.inner.screen_content();
+        let presented = frames.0.len();
+        // The data arrived with this frame, so presents count from it, as
+        // they count from the first frame after a click.
+        if self.shows_ready && self.ready.take().is_some() {
+            frames.1 = presented - 1;
+            self.seen = presented;
+            self.idle = 0;
+        }
+        drop(frames);
+        if self.hold_until == Some(presented) {
+            self.release_hold();
+        }
         Ok(())
     }
     fn resize(&mut self, width: usize, height: usize) {
         self.inner.resize(width, height);
     }
     fn shutdown(&mut self) -> Result<()> {
+        // Before the App drops the explorer, which waits for its worker.
+        self.release_hold();
         self.inner.shutdown()
     }
     fn poll_event(&mut self, _: Option<u64>) -> Result<Option<Event>> {
@@ -1243,7 +1341,7 @@ impl Backend for Settling {
         assert!(
             Instant::now() < self.deadline,
             "the App did not show {:?} before the deadline",
-            self.script.front()
+            self.script.front().or(self.ready.as_ref())
         );
         let presented = self.frames.lock().unwrap().0.len();
         if let Some(text) = self.script.front() {
@@ -1254,7 +1352,7 @@ impl Backend for Settling {
                 self.idle = 0;
                 return Ok(click(x, y));
             }
-        } else {
+        } else if self.ready.is_none() {
             if presented == self.seen {
                 self.idle += 1;
             } else {
@@ -1288,7 +1386,26 @@ fn settle_and_read(
     size: (u16, u16),
     script: &[&'static str],
 ) -> (Vec<Geometry>, String) {
+    run_settling(root, size, script, None, None)
+}
+
+/// `settle_and_read`, with presents counted from the first frame whose
+/// element tree holds `ready`, if that comes after the last click. Data
+/// that reaches a page from another thread changes it when it arrives, and
+/// LAY-004 counts presents from the last change of data. With `hold_until`,
+/// the file explorer's answers are held back until that many frames have
+/// been presented.
+fn run_settling(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    script: &[&'static str],
+    ready: Option<&'static str>,
+    hold_until: Option<usize>,
+) -> (Vec<Geometry>, String) {
     let frames = Frames::default();
+    if hold_until.is_some() {
+        LISTING_HOLD.close();
+    }
     let backend = Settling {
         inner: DebugBackend::new(size.0, size.1),
         script: script.iter().copied().collect(),
@@ -1296,6 +1413,9 @@ fn settle_and_read(
         seen: 0,
         idle: 0,
         deadline: Instant::now() + HANG_GUARD,
+        hold_until,
+        ready,
+        shows_ready: false,
     };
     App::builder()
         .backend(backend)
@@ -1306,6 +1426,13 @@ fn settle_and_read(
         .unwrap();
     let (all, from, text) = Arc::try_unwrap(frames).ok().unwrap().into_inner().unwrap();
     (all[from..].to_vec(), text)
+}
+
+/// Whether `element` or an element under it is text that holds `text`. A
+/// clipped element is in the tree too, though nothing of it shows.
+fn holds_text(element: &Element, text: &str) -> bool {
+    matches!(&element.element_type, ElementType::Text(own) if own.contains(text))
+        || element.children.iter().any(|child| holds_text(child, text))
 }
 
 /// LAY-004: every frame after the third has the third's geometry.
@@ -1323,8 +1450,10 @@ fn assert_settled(frames: &[Geometry], what: &str) {
             .collect();
         assert!(
             moved.is_empty() && frame.len() == settled.len(),
-            "{what}: present {} differs from present 3; elements as (index, [left, top, width, height]), now and then: {moved:?}",
-            index + 1
+            "{what}: present {} differs from present 3, {} elements now and {} then; elements as (index, [left, top, width, height]), now and then: {moved:?}",
+            index + 1,
+            frame.len(),
+            settled.len()
         );
     }
 }
@@ -1370,10 +1499,45 @@ fn lay_004_the_data_table_keeps_its_height_with_its_panels_open() {
 fn lay_004_a_catalog_page_settles() {
     for page in [CatalogPage::Input, CatalogPage::Layout, CatalogPage::Data] {
         for size in [(100, 30), (160, 45), (240, 60)] {
-            let mut catalog = Catalog::default();
-            catalog.set_page(page);
-            let frames = settle(catalog, size, &[]);
-            assert_settled(&frames, &format!("the catalog's {page:?} page at {size:?}"));
+            // The Data page's file explorer reads its directory on a worker
+            // thread. Its listing is data: when it lands, the explorer's
+            // rows and status change and the explorer grows to its rows. So
+            // presents count from the first frame that holds the listing's
+            // status line, even where the page is scrolled past it. Each
+            // size runs once with the listing as it comes, and once with it
+            // held until after the third present.
+            let (listing, holds): (_, &[Option<usize>]) = if page == CatalogPage::Data {
+                (Some("files ·"), &[None, Some(3)])
+            } else {
+                (None, &[None])
+            };
+            for &hold_until in holds {
+                let mut catalog = Catalog::default();
+                catalog.set_page(page);
+                let (frames, _) = run_settling(catalog, size, &[], listing, hold_until);
+                let what = format!(
+                    "the catalog's {page:?} page at {size:?}{}{}",
+                    if hold_until.is_some() {
+                        ", its listing held until after the third present"
+                    } else {
+                        ""
+                    },
+                    if listing.is_some() {
+                        ", presents counted from the first that holds the listing"
+                    } else {
+                        ""
+                    }
+                );
+                // Else the hold has nothing to hold, and the run is one with
+                // the listing as it comes.
+                if hold_until.is_some() {
+                    assert!(
+                        LISTING_HOLD.answers.load(Ordering::SeqCst) > 0,
+                        "{what}: the file explorer's worker logged no answer"
+                    );
+                }
+                assert_settled(&frames, &what);
+            }
         }
     }
 }
