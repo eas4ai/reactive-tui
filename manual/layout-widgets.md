@@ -131,7 +131,9 @@ split's length changes, each pane keeps its share of it.
 A divider is a `│` between panes side by side and a `─` between stacked
 panes, drawn by the separator piece in `border`, on `hover` under the
 pointer, and in `selection` with `selection-foreground` while it holds the
-focus or is dragged. Each divider is a focus stop. Left and Right, or Up
+focus or is dragged. Each divider is a focus stop, and `.auto_focus()` on
+the split's built element gives its first divider the focus when the page
+opens. Left and Right, or Up
 and Down between stacked panes, move it one cell, ten with Shift; Home and
 End move it as far as it goes. A press on a divider takes the pointer, and
 the drag moves the divider to the cell under it. A move takes cells from
@@ -140,7 +142,17 @@ beyond it, and gives them to the pane on the other side; `on_resize` is
 called once per move. The screen reader hears each divider as a splitter
 named by `aria_label`, with its orientation, the size of the pane before it
 as its value, and the least and greatest size it can take; Increment,
-Decrement and SetValue move it as the arrow keys do.
+Decrement and SetValue move it as the arrow keys do. After each move the
+divider also announces the new size of the pane before it, the number
+alone, as a polite live announcement, because Orca 50.1 speaks a named
+splitter's role when its value changes but not the value.
+
+Where the terminal takes pixels (PIX-009), a divider draws a picture in
+place of `│` or `─`: a one-pixel `border` line along the middle of its
+cells, with a rounded `text-muted` grip one cell long at its centre; while
+it holds the focus or is dragged, the line is two pixels wide and the line
+and the grip are in `ring`. There the sidebar's filled rows and the log
+view's `↓ N new` bar also draw their fills with round ends.
 
 ## Sidebar
 
