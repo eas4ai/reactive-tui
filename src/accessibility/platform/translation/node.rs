@@ -525,8 +525,12 @@ impl NodeWrapper<'_> {
         self.0.supports_text_ranges()
     }
 
+    /// A spin button keeps its value interface while it holds no number,
+    /// as a number input does while its field is empty: a screen reader
+    /// learns a node's interfaces once, and reading one that has gone gives
+    /// it a garbage number (CTL-010).
     fn supports_value(&self) -> bool {
-        self.current_value().is_some()
+        self.current_value().is_some() || self.0.role() == Role::SpinButton
     }
 
     pub(crate) fn interfaces(&self) -> InterfaceSet {
@@ -618,6 +622,26 @@ impl NodeWrapper<'_> {
 
     fn current_value(&self) -> Option<f64> {
         self.0.numeric_value()
+    }
+
+    /// The value as text: the node's value text when it has one, such as
+    /// the text a number box shows, else its number (CTL-010). A spin
+    /// button with neither, an emptied number input, reads as `blank`, the
+    /// word Orca says for an empty line: AT-SPI cannot say that a spin
+    /// button holds no value, and a screen reader given no text reads its
+    /// current value as a number (the developer's ruling on escalation
+    /// 3b71c4b1).
+    pub(crate) fn value_text(&self) -> String {
+        let text = self.0.value().unwrap_or_else(|| {
+            self.current_value()
+                .map(|value| value.to_string())
+                .unwrap_or_default()
+        });
+        if text.is_empty() && self.current_value().is_none() && self.0.role() == Role::SpinButton {
+            "blank".to_owned()
+        } else {
+            text
+        }
     }
 
     pub(crate) fn notify_changes(
@@ -1816,17 +1840,9 @@ impl PlatformNode {
         })
     }
 
-    /// The value as text: the node's value text when it has one, such as
-    /// the text a number box shows, else its number (CTL-010).
+    /// The value as text, as [`NodeWrapper::value_text`] gives it (CTL-010).
     pub fn value_text(&self) -> Result<String> {
-        self.resolve(|node| {
-            Ok(node.value().unwrap_or_else(|| {
-                NodeWrapper(&node)
-                    .current_value()
-                    .map(|value| value.to_string())
-                    .unwrap_or_default()
-            }))
-        })
+        self.resolve(|node| Ok(NodeWrapper(&node).value_text()))
     }
 
     pub fn set_current_value(&self, value: f64) -> Result<()> {
