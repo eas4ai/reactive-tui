@@ -89,7 +89,7 @@ class RetainedOutput(unittest.TestCase):
 
     def test_a_long_message_is_cut_at_its_cap(self):
         message = "\n".join(f"line {n}" for n in range(30))
-        output = f"thread 'long' panicked at tests/a.rs:1:1:\n{message}\n\ntest result: FAILED\n"
+        output = f"thread 'long' panicked at tests/api_mouse_hook_routing.rs:1:1:\n{message}\n\ntest result: FAILED\n"
         kept = gates.retained(output)
         self.assertIn(f"line {gates.MESSAGE_LINES - 1}", kept)
         self.assertNotIn(f"line {gates.MESSAGE_LINES}\n", kept)
