@@ -421,10 +421,35 @@ impl Resizable {
             .with_key(format!("pane:{index}"))
     }
 
+    /// A divider's cells without pixels: the separator piece's `│` down a
+    /// column of `cross` cells when `row`, else its `─` along a row of them.
+    fn line(row: bool, cross: u16) -> Element {
+        let line = glyph(SeparatorStyle::Line, row).to_string();
+        let lines: Vec<Element> = if row {
+            (0..cross)
+                .map(|_| Element::text(line.clone()).class("shrink-0 h-1 w-1"))
+                .collect()
+        } else {
+            vec![Element::text(line.repeat(usize::from(cross))).class("shrink-0 h-1 whitespace-pre")]
+        };
+        // The line is the divider's look; the splitter's node speaks for it.
+        let mut decoration = Node::new(Role::Label);
+        decoration.set_hidden();
+        Element::layout(LayoutType::Flex)
+            .class(if row {
+                "flex flex-col w-1 h-full"
+            } else {
+                "flex flex-row h-1 w-full"
+            })
+            .with_children(lines)
+            .with_accessibility(decoration)
+    }
+
     /// Divider `index`: the separator piece's line across the split, in
     /// `border`, on `hover` under the pointer, and in `selection` while it
     /// holds the focus or is dragged (NAV-007); a focus stop and a splitter
-    /// whose value is the size of the pane before it (NAV-010). The split
+    /// whose value is the size of the pane before it (NAV-010). With pixels
+    /// its line is a picture in place of the glyphs (PIX-009). The split
     /// draws its dividers once its panes are laid out.
     fn divider(&self, index: usize, props: &ResizableProps, cross: u16) -> Element {
         let row = props.direction == SplitDirection::Row;
@@ -438,25 +463,6 @@ impl Resizable {
         } else {
             look::DIVIDER.to_owned()
         };
-        let line = glyph(SeparatorStyle::Line, row).to_string();
-        let lines: Vec<Element> = if row {
-            (0..cross)
-                .map(|_| Element::text(line.clone()).class("shrink-0 h-1 w-1"))
-                .collect()
-        } else {
-            vec![Element::text(line.repeat(usize::from(cross))).class("shrink-0 h-1 whitespace-pre")]
-        };
-        // The line is the divider's look; the splitter's node speaks for it.
-        let mut decoration = Node::new(Role::Label);
-        decoration.set_hidden();
-        let lines = Element::layout(LayoutType::Flex)
-            .class(if row {
-                "flex flex-col w-1 h-full"
-            } else {
-                "flex flex-row h-1 w-full"
-            })
-            .with_children(lines)
-            .with_accessibility(decoration);
 
         let mut node = Node::new(Role::Splitter);
         if let Some(label) = &props.aria_label {
@@ -491,11 +497,26 @@ impl Resizable {
                 "flex shrink-0 {} {fill}",
                 if row { "w-1 h-full" } else { "h-1 w-full" }
             ))
-            .with_child(lines)
             .with_key(format!("divider:{index}"))
             .with_accessibility(node)
             .with_focus(focus)
             .disabled(props.disabled);
+        // With pixels the divider's cells hold no glyph: a picture over them
+        // draws its line with a grip, in `ring` while it holds the focus or
+        // is dragged, in place of `│` or `─` (PIX-009). Without pixels they
+        // hold the separator piece's line.
+        if crate::widgets::input::look::pixels() {
+            #[cfg(feature = "wgpu-graphics")]
+            {
+                element.metadata.look = Some(Arc::new(crate::graphics::look::Look::divider(
+                    usize::from(cross),
+                    row,
+                    active,
+                )));
+            }
+        } else {
+            element = element.with_child(Self::line(row, cross));
+        }
         if !props.disabled {
             let options = element
                 .metadata
