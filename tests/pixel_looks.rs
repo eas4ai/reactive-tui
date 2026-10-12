@@ -1,4 +1,4 @@
-//! pixel-looks mechanism: PIX-001 to PIX-008 (docs/spec/pixel-looks.md). Built
+//! pixel-looks mechanism: PIX-001 to PIX-009 (docs/spec/pixel-looks.md). Built
 //! with `wgpu-graphics`.
 //!
 //! A widget's or element's look is one pixel picture over its rectangle where
@@ -16,9 +16,10 @@ use reactive_tui::builder::{self, core::div};
 use reactive_tui::component::Element;
 use reactive_tui::event::types::{Event, KeyCode, KeyEvent, MouseEvent, MouseEventKind, Position};
 use reactive_tui::graphics::{CanvasOutput, GraphicsFrame, GraphicsOptions};
-use reactive_tui::widgets::display::{ProgressBar, ProgressBarProps};
+use reactive_tui::widgets::display::pieces::{separator_glyph, SeparatorStyle};
+use reactive_tui::widgets::display::{ListItem, ProgressBar, ProgressBarProps};
 use reactive_tui::widgets::input::{InputMode, TextInputProps};
-use reactive_tui::widgets::layout::ScrollViewBuilder;
+use reactive_tui::widgets::layout::{LogHandle, LogRow, ScrollViewBuilder, SidebarItem};
 use reactive_tui::widgets::TextInput;
 use std::io;
 use std::sync::Mutex;
@@ -1479,7 +1480,7 @@ fn pix_001_a_hovered_or_disabled_buttons_label_cells_match_the_picture_beside_th
 }
 
 // ---------------------------------------------------------------------------
-// Reference pictures (PIX-003 to PIX-005, PIX-007, PIX-008): a look's
+// Reference pictures (PIX-003 to PIX-005, PIX-007 to PIX-009): a look's
 // picture on a Kitty host against tests/snapshots/pixel-looks/<name>.png,
 // within GFX-002's tolerance.
 
@@ -1653,6 +1654,29 @@ fn composed(
             None => last.push(picture),
         }
     }
+    // A look that left the screen had its placement deleted (PIX-002), and
+    // a look that comes back gets a picture again: only the images whose
+    // last command placed them are on the screen (a list's cursor moved on
+    // past an item).
+    let mut placed = std::collections::HashMap::new();
+    for command in kitty_commands(&run.frames) {
+        if let Some(id) = command.id {
+            match command.action.as_str() {
+                "T" | "p" => {
+                    placed.insert(id, true);
+                }
+                "d" => {
+                    placed.insert(id, false);
+                }
+                _ => {}
+            }
+        }
+    }
+    last.retain(|picture| {
+        picture
+            .id
+            .is_none_or(|id| placed.get(&id).copied().unwrap_or(true))
+    });
     let (cell_w, cell_h) = (u32::from(CELL.0), u32::from(CELL.1));
     let (width, height) = (
         u32::from(box_size.0) * cell_w,
@@ -2816,6 +2840,372 @@ fn pix_008_a_look_without_the_focus_keeps_its_fill_against_its_ring() {
         "PIX-008: the unfocused box filled `primary` with a static ring left a gap: {}",
         problems.join("; ")
     );
+}
+
+// ---------------------------------------------------------------------------
+// PIX-009: the medium widgets: a split's divider, a sidebar's and a list's
+// filled rows, a log view's `↓ N new` bar.
+
+/// One step of a PIX-009 case: what it changes in the application's data
+/// (a log's rows) and the event it hands the App, if any.
+type Step = Box<dyn FnMut() -> Option<Event> + Send + Sync>;
+
+/// A step that hands the App `event`.
+fn send(event: Event) -> Step {
+    let mut event = Some(event);
+    Box::new(move || event.take())
+}
+
+/// A script that takes `steps` in order, each once the run has presented
+/// two frames since the step before it, so the App drew what that one
+/// changed, and, when `pixels` is set, has sent the number of pictures the
+/// step names, so every look the steps before it changed was drawn.
+fn staged_script(steps: Vec<(usize, Step)>, pixels: bool) -> Script {
+    let mut steps: std::collections::VecDeque<(usize, Step)> = steps.into();
+    let mut taken_at = 0;
+    Box::new(move |presented, pictures| {
+        let (needs, _) = steps.front()?;
+        if presented < taken_at + 2 || (pixels && pictures < *needs) {
+            return None;
+        }
+        let (_, mut step) = steps.pop_front()?;
+        taken_at = presented;
+        step()
+    })
+}
+
+/// The case driven by `steps`, as `staged_script` takes them.
+fn staged(mut case: Case, steps: Vec<(usize, Step)>, pixels: bool) -> Case {
+    case.script = staged_script(steps, pixels);
+    case
+}
+
+/// A split of two panes, side by side or `stacked`, each holding its name.
+fn two_panes(stacked: bool) -> Element {
+    let split = if stacked {
+        builder::resizable().vertical()
+    } else {
+        builder::resizable()
+    };
+    split
+        .pane(builder::text("One"))
+        .pane(builder::text("Two"))
+        .build()
+}
+
+/// PIX-009's sidebar: Home, Projects and Settings, with Settings active.
+fn nav_sidebar() -> Element {
+    builder::sidebar()
+        .items(vec![
+            SidebarItem::new("home", "Home"),
+            SidebarItem::new("projects", "Projects"),
+            SidebarItem::new("settings", "Settings"),
+        ])
+        .active("settings")
+        .build()
+}
+
+/// PIX-009's list: six items, `Item 1` to `Item 6`, the third selected.
+fn six_items() -> Element {
+    builder::list()
+        .items(
+            (1..=6)
+                .map(|n| ListItem::new(&format!("item{n}"), &format!("Item {n}")))
+                .collect(),
+        )
+        .selected("item3")
+        .build()
+}
+
+/// `count` log rows `Row 1`... numbered from `first`.
+fn log_rows(first: usize, count: usize) -> Vec<LogRow> {
+    (first..first + count)
+        .map(|n| LogRow::new(&format!("Row {n}")))
+        .collect()
+}
+
+/// A log view of `handle`'s rows that takes the focus.
+fn log_of(handle: &LogHandle) -> Element {
+    builder::log_view()
+        .handle(handle.clone())
+        .build()
+        .auto_focus()
+}
+
+/// The pictures the list case sends: the selected third item; its cursor
+/// with the focus; the cursor on the fourth and the third selected again;
+/// the cursor on the fifth, the fourth's look gone; the first under the
+/// pointer.
+const LIST_PICTURES: usize = 6;
+/// The pictures the sidebar case sends: Settings active; the cursor on it
+/// with the focus; the cursor on Projects and Settings active again.
+const SIDEBAR_PICTURES: usize = 4;
+
+/// PIX-009's five cases at the falsifier's sizes. Their states come from
+/// the props (the sidebar's active item, the list's selected one), keys,
+/// the pointer and the log's rows, each step taken once the pictures
+/// before it were sent when `pixels` is set: a split of two panes at 30 by
+/// 6 with its divider at rest and with the focus; a sidebar of Home,
+/// Projects and Settings at 28 by 6 with the focus, Settings active and the
+/// cursor moved up to Projects; a list of six items at 30 by 6 with the
+/// focus, the third selected, the cursor moved down to the fifth and the
+/// pointer over the first; and a log view at 30 by 6 moved up a page before
+/// five rows arrive, showing `↓ 5 new`.
+fn medium_cases(pixels: bool) -> Vec<Case> {
+    let tab = || send(key(KeyCode::Tab));
+    let log = LogHandle::new();
+    log.append_all(log_rows(1, 20));
+    let arriving = log.clone();
+    let five_arrive: Step = Box::new(move || {
+        arriving.append_all(log_rows(21, 5));
+        None
+    });
+    vec![
+        case("divider_rest", 30, 6, two_panes(false)),
+        nth(
+            staged(
+                case("divider_focused", 30, 6, two_panes(false)),
+                vec![(1, tab())],
+                pixels,
+            ),
+            1,
+        ),
+        whole(
+            staged(
+                case("sidebar_rows", 28, 6, nav_sidebar()),
+                vec![(1, tab()), (2, send(key(KeyCode::Up)))],
+                pixels,
+            ),
+            SIDEBAR_PICTURES,
+        ),
+        whole(
+            staged(
+                case("list_rows", 30, 6, six_items()),
+                vec![
+                    (1, tab()),
+                    (2, send(key(KeyCode::Down))),
+                    (4, send(key(KeyCode::Down))),
+                    (5, send(mouse(MouseEventKind::Move, 2, 0))),
+                ],
+                pixels,
+            ),
+            LIST_PICTURES,
+        ),
+        staged(
+            case("log_new_bar", 30, 6, log_of(&log)),
+            vec![(0, send(key(KeyCode::PageUp))), (0, five_arrive)],
+            pixels,
+        ),
+    ]
+}
+
+#[test]
+fn pix_009_the_medium_widgets_match_their_reference_pictures() {
+    assert_references("PIX-009", medium_cases(true));
+}
+
+/// PIX-009: while a divider's picture shows, between panes side by side or
+/// stacked, at rest or with the focus, its picture covers its cells and no
+/// cell holds `│` or `─`; the picture holds `border` and `text-muted` at
+/// rest and `ring` with the focus.
+#[test]
+fn pix_009_a_divider_cell_holds_no_glyph_while_its_picture_shows() {
+    for stacked in [false, true] {
+        for focused in [false, true] {
+            let what = format!(
+                "a {} divider{}",
+                if stacked { "stacked" } else { "side-by-side" },
+                if focused { " with the focus" } else { "" }
+            );
+            let steps = if focused {
+                vec![(1, send(key(KeyCode::Tab)))]
+            } else {
+                Vec::new()
+            };
+            let looks = 1 + usize::from(focused);
+            let run = run(
+                sized(30, 6, two_panes(stacked)),
+                SIZE,
+                kitty(),
+                staged_script(steps, true),
+                pictures_or_frames(looks, 2, 90),
+                true,
+            );
+            let pictures = run.pictures();
+            let Some(picture) = pictures.get(looks - 1) else {
+                panic!(
+                    "PIX-009: {what} sent {} pictures of {looks} in {} frames",
+                    pictures.len(),
+                    run.frames.len()
+                );
+            };
+            let (row, column, rows, columns) = picture.rect();
+            assert_eq!(
+                (rows, columns),
+                if stacked { (1, 30) } else { (6, 1) },
+                "PIX-009: the picture of {what} covers its cells"
+            );
+            let screen = run.screen(run.frames.len() - 1);
+            for r in row..row + rows {
+                for c in column..column + columns {
+                    let text = cell_text(&screen, r, c);
+                    assert!(
+                        !text.contains(['│', '─']),
+                        "PIX-009: the cell at row {r}, column {c} of {what} holds {text:?} while its picture shows"
+                    );
+                }
+            }
+            if let Some(found) = glyph_in(&screen, 0..6, &['│', '─']) {
+                panic!("PIX-009: a divider glyph remains with pixels beside {what}: {found}");
+            }
+            let holds = |token: &str| {
+                let color = role(token);
+                picture
+                    .pixels
+                    .iter()
+                    .any(|pixel| pixel[3] == 255 && near(*pixel, color, 1))
+            };
+            if focused {
+                assert!(holds("ring"), "PIX-009: {what} is drawn in `ring`");
+            } else {
+                assert!(
+                    holds("border") && holds("text-muted"),
+                    "PIX-009: {what} has its line in `border` and its grip in `text-muted`"
+                );
+            }
+        }
+    }
+}
+
+/// PIX-009 and NAV-007, DAT-006: without pixels the five cases send no
+/// picture and paint their cells: the divider's `│` in `border` at rest and
+/// in `selection-foreground` on `selection` with the focus; the sidebar's
+/// Home on `surface`, its cursor's Projects on `selection` and its active
+/// Settings on `accent`, each with its text role, and its edge in `border`;
+/// the list's first item on `hover`, its selected third on `accent` and its
+/// cursor's fifth on `selection`, each with its text role, the others in
+/// `foreground` on the list's parent's background; and the log view's
+/// `↓ 5 new` bar in `primary-foreground` on `primary`.
+#[test]
+fn pix_009_without_pixels_the_widgets_keep_their_cell_looks() {
+    let mut screens = std::collections::HashMap::new();
+    for case in medium_cases(false) {
+        let terminal = (case.box_size.0.max(40) + 2, case.box_size.1 + 2);
+        let run = run(
+            case.element,
+            terminal,
+            no_pixels(),
+            case.script,
+            after_frames(16),
+            true,
+        );
+        assert!(
+            run.pictures().is_empty() && run.rasters().is_empty(),
+            "PIX-009: without pixels {} sends no picture",
+            case.name
+        );
+        screens.insert(case.name, run.screen(run.frames.len() - 1));
+    }
+    // A cell's glyph color and background, and what they should be: a blank
+    // cell has no glyph whose color counts.
+    let blank =
+        |screen: &vt100::Screen, row, column| cell_text(screen, row, column).trim().is_empty();
+    let colors = |screen: &vt100::Screen, row, column| {
+        (
+            fg(screen, row, column).filter(|_| !blank(screen, row, column)),
+            bg(screen, row, column),
+        )
+    };
+    let wanted = |screen: &vt100::Screen, row, column, text: &str, fill: Option<[u8; 3]>| {
+        (
+            Some(role(text)).filter(|_| !blank(screen, row, column)),
+            fill,
+        )
+    };
+    let upright = separator_glyph(SeparatorStyle::Line, true).to_string();
+
+    let rest = &screens["divider_rest"];
+    let column = (0..30)
+        .find(|column| cell_text(rest, 0, *column) == upright)
+        .unwrap_or_else(|| panic!("PIX-009: no divider at rest: {:?}", rest.contents()));
+    let focused = &screens["divider_focused"];
+    for row in 0..6 {
+        assert_eq!(
+            (cell_text(rest, row, column), fg(rest, row, column)),
+            (upright.clone(), Some(role("border"))),
+            "NAV-007: without pixels the divider at rest is `│` in `border` on row {row}"
+        );
+        assert_eq!(
+            (cell_text(focused, row, column), colors(focused, row, column)),
+            (
+                upright.clone(),
+                wanted(
+                    focused,
+                    row,
+                    column,
+                    "selection-foreground",
+                    Some(role("selection"))
+                )
+            ),
+            "NAV-007: without pixels the focused divider is `│` in `selection-foreground` on `selection` on row {row}"
+        );
+    }
+
+    let bar = &screens["sidebar_rows"];
+    for (label, text, fill) in [
+        ("Home", "foreground", "surface"),
+        ("Projects", "selection-foreground", "selection"),
+        ("Settings", "accent-foreground", "accent"),
+    ] {
+        let (row, columns) = (0..6)
+            .find_map(|row| columns_of(bar, row, label).map(|columns| (row, columns)))
+            .unwrap_or_else(|| panic!("PIX-009: no {label} row: {:?}", bar.contents()));
+        for column in columns {
+            assert_eq!(
+                colors(bar, row, column),
+                wanted(bar, row, column, text, Some(role(fill))),
+                "NAV-007: without pixels the sidebar's {label} is {text} on {fill}"
+            );
+        }
+        assert_eq!(
+            (cell_text(bar, row, 27), fg(bar, row, 27)),
+            (upright.clone(), Some(role("border"))),
+            "NAV-007: without pixels the sidebar's edge beside {label} is `│` in `border`"
+        );
+    }
+
+    let list = &screens["list_rows"];
+    for item in 1..=6 {
+        let row = item - 1;
+        let label = format!("Item {item}");
+        let columns = columns_of(list, row, &label)
+            .unwrap_or_else(|| panic!("PIX-009: no {label} on row {row}: {:?}", list.contents()));
+        let parent = bg(list, row, 35);
+        let (text, fill) = match item {
+            1 => ("foreground", Some(role("hover"))),
+            3 => ("accent-foreground", Some(role("accent"))),
+            5 => ("selection-foreground", Some(role("selection"))),
+            _ => ("foreground", parent),
+        };
+        for column in std::iter::once(0).chain(columns) {
+            assert_eq!(
+                colors(list, row, column),
+                wanted(list, row, column, text, fill),
+                "DAT-006: without pixels the list's {label} at column {column} is {text} on {fill:?}"
+            );
+        }
+    }
+
+    let log = &screens["log_new_bar"];
+    let columns = columns_of(log, 5, "↓ 5 new")
+        .unwrap_or_else(|| panic!("PIX-009: no `↓ 5 new` bar: {:?}", log.contents()));
+    for column in columns.start - 1..columns.end + 1 {
+        assert_eq!(
+            colors(log, 5, column),
+            wanted(log, 5, column, "primary-foreground", Some(role("primary"))),
+            "NAV-007: without pixels the log view's bar is `primary-foreground` on `primary` at column {column}"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
