@@ -134,6 +134,10 @@ pub struct ElementMetadata {
     pub gradient_border: Option<crate::layout::css::gradients::GradientBorder>,
     /// Disabled nodes do not receive focus or activation.
     pub disabled: bool,
+    /// Whether the element holds the keyboard focus in this frame, set when
+    /// the App resolves its classes' state variants (STY-001); a look drawn
+    /// from its classes leaves a gap inside its ring only then (PIX-008).
+    pub(crate) focused: bool,
     /// Accessible role, label and state, independent of painted text.
     /// App assigns node identity and children from the retained element tree.
     pub accessibility: Option<crate::accessibility::Node>,
@@ -163,6 +167,7 @@ impl PartialEq for ElementMetadata {
     fn eq(&self, other: &Self) -> bool {
         self.animation_values == other.animation_values
             && self.disabled == other.disabled
+            && self.focused == other.focused
             && self.inert == other.inert
             && self.image == other.image
             && match (&self.cells, &other.cells) {

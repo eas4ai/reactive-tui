@@ -182,6 +182,7 @@ impl EventTree {
     ) -> Element {
         Slot::append(&mut path, &element, index);
         let focused = !element.metadata.disabled && state.focus == Some(path.as_slice());
+        element.metadata.focused = focused;
         let hovered = state
             .hover
             .is_some_and(|hovered| hovered.starts_with(&path));

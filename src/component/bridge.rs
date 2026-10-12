@@ -98,7 +98,8 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
     }
     /// The looks of `element` and its descendants with the numbers that
     /// name them, in the order `collect` visits them: a control's own look,
-    /// else the look its classes describe (PIX-003). A key names an element
+    /// else the look its classes describe (PIX-003), focused while the
+    /// element holds the focus (PIX-008). A key names an element
     /// among its siblings only, so a keyed element is named by its key under
     /// its parent's name: two looks with one key under two parents are two
     /// looks, each with its own picture (PIX-002, GFX-003).
@@ -116,7 +117,12 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
                 .class
                 .as_deref()
                 .and_then(crate::graphics::look::Look::from_classes)
-                .map(std::sync::Arc::new)
+                .map(|look| {
+                    std::sync::Arc::new(crate::graphics::look::Look {
+                        focused: element.metadata.focused,
+                        ..look
+                    })
+                })
         });
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         match (&element.key, element.metadata.component_instances.first()) {
