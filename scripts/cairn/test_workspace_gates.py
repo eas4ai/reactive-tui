@@ -79,5 +79,27 @@ class ToolchainCrashes(unittest.TestCase):
         self.assertEqual(gates.toolchain_crashes(ICE + FAILED_TEST), [])
 
 
+class RetainedOutput(unittest.TestCase):
+    def test_a_panics_message_follows_its_panic_line(self):
+        kept = gates.retained(FAILED_TEST).splitlines()
+        at = kept.index("thread 'routes' panicked at tests/api_mouse_hook_routing.rs:9:5:")
+        self.assertEqual(kept[at + 1], "assertion failed")
+        # The blank line ends the message; the list header after it is kept on its own.
+        self.assertEqual(kept[at + 2], "failures:")
+
+    def test_a_long_message_is_cut_at_its_cap(self):
+        message = "\n".join(f"line {n}" for n in range(30))
+        output = f"thread 'long' panicked at tests/a.rs:1:1:\n{message}\n\ntest result: FAILED\n"
+        kept = gates.retained(output)
+        self.assertIn(f"line {gates.MESSAGE_LINES - 1}", kept)
+        self.assertNotIn(f"line {gates.MESSAGE_LINES}\n", kept)
+
+    def test_every_failed_test_is_named_up_to_the_cap(self):
+        output = "".join(f"test case_{n} ... FAILED\n" for n in range(200))
+        kept = gates.retained(output)
+        self.assertIn(f"test case_{gates.NAMED_FAILURES - 1} ... FAILED", kept)
+        self.assertNotIn(f"test case_{gates.NAMED_FAILURES + 1} ... FAILED", kept)
+
+
 if __name__ == "__main__":
     unittest.main()
