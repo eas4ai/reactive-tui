@@ -2563,6 +2563,49 @@ fn nav_009_a_following_log_view_keeps_its_last_row_on_its_last_line_as_rows_arri
 }
 
 #[test]
+fn nav_009_a_short_log_follows_on_its_last_line_and_home_stops_it_as_well() {
+    // Three rows in a view of 20 lines: following, the last row is on the
+    // last line, and a fourth appended lands there (the adversary's
+    // finding 4).
+    let handle = LogHandle::new();
+    handle.append_all(rows(1, 3));
+    let frame = log_after(&handle, None, vec![append(&handle, 4, 1)], vec![change()]);
+    assert_eq!(
+        log_line(&frame, 19),
+        "Log row 004",
+        "NAV-009: a row appended to a short log that follows lands on the view's last line:\n{}",
+        frame.text
+    );
+    assert_eq!(
+        log_line(&frame, 16),
+        "Log row 001",
+        "NAV-009: the three rows before it stand above it:\n{}",
+        frame.text
+    );
+    // Home on the short log stops the following: a row appended then stays
+    // out of view, the rows keep their lines and the new bar reads 1.
+    let handle = LogHandle::new();
+    handle.append_all(rows(1, 3));
+    let frame = log_after(
+        &handle,
+        None,
+        vec![append(&handle, 4, 1)],
+        vec![key(KeyCode::Home), change()],
+    );
+    assert_eq!(
+        log_line(&frame, 17),
+        "Log row 001",
+        "NAV-009: the rows keep their lines after Home stopped the following:\n{}",
+        frame.text
+    );
+    assert!(
+        last_line(&frame).contains("↓ 1 new") && find(&frame, "Log row 004").is_none(),
+        "NAV-009: Home stops a short log's following, so a row appended then shows the new bar:\n{}",
+        frame.text
+    );
+}
+
+#[test]
 fn nav_009_page_up_stops_the_following_and_rows_that_arrive_show_the_new_bar_and_leave_the_view() {
     let stopped = log_after(&hundred(), None, Vec::new(), vec![key(KeyCode::PageUp)]);
     assert_ne!(
@@ -4624,6 +4667,37 @@ mod reader {
             name_of(&tree, only(&tree, Role::Log)),
             None,
             "NAV-010: a log view whose props set no aria_label has no name"
+        );
+    }
+
+    #[test]
+    fn nav_010_a_row_appended_while_the_view_does_not_follow_reaches_the_screen_reader() {
+        // After Page Up the new row is out of view: the polite log still
+        // carries it as a node, so the reader speaks it (the adversary's
+        // finding 5); the rows in view are the ones that were.
+        let handle = hundred();
+        let reader = ReaderChannel::new();
+        let frames = read(
+            log_root(&handle, None, vec![append(&handle, 101, 1)]),
+            &reader,
+            vec![
+                (painted("Log row 100"), event(key(KeyCode::PageUp))),
+                (absent("Log row 100"), event(change())),
+                (painted("↓ 1 new"), None),
+            ],
+        );
+        let tree = published(&reader);
+        let spoken = tree.nodes.iter().any(|(_, node)| {
+            node.label() == Some("Log row 101") || node.value() == Some("Log row 101")
+        });
+        assert!(
+            spoken && find(last(&frames), "Log row 101").is_none(),
+            "NAV-010: a row appended while the view does not follow is a node of the polite log though it is out of view; the tree's labels are {:?}",
+            tree.nodes
+                .iter()
+                .filter_map(|(_, node)| node.label())
+                .filter(|label| label.starts_with("Log row 1"))
+                .collect::<Vec<_>>()
         );
     }
 

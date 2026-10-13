@@ -210,8 +210,10 @@ it in `text-error`, and the kinds `Info`, `Success` and `Warning` in
 
 The view fills the width and the height its parent allots, and a row wider
 than the view continues on the next lines. It follows its last row while
-rows arrive. Up, Page Up, Home, the wheel up, a click on the track above
-the thumb or a drag of the thumb up stop the following; End, a click on the
+rows arrive: the last row stands on the view's last line, so a log shorter
+than the view stands on its last lines, blank lines above it. Up, Page Up,
+Home, the wheel up, a click on the track above the thumb or a drag of the
+thumb up stop the following, on a short log too; End, a click on the
 `↓ N new` bar or scrolling down to the last row resume it. While the view
 does not follow and rows arrived since it stopped, its last line is a bar
 that reads `↓ N new` with the count of those rows, on `primary` with
@@ -220,8 +222,10 @@ Prepended rows, and rows appended while the view does not follow, leave the
 rows in view on their lines. The scroll bar and the keys are a scroll
 view's. The view is one focus stop. The screen reader hears a log named by
 `aria_label` that announces new rows politely, with the scroll offsets and
-their ranges; the `↓ N new` bar is a button named by its text, and its
-Click resumes the following.
+their ranges: a row appended while the view does not follow is spoken
+though it is out of view, the newest rows up to the view's height; the
+`↓ N new` bar is a button named by its text, and its Click resumes the
+following.
 
 ## Source map
 
