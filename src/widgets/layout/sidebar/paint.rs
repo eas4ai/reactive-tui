@@ -238,8 +238,7 @@ impl Sidebar {
                 // names it active: text-muted, with no fill (NAV-007).
                 let fill = if focused && cursor == Some(index) {
                     Fill::Strong(CURSOR)
-                } else if !row.item.disabled
-                    && self.active.as_deref() == Some(row.item.id.as_str())
+                } else if !row.item.disabled && self.active.as_deref() == Some(row.item.id.as_str())
                 {
                     Fill::Strong(ACTIVE)
                 } else if !row.item.disabled
