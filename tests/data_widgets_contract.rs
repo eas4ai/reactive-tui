@@ -587,6 +587,65 @@ fn max_work_ms(root: Element, size: (u16, u16), frames: usize) -> (f64, String) 
     )
 }
 
+/// BAR-005: a loading list, whose loading row's spinner turns, keeps the
+/// App's work per frame under 16.6 ms at 700 by 200: 10,000 items under
+/// section titles with a filter row, the body holding 199 rows, at End so
+/// the loading row is in view and the list redraws with each turn (the
+/// adversary's finding 7 on medium-widgets). A list whose loading row is
+/// out of view does not redraw for it.
+#[test]
+#[serial_test::serial(theme)]
+fn bar_005_a_loading_list_stays_under_the_frame_budget_at_700_by_200() {
+    use reactive_tui::widgets::display::ListItem;
+    let measure = |root: Element, size: (u16, u16), frames: usize| -> (f64, String) {
+        let out = app_input::run_on_debug(
+            Control(page(root)),
+            size,
+            vec![(1, app_input::key(KeyCode::End)), (frames, None)],
+        );
+        assert!(
+            out.len() >= frames,
+            "harness painted {} of {frames} frames",
+            out.len()
+        );
+        let split: Vec<String> = out
+            .iter()
+            .map(|f| format!("{:.2}/{:.2}", f.work_ms, f.present_ms))
+            .collect();
+        (
+            out.iter().map(|f| f.work_ms).fold(0.0, f64::max),
+            split.join(" "),
+        )
+    };
+    let list = || {
+        builder::list()
+            .items(
+                (1..=10_000)
+                    .map(|n| {
+                        ListItem::new(&format!("i{n:05}"), &format!("Item {n:05}"))
+                            .section(&format!("Section {}", n / 100))
+                    })
+                    .collect(),
+            )
+            .filterable(true)
+            .loading(true)
+            .build()
+            .auto_focus()
+    };
+    if cfg!(debug_assertions) {
+        eprintln!("SKIP: the frame budget is measured on the optimized build");
+        let (_, split) = measure(list(), (80, 24), 3);
+        assert!(!split.is_empty());
+        return;
+    }
+    let (ms, split) = measure(list(), (700, 200), 12);
+    eprintln!("a loading list: work/present ms per frame at 700x200: {split}");
+    assert!(
+        ms < 16.6,
+        "BAR-005: per-frame work exceeds 16.6 ms at 700x200: {ms:.2} ms ({split})"
+    );
+}
+
 /// BAR-005: an indeterminate progress bar, whose marker moves every frame,
 /// keeps the App's work per frame under 16.6 ms at 700 by 200.
 #[test]

@@ -1730,14 +1730,41 @@ impl StyleSnapshot {
         }
     }
 
+    /// The styles as a builder again. A frame restores each element's
+    /// styles several times, once per pass over the tree, and the same
+    /// bytes come back frame after frame, so the builder each distinct
+    /// snapshot restores to is kept on this thread and found by its bytes;
+    /// the bytes alone decide the builder, so a hit is exact.
+    /// The bytes that decide the styles, when they are valid.
+    pub(crate) fn bytes(&self) -> Option<&[u8]> {
+        self.0.as_ref().ok().map(Vec::as_slice)
+    }
+
     pub(crate) fn restore(&self) -> crate::error::Result<StyleBuilder> {
         let bytes = self.0.as_ref().map_err(|error| {
             crate::error::ReactiveError::layout(format!("Cannot capture explicit styles: {error}"))
         })?;
-        serde_json::from_slice(bytes).map_err(|error| {
+        if let Some(found) =
+            RESTORED.with(|cache| cache.borrow_mut().get(bytes.as_slice()).cloned())
+        {
+            return Ok(found);
+        }
+        let built: StyleBuilder = serde_json::from_slice(bytes).map_err(|error| {
             crate::error::ReactiveError::layout(format!("Invalid explicit styles: {error}"))
-        })
+        })?;
+        RESTORED.with(|cache| cache.borrow_mut().put(bytes.clone(), built.clone()));
+        Ok(built)
     }
+}
+
+// The builders restored on this thread, by the bytes they came from. A
+// screen of a few hundred styled elements fits many times over; the
+// oldest entries go when the cache is full.
+thread_local! {
+    static RESTORED: std::cell::RefCell<lru::LruCache<Vec<u8>, StyleBuilder>> =
+        std::cell::RefCell::new(lru::LruCache::new(
+            std::num::NonZeroUsize::new(4096).expect("Cache size must be non-zero"),
+        ));
 }
 
 #[cfg(test)]
