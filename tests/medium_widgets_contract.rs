@@ -3098,6 +3098,26 @@ fn dat_006_matched_characters_are_primary_and_the_filter_row_is_painted_as_a_tex
             filtered.text
         );
     }
+    // The cursor is on Apple, the first match: its matching characters are
+    // primary too, on the cursor's fill, and the rest of its label stays the
+    // fill's text (the adversary's finding 1).
+    let (apple, row) = at(&filtered, "Apple");
+    for offset in 3..5 {
+        assert_eq!(
+            cell_colors(&filtered, apple + offset, row),
+            (Some(role("primary")), Some(role("selection"))),
+            "DAT-006: the characters of the cursor's Apple that match le are primary on selection:\n{}",
+            filtered.text
+        );
+    }
+    for offset in 0..3 {
+        assert_eq!(
+            cell_colors(&filtered, apple + offset, row),
+            (Some(role("selection-foreground")), Some(role("selection"))),
+            "DAT-006: the rest of the cursor's label is selection-foreground on selection:\n{}",
+            filtered.text
+        );
+    }
     let field = settled(
         boxed(100, 1, builder::text_input().build().auto_focus()),
         ANY,
@@ -3893,6 +3913,68 @@ fn dat_008_a_loading_list_shows_its_loading_row_and_a_list_with_nothing_to_show_
     assert!(
         find(&frame, "No fruit yet").is_some(),
         "DAT-008: a filter that keeps no item shows the empty view:\n{}",
+        frame.text
+    );
+}
+
+#[test]
+#[serial_test::serial(theme)]
+fn dat_008_the_loading_row_of_a_long_list_comes_into_view_with_the_last_item() {
+    // 100 items in a box of 20 rows, loading: End puts the cursor on item
+    // 100 and the loading row below it is in view too, where a view ending
+    // at the cursor's item would leave the spinner off the screen (the
+    // adversary's finding 6).
+    let _theme = Active::set(probe());
+    let shows = |text: String| -> app_input::FramePredicate {
+        Box::new(move |frame: &Snapshot| frame.text.contains(&text))
+    };
+    let frame = last_of(app_input::run_when_frame(
+        Control(page(in_box(
+            builder::list()
+                .items(numbered(100))
+                .loading(true)
+                .build()
+                .auto_focus(),
+        ))),
+        SCREEN,
+        vec![
+            (shows(item(1)), key(KeyCode::End)),
+            (shows(item(100)), None),
+        ],
+    ));
+    assert!(
+        cursor_on(&frame, &item(100)) && spinner_cell(&frame).is_some(),
+        "DAT-008: at End in a loading list of 100 items the cursor is on item 100 and the loading row shows:\n{}",
+        frame.text
+    );
+    // The same when the application says it is loading after the cursor
+    // reached the end: the view moves by one row to show the loading row.
+    let frame = last_of(app_input::run_when_frame(
+        Scripted::new(
+            |presses| {
+                in_box(
+                    builder::list()
+                        .items(numbered(100))
+                        .loading(presses > 0)
+                        .build()
+                        .auto_focus(),
+                )
+            },
+            vec![Box::new(|| {})],
+        ),
+        SCREEN,
+        vec![
+            (shows(item(1)), key(KeyCode::End)),
+            (shows(item(100)), change()),
+            (
+                Box::new(|frame: &Snapshot| spinner_cell(frame).is_some()),
+                None,
+            ),
+        ],
+    ));
+    assert!(
+        cursor_on(&frame, &item(100)),
+        "DAT-008: a list that starts loading with the cursor on item 100 shows the loading row and keeps the cursor's item in view:\n{}",
         frame.text
     );
 }
