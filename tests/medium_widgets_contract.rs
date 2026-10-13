@@ -1177,6 +1177,47 @@ fn nav_007_a_sidebars_cursor_hovered_item_and_collapsed_label_take_their_roles()
         "NAV-007: the label beside a collapsed bar is painted as NAV-001 paints a tooltip:\n{}",
         collapsed.text
     );
+
+    // An item that is active and disabled is a disabled item: text-muted,
+    // with no accent fill (the adversary's finding 2).
+    let mut items = more_items(true);
+    items[3] = SidebarItem::new("archive", "Archive").disabled(true);
+    let frame = shown(
+        boxed(
+            100,
+            20,
+            builder::sidebar().items(items).active("archive").build(),
+        ),
+        "Archive",
+    );
+    assert_eq!(
+        colors(&frame, "Archive"),
+        (Some(role("text-muted")), Some(role("surface"))),
+        "NAV-007: an active item that is disabled is text-muted on the sidebar's surface:\n{}",
+        frame.text
+    );
+
+    // A collapsed sidebar a class makes 40 cells wide puts the cursor's
+    // label beside its real edge, not inside it (finding 3).
+    let wide = settled(
+        boxed(
+            100,
+            20,
+            builder::sidebar()
+                .items(nav_items())
+                .collapsed(true)
+                .class("w-40")
+                .build(),
+        ),
+        ANY,
+        vec![key(KeyCode::Tab)],
+    );
+    let (column, _) = at(&wide, "Home");
+    assert!(
+        column >= 40,
+        "NAV-007: the label beside a collapsed bar of 40 cells starts at or after column 40:\n{}",
+        wide.text
+    );
 }
 
 #[test]
