@@ -193,7 +193,13 @@ impl Sidebar {
         ];
         if self.collapsed && self.focused_part() == TREE {
             if let Some(cursor) = cursor {
-                children.push(self.beside(&rows[cursor], cursor - scroll.min(cursor), width));
+                // Beside the bar as it is laid out: a class may size it
+                // other than the collapsed width (NAV-008, NAV-009).
+                let edge = self
+                    .viewport
+                    .map_or(width, |layout| layout.content_size().0.max(0.0) as u16)
+                    .max(1);
+                children.push(self.beside(&rows[cursor], cursor - scroll.min(cursor), edge));
             }
         }
         let mut node = Node::new(Role::Navigation);
@@ -228,9 +234,12 @@ impl Sidebar {
             .skip(scroll)
             .take(shown)
             .map(|(index, row)| {
+                // A disabled item is a disabled item though the application
+                // names it active: text-muted, with no fill (NAV-007).
                 let fill = if focused && cursor == Some(index) {
                     Fill::Strong(CURSOR)
-                } else if self.active.as_deref() == Some(row.item.id.as_str()) {
+                } else if !row.item.disabled && self.active.as_deref() == Some(row.item.id.as_str())
+                {
                     Fill::Strong(ACTIVE)
                 } else if !row.item.disabled
                     && self.hovered == Some(Hover::Item(row.item.id.clone()))

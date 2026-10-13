@@ -40,6 +40,20 @@ const FAR: i32 = u16::MAX as i32;
 /// No divider holds the keyboard focus.
 const NO_DIVIDER: usize = usize::MAX;
 
+/// How a pane's box is sized along the split.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Along {
+    /// Its share in whole cells, once the split knows its length; the box
+    /// shows the pane's content.
+    Cells(u16),
+    /// Before the first layout, a `Cells` pane: this many cells, through
+    /// the layout.
+    Fixed(u16),
+    /// Before the first layout, any other pane: its share of what the
+    /// `Cells` panes leave, by this grow factor, through the layout.
+    Grow(f32),
+}
+
 /// Which way the panes are laid out.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SplitDirection {
@@ -156,6 +170,13 @@ pub struct Resizable {
     hovered: Option<usize>,
     /// The divider a press took and its drag moves.
     dragged: Option<usize>,
+    /// The size the last move left the pane before its divider at, told to
+    /// the screen reader politely, and the count of moves so far, which
+    /// keys its node: each move publishes a new node, which the reader
+    /// announces even when the number is the one it heard last (NAV-011).
+    announced: Option<(u64, u16)>,
+    /// How many moves the split has made.
+    moves: u64,
 }
 
 impl Resizable {
@@ -171,6 +192,8 @@ impl Resizable {
             focused: Arc::new(AtomicUsize::new(NO_DIVIDER)),
             hovered: None,
             dragged: None,
+            announced: None,
+            moves: 0,
         }
     }
 
@@ -220,6 +243,8 @@ impl Resizable {
             self.specs = specs;
             self.length = length;
             self.remember_shares();
+            // The last size told describes panes the props no longer ask for.
+            self.announced = None;
         } else {
             self.sizes = if length == self.length {
                 before.clone()
@@ -291,6 +316,11 @@ impl Resizable {
         if sizes != self.sizes {
             self.sizes = sizes;
             self.remember_shares();
+            // Orca 50.1 speaks a named splitter's role on a change of its
+            // value but not the value, so the split also tells the reader
+            // the new size of the pane before the divider (NAV-011).
+            self.moves += 1;
+            self.announced = Some((self.moves, self.sizes[divider]));
             if let Some(callback) = &self.on_resize {
                 callback(self.sizes.clone());
             }
@@ -409,35 +439,66 @@ impl Resizable {
         }
     }
 
-    /// Pane `index`'s box, `size` cells along the split.
-    fn pane(pane: &Pane, index: usize, size: u16, direction: SplitDirection) -> Element {
-        let size = match direction {
-            SplitDirection::Row => format!("w-{size} h-full"),
-            SplitDirection::Column => format!("h-{size} w-full"),
+    /// Pane `index`'s box, sized along the split by `size`. Only a box of
+    /// whole cells holds the pane's content, so the first frame that shows
+    /// a pane's content already has the sizes the screen reader reads from
+    /// the dividers.
+    fn pane(pane: &Pane, index: usize, size: Along, direction: SplitDirection) -> Element {
+        let (along, across) = match direction {
+            SplitDirection::Row => ("w", "h-full"),
+            SplitDirection::Column => ("h", "w-full"),
         };
-        Element::layout(LayoutType::Flex)
-            .class(format!("flex flex-col shrink-0 overflow-hidden {size}"))
-            .with_child(pane.content.clone())
-            .with_key(format!("pane:{index}"))
+        let class = match size {
+            Along::Cells(cells) => format!("{along}-{cells} {across}"),
+            Along::Fixed(_) | Along::Grow(_) => across.to_owned(),
+        };
+        let mut element = Element::layout(LayoutType::Flex)
+            .class(format!("flex flex-col shrink-0 overflow-hidden {class}"))
+            .with_key(format!("pane:{index}"));
+        match size {
+            Along::Cells(_) => element = element.with_child(pane.content.clone()),
+            Along::Fixed(cells) => {
+                element.metadata.inline_styles = Some(format!("flex-basis: {cells}"));
+            }
+            Along::Grow(grow) => {
+                element.metadata.inline_styles = Some(format!("flex-basis: 0; flex-grow: {grow}"));
+            }
+        }
+        element
     }
 
-    /// Divider `index`: the separator piece's line across the split, in
-    /// `border`, on `hover` under the pointer, and in `selection` while it
-    /// holds the focus or is dragged (NAV-007); a focus stop and a splitter
-    /// whose value is the size of the pane before it (NAV-010). The split
-    /// draws its dividers once its panes are laid out.
-    fn divider(&self, index: usize, props: &ResizableProps, cross: u16) -> Element {
-        let row = props.direction == SplitDirection::Row;
-        let active = !props.disabled
-            && (self.focused_divider(props) == Some(index) || self.dragged == Some(index));
-        let hovered = !props.disabled && self.hovered == Some(index);
-        let fill = if active {
-            look::FOCUSED.to_owned()
-        } else if hovered {
-            format!("{} {}", look::DIVIDER, look::HOVER)
-        } else {
-            look::DIVIDER.to_owned()
+    /// Before the first layout, as `share::initial` will share the length:
+    /// how each pane's box is sized, a `Cells` pane by its size, at least
+    /// its minimum, and the others by their weights, a pane with no size
+    /// counting as a weight of one and weights that are all zero sharing
+    /// equally; and the sizes the dividers tell the screen reader until the
+    /// layout gives the real ones, a `Cells` pane's and every other pane's
+    /// minimum.
+    fn provisional(props: &ResizableProps) -> (Vec<Along>, Vec<u16>) {
+        let weight = |pane: &Pane| match pane.size {
+            Some(PaneSize::Cells(_)) => None,
+            Some(PaneSize::Weight(weight)) if weight.is_finite() => Some(weight.max(0.0)),
+            Some(PaneSize::Weight(_)) => Some(0.0),
+            None => Some(1.0),
         };
+        let even = props.panes.iter().filter_map(weight).sum::<f32>() <= 0.0;
+        props
+            .panes
+            .iter()
+            .map(|pane| match (pane.size, weight(pane)) {
+                (Some(PaneSize::Cells(cells)), _) => {
+                    let cells = cells.max(pane.min);
+                    (Along::Fixed(cells), cells)
+                }
+                (_, Some(_)) if even => (Along::Grow(1.0), pane.min),
+                (_, weight) => (Along::Grow(weight.unwrap_or(0.0)), pane.min),
+            })
+            .unzip()
+    }
+
+    /// A divider's cells without pixels: the separator piece's `│` down a
+    /// column of `cross` cells when `row`, else its `─` along a row of them.
+    fn line(row: bool, cross: u16) -> Element {
         let line = glyph(SeparatorStyle::Line, row).to_string();
         let lines: Vec<Element> = if row {
             (0..cross)
@@ -449,14 +510,43 @@ impl Resizable {
         // The line is the divider's look; the splitter's node speaks for it.
         let mut decoration = Node::new(Role::Label);
         decoration.set_hidden();
-        let lines = Element::layout(LayoutType::Flex)
+        Element::layout(LayoutType::Flex)
             .class(if row {
                 "flex flex-col w-1 h-full"
             } else {
                 "flex flex-row h-1 w-full"
             })
             .with_children(lines)
-            .with_accessibility(decoration);
+            .with_accessibility(decoration)
+    }
+
+    /// Divider `index`: the separator piece's line across the split, in
+    /// `border`, on `hover` under the pointer, and in `selection` while it
+    /// holds the focus or is dragged (NAV-007); a focus stop and a splitter
+    /// whose value is the size of the pane before it among `sizes`
+    /// (NAV-010). With pixels its line is a picture in place of the glyphs
+    /// (PIX-009). Before the first layout it is a focus stop that draws no
+    /// line, `cross` being unknown, so the App can give it the initial
+    /// focus on the first frame; the first divider takes the auto focus
+    /// the split's element asks for (NAV-011).
+    fn divider(
+        &self,
+        index: usize,
+        props: &ResizableProps,
+        sizes: &[u16],
+        cross: Option<u16>,
+    ) -> Element {
+        let row = props.direction == SplitDirection::Row;
+        let active = !props.disabled
+            && (self.focused_divider(props) == Some(index) || self.dragged == Some(index));
+        let hovered = !props.disabled && self.hovered == Some(index);
+        let fill = if active {
+            look::FOCUSED.to_owned()
+        } else if hovered {
+            format!("{} {}", look::DIVIDER, look::HOVER)
+        } else {
+            look::DIVIDER.to_owned()
+        };
 
         let mut node = Node::new(Role::Splitter);
         if let Some(label) = &props.aria_label {
@@ -468,8 +558,8 @@ impl Resizable {
         } else {
             accesskit::Orientation::Horizontal
         });
-        let (least, greatest) = share::bounds(&self.sizes, &props.mins(), index);
-        node.inner.set_numeric_value(f64::from(self.sizes[index]));
+        let (least, greatest) = share::bounds(sizes, &props.mins(), index);
+        node.inner.set_numeric_value(f64::from(sizes[index]));
         node.inner.set_min_numeric_value(f64::from(least));
         node.inner.set_max_numeric_value(f64::from(greatest));
         node.inner.set_numeric_value_step(1.0);
@@ -491,11 +581,29 @@ impl Resizable {
                 "flex shrink-0 {} {fill}",
                 if row { "w-1 h-full" } else { "h-1 w-full" }
             ))
-            .with_child(lines)
             .with_key(format!("divider:{index}"))
             .with_accessibility(node)
             .with_focus(focus)
             .disabled(props.disabled);
+        element.metadata.takes_auto_focus = index == 0;
+        // With pixels the divider's cells hold no glyph: a picture over them
+        // draws its line with a grip, in `ring` while it holds the focus or
+        // is dragged, in place of `│` or `─` (PIX-009). Without pixels they
+        // hold the separator piece's line.
+        if let Some(cross) = cross {
+            if crate::widgets::input::look::pixels() {
+                #[cfg(feature = "wgpu-graphics")]
+                {
+                    element.metadata.look = Some(Arc::new(crate::graphics::look::Look::divider(
+                        usize::from(cross),
+                        row,
+                        active,
+                    )));
+                }
+            } else {
+                element = element.with_child(Self::line(row, cross));
+            }
+        }
         if !props.disabled {
             let options = element
                 .metadata
@@ -540,19 +648,42 @@ impl Component for Resizable {
     }
 
     fn render(&self, props: &Self::Props, _state: &Self::State) -> Element {
-        let cross = self.extent(props.direction).1;
         let count = props.panes.len();
-        let mut children = Vec::with_capacity(count * 2);
-        // The panes show once the split knows its length, so the first
-        // frame they show in already has their sizes, as the screen reader
-        // reads them from the dividers.
-        if self.laid_out(props) {
-            for (index, pane) in props.panes.iter().enumerate() {
-                children.push(Self::pane(pane, index, self.sizes[index], props.direction));
-                if index + 1 < count {
-                    children.push(self.divider(index, props, cross));
-                }
+        let mut children = Vec::with_capacity(count * 2 + 1);
+        // Until the split knows its length its panes share it through the
+        // layout and show no content, and its dividers are focus stops that
+        // draw nothing: the App can give the first divider the initial
+        // focus on the first frame (NAV-011), and the first frame that shows
+        // a pane's content already has the sizes the screen reader reads
+        // from the dividers.
+        let laid_out = self.laid_out(props);
+        let (boxes, sizes, cross) = if laid_out {
+            (
+                self.sizes.iter().map(|size| Along::Cells(*size)).collect(),
+                self.sizes.clone(),
+                Some(self.extent(props.direction).1),
+            )
+        } else {
+            let (boxes, sizes) = Self::provisional(props);
+            (boxes, sizes, None)
+        };
+        for (index, (pane, size)) in props.panes.iter().zip(boxes).enumerate() {
+            children.push(Self::pane(pane, index, size, props.direction));
+            if index + 1 < count {
+                children.push(self.divider(index, props, &sizes, cross));
             }
+        }
+        // The size the last move left: screen-reader-only text that takes
+        // no cell, in a polite live region beside the splitters, so a reader
+        // that speaks a splitter's role but not its value still hears the
+        // number (NAV-011). Each move's node is new, so the reader hears it
+        // even when the number repeats.
+        if let Some((serial, size)) = self.announced {
+            children.push(
+                Element::text(size.to_string())
+                    .with_key(format!("announced:{serial}"))
+                    .class("sr-only aria-live-polite"),
+            );
         }
         let direction = match props.direction {
             SplitDirection::Row => "flex-row",

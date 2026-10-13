@@ -12,7 +12,7 @@
 //! (PIX-002). An element gets a look
 //! from its `rounded-*`, `border` and `ring-*` classes with a background
 //! role (PIX-003), or from the control that paints it (PIX-004, PIX-005,
-//! PIX-007).
+//! PIX-007, PIX-009).
 
 use super::worker::{Job, Picture, Want};
 use super::{
@@ -232,6 +232,28 @@ pub enum Shape {
         width: Extent,
         /// The role it is drawn in.
         role: String,
+    },
+    /// A straight strip down the look when `vertical` and across it
+    /// otherwise, `length` long and `width` wide, its middle `center` cells
+    /// along the look and `across` cells in from the edge it runs beside
+    /// (the left one when vertical, the top one otherwise). Its edges lie
+    /// on whole pixels, so a strip one pixel wide is one opaque pixel, not
+    /// two half-covered ones (a split's divider, PIX-009).
+    Rule {
+        /// Whether it runs down the look or across it.
+        vertical: bool,
+        /// Where its middle lies across the look, in cells.
+        across: f32,
+        /// Where its middle lies along the look, in cells.
+        center: f32,
+        /// Its length.
+        length: Extent,
+        /// Its width.
+        width: Extent,
+        /// Whether its ends are rounded, each a half circle of its width.
+        round: bool,
+        /// The role it is filled with.
+        fill: String,
     },
 }
 
@@ -714,6 +736,37 @@ impl Shape {
                     &path,
                     &Stroke::new(px(width).round()).cap(super::LineCap::Round),
                     &Paint::solid(Color::token(role.as_str())).opacity(opacity),
+                );
+            }
+            Shape::Rule {
+                vertical,
+                across,
+                center,
+                length,
+                width,
+                round,
+                fill,
+            } => {
+                // A cell's pixels along the strip and across it.
+                let (along_cell, across_cell) = if *vertical { (ch, cw) } else { (cw, ch) };
+                let (long, wide) = (px(length).round(), px(width).round());
+                // Both edges on whole pixels: a width the middle cannot
+                // center on whole pixels lies half a pixel before it.
+                let start = (center * along_cell - long / 2.0).round();
+                let side = (across * across_cell - wide / 2.0).floor();
+                let radius = if *round {
+                    (wide / 2.0).min(long / 2.0)
+                } else {
+                    0.0
+                };
+                let (x, y, w, h) = if *vertical {
+                    (side, start, wide, long)
+                } else {
+                    (start, side, long, wide)
+                };
+                scene.fill(
+                    &Path::rounded_rect(x, y, w, h, radius),
+                    &Paint::solid(Color::token(fill.as_str())).opacity(opacity),
                 );
             }
         }
@@ -1354,6 +1407,61 @@ impl Look {
             ..Self::default()
         }
     }
+
+    /// A split's divider over a column of `cells` cells when `vertical`,
+    /// between panes side by side, or over a row of them between stacked
+    /// panes: a line one pixel wide in `border` along the middle of its
+    /// cells and, centered on its length, a grip with rounded ends four
+    /// pixels across and one cell height long in `text-muted`. While the
+    /// divider holds the focus or is dragged (`focused`) the line is two
+    /// pixels wide and both are in `ring`. It has no fill and no ring box
+    /// (PIX-009).
+    pub fn divider(cells: usize, vertical: bool, focused: bool) -> Self {
+        let along = cells.max(1) as f32;
+        let center = along / 2.0;
+        // The whole run of cells: a cell's height each down a column, a
+        // cell's width each along a row.
+        let length = if vertical {
+            Extent::CellLess {
+                less: 0.0,
+                times: along,
+            }
+        } else {
+            Extent::CellWidth { times: along }
+        };
+        let (line, line_role, grip_role) = if focused {
+            (2.0, "ring", "ring")
+        } else {
+            (1.0, "border", "text-muted")
+        };
+        Self {
+            shapes: vec![
+                Shape::Rule {
+                    vertical,
+                    across: 0.5,
+                    center,
+                    length,
+                    width: Extent::Px(line),
+                    round: false,
+                    fill: line_role.to_owned(),
+                },
+                Shape::Rule {
+                    vertical,
+                    across: 0.5,
+                    center,
+                    length: Extent::CellLess {
+                        less: 0.0,
+                        times: 1.0,
+                    },
+                    width: Extent::Px(4.0),
+                    round: true,
+                    fill: grip_role.to_owned(),
+                },
+            ],
+            focused,
+            ..Self::default()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1442,5 +1550,96 @@ mod tests {
             (cells.0 * across, cells.1 * down),
             "the smaller picture has whole pixels per cell"
         );
+    }
+
+    /// PIX-009: drawn at 8 by 16 pixels per cell, a divider down a column
+    /// of six cells and along a row of thirty has its line on whole pixels
+    /// along the middle of its cells, one pixel wide in `border` at rest and
+    /// two in `ring` with the focus, and its grip four pixels across and a
+    /// cell height long, centered on its length, in `text-muted` at rest
+    /// and `ring` with the focus; every other pixel is clear.
+    #[test]
+    fn pix_009_a_dividers_line_and_grip_lie_on_whole_pixels_in_the_middle_of_its_cells() {
+        use crate::graphics::compile::compile;
+        use crate::graphics::fonts::{Font, FontSource};
+        use crate::graphics::glyphs::Glyphs;
+        let cell = (8u16, 16u16);
+        let role = |token: &str| {
+            let (r, g, b, _) = crate::theme::Theme::active()
+                .resolve_color(token)
+                .expect("the theme has the role");
+            [r, g, b].map(|channel| (channel.clamp(0.0, 1.0) * 255.0).round() as u8)
+        };
+        let near = |pixel: [u8; 4], color: [u8; 3]| {
+            pixel[3] == 255 && (0..3).all(|i| pixel[i].abs_diff(color[i]) <= 1)
+        };
+        for (vertical, cells) in [(true, 6usize), (false, 30)] {
+            for focused in [false, true] {
+                let look = Look::divider(cells, vertical, focused);
+                let (columns, rows) = if vertical { (1, cells) } else { (cells, 1) };
+                let size = (
+                    columns as u32 * u32::from(cell.0),
+                    rows as u32 * u32::from(cell.1),
+                );
+                let mut glyphs = Glyphs::new(Font::load(&FontSource::Bundled));
+                let draws = compile(
+                    &look.scene(size, cell),
+                    &Transform::identity(),
+                    size,
+                    &mut glyphs,
+                );
+                let pixels: Vec<[u8; 4]> = crate::graphics::cpu::render(&draws, size, &mut glyphs)
+                    .chunks_exact(4)
+                    .map(|p| [p[0], p[1], p[2], p[3]])
+                    .collect();
+                // Pixels along the divider and across it.
+                let (long, wide) = if vertical {
+                    (size.1, size.0)
+                } else {
+                    (size.0, size.1)
+                };
+                let line_width = if focused { 2 } else { 1 };
+                let line = (wide / 2 - 1)..(wide / 2 - 1 + line_width);
+                let grip_along = (long / 2 - 8)..(long / 2 + 8);
+                let grip_across = (wide / 2 - 2)..(wide / 2 + 2);
+                // Inside the grip's rounded ends the edge pixels are partly
+                // covered; its middle is whole.
+                let grip_middle = (grip_along.start + 2)..(grip_along.end - 2);
+                let (line_color, grip_color) = if focused {
+                    (role("ring"), role("ring"))
+                } else {
+                    (role("border"), role("text-muted"))
+                };
+                let state = format!(
+                    "the {} divider{}",
+                    if vertical { "vertical" } else { "horizontal" },
+                    if focused { " with the focus" } else { "" }
+                );
+                for along in 0..long {
+                    for across in 0..wide {
+                        let (x, y) = if vertical {
+                            (across, along)
+                        } else {
+                            (along, across)
+                        };
+                        let pixel = pixels[(y * size.0 + x) as usize];
+                        let in_grip = grip_along.contains(&along) && grip_across.contains(&across);
+                        if in_grip && grip_middle.contains(&along) {
+                            assert!(
+                                near(pixel, grip_color),
+                                "{state}: grip pixel ({x}, {y}) is {pixel:?}, not {grip_color:?}"
+                            );
+                        } else if !in_grip && line.contains(&across) {
+                            assert!(
+                                near(pixel, line_color),
+                                "{state}: line pixel ({x}, {y}) is {pixel:?}, not {line_color:?}"
+                            );
+                        } else if !in_grip {
+                            assert_eq!(pixel[3], 0, "{state}: pixel ({x}, {y}) is not clear");
+                        }
+                    }
+                }
+            }
+        }
     }
 }

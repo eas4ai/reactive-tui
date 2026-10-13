@@ -10,11 +10,11 @@ use reactive_tui::{
     app::{RootComponent, RootUpdate},
     builder::{
         action_item, alert, button, checkbox, checkbox_item, code_input, confirmation_dialog,
-        context_menu, data_table, div, empty, file_explorer, form, icon, image, link, menu_item,
-        menubar, number_input, pagination, path_breadcrumb, popover, primary_button, progress_bar,
-        progress_dialog, radio_button, radio_item, rating, scroll_view, select, separator, shimmer,
-        simple_accordion, skeleton, slider, spinner, stack, stepper, submenu_item, switch, tabs,
-        text_input, toast, tree, wizard,
+        context_menu, data_table, div, empty, file_explorer, form, icon, image, link, list,
+        log_view, menu_item, menubar, number_input, pagination, path_breadcrumb, popover,
+        primary_button, progress_bar, progress_dialog, radio_button, radio_item, rating, resizable,
+        scroll_view, select, separator, shimmer, sidebar, simple_accordion, skeleton, slider,
+        spinner, stack, stepper, submenu_item, switch, tabs, text_input, toast, tree, wizard,
     },
     component::Element,
     core::geometry::Rect,
@@ -35,10 +35,11 @@ use reactive_tui::{
             table::{Table, TableColumn, TableProps, TableRow},
             tree::TreeNode,
             AreaChartBuilder, BarChartBuilder, BarGrowth, CandlestickChartBuilder,
-            DonutChartBuilder, LineChartBuilder, PieChartBuilder, RadarChartBuilder,
+            DonutChartBuilder, LineChartBuilder, ListItem, PieChartBuilder, RadarChartBuilder,
             SankeyChartBuilder, SankeyLink, ScatterChartBuilder, SizeClass,
         },
         input::FormField,
+        layout::{LogHandle, LogKind, LogRow, SidebarItem},
         menu::{DialogMenuBuilder, MenuItem},
         DialogMenu, TerminalProps, TerminalWidget,
     },
@@ -109,8 +110,8 @@ struct CanvasStage {
 /// Public widget families represented by the catalog.
 pub const WIDGET_FAMILY_INVENTORY: &str = "\
 TextInput Checkbox RadioButton Select Slider \
-Accordion Breadcrumb ScrollView Stack Tabs \
-Chart Table DataTable Tree FileExplorer ProgressBar Modal Popover Image \
+Accordion Breadcrumb ScrollView Stack Tabs Resizable Sidebar LogView \
+Chart Table DataTable Tree FileExplorer ProgressBar List Modal Popover Image \
 MenuBar ContextMenu PopupMenu DialogMenu \
 ConfirmationDialog InputDialog AutocompleteDialog ProgressDialog Toast WizardDialog \
 TerminalWidget";
@@ -209,6 +210,9 @@ pub struct Catalog {
     motion: CubeAnimation,
     exit_requested: bool,
     demo: usize,
+    /// The rows the Layout page's log view shows, kept between renders so
+    /// the view keeps its place while the user scrolls it.
+    log: LogHandle,
     /// Set when the catalog draws the Motion page on the canvas.
     #[cfg(feature = "wgpu-graphics")]
     canvas: Option<CanvasStage>,
@@ -223,6 +227,7 @@ impl Default for Catalog {
             motion: CubeAnimation::new(Instant::now()),
             exit_requested: false,
             demo: 0,
+            log: Self::build_log(),
             #[cfg(feature = "wgpu-graphics")]
             canvas: None,
         }
@@ -541,6 +546,52 @@ impl Catalog {
                     .child(Element::text("Layer two"))
                     .build(),
             ))
+            // The split, the sidebar and the log view fill the box their
+            // card gives them.
+            .child(Self::card(
+                "Resizable",
+                div()
+                    .class("w-full h-4")
+                    .child(
+                        resizable()
+                            .pane(Element::text("Files"))
+                            .pane(Element::text("Preview"))
+                            .aria_label("Panes")
+                            .build(),
+                    )
+                    .build(),
+            ))
+            .child(Self::card(
+                "Sidebar",
+                div()
+                    .class("w-full h-5")
+                    .child(
+                        sidebar()
+                            .item(SidebarItem::new("home", "Home"))
+                            .item(
+                                SidebarItem::new("projects", "Projects")
+                                    .child(SidebarItem::new("alpha", "Alpha"))
+                                    .child(SidebarItem::new("beta", "Beta")),
+                            )
+                            .item(SidebarItem::new("settings", "Settings"))
+                            .active("home")
+                            .aria_label("Main")
+                            .build(),
+                    )
+                    .build(),
+            ))
+            .child(Self::card(
+                "LogView",
+                div()
+                    .class("w-full h-4")
+                    .child(
+                        log_view()
+                            .handle(self.log.clone())
+                            .aria_label("Build log")
+                            .build(),
+                    )
+                    .build(),
+            ))
             .build();
         let span_cell = |label: &str, classes: &str| {
             div()
@@ -566,6 +617,20 @@ impl Catalog {
             ))
             .child(examples)
             .build()
+    }
+
+    /// The Layout page's log: a build's rows of each kind.
+    fn build_log() -> LogHandle {
+        let log = LogHandle::new();
+        log.append_all(vec![
+            LogRow::new("Build started"),
+            LogRow::new("Compiling widgets").kind(LogKind::Info),
+            LogRow::new("warning: unused var").kind(LogKind::Warning),
+            LogRow::new("error: 1 test failed").kind(LogKind::Error),
+            LogRow::new("Retrying the test").kind(LogKind::Info),
+            LogRow::new("Build finished").kind(LogKind::Success),
+        ]);
+        log
     }
 
     /// Every chart type at its three size classes: a mini sparkline, a
@@ -926,7 +991,32 @@ impl Catalog {
                     .show_percentage(true)
                     .build(),
             ))
+            .child(Self::card(
+                "List",
+                div()
+                    .class("w-full h-8")
+                    .child(
+                        list()
+                            .items(Self::fruits())
+                            .selected("banana")
+                            .aria_label("Fruits")
+                            .build(),
+                    )
+                    .build(),
+            ))
             .build()
+    }
+
+    /// The Data page's list: six fruits in two sections.
+    fn fruits() -> Vec<ListItem> {
+        vec![
+            ListItem::new("apple", "Apple").section("Orchard"),
+            ListItem::new("banana", "Banana").section("Orchard"),
+            ListItem::new("cherry", "Cherry").section("Orchard"),
+            ListItem::new("lemon", "Lemon").section("Citrus"),
+            ListItem::new("lime", "Lime").section("Citrus"),
+            ListItem::new("orange", "Orange").section("Citrus"),
+        ]
     }
 
     /// The rows every menu demo shows: an action with a shortcut, a

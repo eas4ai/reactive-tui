@@ -53,7 +53,9 @@ impl List {
             return 0..body;
         };
         let [a, b, c, d, _, y] = layout.transform;
-        if (a, b, c, d) != (1.0, 0.0, 0.0, 1.0) {
+        // A list that is scaled or turned builds every row of its body.
+        let upright = a == 1.0 && b == 0.0 && c == 0.0 && d == 1.0;
+        if !upright {
             return 0..body;
         }
         let top = y + Self::filter_rows(props) as f32;
@@ -65,9 +67,9 @@ impl List {
     /// The row of the item `item`, the `place`th shown, by its state
     /// (DAT-006): the cursor's while the list holds the focus, the selected
     /// one, the one under the pointer and a disabled one take their fills
-    /// and colors, the others show their label in `foreground`, their
-    /// description in `text-muted` and the characters that match the filter
-    /// in `primary`.
+    /// and colors, the others show their label in `foreground` and their
+    /// description in `text-muted`; on every row the characters that match
+    /// the filter are `primary`.
     fn item_row(
         &self,
         props: &ListProps,
@@ -88,11 +90,7 @@ impl List {
         let mut pieces = vec![piece(" ", "")];
         let chars: Vec<char> = entry.label.chars().collect();
         let mut at = 0;
-        let found = if own {
-            Vec::new()
-        } else {
-            matches(&entry.label, &needle(&self.filter))
-        };
+        let found = matches(&entry.label, &needle(&self.filter));
         for range in found {
             if range.start > at {
                 pieces.push(piece(
