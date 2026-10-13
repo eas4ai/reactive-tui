@@ -41,7 +41,7 @@ import tempfile
 from pathlib import Path
 
 from _common import JOBS, cargo_test_filtered, finish, report, run
-from workspace_gates import toolchain_crashes
+from workspace_gates import retained, toolchain_crashes
 from host_builds import BUILD, CONFIG, HOSTS, Unreachable, build_on, run_on, snapshot
 
 FEATURE = ["wgpu-graphics"]
@@ -231,14 +231,10 @@ def gates() -> int:
             crashed.append(f"{' '.join(command[:2])}: {', '.join(crashes)}")
             print(result.stdout[-6000:])
             continue
-        # The failing tests by name, which a long run's tail would cut off.
-        failed = [
-            line
-            for line in result.stdout.splitlines()
-            if " ... FAILED" in line or "panicked at" in line or "test result: FAILED" in line
-        ]
-        if failed:
-            print("\n".join(failed[:40]))
+        # The failing tests by name and each panic's message, which a long
+        # run's tail would cut off (kept as BAR-001's gate keeps them).
+        if result.returncode != 0:
+            print(retained(result.stdout))
         print(result.stdout[-6000:])
         if result.returncode != 0:
             failing.append(" ".join(command[:2]))

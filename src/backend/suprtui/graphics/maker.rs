@@ -488,6 +488,95 @@ mod tests {
         );
     }
 
+    /// A canvas's Kitty picture that takes a frame's whole room for new
+    /// pictures: 2048 by 2048 cells of 2 by 2 pixels, 64 MiB before it is
+    /// made ready. It tells why a frame refused it.
+    #[derive(Clone)]
+    struct Whole {
+        id: u32,
+        refused: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    }
+    impl PartialEq for Whole {
+        fn eq(&self, other: &Self) -> bool {
+            self.id == other.id
+        }
+    }
+    impl RasterPlane for Whole {
+        fn id(&self) -> u32 {
+            self.id
+        }
+        fn protocol(&self) -> ImageProtocol {
+            ImageProtocol::Kitty
+        }
+        fn quality(&self) -> crate::widgets::ImageQuality {
+            crate::widgets::ImageQuality::Fast
+        }
+        fn position(&self) -> (u32, u32) {
+            (0, 0)
+        }
+        fn raster(&self, _: (u16, u16)) -> Result<image::RgbaImage> {
+            Ok(image::RgbaImage::from_pixel(
+                4,
+                4,
+                image::Rgba([5, 5, 5, 255]),
+            ))
+        }
+        fn raster_cell(&self, _: (u16, u16)) -> (u16, u16) {
+            (2, 2)
+        }
+        fn background(&self, _: u32, _: u32, _: (u16, u16)) -> image::Rgba<u8> {
+            image::Rgba([0, 0, 0, 255])
+        }
+        fn cells(&self) -> (u32, u32) {
+            (2048, 2048)
+        }
+        fn canvas(&self) -> Option<crate::widgets::display::image::paint::CanvasPicture> {
+            Some(crate::widgets::display::image::paint::CanvasPicture {
+                cell: (2, 2),
+                shared_memory: false,
+            })
+        }
+        fn refuse(&self, reason: &str) {
+            self.refused.lock().unwrap().push(reason.to_owned());
+        }
+    }
+
+    #[test]
+    fn gfx_007_a_picture_with_no_room_beside_another_is_made_after_it_not_refused() {
+        use crate::backend::suprtui::graphics::Graphics;
+        let refused = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let plane = |id| Whole {
+            id,
+            refused: refused.clone(),
+        };
+        // Two canvases whose first pictures come in one frame, which holds
+        // one of them.
+        let frame = vec![plane(1), plane(2)];
+        let mut graphics = Graphics::<Whole>::default();
+        graphics.make_pictures_apart();
+        graphics.prepare(&frame, (2, 2), false).expect("a frame");
+        graphics.acknowledge(frame);
+        let held = graphics.held.len();
+        // The worker writes what the thread made between frames; the held
+        // picture is handed over once the first is made, so it is written
+        // after it, never with it.
+        let mut batches = Vec::new();
+        let started = Instant::now();
+        while batches.iter().sum::<usize>() < 2 && started.elapsed() < Duration::from_secs(10) {
+            let (written, _) = graphics.take_made((2, 2));
+            if !written.is_empty() {
+                batches.push(written.len());
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let told = refused.lock().unwrap().clone();
+        assert!(
+            held == 1 && told.is_empty() && batches == [1, 1] && graphics.held.is_empty(),
+            "GFX-007: of two pictures that each take a frame's room, the frame held {held}, the canvases were told {told:?}, the pictures were written in batches of {batches:?}, and {} were still held",
+            graphics.held.len()
+        );
+    }
+
     /// A canvas's Kitty picture sent through shared memory, which takes
     /// `slow` to copy out, the next picture of the one before it.
     #[cfg(unix)]

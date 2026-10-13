@@ -940,15 +940,18 @@ impl RootComponent for Swapping {
 }
 
 #[test]
-fn gfx_007_a_picture_the_frame_cannot_hold_shows_a_message_and_the_app_goes_on() {
+fn gfx_007_pictures_one_frame_cannot_hold_together_are_shown_one_after_the_other() {
     use reactive_tui::builder::core::div;
     // Two canvases side by side, each 260 by 260 cells of 16 by 32 pixels.
     // One pixel per screen pixel would be 4160 by 8320, more than the 64
-    // MiB a frame holds for one picture, so each is drawn with the most
+    // MiB a frame holds for new pictures, so each is drawn with the most
     // whole pixels per cell that fit, 8 by 31, as 2080 by 8060 pixels
-    // (GFX-010); a frame holds one such picture and not two. The pictures
-    // come one after the other and each frame shows the one that is new;
-    // when the canvases trade places, one frame has to show both.
+    // (GFX-010); a frame holds one such picture and not two. Each canvas
+    // draws on a worker of its own, so their first pictures come in one
+    // frame or one after the other; when the canvases trade places, one
+    // frame has both to show. A frame without room for the second holds
+    // it and sends it once the first is made ready: no canvas is refused
+    // its picture for coming in the same frame as another.
     let large_cells = ImageOutputOptions {
         kitty_graphics: true,
         kitty_shared_memory: true,
@@ -966,28 +969,32 @@ fn gfx_007_a_picture_the_frame_cannot_hold_shows_a_message_and_the_app_goes_on()
             .build()
             .with_key(key)
     };
-    let frames = app_input::run_when_output(
+    // A frame's output is all the App wrote up to it, with the pictures
+    // made ready for it, which the harness waits for. The canvases trade
+    // places once both pictures are out, and the run ends once the swap's
+    // two are.
+    let sent =
+        |frame: &app_input::Snapshot| kitty_sizes(&String::from_utf8_lossy(&frame.output)).len();
+    let both: app_input::FramePredicate = Box::new(move |frame| sent(frame) >= 2);
+    let swapped: app_input::FramePredicate = Box::new(move |frame| sent(frame) >= 4);
+    let frames = app_input::run_when_frame_with_images(
         Swapping {
             halves: [half("left"), half("right")],
             swapped: false,
         },
         (520, 260),
         large_cells,
-        // The renderer steps over blank cells, so the message's words
-        // are apart in the output: its first word is what is waited for.
-        vec![
-            ("a=T".to_owned(), 1, app_input::key(KeyCode::Enter)),
-            ("Canvas:".to_owned(), 1, None),
-        ],
+        vec![(both, app_input::key(KeyCode::Enter)), (swapped, None)],
     );
-    let output: String = frames
-        .iter()
+    let output = frames
+        .last()
         .map(|frame| String::from_utf8_lossy(&frame.output).into_owned())
-        .collect();
+        .unwrap_or_default();
     let sizes = kitty_sizes(&output);
     assert!(
-        output.contains("limit") && sizes.len() >= 3 && sizes.contains(&(2080, 8060)),
-        "GFX-007: of two canvases whose pictures one frame cannot hold, the pictures sent were {sizes:?}"
+        !output.contains("Canvas:") && sizes.iter().all(|size| *size == (2080, 8060)),
+        "GFX-007: of two canvases whose pictures one frame cannot hold together, the pictures sent were {sizes:?}; a canvas showed a message in place of its picture: {}",
+        output.contains("Canvas:")
     );
 }
 

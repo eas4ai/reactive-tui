@@ -40,6 +40,10 @@ pub(crate) struct Graphics<P = Plane> {
     /// The thread that made each canvas picture written since the last
     /// `take_made_on` ready, one name per picture (GFX-009).
     made_on: Vec<String>,
+    /// Canvas pictures that fit a frame alone but not beside its other new
+    /// pictures, handed over once the picture thread has made those
+    /// (GFX-007).
+    held: Vec<P>,
 }
 impl<P> Default for Graphics<P> {
     fn default() -> Self {
@@ -57,8 +61,26 @@ impl<P> Default for Graphics<P> {
             #[cfg(test)]
             fail_start: false,
             made_on: Vec::new(),
+            held: Vec::new(),
         }
     }
+}
+
+/// What a frame's new pictures may take, counted by their size before
+/// they are made ready (GFX-007).
+const NEW_PICTURES: usize = 64 * 1024 * 1024;
+
+/// The bytes of `plane`'s picture before it is made ready, at its own
+/// pixels per cell (GFX-010).
+fn picture_bytes<P: RasterPlane>(plane: &P, cell: (u16, u16)) -> usize {
+    let (columns, rows) = plane.cells();
+    let raster_cell = plane.raster_cell(cell);
+    let size = u64::from(columns)
+        * u64::from(raster_cell.0)
+        * u64::from(rows)
+        * u64::from(raster_cell.1)
+        * 4;
+    usize::try_from(size).unwrap_or(usize::MAX)
 }
 
 /// How a plane of the next frame continues one of the last, which it names
@@ -251,6 +273,9 @@ impl<P: RasterPlane> Graphics<P> {
         // retired alone (GFX-005).
         let steps = self.steps(next);
         let in_place = !force && self.only_canvases_differ(next, &steps);
+        // A picture held for room is not shown yet: this frame hands it
+        // over as a new one, or holds it again.
+        let held = std::mem::take(&mut self.held);
         let before = if in_place {
             self.retire(next, &steps, cell)
         } else {
@@ -272,7 +297,7 @@ impl<P: RasterPlane> Graphics<P> {
             // A plane that stays as it is needs its pixels again only
             // where a plane above it is blended with them.
             let mut kept = match steps[z] {
-                Step::Kept(index) if in_place => Some(index),
+                Step::Kept(index) if in_place && !held.contains(plane) => Some(index),
                 _ => None,
             };
             // The planes made ready apart below this one whose cells it
@@ -339,40 +364,42 @@ impl<P: RasterPlane> Graphics<P> {
                     remade.push(z);
                     // A frame holds 64 MiB of new pictures, counted by
                     // their size before they are made ready (GFX-007), at
-                    // the picture's own pixels per cell (GFX-010).
-                    let (columns, rows) = plane.cells();
-                    let raster_cell = plane.raster_cell(cell);
-                    let size = u64::from(columns)
-                        * u64::from(raster_cell.0)
-                        * u64::from(rows)
-                        * u64::from(raster_cell.1)
-                        * 4;
-                    raster_bytes = raster_bytes.saturating_add(size as usize);
-                    if raster_bytes > 64 * 1024 * 1024 {
+                    // the picture's own pixels per cell (GFX-010). One that
+                    // fits a frame alone but not beside the frame's other
+                    // new pictures is held, and handed over between frames
+                    // once the picture thread has made those: it is not
+                    // refused for coming in the same frame as another.
+                    let size = picture_bytes(plane, cell);
+                    if size > NEW_PICTURES {
                         plane.refuse("image frame exceeds 64 MiB raster limit");
                         coverage.push(coverage::Coverage::empty(plane.position()));
                         continue;
                     }
-                    let job = maker::Job {
-                        plane: plane.clone(),
-                        z,
-                        cell,
-                        blend_legacy,
-                        below: below.clone(),
-                        under,
-                    };
-                    match self.maker() {
-                        Ok(maker) => maker.submit(job),
-                        // The canvas is told why it shows no picture
-                        // (GFX-007), and its next picture starts the
-                        // thread again.
-                        Err(error) => {
-                            log::warn!("the canvas picture thread did not start: {error}");
-                            plane.refuse(&format!(
-                                "canvas pictures cannot be made ready: the picture thread did not start: {error}"
-                            ));
-                            coverage.push(coverage::Coverage::empty(plane.position()));
-                            continue;
+                    if raster_bytes.saturating_add(size) > NEW_PICTURES {
+                        self.held.push(plane.clone());
+                    } else {
+                        raster_bytes = raster_bytes.saturating_add(size);
+                        let job = maker::Job {
+                            plane: plane.clone(),
+                            z,
+                            cell,
+                            blend_legacy,
+                            below: below.clone(),
+                            under,
+                        };
+                        match self.maker() {
+                            Ok(maker) => maker.submit(job),
+                            // The canvas is told why it shows no picture
+                            // (GFX-007), and its next picture starts the
+                            // thread again.
+                            Err(error) => {
+                                log::warn!("the canvas picture thread did not start: {error}");
+                                plane.refuse(&format!(
+                                    "canvas pictures cannot be made ready: the picture thread did not start: {error}"
+                                ));
+                                coverage.push(coverage::Coverage::empty(plane.position()));
+                                continue;
+                            }
                         }
                     }
                 }
@@ -466,8 +493,11 @@ impl<P: RasterPlane> Graphics<P> {
     /// move to its corner; the caller saves and restores the cursor. A picture made for cells its canvas no longer shows, because
     /// the canvas moved, went, or has other cells over it, is not written,
     /// and when no newer picture of the canvas waits, the canvas's picture
-    /// is made ready again for the cells as they are (GFX-009). The flag
-    /// says whether a picture was handed over again.
+    /// is made ready again for the cells as they are (GFX-009). Once the
+    /// thread has made every picture handed to it, the pictures a frame
+    /// held for room are handed over, as many as one frame's room takes
+    /// (GFX-007). The flag says whether a picture was handed over again or
+    /// one is still held, so the worker looks again soon.
     pub fn take_made(&mut self, cell: (u16, u16)) -> (Vec<Vec<u8>>, bool) {
         let Some(made) = self.maker.as_ref().map(maker::Maker::made) else {
             return (Vec::new(), false);
@@ -517,7 +547,44 @@ impl<P: RasterPlane> Graphics<P> {
             self.made_on.push(made.thread);
             pictures.push(made.bytes);
         }
-        (pictures, again)
+        if !self.making() {
+            self.hand_over_held(cell);
+        }
+        (pictures, again || !self.held.is_empty() || self.making())
+    }
+    /// Hand the picture thread the pictures a frame held for room, as many
+    /// as one frame's room takes; the rest wait for the next turn. A held
+    /// picture its canvas no longer shows as it was is dropped: the frame
+    /// that changed it hands its picture over.
+    fn hand_over_held(&mut self, cell: (u16, u16)) {
+        let Some(maker) = &self.maker else {
+            return;
+        };
+        let mut room = NEW_PICTURES;
+        for plane in std::mem::take(&mut self.held) {
+            let Some(index) = self.last.iter().position(|last| *last == plane) else {
+                continue;
+            };
+            let size = picture_bytes(&plane, cell);
+            if size > room {
+                self.held.push(plane);
+                continue;
+            }
+            room -= size;
+            let under = if self.possible_legacy {
+                under_planes(&self.last, index, &plane)
+            } else {
+                Vec::new()
+            };
+            maker.submit(maker::Job {
+                plane,
+                z: index,
+                cell,
+                blend_legacy: self.possible_legacy,
+                below: PixelLayers::new(cell),
+                under,
+            });
+        }
     }
     /// The thread that made each canvas picture written since the last
     /// call ready, one name per picture (GFX-009).
