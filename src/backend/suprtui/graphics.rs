@@ -274,8 +274,16 @@ impl<P: RasterPlane> Graphics<P> {
         let steps = self.steps(next);
         let in_place = !force && self.only_canvases_differ(next, &steps);
         // A picture held for room is not shown yet: this frame hands it
-        // over as a new one, or holds it again.
+        // over as a new one, or holds it again. A canvas whose picture was
+        // held goes first this frame, its room taken before the others
+        // are counted, so a canvas that draws new pictures faster than they
+        // are made cannot keep another's picture held for good: the two
+        // take turns (GFX-007).
         let held = std::mem::take(&mut self.held);
+        let first: Vec<bool> = next
+            .iter()
+            .map(|plane| held.iter().any(|kept| kept.id() == plane.id()))
+            .collect();
         let before = if in_place {
             self.retire(next, &steps, cell)
         } else {
@@ -285,6 +293,23 @@ impl<P: RasterPlane> Graphics<P> {
         let blend_legacy = next.iter().any(|p| p.protocol() != ImageProtocol::Kitty);
         let mut below = PixelLayers::new(cell);
         let mut raster_bytes = 0usize;
+        // The planes whose room this frame took first: two held pictures
+        // that do not fit together take turns as any two do.
+        let reserved: Vec<bool> = next
+            .iter()
+            .enumerate()
+            .map(|(z, plane)| {
+                let size = picture_bytes(plane, cell);
+                let fits = first[z]
+                    && plane.canvas().is_some()
+                    && self.apart
+                    && raster_bytes.saturating_add(size) <= NEW_PICTURES;
+                if fits {
+                    raster_bytes += size;
+                }
+                fits
+            })
+            .collect();
         let mut coverage = Vec::with_capacity(next.len());
         if !next.is_empty() {
             after.extend_from_slice(b"\x1b7");
@@ -297,7 +322,7 @@ impl<P: RasterPlane> Graphics<P> {
             // A plane that stays as it is needs its pixels again only
             // where a plane above it is blended with them.
             let mut kept = match steps[z] {
-                Step::Kept(index) if in_place && !held.contains(plane) => Some(index),
+                Step::Kept(index) if in_place && !first[z] => Some(index),
                 _ => None,
             };
             // The planes made ready apart below this one whose cells it
@@ -375,10 +400,14 @@ impl<P: RasterPlane> Graphics<P> {
                         coverage.push(coverage::Coverage::empty(plane.position()));
                         continue;
                     }
-                    if raster_bytes.saturating_add(size) > NEW_PICTURES {
+                    // A picture held last frame had its room taken above.
+                    let fits = reserved[z] || raster_bytes.saturating_add(size) <= NEW_PICTURES;
+                    if !fits {
                         self.held.push(plane.clone());
                     } else {
-                        raster_bytes = raster_bytes.saturating_add(size);
+                        if !reserved[z] {
+                            raster_bytes = raster_bytes.saturating_add(size);
+                        }
                         let job = maker::Job {
                             plane: plane.clone(),
                             z,

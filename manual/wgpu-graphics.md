@@ -345,9 +345,12 @@ start their worker before the terminal and hand it to their canvas.
   fits a frame alone but not beside the frame's other new pictures, as when
   two large canvases get their pictures in the same frame, waits: the
   backend makes it ready once it has made the others and shows it between
-  frames, with no frame from the App needed. A picture too large for any
-  frame is left out, and the canvas shows the reason in its own area until
-  its picture has another size.
+  frames, with no frame from the App needed, and a picture that waited goes
+  first in the next frame, so two canvases whose pictures do not fit
+  together take turns and one that draws without pause cannot keep the
+  other's picture from the terminal. A picture too large for any frame is
+  left out, and the canvas shows the reason in its own area until its
+  picture has another size.
 - An image is at most 4096 by 4096 pixels.
 - A gradient keeps its first 16 stops.
 - A dash pattern draws at most 65 536 dashes on one line. A line that would
