@@ -422,14 +422,9 @@ LAYOUT_WIDGETS = (
     ("Tabs", r"(?<![\w.])tabs\(\)", "Tabs"),
     ("ScrollView", r"\bscroll_view\(\)", "Scroll view"),
     ("Stack", r"(?<![\w.])stack\(\)", "Stack"),
-    ("Resizable", r"\bresizable\(\)", "Resizable split"),
-    ("Sidebar", r"(?<![\w.])sidebar\(\)", "Sidebar"),
-    ("LogView", r"\blog_view\(\)", "Log view"),
 )
 LAYOUT_CODE = ("src/widgets/layout", "src/builder/widgets/layout.rs", "src/builder/widgets/accordion.rs",
-               "src/builder/widgets/breadcrumb.rs", "src/builder/specialized.rs",
-               "src/builder/widgets/resizable.rs", "src/builder/widgets/sidebar.rs",
-               "src/builder/widgets/log_view.rs")
+               "src/builder/widgets/breadcrumb.rs", "src/builder/specialized.rs")
 
 
 ENTRY_POINT = re.compile(r"\bbuilder::([a-z_][a-z0-9_]*)\(\)")
@@ -504,9 +499,9 @@ def receiver_problems(section_text: str, heading: str, sources: dict[Path, str],
 
 def layout_docs_problems() -> list[str]:
     """The layout family: the catalog's Layout widgets page builds each of
-    its widgets in a card of its name, the manual has a heading for each,
-    and every method the manual's sections cite is a pub fn in the layout
-    code or its builders."""
+    the five widgets in a card of its name, the manual has a heading for
+    each, and every method the manual's sections cite is a pub fn in the
+    layout code or its builders."""
     problems = []
     code, prose, pages = catalog_pages()
     page = pages.get("Layout")
@@ -535,24 +530,21 @@ DATA_WIDGETS = (
     ("Tree", r"(?<![\w.])tree\(\)", "Tree"),
     ("FileExplorer", r"\bfile_explorer\(\)", "File explorer"),
     ("ProgressBar", r"\bprogress_bar\(\)", "Progress bar"),
-    ("List", r"(?<![\w.])list\(\)", "List"),
 )
 DATA_CODE = ("src/widgets/display/look.rs", "src/widgets/display/table.rs", "src/widgets/display/table",
              "src/widgets/display/data_table.rs", "src/widgets/display/data_table",
              "src/widgets/display/tree.rs", "src/widgets/display/tree",
              "src/widgets/display/file_explorer.rs", "src/widgets/display/file_explorer",
              "src/widgets/display/progress_bar.rs", "src/widgets/display/progress_bar",
-             "src/widgets/display/list.rs", "src/widgets/display/list",
              "src/builder/widgets/table.rs", "src/builder/widgets/display.rs",
-             "src/builder/widgets/file_explorer.rs", "src/builder/specialized.rs",
-             "src/builder/widgets/list.rs")
+             "src/builder/widgets/file_explorer.rs", "src/builder/specialized.rs")
 
 
 def data_docs_problems() -> list[str]:
-    """The data family: the catalog's Data display page builds each of its
-    widgets in a card of its name, the manual has a heading for each, and
-    every method the manual's sections cite is a pub fn of the builder or
-    type the section names in the data code."""
+    """The data family: the catalog's Data display page builds each of the
+    five widgets in a card of its name, the manual has a heading for each,
+    and every method the manual's sections cite is a pub fn of the builder
+    or type the section names in the data code."""
     problems = []
     code, prose, pages = catalog_pages()
     page = pages.get("Data")

@@ -51,13 +51,12 @@ OVERLAY_GOLDENS = tuple(f"{overlay}_{size}" for overlay in OVERLAYS for size in 
 INPUT_WIDGETS = ("text_input", "checkbox", "radio_button", "select", "slider", "button")
 INPUT_GOLDENS = tuple(f"{widget}_{size}" for widget in INPUT_WIDGETS for size in ("80x24", "400x100"))
 # The layout widgets (tests/layout_widgets_goldens.rs): each fills the
-# width the page allots (the sidebar keeps its own 28 cells on that page),
-# so the wide golden is 400 columns.
-LAYOUT_WIDGETS = ("tabs", "accordion", "breadcrumb", "scroll_view", "stack", "resizable", "sidebar", "log_view")
+# width the page allots, so the wide golden is 400 columns.
+LAYOUT_WIDGETS = ("tabs", "accordion", "breadcrumb", "scroll_view", "stack")
 LAYOUT_GOLDENS = tuple(f"{widget}_{size}" for widget in LAYOUT_WIDGETS for size in ("80x24", "400x100"))
 # The data widgets (tests/data_widgets_goldens.rs): each fills the width
 # the page allots, so the wide golden is 400 columns.
-DATA_WIDGETS = ("table", "data_table", "tree", "file_explorer", "progress_bar", "list")
+DATA_WIDGETS = ("table", "data_table", "tree", "file_explorer", "progress_bar")
 DATA_GOLDENS = tuple(f"{widget}_{size}" for widget in DATA_WIDGETS for size in ("80x24", "400x100"))
 # The display pieces (tests/display_pieces_goldens.rs): each is laid out at
 # the width the page allots, so the wide golden is 400 columns.

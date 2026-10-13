@@ -116,11 +116,6 @@ pub struct ElementMetadata {
     pub(crate) hyperlink: Option<Arc<str>>,
     /// Autofocus descendants and restore on removal without trapping Tab.
     pub(crate) focus_scope: bool,
-    /// Set by a component on a focus stop among its rendered root's
-    /// children: the auto focus the component's own element asks for goes
-    /// to this child, and the root, which is no focus stop of its own, does
-    /// not become one (a split's first divider, NAV-011).
-    pub(crate) takes_auto_focus: bool,
     pub(crate) factory: Option<ElementFactory>,
     pub(crate) events: Vec<crate::event::router::EventHandlerFn>,
     /// Observe descendant input before its target handles activation.
@@ -185,7 +180,6 @@ impl PartialEq for ElementMetadata {
             && self.text_cursor == other.text_cursor
             && self.hyperlink == other.hyperlink
             && self.focus_scope == other.focus_scope
-            && self.takes_auto_focus == other.takes_auto_focus
             && self.component_instances == other.component_instances
             && self.accessibility == other.accessibility
             && self.accessibility_options == other.accessibility_options

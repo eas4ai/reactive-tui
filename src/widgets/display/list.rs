@@ -131,8 +131,6 @@ pub struct List {
     lines: Lines,
     /// What the items were when the lines were made, to tell a change.
     items_print: u64,
-    /// Whether the lines were made with a loading row.
-    loading: bool,
     /// The filter's text.
     filter: String,
     /// The props' item the cursor stands on, and its id.
@@ -182,7 +180,6 @@ impl List {
             viewport: None,
             lines: Lines::new(&props.items, "", props.loading),
             items_print: fingerprint(&props.items),
-            loading: props.loading,
             filter: String::new(),
             cursor: None,
             cursor_id: None,
@@ -276,23 +273,17 @@ impl List {
     }
 
     /// Scrolls the view so the cursor's item is in view, with its section's
-    /// title when the view moves up to it, and with the loading row when the
-    /// cursor is on the last item (DAT-008): the row that says more is
-    /// coming shows where the keys can reach.
+    /// title when the view moves up to it.
     fn reveal(&mut self, props: &ListProps) {
         let body = self.body(props);
         if let Some(line) = self.cursor_line().filter(|_| body > 0) {
-            let last = match self.lines.get(line + 1) {
-                Some(Line::Loading) => line + 1,
-                _ => line,
-            };
             if line < self.offset {
                 self.offset = match self.lines.get(line.wrapping_sub(1)) {
                     Some(Line::Title { .. }) => line - 1,
                     _ => line,
                 };
-            } else if last >= self.offset + body {
-                self.offset = last + 1 - body;
+            } else if line >= self.offset + body {
+                self.offset = line + 1 - body;
             }
         }
         self.clamp(props);
@@ -560,10 +551,7 @@ impl List {
             let item = self.initial_cursor(props);
             self.set_cursor(props, item);
         }
-        // A loading row that appears under the cursor's item comes into view
-        // with it (DAT-008).
-        let loading = std::mem::replace(&mut self.loading, props.loading);
-        if (!self.revealed || loading != props.loading) && self.viewport.is_some() {
+        if !self.revealed && self.viewport.is_some() {
             self.revealed = true;
             self.reveal(props);
         }

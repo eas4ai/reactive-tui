@@ -115,27 +115,21 @@ WIDGET_CODE = {
     "pieces": (("src/widgets/display/pieces", "src/builder/widgets/pieces"),
                r"\w*(?:Icon|Spinner|Separator|Badge|Tag|Kbd|Empty|Skeleton|Shimmer|StatusBar|DescriptionList|Alert|Link|Pagination|Stepper)Builder"),
     # The layout family: the tabs, the accordion, the breadcrumb, the scroll
-    # view, the stack, the resizable split, the sidebar and the log view, and
-    # their builders (layout-widgets.md).
+    # view and the stack, and their builders (layout-widgets.md).
     "layout": (("src/widgets/layout", "src/builder/widgets/layout.rs", "src/builder/widgets/accordion.rs",
-                "src/builder/widgets/breadcrumb.rs", "src/builder/specialized.rs",
-                "src/builder/widgets/resizable.rs", "src/builder/widgets/sidebar.rs",
-                "src/builder/widgets/log_view.rs"),
-               r"(?:Tabs|Accordion|Breadcrumb|ScrollView|Stack|Resizable|Sidebar|LogView)Builder"),
+                "src/builder/widgets/breadcrumb.rs", "src/builder/specialized.rs"),
+               r"(?:Tabs|Accordion|Breadcrumb|ScrollView|Stack)Builder"),
     # The data family: the table, the data table, the tree, the file
-    # explorer, the progress bar and the list, and their builders
-    # (data-widgets.md).
+    # explorer and the progress bar, and their builders (data-widgets.md).
     "data": (("src/widgets/display/look.rs",
               "src/widgets/display/table.rs", "src/widgets/display/table",
               "src/widgets/display/data_table.rs", "src/widgets/display/data_table",
               "src/widgets/display/tree.rs", "src/widgets/display/tree",
               "src/widgets/display/file_explorer.rs", "src/widgets/display/file_explorer",
               "src/widgets/display/progress_bar.rs", "src/widgets/display/progress_bar",
-              "src/widgets/display/list.rs", "src/widgets/display/list",
               "src/builder/widgets/table.rs", "src/builder/widgets/display.rs",
-              "src/builder/widgets/file_explorer.rs", "src/builder/specialized.rs",
-              "src/builder/widgets/list.rs"),
-             r"(?:Table|DataTable|Tree|FileExplorer|ProgressBar|List)Builder"),
+              "src/builder/widgets/file_explorer.rs", "src/builder/specialized.rs"),
+             r"(?:Table|DataTable|Tree|FileExplorer|ProgressBar)Builder"),
 }
 BUILDERS = "src/builder"
 # The kernel's list of performance cores on a hybrid CPU.

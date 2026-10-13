@@ -182,48 +182,9 @@ pub(crate) fn element_to_paintspec(element: &Element) -> crate::error::Result<Pa
     })
 }
 
-/// The style of `element`: its explicit styles under its utility classes
-/// and its inline declarations. A frame asks this of every element in
-/// each of its passes over the tree, and most elements come back the same
-/// frame after frame, so an element with explicit styles and classes and
-/// nothing else keeps its answer on this thread, found by the class string
-/// and the styles' bytes together, which alone decide it; the class cache
-/// serves an element with classes alone.
 pub(crate) fn element_style(
     element: &Element,
 ) -> crate::error::Result<crate::layout::style::StyleBuilder> {
-    let default_class = match element.element_type {
-        ElementType::Layout(LayoutType::Grid) => "grid",
-        _ => "",
-    };
-    let class = element.class.as_deref().unwrap_or(default_class);
-    let plain = element.metadata.gradient.is_none()
-        && element.metadata.gradient_border.is_none()
-        && element.metadata.inline_styles.is_none();
-    let key = match (&element.metadata.styles, plain) {
-        (Some(styles), true) if !class.is_empty() => styles.bytes().map(|bytes| {
-            let mut key = Vec::with_capacity(class.len() + 1 + bytes.len());
-            key.extend_from_slice(class.as_bytes());
-            key.push(0);
-            key.extend_from_slice(bytes);
-            key
-        }),
-        _ => None,
-    };
-    if let Some(key) = &key {
-        let generation = crate::theme::Theme::generation();
-        let found = STYLED.with(|cache| {
-            let mut cache = cache.borrow_mut();
-            if cache.0 != generation {
-                cache.1.clear();
-                cache.0 = generation;
-            }
-            cache.1.get(key.as_slice()).cloned()
-        });
-        if let Some(found) = found {
-            return Ok(found);
-        }
-    }
     let mut base = element
         .metadata
         .styles
@@ -237,33 +198,18 @@ pub(crate) fn element_style(
     if element.metadata.gradient_border.is_some() {
         base.gradient_border = element.metadata.gradient_border.clone();
     }
-    let styled = crate::layout::css::apply_utility_classes(class, base);
-    let styled = match &element.metadata.inline_styles {
-        Some(declarations) => styled.with_inline_declarations(declarations)?,
-        None => styled,
+    let default_class = match element.element_type {
+        ElementType::Layout(LayoutType::Grid) => "grid",
+        _ => "",
     };
-    if let Some(key) = key {
-        // Resolved under the theme in force when the key was read: a theme
-        // that changed meanwhile empties the cache on the next read.
-        let generation = crate::theme::Theme::generation();
-        STYLED.with(|cache| {
-            let mut cache = cache.borrow_mut();
-            if cache.0 == generation {
-                cache.1.put(key, styled.clone());
-            }
-        });
+    let styled = crate::layout::css::apply_utility_classes(
+        element.class.as_deref().unwrap_or(default_class),
+        base,
+    );
+    match &element.metadata.inline_styles {
+        Some(declarations) => styled.with_inline_declarations(declarations),
+        None => Ok(styled),
     }
-    Ok(styled)
-}
-
-// The styles resolved on this thread for elements with explicit styles
-// and classes, by class and bytes, under one theme generation.
-thread_local! {
-    static STYLED: std::cell::RefCell<(u64, lru::LruCache<Vec<u8>, crate::layout::style::StyleBuilder>)> =
-        std::cell::RefCell::new((
-            crate::theme::Theme::generation(),
-            lru::LruCache::new(std::num::NonZeroUsize::new(4096).expect("Cache size must be non-zero")),
-        ));
 }
 
 /// Convert an Element tree to a NodeSpec tree that our painter/layout understands.
@@ -293,59 +239,5 @@ pub fn element_to_nodespec(elem: &Element) -> NodeSpec<'static> {
         class: class_cow,
         text: text_cow,
         children: children_specs,
-    }
-}
-
-#[cfg(test)]
-mod style_cache_tests {
-    use super::*;
-    use crate::layout::style::StyleBuilder;
-
-    /// An absolute box `top` rows down with the utility classes `class`.
-    fn placed(top: f32, class: &str) -> Element {
-        crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
-            .styles(StyleBuilder::new().position_absolute().inset_top(top))
-            .class(class)
-            .build()
-    }
-
-    // The class resolves through no theme, so a theme another test sets
-    // meanwhile changes nothing here.
-    #[test]
-    fn two_elements_with_one_class_string_keep_their_own_explicit_styles() {
-        let first = element_style(&placed(1.0, "p-1 overflow-hidden")).expect("a style");
-        let second = element_style(&placed(2.0, "p-1 overflow-hidden")).expect("a style");
-        let again = element_style(&placed(1.0, "p-1 overflow-hidden")).expect("a style");
-        assert_eq!(first, again, "the same element resolves the same twice");
-        assert_ne!(
-            first.build().inset.top,
-            second.build().inset.top,
-            "a cached answer must not serve an element with other explicit styles"
-        );
-    }
-
-    // Another test that sets the theme while this one runs would move the
-    // generation under both resolutions alike, so each is read fresh: the
-    // check is that the second answer is the light theme's, not the cached
-    // dark one.
-    #[test]
-    fn a_theme_change_resolves_a_cached_element_again() {
-        let element = placed(3.0, "text-primary");
-        crate::theme::Theme::set_active(crate::theme::dark_theme());
-        let dark = element_style(&element).expect("a style");
-        crate::theme::Theme::set_active(crate::theme::light_theme());
-        let light = element_style(&element).expect("a style");
-        let fresh = crate::layout::css::apply_utility_classes(
-            "text-primary",
-            StyleBuilder::new().position_absolute().inset_top(3.0),
-        );
-        assert_eq!(
-            light.fg_rgba, fresh.fg_rgba,
-            "after a theme change the element resolves through the theme now active, not the cached answer"
-        );
-        assert!(
-            dark.fg_rgba.is_some() && light.fg_rgba.is_some(),
-            "text-primary gives both a color"
-        );
     }
 }

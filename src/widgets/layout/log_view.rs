@@ -129,9 +129,6 @@ struct Place {
     /// The id of the last row when the view stopped following: the rows
     /// after it arrived since.
     seen: i64,
-    /// The blank lines above the first row when the view stopped following:
-    /// a short log's rows stand on the view's last lines, and keep them.
-    lead: usize,
 }
 
 /// A drag of the scroll bar's thumb, as a scroll view takes one.
@@ -163,10 +160,6 @@ struct Geometry {
     following: bool,
     /// The rows that arrived since the view stopped following.
     fresh: usize,
-    /// The blank lines above the first row: a log shorter than the view
-    /// stands on its last lines while it follows (NAV-009), and where it
-    /// stood once it stops.
-    lead: usize,
 }
 
 impl Geometry {
@@ -274,11 +267,6 @@ impl LogView {
         } else {
             (rows.last() - self.place.seen).clamp(0, rows.rows.len() as i64) as usize
         };
-        let lead = if following {
-            height.saturating_sub(total)
-        } else {
-            self.place.lead.min(height.saturating_sub(1))
-        };
         Geometry {
             height,
             text_width,
@@ -288,7 +276,6 @@ impl LogView {
             max_top,
             following,
             fresh,
-            lead,
         }
     }
 
@@ -306,23 +293,8 @@ impl LogView {
             self.follow(rows);
             return;
         }
-        self.stand(rows, geometry, line);
-    }
-
-    /// Scrolls the view up toward `line` and stops the following, as Up,
-    /// Page Up, Home, the wheel up and the track above the thumb do, whether
-    /// or not there is anything to scroll: a short log that follows stops
-    /// where it stands (NAV-009).
-    fn scroll_up_to(&mut self, rows: &Rows, geometry: &Geometry, line: usize) {
-        self.stand(rows, geometry, line.min(geometry.max_top));
-    }
-
-    /// The view stands on the row of `line` and stops following, keeping
-    /// the blank lines above a short log's rows.
-    fn stand(&mut self, rows: &Rows, geometry: &Geometry, line: usize) {
         if self.follows(rows) {
             self.place.seen = rows.last();
-            self.place.lead = geometry.lead;
         }
         let located = self.wrapped().locate(line);
         if let Some((index, within)) = located {
@@ -359,11 +331,11 @@ impl LogView {
             let page = geometry.height.max(1);
             let top = geometry.top;
             match action {
-                Action::Up => view.scroll_up_to(rows, geometry, top.saturating_sub(1)),
+                Action::Up => view.scroll_to(rows, geometry, top.saturating_sub(1)),
                 Action::Down => view.scroll_to(rows, geometry, top.saturating_add(1)),
-                Action::PageUp => view.scroll_up_to(rows, geometry, top.saturating_sub(page)),
+                Action::PageUp => view.scroll_to(rows, geometry, top.saturating_sub(page)),
                 Action::PageDown => view.scroll_to(rows, geometry, top.saturating_add(page)),
-                Action::Home => view.scroll_up_to(rows, geometry, 0),
+                Action::Home => view.scroll_to(rows, geometry, 0),
                 Action::End => view.follow(rows),
                 _ => return EventResult::Ignored,
             }
@@ -382,11 +354,7 @@ impl LogView {
             if line == geometry.top {
                 return EventResult::Ignored;
             }
-            if line < geometry.top {
-                view.scroll_up_to(rows, geometry, line);
-            } else {
-                view.scroll_to(rows, geometry, line);
-            }
+            view.scroll_to(rows, geometry, line);
             EventResult::Consumed
         })
     }
@@ -440,7 +408,7 @@ impl LogView {
                             limit: geometry.max_top,
                         });
                     } else if y < start {
-                        view.scroll_up_to(
+                        view.scroll_to(
                             rows,
                             geometry,
                             geometry.top.saturating_sub(geometry.height),
@@ -573,10 +541,7 @@ impl Component for LogView {
         let geometry = props.handle.read(|rows| {
             let geometry = self.measure(rows, props);
             let lines = geometry.height - usize::from(geometry.new_bar());
-            // A short log's rows stand on the view's last lines, under the
-            // blank lead (NAV-009).
-            let lead = geometry.lead.min(lines);
-            let shown = self.rows_in_view(rows, &geometry, lines - lead);
+            let shown = self.rows_in_view(rows, &geometry, lines);
             children.push(
                 crate::builder::ElementBuilder::new(ElementType::Layout(LayoutType::Flex))
                     .styles(
@@ -585,9 +550,9 @@ impl Component for LogView {
                             .direction(Direction::Column)
                             .position_absolute()
                             .inset_left(0.0)
-                            .inset_top(lead as f32)
+                            .inset_top(0.0)
                             .width_px(geometry.text_width as f32)
-                            .height_px((lines - lead) as f32)
+                            .height_px(lines as f32)
                             .overflow_hidden(),
                     )
                     .children(shown)
@@ -601,31 +566,6 @@ impl Component for LogView {
                 &geometry,
                 props.new_word.as_deref().unwrap_or(NEW_WORD),
             ));
-            // The rows that arrived since the following stopped are out of
-            // view: each is still a node of the polite log, screen-reader
-            // text that takes no cell, so the reader speaks it once as it
-            // speaks a row appended in view (NAV-010). The newest rows up to
-            // the view's height: more arrived at once than the view could
-            // ever have shown, and a reader cannot keep up with more.
-            props.handle.read(|rows| {
-                let fresh = geometry.fresh.min(geometry.height.max(1));
-                let skip = rows.rows.len().saturating_sub(fresh);
-                for (index, row) in rows.rows.iter().enumerate().skip(skip) {
-                    let mut node = Node::new(Role::Label);
-                    node.set_label(row.text.clone());
-                    node.set_value(row.text.clone());
-                    children.push(
-                        Element::text(row.text.clone())
-                            .class("sr-only")
-                            .with_key(format!(
-                                "fresh:{}:{}",
-                                rows.epoch,
-                                rows.first + index as i64
-                            ))
-                            .with_accessibility(node),
-                    );
-                }
-            });
         }
         if geometry.bar {
             // The bar is drawing, not text: the screen reader is told the
