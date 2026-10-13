@@ -441,29 +441,40 @@ pub fn run_when_frame(
     size: (u16, u16),
     steps: Vec<(FramePredicate, Option<Event>)>,
 ) -> Vec<Snapshot> {
-    run_steps_with_images(
-        root,
-        size,
-        steps
-            .into_iter()
-            .map(|(when, event)| Step {
-                frame: 1,
-                text: Vec::new(),
-                absent: Vec::new(),
-                occurrences: 1,
-                event,
-                pointer_text: None,
-                cell: None,
-                output: None,
-                painted: false,
-                idle: false,
-                when: Some(when),
-                request: None,
-            })
-            .collect(),
-        None,
-        HANG_GUARD,
-    )
+    run_steps_with_images(root, size, frame_steps(steps), None, HANG_GUARD)
+}
+
+/// `run_when_frame` on the backend that writes pictures with `images`: for
+/// a step that waits on what the output holds, such as the pictures sent
+/// so far, whichever order they come in.
+#[allow(dead_code)]
+pub fn run_when_frame_with_images(
+    root: impl RootComponent + 'static,
+    size: (u16, u16),
+    images: reactive_tui::backend::ImageOutputOptions,
+    steps: Vec<(FramePredicate, Option<Event>)>,
+) -> Vec<Snapshot> {
+    run_steps_with_images(root, size, frame_steps(steps), Some(images), HANG_GUARD)
+}
+
+fn frame_steps(steps: Vec<(FramePredicate, Option<Event>)>) -> VecDeque<Step> {
+    steps
+        .into_iter()
+        .map(|(when, event)| Step {
+            frame: 1,
+            text: Vec::new(),
+            absent: Vec::new(),
+            occurrences: 1,
+            event,
+            pointer_text: None,
+            cell: None,
+            output: None,
+            painted: false,
+            idle: false,
+            when: Some(when),
+            request: None,
+        })
+        .collect()
 }
 
 /// A screen reader's request in a `run_when_frame_reading` step: `action`,
